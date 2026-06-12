@@ -725,6 +725,13 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 }
 
 /* ── PIZARRA STANDALONE ──────────────────────────────── */
+/* Pizarra 3 columnas */
+.piz-3col{display:grid;grid-template-columns:200px 1fr 190px;gap:14px;align-items:start}
+@media(max-width:800px){.piz-3col{grid-template-columns:1fr}.piz-col-left,.piz-col-right{display:none}}
+.piz-col-right{display:flex;flex-direction:column}
+.piz-col-left{display:flex;flex-direction:column}
+.piz-info-card{background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:12px;padding:14px 12px;text-align:center;color:#fff;border-left:3px solid var(--cel)}
+.piz-countdown{font-size:11px;font-weight:700;color:var(--cel);background:rgba(0,157,216,.12);border-radius:8px;padding:6px 10px;text-align:center;line-height:1.6}
 .piz-match-sel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .piz-ms{font-size:11.5px;padding:6px 13px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);cursor:pointer;font-weight:700;transition:all .15s}
 .piz-ms.active{background:linear-gradient(135deg,var(--cel),var(--cel-dk));color:#fff;border-color:var(--cel)}
@@ -3702,6 +3709,11 @@ document.addEventListener('visibilitychange',()=>{
 // PIZARRA STANDALONE
 // ═══════════════════════════════════════════════════════════════════════════
 let _pizMatch = 'uru-ksa';
+const PIZ_MATCH_INFO = {
+  'uru-ksa': {date:'Lunes 15 jun · 19:00 ET', stadium:'Hard Rock Stadium', city:'Miami, Florida 🇺🇸', kickoff:'2026-06-15T23:00:00Z'},
+  'uru-cpv': {date:'Domingo 21 jun',           stadium:'Hard Rock Stadium', city:'Miami, Florida 🇺🇸', kickoff:'2026-06-21T23:00:00Z'},
+  'uru-esp': {date:'Viernes 26 jun',           stadium:'Estadio Akron',     city:'Guadalajara, México 🇲🇽', kickoff:'2026-06-27T01:00:00Z'},
+};
 const PIZ_MATCHES = [
   {id:'uru-ksa', label:'🇸🇦 vs. Arabia Saudita', short:'vs. KSA'},
   {id:'uru-cpv', label:'🇨🇻 vs. Cabo Verde',     short:'vs. CPV'},
@@ -3767,88 +3779,143 @@ async function renderPizarra(matchId){
       </table></div>
     </div>` : '';
 
-  wrap.innerHTML = `
-    <div class="sec-hdr" style="margin-bottom:1rem">
-      <div class="sec-icon" style="background:#2d7a4f"><i class="ti ti-ball-football"></i></div>
-      <div><div class="sec-title">Pizarra táctica</div>
-      <div class="sec-desc">Arrastrá las fichas al puesto · O tocá un slot para elegir</div></div>
-    </div>
+  // Generamos el HTML de cada slot
+  function slotHtml(slot){
+    const pNum=st[slot.id];
+    const p=pNum?PLAYERS.find(x=>x.n===pNum):null;
+    const ph=p?(_luPhotos[p.n]||p.photo||''):'';
+    const parts=p?p.name.trim().split(' '):[];
+    const lbl=p?`${parts[0][0]}. ${parts[parts.length-1]}`:'';
+    const inj=p?getPlayerInjury(p.n):null;
+    const injCol=inj==='red'?'#C0392B':inj==='yellow'?'#F59E0B':null;
+    return`<div class="p-slot" id="pslot-${slot.id}" style="left:${slot.x}%;top:${slot.y}%"
+      data-slot="${slot.id}" data-match="${matchId}" data-pos="${slot.pos}"
+      onclick="pizSlotClick('${matchId}','${slot.id}','${slot.pos}')">
+      <div style="position:relative;display:inline-block">
+        <div class="p-slot-av${p?'':' empty'}" id="pslot-av-${slot.id}" style="overflow:hidden">
+          ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
+          ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.5);font-weight:700">${slot.pos}</span>`:''}
+        </div>
+        ${p?`<div class="p-slot-num">${p.n}</div>`:''}
+        ${injCol?`<div style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-radius:50%;background:${injCol};border:2px solid #fff;z-index:10"></div>`:''}
+        ${p?`<div class="p-slot-remove" onclick="event.stopPropagation();pizRemove('${matchId}','${slot.id}')">×</div>`:''}
+      </div>
+      <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${p?`#${p.n} ${lbl}`:slot.pos}</div>
+    </div>`;
+  }
 
-    <div class="piz-match-sel">
+  // Ficha de banco
+  function benchChipHtml(p){
+    const ph=_luPhotos[p.n]||p.photo||'';
+    const pts=p.name.trim().split(' ');
+    const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+    const ms=computeMilestones(p);
+    const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
+    const inj=getPlayerInjury(p.n);
+    const injDot=inj==='red'?'<span style="width:6px;height:6px;border-radius:50%;background:#C0392B;display:inline-block;flex-shrink:0"></span>'
+                :inj==='yellow'?'<span style="width:6px;height:6px;border-radius:50%;background:#F59E0B;display:inline-block;flex-shrink:0"></span>':'';
+    return`<div class="piz-p-chip" id="pchip-${p.n}" data-num="${p.n}" data-match="${matchId}" draggable="true">
+      <div class="piz-chip-av">
+        ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
+        <span class="piz-chip-av-num" style="${ph?'display:none':''}">${p.n}</span>
+      </div>
+      <div class="piz-chip-info">
+        <div class="piz-chip-top">${injDot}<span class="piz-chip-num">#${p.n}</span><span class="piz-chip-name">${sn}</span></div>
+        ${hint?`<div class="piz-chip-hint">${hint}</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  // Banco agrupado por posición
+  const POS_ORDER=['POR','DEF','MED','DEL'];
+  const POS_LABELS={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
+  const benchByPos=POS_ORDER.map(pos=>({pos,label:POS_LABELS[pos],players:bench.filter(p=>p.pos===pos)})).filter(g=>g.players.length);
+
+  wrap.innerHTML = `
+    <!-- Selector de partido -->
+    <div class="piz-match-sel" style="margin-bottom:10px">
       ${PIZ_MATCHES.map(m=>`<button class="piz-ms${m.id===matchId?' active':''}" onclick="renderPizarra('${m.id}')">${m.label}</button>`).join('')}
     </div>
 
-    <div class="piz-hdr">
-      <div class="piz-rival">Uruguay <span>${rival?.short||''}</span></div>
-      <div class="form-sel-btns" style="flex:none">
-        ${Object.keys(FORMATIONS).map(f=>`<button class="form-btn${f===form?' active':''}" onclick="pizChangeForm('${matchId}','${f}')">${f}</button>`).join('')}
-      </div>
-    </div>
+    <!-- Layout 3 columnas en desktop -->
+    <div class="piz-3col">
 
-    <div class="piz-pitch-outer">
-      <div class="piz-pitch" id="piz-pitch">
-        <div class="pl pl-mid"></div><div class="pl pl-circle"></div>
-        <div class="pl pl-pt"></div><div class="pl pl-pb"></div>
-        <div class="pl pl-gt"></div><div class="pl pl-gb"></div>
-        ${slots.map(slot => {
-          const pNum = st[slot.id];
-          const p    = pNum ? PLAYERS.find(x=>x.n===pNum) : null;
-          const ph   = p ? (_luPhotos[p.n]||p.photo||'') : '';
-          const parts = p ? p.name.trim().split(' ') : [];
-          const lbl  = p ? `${parts[0][0]}. ${parts[parts.length-1]}` : '';
-          const inj  = p ? getPlayerInjury(p.n) : null;
-          const injCol = inj==='red'?'#C0392B':inj==='yellow'?'#F59E0B':null;
-          return `<div class="p-slot" id="pslot-${slot.id}" style="left:${slot.x}%;top:${slot.y}%"
-            data-slot="${slot.id}" data-match="${matchId}" data-pos="${slot.pos}"
-            onclick="pizSlotClick('${matchId}','${slot.id}','${slot.pos}')">
-            <div style="position:relative;display:inline-block">
-              <div class="p-slot-av${p?'':' empty'}" id="pslot-av-${slot.id}" style="overflow:hidden">
-                ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
-                ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.5);font-weight:700">${slot.pos}</span>`:''}
-              </div>
-              ${p?`<div class="p-slot-num">${p.n}</div>`:''}
-              ${injCol?`<div style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-radius:50%;background:${injCol};border:2px solid #fff;z-index:10"></div>`:''}
-              ${p?`<div class="p-slot-remove" onclick="event.stopPropagation();pizRemove('${matchId}','${slot.id}')">×</div>`:''}
-            </div>
-            <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${p?`#${p.n} ${lbl}`:slot.pos}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
+      <!-- Columna izquierda: info del partido -->
+      <div class="piz-col-left">
+        <div class="piz-info-card">
+          <div style="font-size:28px;margin-bottom:6px">🇺🇾</div>
+          <div style="font-size:13px;font-weight:800;color:var(--text)">Uruguay</div>
+          <div style="font-size:11px;color:var(--muted);margin:2px 0 10px">vs. ${rival?.label?.replace(/^[^ ]+ /,'')||''}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;line-height:1.8">
+            ${PIZ_MATCH_INFO[matchId]?.date||''}<br>
+            ${PIZ_MATCH_INFO[matchId]?.stadium||''}<br>
+            ${PIZ_MATCH_INFO[matchId]?.city||''}
+          </div>
+          <div class="piz-countdown" id="piz-countdown-${matchId}" style="margin-top:12px"></div>
+        </div>
 
-    ${statsTableHtml}
+        <!-- Formación -->
+        <div style="margin-top:10px">
+          <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Formación</div>
+          <div class="form-sel-btns" style="flex-wrap:wrap">
+            ${Object.keys(FORMATIONS).map(f=>`<button class="form-btn${f===form?' active':''}" onclick="pizChangeForm('${matchId}','${f}')">${f}</button>`).join('')}
+          </div>
+        </div>
 
-    <div class="piz-bench">
-      <div class="piz-bench-lbl">
-        <span>Banco — ${bench.length} jugadores</span>
-        <span style="font-size:10px;color:var(--hint);font-weight:400">Arrastrá a la cancha</span>
+        <!-- Stats titulares -->
+        <div style="margin-top:10px">${statsTableHtml}</div>
       </div>
-      <div class="piz-bench-chips" id="piz-bench-chips">
-        ${bench.map(p=>{
-          const ph = _luPhotos[p.n]||p.photo||'';
-          const parts = p.name.trim().split(' ');
-          const shortName = `${parts[0][0]}. ${parts[parts.length-1]}`;
-          const ms = computeMilestones(p);
-          const hint = ms.length ? ms[0].txt.replace(/[🎯🏆⭐🌟🔵🎙]/g,'').trim() : '';
-          return`<div class="piz-p-chip" id="pchip-${p.n}" data-num="${p.n}" data-match="${matchId}" draggable="true">
-            <div class="piz-chip-av">
-              ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
-              <span class="piz-chip-av-num" style="${ph?'display:none':''}">${p.n}</span>
-            </div>
-            <div class="piz-chip-info">
-              <div class="piz-chip-top">
-                <span class="piz-chip-num">#${p.n}</span>
-                <span class="piz-chip-name">${shortName}</span>
-              </div>
-              ${hint?`<div class="piz-chip-hint">${hint}</div>`:''}
-            </div>
-          </div>`;
-        }).join('')}
+
+      <!-- Columna central: cancha -->
+      <div class="piz-col-center">
+        <div class="piz-pitch-outer">
+          <div class="piz-pitch" id="piz-pitch">
+            <div class="pl pl-mid"></div><div class="pl pl-circle"></div>
+            <div class="pl pl-pt"></div><div class="pl pl-pb"></div>
+            <div class="pl pl-gt"></div><div class="pl pl-gb"></div>
+            ${slots.map(slotHtml).join('')}
+          </div>
+        </div>
       </div>
+
+      <!-- Columna derecha: banco -->
+      <div class="piz-col-right">
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
+          Banco — ${bench.length} jugadores
+        </div>
+        ${benchByPos.map(g=>`
+          <div style="font-size:9px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 4px">${g.label}</div>
+          <div id="piz-bench-chips" style="display:flex;flex-direction:column;gap:4px">
+            ${g.players.map(benchChipHtml).join('')}
+          </div>
+        `).join('')}
+      </div>
+
     </div>
   `;
 
   initPizDrag(matchId);
+  startPizCountdown(matchId);
+}
+
+let _cdownInterval=null;
+function startPizCountdown(matchId){
+  if(_cdownInterval)clearInterval(_cdownInterval);
+  function tick(){
+    const el=document.getElementById(`piz-countdown-${matchId}`);
+    if(!el)return;
+    const info=PIZ_MATCH_INFO[matchId];
+    if(!info?.kickoff){el.textContent='';return;}
+    const diff=new Date(info.kickoff)-new Date();
+    if(diff<=0){el.innerHTML='⚽ <b>En juego / Finalizado</b>';return;}
+    const d=Math.floor(diff/86400000);
+    const h=Math.floor((diff%86400000)/3600000);
+    const m=Math.floor((diff%3600000)/60000);
+    const s=Math.floor((diff%60000)/1000);
+    el.innerHTML=d>0?`⏱ Faltan <b>${d}d ${h}h ${m}m</b>`:`⏱ Faltan <b>${h}h ${m}m ${s}s</b>`;
+  }
+  tick();
+  _cdownInterval=setInterval(tick,1000);
 }
 
 function pizChangeForm(matchId, form){
