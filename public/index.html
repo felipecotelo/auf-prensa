@@ -2006,6 +2006,71 @@ function saveEvNote(date,idx,ta){
   ta.classList.toggle('has-note',!!ta.value);
 }
 
+// ── Mapeo fecha → partido ─────────────────────────────
+function matchForDate(date){
+  if(date>='2026-06-10'&&date<='2026-06-15')return'uru-ksa';
+  if(date>='2026-06-16'&&date<='2026-06-21')return'uru-cpv';
+  if(date>='2026-06-22'&&date<='2026-06-26')return'uru-esp';
+  if(date>='2026-06-10'&&date<='2026-06-10')return'llegada';
+  return null;
+}
+
+// ── Mapeo texto evento → checkId del partido ─────────
+function checkIdForEvent(txt){
+  const t=txt.toLowerCase();
+  if(t.includes('tv crew'))                          return'md2-crew';
+  if(t.includes('stand-up')||t.includes('primera atención')) return'md1-stand';
+  if(t.includes('conferencia')&&t.includes('post')) return'md-conf-post';
+  if(t.includes('conferencia'))                      return'md1-conf';
+  if(t.includes('multi-flash')||t.includes('pitchside')) return'md-flash';
+  if(t.includes('uni-flash')||t.includes('túnel'))   return'md-tunel';
+  if(t.includes('zona mixta')&&t.includes('lineal')) return'md-mix-lin';
+  if(t.includes('zona mixta'))                       return'md-mix-est';
+  if(t.includes('entretiempo'))                      return'md-ht';
+  if(t.includes('pre-calentamiento')||t.includes('precalentamiento')) return'md-precal';
+  if(t.includes('llegada estadio')||t.includes('llegada al estadio')) return'md-llegada';
+  if(t.includes('vestuario'))                        return'md-vestuario';
+  if(t.includes('entrevistas al aterrizar')||t.includes('aterrizar')) return'arr-ent';
+  if(t.includes('mediaday'))                         return'arr-media';
+  return null;
+}
+
+// ── Sincroniza evParts → chk (checklist del partido) ─
+function syncEvToChk(date, idx, evParts){
+  const day=CALENDAR_DAYS.find(d=>d.date===date);
+  if(!day)return;
+  const ev=day.eventos?.[idx];
+  if(!ev||!ev.oblig)return; // solo obligatorias
+
+  const matchId=matchForDate(date);
+  if(!matchId)return;
+  const checkId=checkIdForEvent(ev.txt||'');
+  if(!checkId)return;
+
+  const k=evKey(date,idx);
+  const parts=evParts[k]||[];
+
+  const chkData=getChk();
+  if(!chkData[matchId])chkData[matchId]={};
+  if(!chkData[matchId][checkId])chkData[matchId][checkId]={};
+
+  // Players
+  const playerNums=parts.filter(x=>x.startsWith('p_')).map(x=>parseInt(x.slice(2)));
+  chkData[matchId][checkId].players=playerNums;
+
+  // DT
+  const dtIds=parts.filter(x=>x.startsWith('dt_')).map(x=>x.slice(3));
+  if(dtIds.length)chkData[matchId][checkId].dt=dtIds[0];
+
+  // Marcar como hecho si hay participantes
+  if(parts.length>0)chkData[matchId][checkId].done=true;
+
+  stor.set(KC,chkData);
+
+  // Refrescar Disponibilidad si está visible
+  if(document.getElementById('disponibilidad')?.classList.contains('active')) renderDisponibilidad();
+}
+
 function toggleEvPart(date,idx,partKey,chip){
   const p=getEvParts();
   const k=evKey(date,idx);
@@ -2017,6 +2082,7 @@ function toggleEvPart(date,idx,partKey,chip){
     chip.classList.add(partKey.startsWith('dt_')?'sel-bielsa':'sel');
   }
   setEvParts(p);
+  syncEvToChk(date,idx,p); // ← sincronización automática
   // update the selected names label
   const day=CALENDAR_DAYS.find(d=>d.date===date);
   if(day){
@@ -2216,6 +2282,12 @@ function togglePlayer(matchId,actId,num,chip){
   }
   const p=PLAYERS.find(x=>x.n===num);
   toast(p?`${p.name.split(' ').pop()} ${data.players.includes(num)?'agregado':'quitado'}`:'');
+  syncChkToDisp();
+}
+
+// Refresca Disponibilidad cada vez que cambia el checklist
+function syncChkToDisp(){
+  if(document.getElementById('disponibilidad')?.classList.contains('active')) renderDisponibilidad();
 }
 
 function toggleAllPlayers(date,idx,currentlyAll){
@@ -3762,6 +3834,17 @@ async function syncLineupESPN(matchId){
   }catch(e){toast('⚠ Error conectando con ESPN');}
 }
 
+// Re-sincroniza todos los evParts ya guardados → chk (se llama al iniciar)
+function resyncAllEvToChk(){
+  const evParts=getEvParts();
+  Object.keys(evParts).forEach(k=>{
+    // k tiene formato "YYYY-MM-DD_idx"
+    const [date,idxStr]=k.split('_');
+    if(!date||idxStr===undefined)return;
+    syncEvToChk(date,parseInt(idxStr),evParts);
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SERVER SYNC
 // ═══════════════════════════════════════════════════════════════════════════
@@ -4003,6 +4086,7 @@ async function tryAutoLoad(){
 // ═══════════════════════════════════════════════════════════════════════════
 (async()=>{
   await tryAutoLoad();
+  resyncAllEvToChk(); // sincroniza calendario → checklist al abrir
   renderInicio();
   renderCal();
   renderChecklist('uru-ksa');
