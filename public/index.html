@@ -775,7 +775,7 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 .p-slot-av.empty{border:2px dashed rgba(255,255,255,.4);background:rgba(0,0,0,.18)}
 .p-slot-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .p-slot-num{position:absolute;top:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:var(--cel);color:#fff;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;z-index:2}
-.p-slot-lbl{font-size:8.5px;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,1);white-space:nowrap;max-width:54px;overflow:hidden;text-overflow:ellipsis;background:rgba(0,0,0,.45);padding:1px 4px;border-radius:3px;line-height:1.4}
+.p-slot-lbl{font-size:8px;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,1);white-space:nowrap;max-width:80px;overflow:visible;background:rgba(0,0,0,.5);padding:1px 5px;border-radius:3px;line-height:1.4}
 /* Suplentes */
 .sup-wrap{background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px}
 .sup-lbl{font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
@@ -3722,6 +3722,41 @@ async function renderPizarra(matchId){
   const bench  = PLAYERS.filter(p => !usedNums.has(p.n)).sort((a,b)=>a.n-b.n);
   const rival  = PIZ_MATCHES.find(m=>m.id===matchId);
 
+  // Tabla stats — generada antes del template
+  const starterRows = slots
+    .map(s=>({slot:s, p:st[s.id]?PLAYERS.find(x=>x.n===st[s.id]):null}))
+    .filter(x=>x.p);
+  const statsTableHtml = starterRows.length ? `
+    <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px 6px;border-bottom:0.5px solid var(--border)">
+        Once confirmado — estadísticas
+      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px">
+        <thead><tr style="background:var(--surface)">
+          <th style="padding:5px 10px;text-align:left;font-size:9.5px;color:var(--muted);font-weight:700">Jugador</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">PJ</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">GOL</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">WC</th>
+          <th style="padding:5px 8px;text-align:left;font-size:9.5px;color:var(--muted);font-weight:700">Hito</th>
+        </tr></thead>
+        <tbody>${starterRows.map(({slot,p})=>{
+          const inj=getPlayerInjury(p.n);
+          const injDot=inj==='red'?'🔴 ':inj==='yellow'?'🟡 ':'';
+          const ms=computeMilestones(p);
+          const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
+          const pts=p.name.trim().split(' ');
+          const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+          return`<tr style="border-bottom:0.5px solid var(--border)">
+            <td style="padding:6px 10px;font-weight:700">${injDot}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}</td>
+            <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${p.stats.caps}</td>
+            <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)">${p.stats.goals}</td>
+            <td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
+            <td style="padding:6px 8px;font-size:10px;color:var(--muted);max-width:120px">${hint}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>` : '';
+
   wrap.innerHTML = `
     <div class="sec-hdr" style="margin-bottom:1rem">
       <div class="sec-icon" style="background:#2d7a4f"><i class="ti ti-ball-football"></i></div>
@@ -3768,41 +3803,7 @@ async function renderPizarra(matchId){
       </div>
     </div>
 
-    ${(()=>{
-      const starters = slots.map(s=>({slot:s, p:st[s.id]?PLAYERS.find(x=>x.n===st[s.id]):null})).filter(x=>x.p);
-      if(!starters.length) return '';
-      return `<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
-        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px 6px;border-bottom:0.5px solid var(--border)">
-          Once confirmado — estadísticas
-        </div>
-        <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:11.5px">
-          <thead><tr style="background:var(--surface)">
-            <th style="padding:5px 10px;text-align:left;font-weight:700;font-size:9.5px;color:var(--muted)">Jugador</th>
-            <th style="padding:5px 8px;text-align:center;font-weight:700;font-size:9.5px;color:var(--muted)">PJ</th>
-            <th style="padding:5px 8px;text-align:center;font-weight:700;font-size:9.5px;color:var(--muted)">GOL</th>
-            <th style="padding:5px 8px;text-align:center;font-weight:700;font-size:9.5px;color:var(--muted)">WC</th>
-            <th style="padding:5px 8px;text-align:left;font-weight:700;font-size:9.5px;color:var(--muted)">Hito</th>
-          </tr></thead>
-          <tbody>${starters.map(({slot,p})=>{
-            const inj=getPlayerInjury(p.n);
-            const injDot=inj==='red'?'🔴':inj==='yellow'?'🟡':'';
-            const ms=computeMilestones(p);
-            const hint=ms.length?ms[0].txt.replace(/[🎯🏆⭐🌟🔵🎙]/g,'').trim():'';
-            const parts=p.name.trim().split(' ');
-            const shortName=`${parts[0][0]}. ${parts[parts.length-1]}`;
-            return`<tr style="border-bottom:0.5px solid var(--border)">
-              <td style="padding:6px 10px;font-weight:700">${injDot} <span style="font-size:10px;color:var(--muted);font-weight:600">${slot.pos}</span> ${shortName}</td>
-              <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${p.stats.caps}</td>
-              <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)">${p.stats.goals}</td>
-              <td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
-              <td style="padding:6px 8px;font-size:10px;color:var(--muted)">${hint}</td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>
-        </div>
-      </div>`;
-    })()}
+    ${statsTableHtml}
 
     <div class="piz-bench">
       <div class="piz-bench-lbl">
