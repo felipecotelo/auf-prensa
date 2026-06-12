@@ -61,6 +61,7 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 }
 .nav-btn:hover{background:rgba(0,157,216,.2);border-color:var(--cel);color:#fff}
 .nav-btn.sync-ok{border-color:#22C55E;color:#22C55E}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .nav-btn.sync-err{border-color:var(--red);color:var(--red)}
 .nav-btn:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:500px){.nav-sync-lbl{display:none}}
@@ -3765,6 +3766,153 @@ async function syncLineupESPN(matchId){
 // SERVER SYNC
 // ═══════════════════════════════════════════════════════════════════════════
 const IS_SERVER = location.protocol !== 'file:' && location.hostname !== 'localhost';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTO-SYNC ESPN — alineación y participación automáticas
+// ═══════════════════════════════════════════════════════════════════════════
+let _autoSyncInterval = null;
+let _lastSyncedEvent  = null;
+
+const ESPN_MATCH_DATES = {
+  'uru-ksa': '20260615',
+  'uru-cpv': '20260621',
+  'uru-esp': '20260626',
+};
+
+async function autoSyncCheck(){
+  // Para cada partido de Uruguay, verificar si está en curso o terminó
+  for(const [matchId, date] of Object.entries(ESPN_MATCH_DATES)){
+    try{
+      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${date}`);
+      const data = await res.json();
+      const event = (data.events||[]).find(e=>{
+        const comps = e.competitions?.[0]?.competitors||[];
+        return comps.some(c=>c.team?.displayName?.toLowerCase().includes('uruguay'));
+      });
+      if(!event) continue;
+
+      const status = event.competitions?.[0]?.status?.type?.name||'';
+      const eventId = event.id;
+
+      if(status==='STATUS_IN_PROGRESS'||status==='STATUS_FULL_TIME'||status==='STATUS_FINAL'){
+        if(_lastSyncedEvent===eventId && status==='STATUS_FULL_TIME') continue; // ya sincronizado y terminó
+
+        // Sincronizar alineación silenciosamente
+        await syncLineupSilent(matchId, eventId);
+        _lastSyncedEvent = eventId;
+
+        // Actualizar marcador en fixture
+        const comps = event.competitions?.[0]?.competitors||[];
+        const uruComp = comps.find(c=>c.team?.displayName?.toLowerCase().includes('uruguay'));
+        const rivComp = comps.find(c=>!c.team?.displayName?.toLowerCase().includes('uruguay'));
+        if(uruComp&&rivComp) updateFixtureScore(matchId, uruComp.score, rivComp.score);
+
+        // Indicador de estado en UI
+        showMatchStatus(matchId, status, event.competitions?.[0]?.status?.displayClock||'');
+
+        // Polling cada 2 min si en curso, parar si terminó
+        if(status==='STATUS_IN_PROGRESS'){
+          if(!_autoSyncInterval){
+            _autoSyncInterval = setInterval(autoSyncCheck, 120000);
+            showSyncBadge('⚽ En vivo — actualizando cada 2 min');
+          }
+        } else {
+          if(_autoSyncInterval){ clearInterval(_autoSyncInterval); _autoSyncInterval=null; }
+          showSyncBadge('✓ Partido finalizado — datos oficiales cargados');
+        }
+        return; // solo un partido activo a la vez
+      }
+    }catch(e){ /* silencioso */ }
+  }
+}
+
+async function syncLineupSilent(matchId, eventId){
+  try{
+    const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`);
+    const data = await res.json();
+    const uru  = (data.rosters||[]).find(r=>r.team?.displayName?.toLowerCase().includes('uruguay'));
+    if(!uru?.roster?.length) return;
+
+    const nameMap = buildNameMap();
+    const all = getLineup();
+    if(!all[matchId]) all[matchId]={};
+    const form = all[matchId].formation||'4-3-3';
+    const slots = FORMATIONS[form];
+    const st={};
+    const byPos={POR:[],DEF:[],MED:[],DEL:[]};
+
+    uru.roster.filter(e=>e.starter).forEach(e=>{
+      const name=e.athlete?.displayName||'';
+      const num=nameMap[normName(name)]||nameMap[normName(name.split(' ').pop())];
+      if(!num)return;
+      const p=PLAYERS.find(x=>x.n===num);
+      if(p)byPos[p.pos].push(num);
+    });
+
+    const cnt={POR:0,DEF:0,MED:0,DEL:0};
+    slots.forEach(slot=>{
+      const arr=byPos[slot.pos]||[];
+      const i=cnt[slot.pos]||0;
+      if(arr[i]){st[slot.id]=arr[i];cnt[slot.pos]=i+1;}
+    });
+
+    all[matchId].starters=st;
+    setLineup(all);
+
+    // Participación
+    PLAYERS.forEach(p=>setPartVal(p.n,matchId,'no jugó'));
+    uru.roster.forEach(e=>{
+      const name=e.athlete?.displayName||'';
+      const num=nameMap[normName(name)]||nameMap[normName(name.split(' ').pop())];
+      if(num) setPartVal(num,matchId,e.starter?'titular':e.subbedIn?'entró':'suplente');
+    });
+
+    // Re-render si el partido activo es este
+    _luPhotos=null;
+    if(curMatch===matchId){ renderLineup(matchId); await renderPlantel(); }
+  }catch(e){ /* silencioso */ }
+}
+
+function updateFixtureScore(matchId, uruScore, rivScore){
+  // Actualizar inputs de score en el fixture si están en el DOM
+  const match = matchId==='uru-ksa'?'m2':matchId==='uru-cpv'?'m5':'m6';
+  const isHome = matchId==='uru-cpv'; // CPV es local en sentido del array
+  // Buscar los inputs del fixture por el id del partido
+  document.querySelectorAll(`.fix-score`).forEach(inp=>{
+    if(inp.dataset.match===matchId){
+      const isUru = inp.dataset.team==='uru';
+      inp.value = isUru ? uruScore : rivScore;
+    }
+  });
+}
+
+function showSyncBadge(msg){
+  let badge=document.getElementById('auto-sync-badge');
+  if(!badge){
+    badge=document.createElement('div');
+    badge.id='auto-sync-badge';
+    badge.style.cssText='position:fixed;top:60px;right:10px;background:var(--nero);color:#fff;font-size:10.5px;font-weight:700;padding:5px 11px;border-radius:8px;z-index:500;border-top:2px solid var(--green);box-shadow:0 2px 12px rgba(0,0,0,.4);transition:opacity .3s';
+    document.body.appendChild(badge);
+  }
+  badge.textContent=msg;
+  badge.style.opacity='1';
+  if(!msg.includes('vivo')) setTimeout(()=>{badge.style.opacity='0';},5000);
+}
+
+function showMatchStatus(matchId, status, clock){
+  const label = status==='STATUS_IN_PROGRESS' ? `⚽ ${clock} — En vivo` : '✓ Final';
+  // Actualizar botón del partido en el selector
+  document.querySelectorAll('.ms-btn').forEach(b=>{
+    if(b.getAttribute('onclick')?.includes(`'${matchId}'`)){
+      if(!b.querySelector('.live-dot')){
+        const dot=document.createElement('span');
+        dot.className='live-dot';
+        dot.style.cssText='display:inline-block;width:7px;height:7px;border-radius:50%;background:#22C55E;margin-left:5px;'+(status==='STATUS_IN_PROGRESS'?'animation:pulse 1s infinite':'');
+        b.appendChild(dot);
+      }
+    }
+  });
+}
 const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt];
 
 async function serverSave(){
@@ -3845,6 +3993,10 @@ async function tryAutoLoad(){
   renderLineup('uru-ksa');
   await renderPlantel();
   renderLog('all');
+  // Auto-sync ESPN al abrir — detecta si hay partido en curso o recién terminado
+  autoSyncCheck();
+  // Verificar cada 5 min aunque no haya partido activo (por si abre la app justo cuando empieza)
+  setInterval(()=>{ if(!_autoSyncInterval) autoSyncCheck(); }, 300000);
 })();
 </script>
 </body>
