@@ -3749,7 +3749,10 @@ async function renderPizarra(matchId){
           const pNum = st[slot.id];
           const p    = pNum ? PLAYERS.find(x=>x.n===pNum) : null;
           const ph   = p ? (_luPhotos[p.n]||p.photo||'') : '';
-          const lbl  = p ? p.name.split(' ').pop() : '';
+          const parts = p ? p.name.trim().split(' ') : [];
+          const lbl  = p ? `${parts[0][0]}. ${parts[parts.length-1]}` : '';
+          const inj  = p ? getPlayerInjury(p.n) : null;
+          const injCol = inj==='red'?'#C0392B':inj==='yellow'?'#F59E0B':null;
           return `<div class="p-slot" id="pslot-${slot.id}" style="left:${slot.x}%;top:${slot.y}%"
             data-slot="${slot.id}" data-match="${matchId}" data-pos="${slot.pos}"
             onclick="pizSlotClick('${matchId}','${slot.id}','${slot.pos}')">
@@ -3757,12 +3760,49 @@ async function renderPizarra(matchId){
               ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
               ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.5);font-weight:700">${slot.pos}</span>`:''}
               ${p?`<div class="p-slot-num">${p.n}</div>`:''}
+              ${injCol?`<div style="position:absolute;bottom:1px;left:1px;width:9px;height:9px;border-radius:50%;background:${injCol};border:1.5px solid #fff;z-index:3"></div>`:''}
             </div>
-            <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${lbl||slot.pos}</div>
+            <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${p?`#${p.n} ${lbl}`:slot.pos}</div>
           </div>`;
         }).join('')}
       </div>
     </div>
+
+    ${(()=>{
+      const starters = slots.map(s=>({slot:s, p:st[s.id]?PLAYERS.find(x=>x.n===st[s.id]):null})).filter(x=>x.p);
+      if(!starters.length) return '';
+      return `<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px 6px;border-bottom:0.5px solid var(--border)">
+          Once confirmado — estadísticas
+        </div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+          <thead><tr style="background:var(--surface)">
+            <th style="padding:5px 10px;text-align:left;font-weight:700;font-size:9.5px;color:var(--muted)">Jugador</th>
+            <th style="padding:5px 8px;text-align:center;font-weight:700;font-size:9.5px;color:var(--muted)">PJ</th>
+            <th style="padding:5px 8px;text-align:center;font-weight:700;font-size:9.5px;color:var(--muted)">GOL</th>
+            <th style="padding:5px 8px;text-align:center;font-weight:700;font-size:9.5px;color:var(--muted)">WC</th>
+            <th style="padding:5px 8px;text-align:left;font-weight:700;font-size:9.5px;color:var(--muted)">Hito</th>
+          </tr></thead>
+          <tbody>${starters.map(({slot,p})=>{
+            const inj=getPlayerInjury(p.n);
+            const injDot=inj==='red'?'🔴':inj==='yellow'?'🟡':'';
+            const ms=computeMilestones(p);
+            const hint=ms.length?ms[0].txt.replace(/[🎯🏆⭐🌟🔵🎙]/g,'').trim():'';
+            const parts=p.name.trim().split(' ');
+            const shortName=`${parts[0][0]}. ${parts[parts.length-1]}`;
+            return`<tr style="border-bottom:0.5px solid var(--border)">
+              <td style="padding:6px 10px;font-weight:700">${injDot} <span style="font-size:10px;color:var(--muted);font-weight:600">${slot.pos}</span> ${shortName}</td>
+              <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${p.stats.caps}</td>
+              <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)">${p.stats.goals}</td>
+              <td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
+              <td style="padding:6px 8px;font-size:10px;color:var(--muted)">${hint}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+        </div>
+      </div>`;
+    })()}
 
     <div class="piz-bench">
       <div class="piz-bench-lbl">
