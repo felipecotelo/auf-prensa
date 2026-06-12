@@ -3867,7 +3867,27 @@ function resyncAllEvToChk(){
 // SERVER SYNC
 // ═══════════════════════════════════════════════════════════════════════════
 const IS_SERVER = location.protocol !== 'file:' && location.hostname !== 'localhost';
-const API_BASE  = 'https://auf-prensa-production.up.railway.app'; // siempre apunta al servidor
+const API_BASE  = 'https://auf-prensa-production.up.railway.app';
+// Sync directo a GitHub — funciona desde file:// y desde cualquier dispositivo
+async function ghLoad(){
+  try{
+    const r=await fetch(API_BASE+'/api/load');
+    const d=await r.json();
+    return{data:d.ok?d.data:null};
+  }catch{return{data:null};}
+}
+
+async function ghSave(payload){
+  try{
+    const r=await fetch(API_BASE+'/api/save',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const d=await r.json();
+    return d.ok;
+  }catch{return false;}
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AUTO-SYNC ESPN — alineación y participación automáticas
@@ -4040,18 +4060,13 @@ async function serverSave(){
     const lsData={};
     LS_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v)lsData[k]=v;});
     const photos=await getAllPhotosIDB();
-    const res=await fetch(API_BASE+'/api/save',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({localStorage:lsData, photos})
-    });
-    const d=await res.json();
-    if(d.ok){
+    const ok=await ghSave({localStorage:lsData,photos});
+    if(ok){
       btn.className='nav-btn sync-ok';
       btn.innerHTML='<i class="ti ti-cloud-check" style="font-size:12px"></i> <span class="nav-sync-lbl">Guardado</span>';
-      toast('☁️ Guardado en servidor');
+      toast('☁️ Guardado');
       setTimeout(()=>{btn.className='nav-btn';btn.innerHTML='<i class="ti ti-cloud-upload" style="font-size:12px"></i> <span class="nav-sync-lbl">Guardar</span>';btn.disabled=false;},3000);
-    } else throw new Error(d.error);
+    } else throw new Error('GitHub error');
   }catch(e){
     btn.className='nav-btn sync-err';
     btn.innerHTML='<i class="ti ti-cloud-x" style="font-size:12px"></i> <span class="nav-sync-lbl">Error</span>';
@@ -4064,9 +4079,8 @@ async function serverLoad(){
   const btn=document.getElementById('btn-cloud-load');
   btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 ti-spin" style="font-size:12px"></i>';
   try{
-    const res=await fetch(API_BASE+'/api/load');
-    const {ok,data}=await res.json();
-    if(!ok||!data){toast('ℹ No hay datos en el servidor aún');btn.disabled=false;btn.innerHTML='<i class="ti ti-cloud-download" style="font-size:12px"></i> <span class="nav-sync-lbl">Cargar</span>';return;}
+    const {data}=await ghLoad();
+    if(!data){toast('ℹ No hay datos guardados aún');btn.disabled=false;btn.innerHTML='<i class="ti ti-cloud-download" style="font-size:12px"></i> <span class="nav-sync-lbl">Cargar</span>';return;}
     if(data.localStorage) Object.entries(data.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
     if(data.photos){
       for(const [num,url] of Object.entries(data.photos)) await savePhotoIDB(parseInt(num),url);
@@ -4075,7 +4089,7 @@ async function serverLoad(){
     renderInicio(); await renderPlantel(); renderLog('all'); renderCal(); renderChecklist(curMatch);
     btn.className='nav-btn sync-ok';
     btn.innerHTML='<i class="ti ti-cloud-check" style="font-size:12px"></i> <span class="nav-sync-lbl">Cargado</span>';
-    toast('☁️ Datos actualizados desde servidor');
+    toast('☁️ Datos actualizados');
     setTimeout(()=>{btn.className='nav-btn';btn.innerHTML='<i class="ti ti-cloud-download" style="font-size:12px"></i> <span class="nav-sync-lbl">Cargar</span>';btn.disabled=false;},3000);
   }catch(e){
     btn.className='nav-btn sync-err';
@@ -4085,19 +4099,17 @@ async function serverLoad(){
   }
 }
 
-// Auto-carga desde servidor al abrir (solo si está en servidor, no en archivo local)
+// Auto-carga desde GitHub al abrir (funciona desde file:// y Railway)
 async function tryAutoLoad(){
-  if(!IS_SERVER) return;
   try{
-    const res=await fetch(API_BASE+'/api/load');
-    const {ok,data}=await res.json();
-    if(!ok||!data) return;
+    const {data}=await ghLoad();
+    if(!data) return;
     if(data.localStorage) Object.entries(data.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
     if(data.photos){
       for(const [num,url] of Object.entries(data.photos)) await savePhotoIDB(parseInt(num),url);
       invalidatePhotoCache();
     }
-  }catch(e){/* sin servidor, silencioso */}
+  }catch(e){/* silencioso */}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
