@@ -774,7 +774,9 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 .p-slot-av{width:44px;height:44px;border-radius:50%;border:2.5px solid rgba(255,255,255,.9);overflow:hidden;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.5);flex-shrink:0}
 .p-slot-av.empty{border:2px dashed rgba(255,255,255,.4);background:rgba(0,0,0,.18)}
 .p-slot-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.p-slot-num{position:absolute;top:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:var(--cel);color:#fff;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;z-index:2}
+.p-slot-num{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;background:var(--cel);color:#fff;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #fff;z-index:10;padding:0 3px}
+.p-slot-remove{position:absolute;top:-4px;left:-4px;width:16px;height:16px;border-radius:50%;background:rgba(192,57,43,.9);color:#fff;font-size:9px;font-weight:900;display:none;align-items:center;justify-content:center;border:1.5px solid #fff;z-index:10;cursor:pointer;line-height:1}
+.p-slot:hover .p-slot-remove{display:flex}
 .p-slot-lbl{font-size:8px;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,1);white-space:nowrap;max-width:80px;overflow:visible;background:rgba(0,0,0,.5);padding:1px 5px;border-radius:3px;line-height:1.4}
 /* Suplentes */
 .sup-wrap{background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:10px}
@@ -3717,14 +3719,15 @@ async function renderPizarra(matchId){
   const ml     = all[matchId] || {formation:'4-3-3', starters:{}};
   const form   = ml.formation || '4-3-3';
   const slots  = FORMATIONS[form];
-  const st     = ml.starters || {};
-  // Solo contar como "usados" los que están en slots válidos de la formación actual
   const validSlotIds = new Set(slots.map(s=>s.id));
+  // Limpiar slots huérfanos del localStorage
+  const rawSt = ml.starters || {};
+  const st = Object.fromEntries(Object.entries(rawSt).filter(([k])=>validSlotIds.has(k)));
+  if(Object.keys(st).length !== Object.keys(rawSt).length){
+    all[matchId].starters = st; setLineup(all);
+  }
   const usedNums = new Set(
-    Object.entries(st)
-      .filter(([slotId])=>validSlotIds.has(slotId))
-      .map(([,pNum])=>pNum)
-      .filter(Boolean)
+    Object.values(st).filter(Boolean)
   );
   const bench  = PLAYERS.filter(p => !usedNums.has(p.n)).sort((a,b)=>a.n-b.n);
   const rival  = PIZ_MATCHES.find(m=>m.id===matchId);
@@ -3798,11 +3801,14 @@ async function renderPizarra(matchId){
           return `<div class="p-slot" id="pslot-${slot.id}" style="left:${slot.x}%;top:${slot.y}%"
             data-slot="${slot.id}" data-match="${matchId}" data-pos="${slot.pos}"
             onclick="pizSlotClick('${matchId}','${slot.id}','${slot.pos}')">
-            <div class="p-slot-av${p?'':' empty'}" id="pslot-av-${slot.id}">
-              ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
-              ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.5);font-weight:700">${slot.pos}</span>`:''}
+            <div style="position:relative;display:inline-block">
+              <div class="p-slot-av${p?'':' empty'}" id="pslot-av-${slot.id}" style="overflow:hidden">
+                ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
+                ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.5);font-weight:700">${slot.pos}</span>`:''}
+              </div>
               ${p?`<div class="p-slot-num">${p.n}</div>`:''}
-              ${injCol?`<div style="position:absolute;bottom:1px;left:1px;width:9px;height:9px;border-radius:50%;background:${injCol};border:1.5px solid #fff;z-index:3"></div>`:''}
+              ${injCol?`<div style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-radius:50%;background:${injCol};border:2px solid #fff;z-index:10"></div>`:''}
+              ${p?`<div class="p-slot-remove" onclick="event.stopPropagation();pizRemove('${matchId}','${slot.id}')">×</div>`:''}
             </div>
             <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${p?`#${p.n} ${lbl}`:slot.pos}</div>
           </div>`;
@@ -3871,8 +3877,12 @@ function pizChangeForm(matchId, form){
 }
 
 function pizSlotClick(matchId, slotId, posLabel){
-  // Reutiliza el slot picker del lineup builder
   openSP(matchId, slotId, posLabel);
+}
+function pizRemove(matchId, slotId){
+  const all=getLineup();
+  if(all[matchId]?.starters) delete all[matchId].starters[slotId];
+  setLineup(all); _luPhotos=null; renderPizarra(matchId);
 }
 
 // ── DRAG & DROP ────────────────────────────────────────
