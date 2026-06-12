@@ -724,6 +724,32 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   select,input[type=text],textarea{font-size:16px}
 }
 
+/* ── PIZARRA STANDALONE ──────────────────────────────── */
+.piz-match-sel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.piz-ms{font-size:11.5px;padding:6px 13px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);cursor:pointer;font-weight:700;transition:all .15s}
+.piz-ms.active{background:linear-gradient(135deg,var(--cel),var(--cel-dk));color:#fff;border-color:var(--cel)}
+.piz-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.piz-rival{font-size:15px;font-weight:800;color:var(--text)}
+.piz-rival span{color:var(--muted);font-weight:500;font-size:13px}
+/* Pitch standalone — más grande */
+.piz-pitch-outer{background:#1a6b35;border-radius:12px;padding:8px;margin-bottom:10px}
+.piz-pitch{position:relative;background:repeating-linear-gradient(180deg,#1d7a3d 0px,#1d7a3d 32px,#1e8844 32px,#1e8844 64px);border:2px solid rgba(255,255,255,.35);border-radius:4px;overflow:hidden;width:100%;aspect-ratio:3/4.2;max-width:420px;margin:0 auto}
+/* Drag ghost */
+.drag-ghost{position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%) scale(1.1);opacity:.9;transition:none}
+/* Player bench chips (bottom) */
+.piz-bench{background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:10px 12px}
+.piz-bench-lbl{font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between}
+.piz-bench-chips{display:flex;flex-wrap:wrap;gap:6px}
+.piz-p-chip{display:flex;align-items:center;gap:5px;padding:5px 8px 5px 5px;background:var(--surface);border:1.5px solid var(--border);border-radius:20px;cursor:grab;transition:all .15s;user-select:none;touch-action:none}
+.piz-p-chip:hover{border-color:var(--cel);background:var(--cel-lt)}
+.piz-p-chip.dragging{opacity:.35;cursor:grabbing}
+.piz-chip-av{width:28px;height:28px;border-radius:50%;overflow:hidden;background:var(--navy);position:relative;flex-shrink:0}
+.piz-chip-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.piz-chip-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff}
+.piz-chip-name{font-size:11px;font-weight:700;color:var(--text)}
+/* Slot drop highlight */
+.p-slot.drag-over .p-slot-av{border-color:#22C55E;box-shadow:0 0 0 3px rgba(34,197,94,.4)}
+
 /* ── LINEUP BUILDER ──────────────────────────────────── */
 .lineup-hdr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .lineup-title{font-size:12px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0}
@@ -816,6 +842,7 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab" onclick="showTab('disponibilidad')"><i class="ti ti-list-check"></i>Disponibilidad</button>
   <button class="tab" onclick="showTab('calendario')"><i class="ti ti-calendar"></i>Calendario</button>
   <button class="tab" onclick="showTab('partido')"><i class="ti ti-checklist"></i>Partidos</button>
+  <button class="tab" onclick="showTab('pizarra')"><i class="ti ti-ball-football"></i>Pizarra</button>
   <button class="tab" onclick="showTab('fixture')"><i class="ti ti-tournament"></i>Fixture</button>
   <button class="tab" onclick="showTab('plantel')"><i class="ti ti-users"></i>Plantel</button>
   <button class="tab" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
@@ -895,6 +922,11 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
     <button class="pf-btn" onclick="filterPos('DEL',this)">DEL</button>
   </div>
   <div class="p-grid" id="p-grid"></div>
+</div>
+
+<!-- ═══════════ PIZARRA ═══════════ -->
+<div id="pizarra" class="section">
+  <div id="pizarra-wrap"></div>
 </div>
 
 <!-- ═══════════ FIXTURE ═══════════ -->
@@ -1594,6 +1626,7 @@ function showTab(id){
   if(id==='partido'){renderChecklist(curMatch)}
   if(id==='fixture'){renderFixture();fetchFromESPN();}
   if(id==='plantel'){renderPlantel()}
+  if(id==='pizarra'){renderPizarra(_pizMatch)}
   if(id==='estadisticas'){renderEstadisticas()}
   if(id==='registro'){renderLog(curLog)}
 }
@@ -3658,6 +3691,201 @@ document.addEventListener('visibilitychange',()=>{
     if(fix&&fix.classList.contains('active'))fetchFromESPN();
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PIZARRA STANDALONE
+// ═══════════════════════════════════════════════════════════════════════════
+let _pizMatch = 'uru-ksa';
+const PIZ_MATCHES = [
+  {id:'uru-ksa', label:'🇸🇦 vs. Arabia Saudita', short:'vs. KSA'},
+  {id:'uru-cpv', label:'🇨🇻 vs. Cabo Verde',     short:'vs. CPV'},
+  {id:'uru-esp', label:'🇪🇸 vs. España',          short:'vs. ESP'},
+];
+
+async function renderPizarra(matchId){
+  matchId = matchId || _pizMatch;
+  _pizMatch = matchId;
+  const wrap = document.getElementById('pizarra-wrap');
+  if(!wrap) return;
+  if(!_luPhotos) _luPhotos = await getAllPhotosIDB();
+
+  const all    = getLineup();
+  const ml     = all[matchId] || {formation:'4-3-3', starters:{}};
+  const form   = ml.formation || '4-3-3';
+  const slots  = FORMATIONS[form];
+  const st     = ml.starters || {};
+  const usedNums = new Set(Object.values(st).filter(Boolean));
+  const bench  = PLAYERS.filter(p => !usedNums.has(p.n)).sort((a,b)=>a.n-b.n);
+  const rival  = PIZ_MATCHES.find(m=>m.id===matchId);
+
+  wrap.innerHTML = `
+    <div class="sec-hdr" style="margin-bottom:1rem">
+      <div class="sec-icon" style="background:#2d7a4f"><i class="ti ti-ball-football"></i></div>
+      <div><div class="sec-title">Pizarra táctica</div>
+      <div class="sec-desc">Arrastrá las fichas al puesto · O tocá un slot para elegir</div></div>
+    </div>
+
+    <div class="piz-match-sel">
+      ${PIZ_MATCHES.map(m=>`<button class="piz-ms${m.id===matchId?' active':''}" onclick="renderPizarra('${m.id}')">${m.label}</button>`).join('')}
+    </div>
+
+    <div class="piz-hdr">
+      <div class="piz-rival">Uruguay <span>${rival?.short||''}</span></div>
+      <div class="form-sel-btns" style="flex:none">
+        ${Object.keys(FORMATIONS).map(f=>`<button class="form-btn${f===form?' active':''}" onclick="pizChangeForm('${matchId}','${f}')">${f}</button>`).join('')}
+      </div>
+    </div>
+
+    <div class="piz-pitch-outer">
+      <div class="piz-pitch" id="piz-pitch">
+        <div class="pl pl-mid"></div><div class="pl pl-circle"></div>
+        <div class="pl pl-pt"></div><div class="pl pl-pb"></div>
+        <div class="pl pl-gt"></div><div class="pl pl-gb"></div>
+        ${slots.map(slot => {
+          const pNum = st[slot.id];
+          const p    = pNum ? PLAYERS.find(x=>x.n===pNum) : null;
+          const ph   = p ? (_luPhotos[p.n]||p.photo||'') : '';
+          const lbl  = p ? p.name.split(' ').pop() : '';
+          return `<div class="p-slot" id="pslot-${slot.id}" style="left:${slot.x}%;top:${slot.y}%"
+            data-slot="${slot.id}" data-match="${matchId}" data-pos="${slot.pos}"
+            onclick="pizSlotClick('${matchId}','${slot.id}','${slot.pos}')">
+            <div class="p-slot-av${p?'':' empty'}" id="pslot-av-${slot.id}">
+              ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
+              ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.5);font-weight:700">${slot.pos}</span>`:''}
+              ${p?`<div class="p-slot-num">${p.n}</div>`:''}
+            </div>
+            <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${lbl||slot.pos}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="piz-bench">
+      <div class="piz-bench-lbl">
+        <span>Banco — ${bench.length} jugadores</span>
+        <span style="font-size:10px;color:var(--hint);font-weight:400">Arrastrá a la cancha</span>
+      </div>
+      <div class="piz-bench-chips" id="piz-bench-chips">
+        ${bench.map(p=>{
+          const ph=_luPhotos[p.n]||p.photo||'';
+          return`<div class="piz-p-chip" id="pchip-${p.n}" data-num="${p.n}" data-match="${matchId}"
+            draggable="true">
+            <div class="piz-chip-av">
+              ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
+              <span class="piz-chip-num" style="${ph?'display:none':''}">${p.n}</span>
+            </div>
+            <span class="piz-chip-name">${p.name.split(' ').pop()}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  initPizDrag(matchId);
+}
+
+function pizChangeForm(matchId, form){
+  const all=getLineup();
+  if(!all[matchId]) all[matchId]={starters:{}};
+  all[matchId].formation=form;
+  setLineup(all); _luPhotos=null; renderPizarra(matchId);
+}
+
+function pizSlotClick(matchId, slotId, posLabel){
+  // Reutiliza el slot picker del lineup builder
+  openSP(matchId, slotId, posLabel);
+}
+
+// ── DRAG & DROP ────────────────────────────────────────
+let _drag = {num:null, ghost:null, overSlot:null};
+
+function initPizDrag(matchId){
+  // Mouse/touch drag desde fichas del banco
+  document.querySelectorAll('.piz-p-chip').forEach(chip=>{
+    chip.addEventListener('dragstart', e=>{
+      _drag.num = parseInt(chip.dataset.num);
+      chip.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+    });
+    chip.addEventListener('dragend', ()=>chip.classList.remove('dragging'));
+
+    // Touch
+    chip.addEventListener('touchstart', e=>pizTouchStart(e,chip,matchId),{passive:false});
+  });
+
+  // Slots como drop targets
+  document.querySelectorAll('.p-slot[data-slot]').forEach(slot=>{
+    slot.addEventListener('dragover', e=>{e.preventDefault();slot.classList.add('drag-over')});
+    slot.addEventListener('dragleave', ()=>slot.classList.remove('drag-over'));
+    slot.addEventListener('drop', e=>{
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      if(_drag.num) pizAssign(matchId, slot.dataset.slot, _drag.num);
+      _drag.num=null;
+    });
+  });
+}
+
+function pizTouchStart(e, chip, matchId){
+  e.preventDefault();
+  const num = parseInt(chip.dataset.num);
+  _drag.num = num;
+  chip.classList.add('dragging');
+
+  // Crear ghost
+  const ghost = chip.cloneNode(true);
+  ghost.className = 'piz-p-chip drag-ghost';
+  ghost.style.width = chip.offsetWidth+'px';
+  document.body.appendChild(ghost);
+  _drag.ghost = ghost;
+
+  const move = e2=>{
+    const t = e2.touches[0];
+    ghost.style.left = t.clientX+'px';
+    ghost.style.top  = t.clientY+'px';
+
+    // Detectar slot debajo
+    ghost.style.display='none';
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    ghost.style.display='';
+    const slot = el?.closest('.p-slot[data-slot]');
+
+    if(_drag.overSlot && _drag.overSlot !== slot)
+      _drag.overSlot.classList.remove('drag-over');
+    if(slot){ slot.classList.add('drag-over'); _drag.overSlot=slot; }
+    else _drag.overSlot=null;
+  };
+
+  const end = ()=>{
+    ghost.remove(); _drag.ghost=null;
+    chip.classList.remove('dragging');
+    if(_drag.overSlot){
+      _drag.overSlot.classList.remove('drag-over');
+      pizAssign(matchId, _drag.overSlot.dataset.slot, num);
+      _drag.overSlot=null;
+    }
+    _drag.num=null;
+    document.removeEventListener('touchmove', move);
+    document.removeEventListener('touchend', end);
+  };
+
+  document.addEventListener('touchmove', move, {passive:false});
+  document.addEventListener('touchend', end);
+}
+
+function pizAssign(matchId, slotId, pNum){
+  const all=getLineup();
+  if(!all[matchId]) all[matchId]={formation:'4-3-3', starters:{}};
+  const st=all[matchId].starters;
+  // Quitar de slot anterior si estaba
+  Object.keys(st).forEach(k=>{if(st[k]===pNum) delete st[k];});
+  st[slotId]=pNum;
+  setLineup(all);
+  _luPhotos=null;
+  renderPizarra(matchId);
+  // Sync con pizarra interna del partido
+  if(document.getElementById('lineup-wrap')) renderLineup(matchId);
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // LINEUP BUILDER
