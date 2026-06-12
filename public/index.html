@@ -2799,24 +2799,52 @@ function renderLog(f){
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPORT / IMPORT / CLEAR
 // ═══════════════════════════════════════════════════════════════════════════
-function exportData(){
-  const blob=new Blob([JSON.stringify({v:5,date:new Date().toISOString(),log:getLog(),chk:getChk(),dayNotes:getDayNotes(),pNotes:getPNotes(),part:getPart(),photos:getPhotos(),fixture:getFixture()},null,2)],{type:'application/json'});
+async function exportData(){
+  toast('Preparando backup completo...');
+  const lsData={};
+  [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt]
+    .forEach(k=>{const v=localStorage.getItem(k);if(v)lsData[k]=v;});
+  const idbPhotos=await getAllPhotosIDB();
+  const payload={v:6,date:new Date().toISOString(),localStorage:lsData,photos:idbPhotos};
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`auf_prensa_fwc26_${new Date().toISOString().slice(0,10)}.json`;a.click();
-  toast('Backup descargado');
+  toast('✅ Backup completo descargado (con fotos)');
 }
-function handleImport(e){
+
+async function handleImport(e){
   const file=e.target.files[0];if(!file)return;
   const r=new FileReader();
-  r.onload=ev=>{
+  r.onload=async ev=>{
     try{
       const d=JSON.parse(ev.target.result);
-      if(!confirm(`Importar backup del ${d.date?.slice(0,10)||'?'}. Reemplazará datos actuales.`))return;
-      if(d.log)setLog(d.log);if(d.chk)setChk(d.chk);
-      if(d.dayNotes)setDayNotes(d.dayNotes);if(d.pNotes)setPNotes(d.pNotes);
-      if(d.part)setPart(d.part);if(d.photos)setPhotos(d.photos);if(d.fixture)setFixture(d.fixture);
-      renderInicio();renderLog(curLog);renderPlantel();toast('Backup importado');
-    }catch{alert('Archivo no válido.')}
+      const dateStr=d.date?.slice(0,10)||'?';
+      if(!confirm(`Importar backup del ${dateStr}. Reemplazará datos actuales.`))return;
+
+      // Formato v6 — todo en localStorage + photos IDB
+      if(d.localStorage){
+        Object.entries(d.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
+      } else {
+        // Compatibilidad con formato viejo (v5)
+        if(d.log)setLog(d.log);if(d.chk)setChk(d.chk);
+        if(d.dayNotes)setDayNotes(d.dayNotes);if(d.pNotes)setPNotes(d.pNotes);
+        if(d.part)setPart(d.part);if(d.fixture)setFixture(d.fixture);
+      }
+
+      // Fotos a IDB
+      if(d.photos&&Object.keys(d.photos).length){
+        for(const[num,url]of Object.entries(d.photos))
+          await savePhotoIDB(parseInt(num),url);
+        invalidatePhotoCache();
+        toast('📷 Fotos restauradas...');
+      }
+
+      renderInicio();renderLog(curLog);await renderPlantel();renderCal();renderChecklist(curMatch);
+
+      // Auto-guardar en servidor si estamos online
+      const saved=await ghSave({localStorage:d.localStorage||{},photos:d.photos||{}});
+      toast(saved?'✅ Importado y guardado en servidor':'✅ Importado (guardá en servidor para sincronizar)');
+    }catch(err){alert('Archivo no válido: '+err.message)}
   };
   r.readAsText(file);e.target.value='';
 }
