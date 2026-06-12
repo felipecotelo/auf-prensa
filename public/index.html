@@ -3718,7 +3718,14 @@ async function renderPizarra(matchId){
   const form   = ml.formation || '4-3-3';
   const slots  = FORMATIONS[form];
   const st     = ml.starters || {};
-  const usedNums = new Set(Object.values(st).filter(Boolean));
+  // Solo contar como "usados" los que están en slots válidos de la formación actual
+  const validSlotIds = new Set(slots.map(s=>s.id));
+  const usedNums = new Set(
+    Object.entries(st)
+      .filter(([slotId])=>validSlotIds.has(slotId))
+      .map(([,pNum])=>pNum)
+      .filter(Boolean)
+  );
   const bench  = PLAYERS.filter(p => !usedNums.has(p.n)).sort((a,b)=>a.n-b.n);
   const rival  = PIZ_MATCHES.find(m=>m.id===matchId);
 
@@ -4012,7 +4019,7 @@ async function renderLineup(matchId){
   const form=ml.formation||'4-3-3';
   const slots=FORMATIONS[form];
   const st=ml.starters||{};
-  const usedNums=new Set(Object.values(st).filter(Boolean));
+  const validIds=new Set(slots.map(s=>s.id)); const usedNums=new Set(Object.entries(st).filter(([k])=>validIds.has(k)).map(([,v])=>v).filter(Boolean));
   const sups=PLAYERS.filter(p=>!usedNums.has(p.n)).sort((a,b)=>a.n-b.n);
 
   wrap.innerHTML=`
@@ -4081,7 +4088,7 @@ function openSP(matchId,slotId,posLabel,preselNum){
   _selSlot={matchId,slotId};
   const all=getLineup();
   const st=all[matchId]?.starters||{};
-  const usedNums=new Set(Object.values(st).filter(Boolean));
+  const validIds2=new Set(slots.map(s=>s.id)); const usedNums=new Set(Object.entries(st).filter(([k])=>validIds2.has(k)).map(([,v])=>v).filter(Boolean));
   const curNum=slotId?st[slotId]:null;
 
   document.getElementById('sp-title').textContent=slotId?`Posición: ${posLabel}`:'Mover a posición';
