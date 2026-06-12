@@ -3780,7 +3780,6 @@ const ESPN_MATCH_DATES = {
 };
 
 async function autoSyncCheck(){
-  // Para cada partido de Uruguay, verificar si está en curso o terminó
   for(const [matchId, date] of Object.entries(ESPN_MATCH_DATES)){
     try{
       const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${date}`);
@@ -3791,45 +3790,62 @@ async function autoSyncCheck(){
       });
       if(!event) continue;
 
-      const status = event.competitions?.[0]?.status?.type?.name||'';
+      const comp    = event.competitions?.[0]||{};
+      const status  = comp.status?.type?.name||'';
+      const clock   = comp.status?.displayClock||'';
       const eventId = event.id;
 
-      if(status==='STATUS_IN_PROGRESS'||status==='STATUS_FULL_TIME'||status==='STATUS_FINAL'){
-        if(_lastSyncedEvent===eventId && status==='STATUS_FULL_TIME') continue; // ya sincronizado y terminó
+      // Estados a monitorear: pre-partido con lineups, en vivo, terminado
+      const isLive     = status==='STATUS_IN_PROGRESS';
+      const isFinished = status==='STATUS_FULL_TIME'||status==='STATUS_FINAL';
+      const isPreMatch = status==='STATUS_SCHEDULED';
 
-        // Sincronizar alineación silenciosamente
-        await syncLineupSilent(matchId, eventId);
-        _lastSyncedEvent = eventId;
+      if(!isLive && !isFinished && !isPreMatch) continue;
 
-        // Actualizar marcador en fixture
-        const comps = event.competitions?.[0]?.competitors||[];
-        const uruComp = comps.find(c=>c.team?.displayName?.toLowerCase().includes('uruguay'));
-        const rivComp = comps.find(c=>!c.team?.displayName?.toLowerCase().includes('uruguay'));
-        if(uruComp&&rivComp) updateFixtureScore(matchId, uruComp.score, rivComp.score);
+      // Verificar si ya hay alineación publicada (incluso antes del partido)
+      const summary = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`).then(r=>r.json());
+      const uru = (summary.rosters||[]).find(r=>r.team?.displayName?.toLowerCase().includes('uruguay'));
+      const hasLineup = uru?.roster?.some(e=>e.starter);
 
-        // Indicador de estado en UI
-        showMatchStatus(matchId, status, event.competitions?.[0]?.status?.displayClock||'');
+      if(!hasLineup) continue; // ESPN aún no publicó la alineación
 
-        // Polling cada 2 min si en curso, parar si terminó
-        if(status==='STATUS_IN_PROGRESS'){
-          if(!_autoSyncInterval){
-            _autoSyncInterval = setInterval(autoSyncCheck, 120000);
-            showSyncBadge('⚽ En vivo — actualizando cada 2 min');
-          }
-        } else {
-          if(_autoSyncInterval){ clearInterval(_autoSyncInterval); _autoSyncInterval=null; }
-          showSyncBadge('✓ Partido finalizado — datos oficiales cargados');
+      // Sincronizar si hay algo nuevo
+      const syncKey = `${eventId}-${isFinished?'final':isLive?clock:'pre'}`;
+      if(_lastSyncedEvent===syncKey) continue;
+
+      await syncLineupSilent(matchId, eventId, summary);
+      _lastSyncedEvent = syncKey;
+
+      // Marcador si hay goles
+      const uruComp = (comp.competitors||[]).find(c=>c.team?.displayName?.toLowerCase().includes('uruguay'));
+      const rivComp = (comp.competitors||[]).find(c=>!c.team?.displayName?.toLowerCase().includes('uruguay'));
+      if(uruComp?.score!=null) updateFixtureScore(matchId, uruComp.score, rivComp?.score||0);
+
+      showMatchStatus(matchId, status, clock);
+
+      if(isLive){
+        if(!_autoSyncInterval){
+          _autoSyncInterval = setInterval(autoSyncCheck, 120000);
+          showSyncBadge('⚽ En vivo — actualizando cada 2 min');
         }
-        return; // solo un partido activo a la vez
+      } else if(isFinished){
+        if(_autoSyncInterval){ clearInterval(_autoSyncInterval); _autoSyncInterval=null; }
+        showSyncBadge('✓ Partido finalizado — datos oficiales');
+      } else {
+        // Pre-partido con alineación publicada — polling cada 5 min por si hay cambios
+        if(!_autoSyncInterval){
+          _autoSyncInterval = setInterval(autoSyncCheck, 300000);
+          showSyncBadge('📋 Alineación oficial publicada — 1h antes del partido');
+        }
       }
+      return;
     }catch(e){ /* silencioso */ }
   }
 }
 
-async function syncLineupSilent(matchId, eventId){
+async function syncLineupSilent(matchId, eventId, data){
   try{
-    const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`);
-    const data = await res.json();
+    if(!data) data = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`).then(r=>r.json());
     const uru  = (data.rosters||[]).find(r=>r.team?.displayName?.toLowerCase().includes('uruguay'));
     if(!uru?.roster?.length) return;
 
