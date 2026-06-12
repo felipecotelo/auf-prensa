@@ -3841,7 +3841,25 @@ async function renderPizarra(matchId){
 function pizChangeForm(matchId, form){
   const all=getLineup();
   if(!all[matchId]) all[matchId]={starters:{}};
+
+  // Reagrupar jugadores actuales por posición y redistribuir a la nueva formación
+  const oldSt=all[matchId].starters||{};
+  const byPos={POR:[],DEF:[],MED:[],DEL:[]};
+  Object.values(oldSt).filter(Boolean).forEach(pNum=>{
+    const p=PLAYERS.find(x=>x.n===pNum);
+    if(p&&byPos[p.pos]) byPos[p.pos].push(pNum);
+  });
+
+  const newSt={};
+  const cnt={POR:0,DEF:0,MED:0,DEL:0};
+  FORMATIONS[form].forEach(slot=>{
+    const arr=byPos[slot.pos]||[];
+    const i=cnt[slot.pos]||0;
+    if(arr[i]){newSt[slot.id]=arr[i]; cnt[slot.pos]=i+1;}
+  });
+
   all[matchId].formation=form;
+  all[matchId].starters=newSt;
   setLineup(all); _luPhotos=null; renderPizarra(matchId);
 }
 
