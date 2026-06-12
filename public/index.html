@@ -1499,7 +1499,10 @@ const CALENDAR_DAYS = [
 // STORAGE
 // ═══════════════════════════════════════════════════════════════════════════
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow';
+const getYellows=()=>stor.get(KYellow,{});
+const setYellows=v=>stor.set(KYellow,v);
+function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y); _luPhotos=null; renderPizarra(_pizMatch); }
 
 function getEvTxts(){return stor.get(KEvTxt,{})}
 function saveEvTxt(date,idx,val){const t=getEvTxts();t[evKey(date,idx)]=val;stor.set(KEvTxt,t);}
@@ -3728,10 +3731,13 @@ const PIZ_MATCH_INFO = {
   'uru-esp': {date:'Viernes 26 jun',           stadium:'Estadio Akron',     city:'Guadalajara, México 🇲🇽', kickoff:'2026-06-27T01:00:00Z'},
 };
 const PIZ_MATCHES = [
-  {id:'uru-ksa', label:'🇸🇦 vs. Arabia Saudita', short:'KSA', rival:'Arabia Saudita', flagR:'🇸🇦', group:'Grupo H · Fecha 1'},
-  {id:'uru-cpv', label:'🇨🇻 vs. Cabo Verde',     short:'CPV', rival:'Cabo Verde',     flagR:'🇨🇻', group:'Grupo H · Fecha 2'},
-  {id:'uru-esp', label:'🇪🇸 vs. España',          short:'ESP', rival:'España',         flagR:'🇪🇸', group:'Grupo H · Fecha 3'},
+  {id:'uru-ksa', label:'🇸🇦 vs. Arabia Saudita', short:'KSA', rival:'Arabia Saudita', codeR:'sa', abbr:'KSA', group:'Grupo H · Fecha 1'},
+  {id:'uru-cpv', label:'🇨🇻 vs. Cabo Verde',     short:'CPV', rival:'Cabo Verde',     codeR:'cv', abbr:'CPV', group:'Grupo H · Fecha 2'},
+  {id:'uru-esp', label:'🇪🇸 vs. España',          short:'ESP', rival:'España',         codeR:'es', abbr:'ESP', group:'Grupo H · Fecha 3'},
 ];
+function flagImg(code, size=32){
+  return `<img src="https://flagcdn.com/w${size}/${code}.png" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.3)" onerror="this.style.display='none'">`;
+}
 
 async function renderPizarra(matchId){
   matchId = matchId || _pizMatch;
@@ -3793,6 +3799,7 @@ async function renderPizarra(matchId){
     </div>` : '';
 
   // Generamos el HTML de cada slot
+  const yellows=getYellows();
   function slotHtml(slot){
     const pNum=st[slot.id];
     const p=pNum?PLAYERS.find(x=>x.n===pNum):null;
@@ -3801,6 +3808,11 @@ async function renderPizarra(matchId){
     const lbl=p?`${parts[0][0]}. ${parts[parts.length-1]}`:'';
     const inj=p?getPlayerInjury(p.n):null;
     const injCol=inj==='red'?'#C0392B':inj==='yellow'?'#F59E0B':null;
+    const isCap1=p?.captain===1, isCap2=p?.captain===2;
+    const hasYellow=p&&yellows[p.n];
+    const ms=p?computeMilestones(p):[];
+    // Hito más relevante — solo si es muy cercano (primer texto)
+    const topMs=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
     return`<div class="p-slot" id="pslot-${slot.id}" style="left:${slot.x}%;top:${slot.y}%"
       data-slot="${slot.id}" data-match="${matchId}" data-pos="${slot.pos}"
       onclick="pizSlotClick('${matchId}','${slot.id}','${slot.pos}')">
@@ -3810,10 +3822,14 @@ async function renderPizarra(matchId){
           ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.5);font-weight:700">${slot.pos}</span>`:''}
         </div>
         ${p?`<div class="p-slot-num">${p.n}</div>`:''}
+        ${isCap1?`<div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);background:var(--gold);color:#fff;font-size:7px;font-weight:900;padding:1px 4px;border-radius:4px;z-index:10;white-space:nowrap;border:1px solid rgba(255,255,255,.5)">CAP</div>`:''}
+        ${isCap2?`<div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);background:#fff;color:var(--navy);font-size:7px;font-weight:900;padding:1px 4px;border-radius:4px;z-index:10;white-space:nowrap;border:1px solid rgba(0,0,0,.2)">C2</div>`:''}
+        ${hasYellow?`<div style="position:absolute;top:-4px;right:-4px;width:10px;height:13px;background:#F59E0B;border-radius:1px;z-index:10;border:1px solid rgba(255,255,255,.6)" title="Tarjeta amarilla acumulada" onclick="event.stopPropagation();toggleYellow(${p.n})"></div>`:''}
         ${injCol?`<div style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-radius:50%;background:${injCol};border:2px solid #fff;z-index:10"></div>`:''}
         ${p?`<div class="p-slot-remove" onclick="event.stopPropagation();pizRemove('${matchId}','${slot.id}')">×</div>`:''}
       </div>
       <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${p?`#${p.n} ${lbl}`:slot.pos}</div>
+      ${topMs&&p?`<div style="font-size:7px;color:var(--gold);font-weight:700;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:2px;margin-top:1px;max-width:70px;text-align:center;line-height:1.3;text-shadow:none">${topMs}</div>`:''}
     </div>`;
   }
 
@@ -3833,9 +3849,10 @@ async function renderPizarra(matchId){
         <span class="piz-chip-av-num" style="${ph?'display:none':''}">${p.n}</span>
       </div>
       <div class="piz-chip-info">
-        <div class="piz-chip-top">${injDot}<span class="piz-chip-num">#${p.n}</span><span class="piz-chip-name">${sn}</span></div>
+        <div class="piz-chip-top">${injDot}<span class="piz-chip-num">#${p.n}</span><span class="piz-chip-name">${sn}</span>${yellows[p.n]?'<span style="width:8px;height:11px;background:#F59E0B;border-radius:1px;display:inline-block;flex-shrink:0;margin-left:2px" title="Amarilla"></span>':''}${p.captain===1?'<span style="font-size:8px;font-weight:900;background:var(--gold);color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">C</span>':''}</div>
         ${hint?`<div class="piz-chip-hint">${hint}</div>`:''}
       </div>
+      <div onclick="event.stopPropagation();toggleYellow(${p.n})" title="${yellows[p.n]?'Quitar amarilla':'Marcar amarilla'}" style="font-size:11px;cursor:pointer;opacity:.5;flex-shrink:0;padding:2px" draggable="false">${yellows[p.n]?'🟨':'○'}</div>
     </div>`;
   }
 
@@ -3860,13 +3877,13 @@ async function renderPizarra(matchId){
           <div class="piz-card-body">
             <div class="piz-card-teams">
               <div class="piz-card-team">
-                <div class="piz-card-flag">🇺🇾</div>
-                <div class="piz-card-tname uru">Uruguay</div>
+                <div class="piz-card-flag">${flagImg('uy',36)}</div>
+                <div class="piz-card-tname uru">URU</div>
               </div>
               <div class="piz-card-vs">VS</div>
               <div class="piz-card-team">
-                <div class="piz-card-flag">${rival?.flagR||''}</div>
-                <div class="piz-card-tname">${rival?.rival||''}</div>
+                <div class="piz-card-flag">${flagImg(rival?.codeR||'un',36)}</div>
+                <div class="piz-card-tname">${rival?.abbr||''}</div>
               </div>
             </div>
             <div class="piz-card-sep"></div>
