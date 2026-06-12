@@ -732,8 +732,19 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 .piz-col-center{min-width:0}
 .piz-col-right{display:flex;flex-direction:column;min-width:0;max-height:calc(100vh - 140px);overflow-y:auto;scrollbar-width:thin}
 .piz-col-right::-webkit-scrollbar{width:4px}.piz-col-right::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.piz-info-card{background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:12px;padding:12px 10px;text-align:center;color:#fff;border-left:3px solid var(--cel)}
-.piz-countdown{font-size:10.5px;font-weight:700;color:var(--cel);background:rgba(0,157,216,.12);border-radius:8px;padding:5px 8px;text-align:center;line-height:1.6;margin-top:8px}
+.piz-info-card{background:linear-gradient(160deg,#0a1628 0%,#0f2044 60%,#0a1628 100%);border-radius:14px;overflow:hidden;color:#fff;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+.piz-card-banner{background:linear-gradient(90deg,#009DD8,#006FA3);padding:5px 10px;font-size:8.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;text-align:center;color:rgba(255,255,255,.9)}
+.piz-card-body{padding:14px 10px 10px}
+.piz-card-teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin-bottom:10px}
+.piz-card-team{display:flex;flex-direction:column;align-items:center;gap:3px}
+.piz-card-flag{font-size:28px;line-height:1}
+.piz-card-tname{font-size:10px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;line-height:1.2}
+.piz-card-tname.uru{color:#fff;font-weight:900;font-size:11px}
+.piz-card-vs{font-size:14px;font-weight:900;color:rgba(255,255,255,.4);letter-spacing:.05em}
+.piz-card-sep{width:100%;height:0.5px;background:rgba(255,255,255,.1);margin-bottom:8px}
+.piz-card-meta{font-size:9.5px;color:rgba(255,255,255,.6);text-align:center;line-height:1.8}
+.piz-card-meta b{color:rgba(255,255,255,.9);font-weight:700}
+.piz-countdown{font-size:11px;font-weight:800;color:#fff;background:rgba(0,157,216,.25);border:1px solid rgba(0,157,216,.4);border-radius:8px;padding:6px 8px;text-align:center;line-height:1.4;margin-top:8px}
 .piz-match-sel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .piz-ms{font-size:11.5px;padding:6px 13px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);cursor:pointer;font-weight:700;transition:all .15s}
 .piz-ms.active{background:linear-gradient(135deg,var(--cel),var(--cel-dk));color:#fff;border-color:var(--cel)}
@@ -3717,9 +3728,9 @@ const PIZ_MATCH_INFO = {
   'uru-esp': {date:'Viernes 26 jun',           stadium:'Estadio Akron',     city:'Guadalajara, México 🇲🇽', kickoff:'2026-06-27T01:00:00Z'},
 };
 const PIZ_MATCHES = [
-  {id:'uru-ksa', label:'🇸🇦 vs. Arabia Saudita', short:'vs. KSA'},
-  {id:'uru-cpv', label:'🇨🇻 vs. Cabo Verde',     short:'vs. CPV'},
-  {id:'uru-esp', label:'🇪🇸 vs. España',          short:'vs. ESP'},
+  {id:'uru-ksa', label:'🇸🇦 vs. Arabia Saudita', short:'KSA', rival:'Arabia Saudita', flagR:'🇸🇦', group:'Grupo H · Fecha 1'},
+  {id:'uru-cpv', label:'🇨🇻 vs. Cabo Verde',     short:'CPV', rival:'Cabo Verde',     flagR:'🇨🇻', group:'Grupo H · Fecha 2'},
+  {id:'uru-esp', label:'🇪🇸 vs. España',          short:'ESP', rival:'España',         flagR:'🇪🇸', group:'Grupo H · Fecha 3'},
 ];
 
 async function renderPizarra(matchId){
@@ -3845,15 +3856,27 @@ async function renderPizarra(matchId){
       <!-- Columna izquierda: info del partido -->
       <div class="piz-col-left">
         <div class="piz-info-card">
-          <div style="font-size:28px;margin-bottom:6px">🇺🇾</div>
-          <div style="font-size:13px;font-weight:800;color:var(--text)">Uruguay</div>
-          <div style="font-size:11px;color:var(--muted);margin:2px 0 10px">vs. ${rival?.label?.replace(/^[^ ]+ /,'')||''}</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:600;line-height:1.8">
-            ${PIZ_MATCH_INFO[matchId]?.date||''}<br>
-            ${PIZ_MATCH_INFO[matchId]?.stadium||''}<br>
-            ${PIZ_MATCH_INFO[matchId]?.city||''}
+          <div class="piz-card-banner">Copa Mundial FIFA 2026 · ${rival?.group||'Grupo H'}</div>
+          <div class="piz-card-body">
+            <div class="piz-card-teams">
+              <div class="piz-card-team">
+                <div class="piz-card-flag">🇺🇾</div>
+                <div class="piz-card-tname uru">Uruguay</div>
+              </div>
+              <div class="piz-card-vs">VS</div>
+              <div class="piz-card-team">
+                <div class="piz-card-flag">${rival?.flagR||''}</div>
+                <div class="piz-card-tname">${rival?.rival||''}</div>
+              </div>
+            </div>
+            <div class="piz-card-sep"></div>
+            <div class="piz-card-meta">
+              <b>${PIZ_MATCH_INFO[matchId]?.date||''}</b><br>
+              ${PIZ_MATCH_INFO[matchId]?.stadium||''}<br>
+              ${PIZ_MATCH_INFO[matchId]?.city||''}
+            </div>
+            <div class="piz-countdown" id="piz-countdown-${matchId}"></div>
           </div>
-          <div class="piz-countdown" id="piz-countdown-${matchId}" style="margin-top:12px"></div>
         </div>
 
         <!-- Formación -->
