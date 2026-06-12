@@ -2017,20 +2017,21 @@ function matchForDate(date){
 
 // ── Mapeo texto evento → checkId del partido ─────────
 function checkIdForEvent(txt){
-  const t=txt.toLowerCase();
-  if(t.includes('tv crew'))                          return'md2-crew';
-  if(t.includes('stand-up')||t.includes('primera atención')) return'md1-stand';
-  if(t.includes('conferencia')&&t.includes('post')) return'md-conf-post';
+  const t=(txt||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  // FIFA Crew — puede ser MD-2, MD-3 o MD-4, el nombre varía
+  if(t.includes('tv crew')||t.includes('crew fifa')||(t.includes('atencion')&&t.includes('fifa'))) return'md2-crew';
+  if(t.includes('stand-up')||t.includes('primera atencion')) return'md1-stand';
+  if(t.includes('conferencia')&&(t.includes('post')||t.includes('+15'))) return'md-conf-post';
   if(t.includes('conferencia'))                      return'md1-conf';
   if(t.includes('multi-flash')||t.includes('pitchside')) return'md-flash';
-  if(t.includes('uni-flash')||t.includes('túnel'))   return'md-tunel';
+  if(t.includes('uni-flash')||t.includes('tunel'))   return'md-tunel';
   if(t.includes('zona mixta')&&t.includes('lineal')) return'md-mix-lin';
   if(t.includes('zona mixta'))                       return'md-mix-est';
   if(t.includes('entretiempo'))                      return'md-ht';
-  if(t.includes('pre-calentamiento')||t.includes('precalentamiento')) return'md-precal';
+  if(t.includes('pre-calentamiento')||t.includes('precalentamiento')||t.includes('ko-75')) return'md-precal';
   if(t.includes('llegada estadio')||t.includes('llegada al estadio')) return'md-llegada';
   if(t.includes('vestuario'))                        return'md-vestuario';
-  if(t.includes('entrevistas al aterrizar')||t.includes('aterrizar')) return'arr-ent';
+  if(t.includes('aterrizar')||t.includes('al aterrizar')) return'arr-ent';
   if(t.includes('mediaday'))                         return'arr-media';
   return null;
 }
@@ -2040,7 +2041,10 @@ function syncEvToChk(date, idx, evParts){
   const day=CALENDAR_DAYS.find(d=>d.date===date);
   if(!day)return;
   const ev=day.eventos?.[idx];
-  if(!ev||!ev.oblig)return; // solo obligatorias
+  if(!ev)return;
+  // Usar la misma lógica que isPresaActivity: tipo='oblig' y no es viaje/info/cerrado
+  const isOblig=ev.tipo==='oblig'&&ev.oblig!==false&&!ev.cerrado&&ev.tipo!=='viaje'&&ev.tipo!=='info';
+  if(!isOblig)return;
 
   const matchId=matchForDate(date);
   if(!matchId)return;
@@ -3838,9 +3842,12 @@ async function syncLineupESPN(matchId){
 function resyncAllEvToChk(){
   const evParts=getEvParts();
   Object.keys(evParts).forEach(k=>{
-    // k tiene formato "YYYY-MM-DD_idx"
-    const [date,idxStr]=k.split('_');
-    if(!date||idxStr===undefined)return;
+    // k tiene formato "YYYY-MM-DD_idx" — el último _ separa la fecha del índice
+    const lastU=k.lastIndexOf('_');
+    if(lastU<0)return;
+    const date=k.slice(0,lastU);
+    const idxStr=k.slice(lastU+1);
+    if(!date||idxStr==='')return;
     syncEvToChk(date,parseInt(idxStr),evParts);
   });
 }
