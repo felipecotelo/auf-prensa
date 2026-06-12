@@ -3867,6 +3867,7 @@ function resyncAllEvToChk(){
 // SERVER SYNC
 // ═══════════════════════════════════════════════════════════════════════════
 const IS_SERVER = location.protocol !== 'file:' && location.hostname !== 'localhost';
+const API_BASE  = 'https://auf-prensa-production.up.railway.app'; // siempre apunta al servidor
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AUTO-SYNC ESPN — alineación y participación automáticas
@@ -4039,7 +4040,7 @@ async function serverSave(){
     const lsData={};
     LS_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v)lsData[k]=v;});
     const photos=await getAllPhotosIDB();
-    const res=await fetch('/api/save',{
+    const res=await fetch(API_BASE+'/api/save',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({localStorage:lsData, photos})
@@ -4063,7 +4064,7 @@ async function serverLoad(){
   const btn=document.getElementById('btn-cloud-load');
   btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 ti-spin" style="font-size:12px"></i>';
   try{
-    const res=await fetch('/api/load');
+    const res=await fetch(API_BASE+'/api/load');
     const {ok,data}=await res.json();
     if(!ok||!data){toast('ℹ No hay datos en el servidor aún');btn.disabled=false;btn.innerHTML='<i class="ti ti-cloud-download" style="font-size:12px"></i> <span class="nav-sync-lbl">Cargar</span>';return;}
     if(data.localStorage) Object.entries(data.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
@@ -4088,7 +4089,7 @@ async function serverLoad(){
 async function tryAutoLoad(){
   if(!IS_SERVER) return;
   try{
-    const res=await fetch('/api/load');
+    const res=await fetch(API_BASE+'/api/load');
     const {ok,data}=await res.json();
     if(!ok||!data) return;
     if(data.localStorage) Object.entries(data.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
