@@ -2036,42 +2036,61 @@ function checkIdForEvent(txt){
   return null;
 }
 
-// ── Sincroniza evParts → chk (checklist del partido) ─
+// ── Motor de agregación: recorre TODOS los eventos del período del partido
+//    y consolida participantes por tipo de actividad (checkId).
+//    Un jugador en múltiples sesiones del mismo tipo = cuenta 1 sola vez.
+function aggregateMatchActivities(){
+  const evParts = getEvParts();
+  const chkData = getChk();
+  // {matchId_checkId: {matchId, checkId, players:Set, dts:Set, hasParts:bool}}
+  const agg = {};
+
+  CALENDAR_DAYS.forEach(day=>{
+    const matchId = matchForDate(day.date);
+    if(!matchId) return;
+
+    // Eventos base del día
+    const baseEvs = day.eventos||[];
+    // Eventos dinámicos agregados por el usuario
+    const dynEvs  = (getDayActs()[day.date]||[]);
+    const allEvs  = [...baseEvs, ...dynEvs];
+
+    allEvs.forEach((ev, realIdx)=>{
+      // Solo actividades de prensa (tipo='oblig' y no viaje/info/cerrado)
+      const isPress = ev.tipo==='oblig' && ev.oblig!==false && !ev.cerrado;
+      if(!isPress) return;
+
+      const checkId = checkIdForEvent(ev.txt||'');
+      if(!checkId) return;
+
+      const k   = evKey(day.date, realIdx);
+      const pts = evParts[k]||[];
+      if(!pts.length) return;
+
+      const aggKey = `${matchId}__${checkId}`;
+      if(!agg[aggKey]) agg[aggKey]={matchId,checkId,players:new Set(),dts:new Set()};
+
+      pts.filter(x=>x.startsWith('p_')).forEach(x=>agg[aggKey].players.add(parseInt(x.slice(2))));
+      pts.filter(x=>x.startsWith('dt_')).forEach(x=>agg[aggKey].dts.add(x.slice(3)));
+    });
+  });
+
+  // Volcar al checklist
+  Object.values(agg).forEach(({matchId,checkId,players,dts})=>{
+    if(!chkData[matchId]) chkData[matchId]={};
+    if(!chkData[matchId][checkId]) chkData[matchId][checkId]={};
+    chkData[matchId][checkId].players = [...players]; // Set → sin duplicados
+    if(dts.size) chkData[matchId][checkId].dt = [...dts][0];
+    if(players.size) chkData[matchId][checkId].done = true;
+  });
+
+  stor.set(KC, chkData);
+  return chkData;
+}
+
+// syncEvToChk: después de cada cambio re-agrega todo (modelo correcto)
 function syncEvToChk(date, idx, evParts){
-  const day=CALENDAR_DAYS.find(d=>d.date===date);
-  if(!day)return;
-  const ev=day.eventos?.[idx];
-  if(!ev)return;
-  // Usar la misma lógica que isPresaActivity: tipo='oblig' y no es viaje/info/cerrado
-  const isOblig=ev.tipo==='oblig'&&ev.oblig!==false&&!ev.cerrado&&ev.tipo!=='viaje'&&ev.tipo!=='info';
-  if(!isOblig)return;
-
-  const matchId=matchForDate(date);
-  if(!matchId)return;
-  const checkId=checkIdForEvent(ev.txt||'');
-  if(!checkId)return;
-
-  const k=evKey(date,idx);
-  const parts=evParts[k]||[];
-
-  const chkData=getChk();
-  if(!chkData[matchId])chkData[matchId]={};
-  if(!chkData[matchId][checkId])chkData[matchId][checkId]={};
-
-  // Players
-  const playerNums=parts.filter(x=>x.startsWith('p_')).map(x=>parseInt(x.slice(2)));
-  chkData[matchId][checkId].players=playerNums;
-
-  // DT
-  const dtIds=parts.filter(x=>x.startsWith('dt_')).map(x=>x.slice(3));
-  if(dtIds.length)chkData[matchId][checkId].dt=dtIds[0];
-
-  // Marcar como hecho si hay participantes
-  if(parts.length>0)chkData[matchId][checkId].done=true;
-
-  stor.set(KC,chkData);
-
-  // Refrescar Disponibilidad si está visible
+  aggregateMatchActivities();
   if(document.getElementById('disponibilidad')?.classList.contains('active')) renderDisponibilidad();
 }
 
@@ -3840,16 +3859,8 @@ async function syncLineupESPN(matchId){
 
 // Re-sincroniza todos los evParts ya guardados → chk (se llama al iniciar)
 function resyncAllEvToChk(){
-  const evParts=getEvParts();
-  Object.keys(evParts).forEach(k=>{
-    // k tiene formato "YYYY-MM-DD_idx" — el último _ separa la fecha del índice
-    const lastU=k.lastIndexOf('_');
-    if(lastU<0)return;
-    const date=k.slice(0,lastU);
-    const idxStr=k.slice(lastU+1);
-    if(!date||idxStr==='')return;
-    syncEvToChk(date,parseInt(idxStr),evParts);
-  });
+  // Re-agrega todo desde cero — modelo por tipo de actividad
+  aggregateMatchActivities();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
