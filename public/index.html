@@ -2345,12 +2345,24 @@ function buildEventsHtml(day, startIdx=0){
         </div>
         <div class="cal-ev-detail" id="ced-${day.date}-${realIdx}">
           ${isFifaChange&&getEvFifaOrig()[k]&&getEvFifaOrig()[k]!==t?`<div style="font-size:11px;color:var(--gold);margin-bottom:4px">* Horario original: ${getEvFifaOrig()[k]} — reprogramado por FIFA</div>`:''}
-          ${isOblig?`
-          <div class="ev-parts-lbl" style="margin-top:6px">🔢 Registro manual de atenciones (solo para uso interno — no suma al conteo automático)</div>
-          <input type="number" min="0" inputmode="numeric" value="${getEvManualAt()[k]??''}" placeholder="0"
-            style="width:60px;font-size:12px;padding:2px 6px;margin-top:3px;border:1px solid var(--border);border-radius:6px"
-            onclick="event.stopPropagation()"
-            oninput="saveEvManualAt('${day.date}',${realIdx},this)">`:''}
+          ${isOblig?(()=>{
+            const manualAtParts=[
+              ...selParts.filter(x=>x.startsWith('dt_')).map(x=>({key:x,name:(DT_STAFF.find(s=>s.id===x.slice(3))||{}).name||x})),
+              ...selParts.filter(x=>x.startsWith('p_')).map(x=>{const n=parseInt(x.slice(2));const pl=PLAYERS.find(pl=>pl.n===n);return{key:x,name:pl?pl.name.split(' ').pop():x}})
+            ];
+            const saved=getEvManualAt()[k]||{};
+            return`
+          <div class="ev-parts-lbl" style="margin-top:6px">🔢 Registro manual de atenciones por persona (solo uso interno — no suma al conteo automático)</div>
+          ${manualAtParts.length?`<div style="display:flex;flex-direction:column;gap:3px;margin-top:3px">
+            ${manualAtParts.map(p=>`<div style="display:flex;align-items:center;gap:6px;font-size:12px">
+              <span style="min-width:90px">${p.name}</span>
+              <input type="number" min="0" inputmode="numeric" value="${saved[p.key]??''}" placeholder="0"
+                style="width:55px;font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:6px"
+                onclick="event.stopPropagation()"
+                oninput="saveEvManualAt('${day.date}',${realIdx},'${p.key}',this)">
+            </div>`).join('')}
+          </div>`:`<div style="font-size:11px;color:var(--hint);margin-top:3px">Seleccioná los participantes abajo para anotar sus atenciones</div>`}`;
+          })():''}
           ${showParticipants?`
           <div class="ev-parts-lbl">DT / Cuerpo técnico</div>
           <div class="ev-parts-chips">${dtChips}</div>
@@ -3935,11 +3947,13 @@ function toggleEvFifa(date,idx,ev){
 }
 
 function getEvManualAt(){return stor.get(KEvManualAt,{})}
-function saveEvManualAt(date,idx,input){
+function saveEvManualAt(date,idx,partKey,input){
   const m=getEvManualAt();
   const k=evKey(date,idx);
   const val=input.value.trim();
-  if(val)m[k]=parseInt(val)||0; else delete m[k];
+  if(!m[k])m[k]={};
+  if(val)m[k][partKey]=parseInt(val)||0; else delete m[k][partKey];
+  if(!Object.keys(m[k]).length)delete m[k];
   stor.set(KEvManualAt,m);
 }
 
