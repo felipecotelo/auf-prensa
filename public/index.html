@@ -1520,7 +1520,7 @@ const CALENDAR_DAYS = [
   {date:'2026-06-14',dow:'Dom',label:'14 jun',tipo:'md1', lugar:'Playa del Carmen 🇲🇽 → Miami 🇺🇸', rival:'Arabia Saudita', md:'MD-1',
    eventos:[
      {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS · Playa del Carmen',oblig:true,esTrain:true},
-     {h:'14:00 (MEX)',tipo:'viaje',txt:'✈️ Viaje Playa del Carmen → Miami, Florida',oblig:false},
+     {h:'14:00 (MEX)',tipo:'viaje',txt:'✈️ Viaje Playa del Carmen → Miami, Florida',oblig:false,linkTo:2,durMin:110},
      {h:'16:50 (MIA)',tipo:'viaje',txt:'🛬 Llegada Miami International Airport',oblig:false},
      {h:'18:30 (MIA)',tipo:'oblig',txt:'Conferencia de prensa — primera atención + 2×15\' · Hard Rock Stadium, Miami',oblig:true,art:'TAM p.72',confMD1:true},
      {h:'19:00 (MIA)',tipo:'info',txt:'Reunión de coordinación (MCM) — Directores FIFA · Estadio',oblig:false,noParts:true},
@@ -1644,7 +1644,7 @@ function flagImg(code, size=28){
   return `<img src="https://flagcdn.com/w40/${code}.png" alt="${code.toUpperCase()}" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;vertical-align:middle" onerror="this.style.display='none'">`;
 }
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig';
 const getYellows=()=>stor.get(KYellow,{});
 const setYellows=v=>stor.set(KYellow,v);
 function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y); _luPhotos=null; renderPizarra(_pizMatch); }
@@ -2256,6 +2256,7 @@ function buildEventsHtml(day, startIdx=0){
     const realIdx=e._origIdx!==undefined?e._origIdx:startIdx+ei;
     const k=evKey(day.date,realIdx);
     const t=getCalTime(day.date,realIdx,e.h);
+    const isFifaChange=getEvFifa()[k];
     const s=evStatus[k]||'';
     const note=evNotes[k]||'';
     const link=getEvLinks()[k]||'';
@@ -2306,6 +2307,7 @@ function buildEventsHtml(day, startIdx=0){
             <button class="ev-st st-no${s==='no'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'no',this)" title="No realizada">✗</button>
           </div>
           <div class="cal-event-h editable-time" style="margin-top:2px;min-width:50px" title="Click para editar horario" onclick="editEventTime('${day.date}',${realIdx},this)">${t}</div>
+          <button onclick="toggleEvFifa('${day.date}',${realIdx},event)" title="${isFifaChange?'Horario reprogramado por FIFA — click para quitar la marca':'Marcar como horario reprogramado por FIFA (no fue un cambio nuestro)'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 2px;margin-top:2px;line-height:1;opacity:${isFifaChange?'1':'.25'}">⏰</button>
           <div class="cal-event-dot ${e.isDT?'ce-dt':'ce-'+e.tipo}" style="margin-top:5px;flex-shrink:0"></div>
           <div class="ev-txt-wrap">
             <div class="ev-main-txt ${statusClass}">
@@ -2328,6 +2330,7 @@ function buildEventsHtml(day, startIdx=0){
                 const toggleBtn=showToggle?`<button onclick="cycleEvOblig('${day.date}',${realIdx},event)" title="${toggleTip}" style="background:none;border:none;cursor:pointer;font-size:9px;color:${ovr==='auto'?'var(--hint)':ovr==='oblig'?'var(--cel-dk)':'var(--muted)'};padding:0 2px;line-height:1;opacity:.7" >✎</button>`:'';
                 return mainTag+toggleBtn;
               })()}
+              ${isFifaChange?'<span class="tag" style="font-size:9.5px;background:rgba(212,160,23,.15);color:var(--gold)" title="Horario reprogramado por FIFA">⏰ Reprogramado por FIFA</span>':''}
               ${(e.esTrain&&dayClosed)?'<span class="ev-cerrado-badge">CERRADO · Sin prensa</span>':''}
               ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" style="font-size:11px;text-decoration:none;margin-left:2px">🔗${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
               ${doneIcon}
@@ -2341,6 +2344,7 @@ function buildEventsHtml(day, startIdx=0){
           <button class="ev-expand" onclick="toggleEvDetail('${day.date}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
         <div class="cal-ev-detail" id="ced-${day.date}-${realIdx}">
+          ${isFifaChange&&getEvFifaOrig()[k]&&getEvFifaOrig()[k]!==t?`<div style="font-size:11px;color:var(--gold);margin-bottom:4px">* Horario original: ${getEvFifaOrig()[k]} — reprogramado por FIFA</div>`:''}
           ${showParticipants?`
           <div class="ev-parts-lbl">DT / Cuerpo técnico</div>
           <div class="ev-parts-chips">${dtChips}</div>
@@ -3833,7 +3837,7 @@ function renderLog(f){
 async function exportData(){
   toast('Preparando backup completo...');
   const lsData={};
-  [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink]
+  [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig]
     .forEach(k=>{const v=localStorage.getItem(k);if(v)lsData[k]=v;});
   const idbPhotos=await getAllPhotosIDB();
   const payload={v:6,date:new Date().toISOString(),localStorage:lsData,photos:idbPhotos};
@@ -3881,7 +3885,7 @@ async function handleImport(e){
 }
 function clearAll(){
   if(!confirm('¿Borrar TODOS los datos? No se puede deshacer.'))return;
-  [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink].forEach(k=>localStorage.removeItem(k));
+  [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig].forEach(k=>localStorage.removeItem(k));
   renderInicio();renderLog('all');renderPlantel();renderChecklist(curMatch);
   toast('Datos eliminados');
 }
@@ -3899,6 +3903,29 @@ function saveCalTime(date,idx,val){
   t[date][idx]=val;
   stor.set(KCalT,t);
   renderPendingAlerts();
+}
+
+function getEvFifa(){return stor.get(KEvFifa,{})}
+function getEvFifaOrig(){return stor.get(KEvFifaOrig,{})}
+function toggleEvFifa(date,idx,ev){
+  ev.stopPropagation();
+  const f=getEvFifa();
+  const k=evKey(date,idx);
+  if(f[k]){
+    delete f[k];
+    const orig=getEvFifaOrig();
+    delete orig[k];
+    stor.set(KEvFifaOrig,orig);
+  } else {
+    f[k]=true;
+    const evObj=getDayEventByIdx(date,idx);
+    const orig=getEvFifaOrig();
+    orig[k]=getCalTime(date,idx,evObj?.h);
+    stor.set(KEvFifaOrig,orig);
+  }
+  stor.set(KEvFifa,f);
+  rerenderDayEvents(date);
+  toast(f[k]?'⏰ Marcado como reprogramado por FIFA':'Desmarcado');
 }
 
 function editEvTxt(date,idx,span){
@@ -3983,6 +4010,21 @@ function editEventTime(date,idx,el){
     if(committed)return; committed=true;
     const val=inp.value.trim()||cur;
     saveCalTime(date,idx,val);
+    // Si este evento tiene un evento "conectado" (ej. llegada que depende de la salida),
+    // recalculamos su horario sumando la duración del viaje.
+    const evObj=getDayEventByIdx(date,idx);
+    if(evObj?.linkTo!=null&&evObj.durMin!=null){
+      const m=val.match(/(\d{1,2}):(\d{2})/);
+      if(m){
+        const startMin=parseInt(m[1])*60+parseInt(m[2]);
+        let endMin=(startMin+evObj.durMin)%1440;
+        const newTime=`${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+        const linkedEv=getDayEventByIdx(date,evObj.linkTo);
+        const curLinked=getCalTime(date,evObj.linkTo,linkedEv?.h||'');
+        const suffix=(curLinked.match(/\(.*\)/)||[''])[0];
+        saveCalTime(date,evObj.linkTo,suffix?`${newTime} ${suffix}`:newTime);
+      }
+    }
     rerenderDayEvents(date); // re-sort automáticamente
   }
   inp.onblur=commit;
@@ -6392,7 +6434,7 @@ function showMatchStatus(matchId, status, clock){
     }
   });
 }
-const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink];
+const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig];
 
 async function serverSave(){
   const btn=document.getElementById('btn-cloud-save');
