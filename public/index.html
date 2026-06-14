@@ -469,6 +469,8 @@ textarea{resize:vertical;min-height:52px}
 .ev-cerrado{font-size:10px;font-weight:700;background:#0F1D2E;color:#F59E0B;padding:1px 7px;border-radius:8px;margin-left:4px}
 .editable-time{cursor:pointer;border-bottom:1px dashed var(--hint);}
 .editable-time:hover{color:var(--cel-dk);border-bottom-color:var(--cel)}
+.draft-time{color:var(--gold)!important;font-style:italic;border-bottom-color:var(--gold)}
+.draft-tag{display:block;font-size:8px;font-weight:800;font-style:normal;letter-spacing:.03em;color:var(--gold);text-transform:uppercase;line-height:1.3}
 .ev-editable-txt{cursor:text;border-bottom:1px dashed transparent;transition:border-color .15s}
 .ev-editable-txt:hover{border-bottom-color:var(--hint)}
 .ev-editable-txt::after{content:' ✎';font-size:9px;color:var(--hint);opacity:0;transition:opacity .15s}
@@ -1819,6 +1821,10 @@ function parseEvTime(h){
   return 9999;
 }
 
+// Horario "borrador": el usuario antepone ~ o agrega ? para marcar un horario
+// tentativo (a confirmar), pero igual se ordena según ese horario.
+function isDraftTime(h){return /[~?]/.test(h||'')}
+
 // Cross-day event groups: {groupId: [{date, idx},...]}
 const EVENT_GROUPS={
   'fifa-tv-crew':[
@@ -2315,7 +2321,7 @@ function buildEventsHtml(day, startIdx=0){
             <button class="ev-st st-sus${s==='sus'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'sus',this)" title="Suspendida">⏸</button>
             <button class="ev-st st-no${s==='no'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'no',this)" title="No realizada">✗</button>
           </div>
-          <div class="cal-event-h editable-time" style="margin-top:2px;min-width:50px" title="Click para editar horario" onclick="editEventTime('${day.date}',${realIdx},this)">${t}</div>
+          <div class="cal-event-h editable-time${isDraftTime(t)?' draft-time':''}" style="margin-top:2px;min-width:50px" title="${isDraftTime(t)?'Horario a confirmar — click para editar':'Click para editar horario'}" onclick="editEventTime('${day.date}',${realIdx},this)">${t}${isDraftTime(t)?'<span class="draft-tag">a confirmar</span>':''}</div>
           <button onclick="toggleEvFifa('${day.date}',${realIdx},event)" title="${isFifaChange?'Horario reprogramado por FIFA — click para quitar la marca':'Marcar como horario reprogramado por FIFA (no fue un cambio nuestro)'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 2px;margin-top:2px;line-height:1;opacity:${isFifaChange?'1':'.25'}">⏰</button>
           <div class="cal-event-dot ${e.isDT?'ce-dt':'ce-'+e.tipo}" style="margin-top:5px;flex-shrink:0"></div>
           <div class="ev-txt-wrap">
