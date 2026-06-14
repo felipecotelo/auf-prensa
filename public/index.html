@@ -1797,13 +1797,14 @@ function evKey(date,idx){return`${date}_${idx}`}
 
 function parseEvTime(h){
   if(!h||h==='TBD'||h===''||h==='TBD*') return 9999;
-  const m=h.match(/(\d{1,2}):(\d{2})/);
+  const m=h.match(/(\d{1,2})[:h](\d{2})?/i);
   if(m){
     const hour=parseInt(m[1]);
-    const mins=hour*60+parseInt(m[2]);
-    // Horarios nocturnos (≥20h) en días de partido son post-partido:
-    // van después de los hitos relativos al partido (Pre-partido, KO, HT, Post-pitido, +15-30', etc.)
-    if(hour>=20) return 10000+mins;
+    const mins=hour*60+(m[2]?parseInt(m[2]):0);
+    // Horarios nocturnos (≥20h) en días de partido son post-partido, pero con horario
+    // confirmado: van después de los hitos relativos al partido (Pre-partido, KO, HT,
+    // Post-pitido, Mañana) pero antes de los eventos aún sin agendar (+15-30', TBD).
+    if(hour>=20) return 7900+mins;
     return mins;
   }
   const onlyNum=h.match(/^(\d{1,2})$/);
