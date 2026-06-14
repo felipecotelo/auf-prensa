@@ -1798,7 +1798,14 @@ function evKey(date,idx){return`${date}_${idx}`}
 function parseEvTime(h){
   if(!h||h==='TBD'||h===''||h==='TBD*') return 9999;
   const m=h.match(/(\d{1,2}):(\d{2})/);
-  if(m) return parseInt(m[1])*60+parseInt(m[2]);
+  if(m){
+    const hour=parseInt(m[1]);
+    const mins=hour*60+parseInt(m[2]);
+    // Horarios nocturnos (≥20h) en días de partido son post-partido:
+    // van después de los hitos relativos al partido (Pre-partido, KO, HT, Post-pitido, +15-30', etc.)
+    if(hour>=20) return 10000+mins;
+    return mins;
+  }
   const onlyNum=h.match(/^(\d{1,2})$/);
   if(onlyNum) return parseInt(onlyNum[1])*60;
   const lo=h.toLowerCase();
