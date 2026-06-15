@@ -1562,7 +1562,7 @@ const CALENDAR_DAYS = [
      {h:'15:35',tipo:'team',txt:'🗣️ Charla pre-partido',oblig:false,noParts:true},
      {h:'15:50',tipo:'team',txt:'🚌 Salida del bus al estadio',oblig:false,noParts:true},
      {h:'17:10',tipo:'team',txt:'⚡ Inicio de activación',oblig:false,noParts:true},
-     {h:'18:00',tipo:'partido',txt:'EL PARTIDO — vs. Arabia Saudita 🇸🇦',rivalName:'Arabia Saudita 🇸🇦',fixId:'m2',oblig:false,noParts:true},
+     {h:'18:00',tipo:'partido',txt:'vs. Arabia Saudita 🇸🇦',rivalName:'Arabia Saudita 🇸🇦',tagLabel:'FECHA 1, FASE DE GRUPOS',fixId:'m2',oblig:false,noParts:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Grabación vestuario — cámara fija FIFA',oblig:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Entrevista llegada estadio — 1 jugador titular',oblig:true},
      {h:'KO-75\'',tipo:'oblig',txt:'Entrevista pre-calentamiento — DT o AT',oblig:true},
@@ -1613,7 +1613,7 @@ const CALENDAR_DAYS = [
    },
    eventos:[
      {h:'Mañana',tipo:'team',txt:'⚡ Activación en hotel — sin entrenamiento',noParts:true},
-     {h:'18:00',tipo:'partido',txt:'EL PARTIDO — vs. Cabo Verde 🇨🇻',rivalName:'Cabo Verde 🇨🇻',fixId:'m4',oblig:false,noParts:true},
+     {h:'18:00',tipo:'partido',txt:'vs. Cabo Verde 🇨🇻',rivalName:'Cabo Verde 🇨🇻',tagLabel:'FECHA 2, FASE DE GRUPOS',fixId:'m4',oblig:false,noParts:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Grabación vestuario — cámara fija FIFA'},
      {h:'Pre-partido',tipo:'oblig',txt:'Entrevista llegada estadio — 1 jugador titular'},
      {h:'KO-75\'',tipo:'oblig',txt:'Entrevista pre-calentamiento — DT o AT'},
@@ -1653,7 +1653,7 @@ const CALENDAR_DAYS = [
    },
    eventos:[
      {h:'Mañana',tipo:'team',txt:'⚡ Activación en hotel — sin entrenamiento',noParts:true},
-     {h:'18:00',tipo:'partido',txt:'EL PARTIDO — vs. España 🇪🇸',rivalName:'España 🇪🇸',fixId:'m6',oblig:false,noParts:true},
+     {h:'18:00',tipo:'partido',txt:'vs. España 🇪🇸',rivalName:'España 🇪🇸',tagLabel:'FECHA 3, FASE DE GRUPOS',fixId:'m6',oblig:false,noParts:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Grabación vestuario — cámara fija FIFA'},
      {h:'Pre-partido',tipo:'oblig',txt:'Entrevista llegada estadio — 1 jugador titular'},
      {h:'KO-75\'',tipo:'oblig',txt:'Entrevista pre-calentamiento — DT o AT'},
@@ -1862,6 +1862,13 @@ function parseEvTime(h){
   if(lo.includes('post-pitido')||lo.includes('post pitido')) return 8900;
   if(lo.includes('mañana')) return 9000;
   return 9999;
+}
+
+// Orden de un evento en el calendario: "EL PARTIDO" (tipo:'partido') tiene horario real
+// (ej. 18:00) pero debe ubicarse entre KO-75' (8810) y HT (8820), no por su hora real.
+function evSortKey(date,e){
+  if(e.tipo==='partido') return 8815;
+  return parseEvTime(getCalTime(date,e._origIdx,e.h));
 }
 
 // Horario "borrador": el usuario antepone ~ o agrega ? para marcar un horario
@@ -2389,7 +2396,7 @@ function buildEventsHtml(day, startIdx=0){
                 if(e.tipo==='partido'){
                   mainTag=matchResult
                     ?`<span class="tag" style="font-size:9.5px;background:var(--cel);color:#fff;font-weight:800">FINAL</span>`
-                    :`<span class="tag" style="font-size:9.5px;background:var(--red-lt);color:var(--red);font-weight:800">⚽ EL PARTIDO</span>`;
+                    :`<span class="tag" style="font-size:9.5px;background:var(--red-lt);color:var(--red);font-weight:800">${e.tagLabel||'PARTIDO'}</span>`;
                 } else if(e.tipo==='team'){
                   mainTag=`<span class="tag" style="font-size:9.5px;background:var(--team-lt);color:var(--team)">Actividad</span>`;
                 } else if(isOblig){
@@ -2557,7 +2564,7 @@ function renderCal(){
     // Merge static + custom events, tag with original index, then sort by time
     const evHidden=getEvHidden();
     const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length})).filter(e=>!evHidden[evKey(day.date,e._origIdx)]);
-    allEvs.sort((a,b)=>parseEvTime(getCalTime(day.date,a._origIdx,a.h))-parseEvTime(getCalTime(day.date,b._origIdx,b.h)));
+    allEvs.sort((a,b)=>evSortKey(day.date,a)-evSortKey(day.date,b));
     const div=document.createElement('div');
     div.className='cal-day'+(isToday?' today':'')+(isMatch||isToday?' open':'')+(day.tipo==='md1'?' tipo-md1':day.tipo==='partido'?' tipo-partido':'');
     div.dataset.date=day.date;
@@ -4118,7 +4125,7 @@ function rerenderDayEvents(date){
   const customActs=getDayActs()[date]||[];
   const evHidden=getEvHidden();
   const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length})).filter(e=>!evHidden[evKey(date,e._origIdx)]);
-  allEvs.sort((a,b)=>parseEvTime(getCalTime(date,a._origIdx,a.h))-parseEvTime(getCalTime(date,b._origIdx,b.h)));
+  allEvs.sort((a,b)=>evSortKey(date,a)-evSortKey(date,b));
   evsCont.innerHTML=buildEventsHtml({...day,eventos:allEvs});
   // Restore open state
   openIds.forEach(id=>{
