@@ -1726,6 +1726,12 @@ function getGrafica(){
   return v;
 }
 function setGrafica(v){stor.set(KGrafica,v)}
+const _graficaExpanded=new Set();
+function toggleGraficaExpand(key){
+  if(_graficaExpanded.has(key))_graficaExpanded.delete(key);
+  else _graficaExpanded.add(key);
+  renderGrafica();
+}
 function toggleGraficaPlayer(matchId,stage,num,btn){
   const g=getGrafica();
   const list=g[matchId][stage].players;
@@ -5190,14 +5196,26 @@ function renderGrafica(){
     }).join('')}</div>`;
   }
 
+  function selectedChips(matchId,stage){
+    const sel=g[matchId][stage].players||[];
+    if(!sel.length)return'<span style="font-size:10.5px;color:var(--hint)">— sin seleccionar —</span>';
+    return `<div class="player-chips">${sel.map(n=>{
+      const p=PLAYERS.find(pl=>pl.n===n);
+      return `<span class="gr-chip sel" onclick="toggleGraficaPlayer('${matchId}','${stage}',${n},this)">#${n} ${p.name.split(' ').pop()}</span>`;
+    }).join('')}</div>`;
+  }
+
   function stageBlock(matchId,stage,label){
     const link=g[matchId][stage].link||'';
+    const key=`${matchId}_${stage}`;
+    const expanded=_graficaExpanded.has(key);
     return `<div style="flex:1;min-width:220px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${label}</div>
         ${link?`<a href="${link}" target="_blank" rel="noopener" style="font-size:10px;text-decoration:none;color:var(--cel-dk);font-weight:700">🔗 Ver diseño</a>`:''}
       </div>
-      ${playerGrid(matchId,stage)}
+      ${expanded?playerGrid(matchId,stage):selectedChips(matchId,stage)}
+      <button onclick="toggleGraficaExpand('${key}')" style="background:none;border:none;cursor:pointer;font-size:10px;font-weight:700;color:var(--cel-dk);padding:4px 0 6px;text-decoration:underline">${expanded?'Ocultar lista':'+ Elegir jugadores'}</button>
       <input type="text" value="${link.replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)"
         onchange="saveGraficaLink('${matchId}','${stage}',this)"
         style="width:100%;margin-top:6px;font-size:10.5px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted)">
