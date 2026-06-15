@@ -2081,10 +2081,36 @@ const CTX_INFO = {
   'aero-brief':   {lugar:'Aeropuerto Carrasco, Uruguay'},
   'llegada-mx':   {fecha:'10/06', lugar:'Cancún, México — llegada'},
 };
+// ── Undo (Ctrl+Z / Cmd+Z) ────────────────────────────────────────────────
+const _undoStack=[];
+const UNDO_MAX=30;
+function _pushUndo(k,prevRaw){
+  _undoStack.push({k,prevRaw});
+  if(_undoStack.length>UNDO_MAX)_undoStack.shift();
+}
+function undoLast(){
+  const entry=_undoStack.pop();
+  if(!entry){toast('Nada para deshacer');return;}
+  if(entry.prevRaw===null)localStorage.removeItem(entry.k);
+  else localStorage.setItem(entry.k,entry.prevRaw);
+  sessionStorage.setItem('auf4_undo_toast','Cambio deshecho');
+  location.reload();
+}
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!e.shiftKey){
+    const t=e.target;
+    const editable=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable);
+    if(editable)return;
+    e.preventDefault();
+    undoLast();
+  }
+});
+
 const stor = {
   get:(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}},
   set:(k,v)=>{
     const json=JSON.stringify(v);
+    _pushUndo(k,localStorage.getItem(k));
     try{
       localStorage.setItem(k,json);
     }catch(err){
@@ -6877,6 +6903,8 @@ async function tryAutoLoad(){
   autoSyncCheck();
   // Verificar cada 5 min aunque no haya partido activo (por si abre la app justo cuando empieza)
   setInterval(()=>{ if(!_autoSyncInterval) autoSyncCheck(); }, 300000);
+  const undoMsg=sessionStorage.getItem('auf4_undo_toast');
+  if(undoMsg){sessionStorage.removeItem('auf4_undo_toast');toast(undoMsg);}
 })();
 </script>
 </body>
