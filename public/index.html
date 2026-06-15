@@ -1704,7 +1704,13 @@ const GRAFICA_DEFAULTS={
   'uru-ksa':{md1:{players:[9,16], link:'https://x.com/Uruguay/status/2066222586170585478'}, md:{players:[6], link:''}},
   'uru-cpv':{md1:{players:[],     link:''}, md:{players:[], link:''}},
   'uru-esp':{md1:{players:[],     link:''}, md:{players:[], link:''}},
+  flags:{},
 };
+const GRAFICA_FLAG_DEFS=[
+  {id:'star',icon:'⭐',title:'Top — priorizar'},
+  {id:'up',  icon:'🔼',title:'Viene bien — en buen momento'},
+  {id:'down',icon:'🔽',title:'Mejor no usar por ahora'},
+];
 const GRAFICA_MATCHES=[
   {id:'uru-ksa',label:'vs. Arabia Saudita 🇸🇦 — 15/6',short:'KSA',rival:'Arabia Saudita',flag:'🇸🇦',fecha:'15/6',tag:'FECHA 1 · FASE DE GRUPOS'},
   {id:'uru-cpv',label:'vs. Cabo Verde 🇨🇻 — 21/6',short:'CPV',rival:'Cabo Verde',flag:'🇨🇻',fecha:'21/6',tag:'FECHA 2 · FASE DE GRUPOS'},
@@ -1723,9 +1729,18 @@ function getGrafica(){
       else if(!cur)v[m.id][stage]={players:[],link:''};
     });
   });
+  if(!v.flags)v.flags={};
   return v;
 }
 function setGrafica(v){stor.set(KGrafica,v)}
+function toggleGraficaFlag(num,flagId){
+  const g=getGrafica();
+  const cur=g.flags[num]||{};
+  cur[flagId]=!cur[flagId];
+  g.flags[num]=cur;
+  setGrafica(g);
+  renderGrafica();
+}
 const _graficaExpanded=new Set();
 function toggleGraficaExpand(key){
   if(_graficaExpanded.has(key))_graficaExpanded.delete(key);
@@ -5234,11 +5249,17 @@ function renderGrafica(){
       </div>
     </div>`).join('');
 
+  const flags=g.flags||{};
   const playerList=PLAYERS.map(p=>{
     const tags=(usage[p.n]||[]).map(t=>`<span style="font-size:9px;font-weight:700;background:var(--cel-lt);color:var(--cel-dk);padding:1px 5px;border-radius:5px;margin-left:3px;white-space:nowrap">${t}</span>`).join('');
+    const pf=flags[p.n]||{};
+    const flagBtns=GRAFICA_FLAG_DEFS.map(f=>{
+      const on=!!pf[f.id];
+      return `<button onclick="toggleGraficaFlag(${p.n},'${f.id}')" title="${f.title}" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 1px;opacity:${on?'1':'.25'};filter:${on?'none':'grayscale(1)'}">${f.icon}</button>`;
+    }).join('');
     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11.5px">
       <span style="font-weight:600;color:${tags?'var(--text)':'var(--hint)'}">#${p.n} ${p.name.split(' ').pop()}</span>
-      <span style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px">${tags||'<span style="font-size:9px;color:var(--hint)">sin uso</span>'}</span>
+      <span style="display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:2px">${tags||'<span style="font-size:9px;color:var(--hint)">sin uso</span>'}<span style="display:flex;margin-left:4px">${flagBtns}</span></span>
     </div>`;
   }).join('');
 
