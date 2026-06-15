@@ -2242,6 +2242,7 @@ document.addEventListener('keydown',e=>{
   }
 });
 
+let _autoSyncDirty=false;
 const stor = {
   get:(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}},
   set:(k,v)=>{
@@ -2249,6 +2250,7 @@ const stor = {
     _pushUndo(k,localStorage.getItem(k));
     try{
       localStorage.setItem(k,json);
+      _autoSyncDirty=true;
     }catch(err){
       if(err.name!=='QuotaExceededError')throw err;
       // Espacio lleno — las fotos viejas (auf4_photos) ya no se usan (ahora viven en IndexedDB).
@@ -2257,6 +2259,7 @@ const stor = {
       localStorage.removeItem('auf4_photos');
       try{
         localStorage.setItem(k,json);
+        _autoSyncDirty=true;
       }catch(err2){
         console.error('localStorage sigue lleno tras liberar espacio',err2);
         toast('⚠️ Almacenamiento local lleno — el cambio puede no haberse guardado. Avisale a Felipe.');
@@ -7046,26 +7049,34 @@ function showMatchStatus(matchId, status, clock){
 }
 const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KYellow,KEvOblig,KAeroUy,KEvHidden,KGrafica,KStatsOrder,KMvp,KCardTrack,KStatsDelta,KCardSynced,KMatchEvents,KDelegacion,KInfoTexts,KLineup];
 
-async function serverSave(){
+async function serverSave(silent){
   const btn=document.getElementById('btn-cloud-save');
-  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 ti-spin" style="font-size:12px"></i>';
+  if(!silent){btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 ti-spin" style="font-size:12px"></i>';}
   try{
     const lsData={};
     LS_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v)lsData[k]=v;});
     const photos=await getAllPhotosIDB();
     const ok=await ghSave({localStorage:lsData,photos});
     if(ok){
+      _autoSyncDirty=false;
+      if(silent){toast('☁️ Autoguardado');return;}
       btn.className='nav-btn sync-ok';
       btn.innerHTML='<i class="ti ti-cloud-check" style="font-size:12px"></i> <span class="nav-sync-lbl">Guardado</span>';
       toast('☁️ Guardado');
       setTimeout(()=>{btn.className='nav-btn';btn.innerHTML='<i class="ti ti-cloud-upload" style="font-size:12px"></i> <span class="nav-sync-lbl">Guardar</span>';btn.disabled=false;},3000);
     } else throw new Error('GitHub error');
   }catch(e){
+    if(silent)return;
     btn.className='nav-btn sync-err';
     btn.innerHTML='<i class="ti ti-cloud-x" style="font-size:12px"></i> <span class="nav-sync-lbl">Error</span>';
     toast('⚠ Error al guardar: '+e.message);
     setTimeout(()=>{btn.className='nav-btn';btn.innerHTML='<i class="ti ti-cloud-upload" style="font-size:12px"></i> <span class="nav-sync-lbl">Guardar</span>';btn.disabled=false;},3000);
   }
+}
+
+// Autoguardado periódico: si hubo cambios desde el último guardado, sube a GitHub cada 2 minutos
+function startAutoSync(){
+  setInterval(()=>{ if(_autoSyncDirty) serverSave(true); },120000);
 }
 
 async function serverLoad(){
@@ -7113,6 +7124,7 @@ async function tryAutoLoad(){
   // y puede ocupar varios MB de localStorage, provocando QuotaExceededError al guardar otros datos.
   if(localStorage.getItem('auf4_photos'))localStorage.removeItem('auf4_photos');
   await tryAutoLoad();
+  startAutoSync();
   // Migración: limpiar overrides "Obligatorio" guardados por error en eventos tipo:'info'
   // (zona mixta AUF, activaciones, etc.) — estos NUNCA son obligación FIFA por definición.
   (()=>{
