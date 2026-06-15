@@ -29,6 +29,7 @@
   --gold:#D4A017;--gold-lt:#FEF9EC;
   --green:#19924F;--green-lt:#E8F7EF;--green-dk:#137040;
   --red:#C0392B;--red-lt:#FDECEB;
+  --team:#B5651D;--team-lt:#FBF0E6;
   --surface:#F2F4F7;--border:#DDE1E8;
   --text:#111827;--muted:#6B7280;--hint:#A8B2C0;
   --white:#fff;
@@ -182,7 +183,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .cal-event{display:flex;align-items:flex-start;gap:8px;font-size:12px}
 .cal-event-h{font-size:10.5px;font-weight:700;color:var(--cel-dk);min-width:55px;flex-shrink:0;padding-top:1px}
 .cal-event-dot{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#5B4B8A}
+.ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#5B4B8A}.ce-team{background:var(--team)}
 .cal-event-txt{color:var(--text);line-height:1.4;flex:1}
 .cal-day-note{
   width:100%;margin-top:8px;padding:5px 9px;
@@ -1536,6 +1537,11 @@ const CALENDAR_DAYS = [
    },
    eventos:[
      {h:'Mañana',tipo:'info',txt:'⚡ Activación en hotel Miami — sin entrenamiento',oblig:false},
+     {h:'12:00',tipo:'team',txt:'🍽️ Almuerzo',oblig:false,noParts:true},
+     {h:'14:40',tipo:'team',txt:'🗣️ Charla',oblig:false,noParts:true},
+     {h:'15:35',tipo:'team',txt:'🗣️ Charla pre-partido',oblig:false,noParts:true},
+     {h:'15:50',tipo:'team',txt:'🚌 Salida del bus al estadio',oblig:false,noParts:true},
+     {h:'21:30',tipo:'team',txt:'🚌 Salida del estadio al aeropuerto',oblig:false,noParts:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Grabación vestuario — cámara fija FIFA',oblig:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Entrevista llegada estadio — 1 jugador titular',oblig:true},
      {h:'KO-75\'',tipo:'oblig',txt:'Entrevista pre-calentamiento — DT o AT',oblig:true},
@@ -2334,13 +2340,15 @@ function buildEventsHtml(day, startIdx=0){
                 const ovr=obligOverride.state;
                 // Tag principal
                 let mainTag='';
-                if(isOblig){
+                if(e.tipo==='team'){
+                  mainTag=`<span class="tag" style="font-size:9.5px;background:var(--team-lt);color:var(--team)">📋 Agenda equipo</span>`;
+                } else if(isOblig){
                   mainTag=`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag tag-oblig" style="font-size:9.5px">Obligatorio</span>`;
                 } else if(!isTrainEvent&&!e.noParts){
                   mainTag=`<span class="tag tag-nooblig" style="font-size:9.5px">No obligatorio</span>`;
                 }
                 // Toggle sutil (solo si no es entrenamiento automático sin override)
-                const showToggle=!(isTrainEvent&&ovr==='auto');
+                const showToggle=!(isTrainEvent&&ovr==='auto')&&e.tipo!=='team';
                 const toggleTip=ovr==='auto'?'Forzar obligatorio / no obligatorio':ovr==='oblig'?'Marcado obligatorio manualmente — click para cambiar':'Marcado no obligatorio — click para cambiar';
                 const toggleBtn=showToggle?`<button onclick="cycleEvOblig('${day.date}',${realIdx},event)" title="${toggleTip}" style="background:none;border:none;cursor:pointer;font-size:9px;color:${ovr==='auto'?'var(--hint)':ovr==='oblig'?'var(--cel-dk)':'var(--muted)'};padding:0 2px;line-height:1;opacity:.7" >✎</button>`:'';
                 return mainTag+toggleBtn;
@@ -2530,6 +2538,7 @@ function renderCal(){
               {tipo:'oblig',oblig:true,  txt:'Conferencia de prensa'},
               {tipo:'viaje', oblig:false, txt:'✈️ Viaje'},
               {tipo:'info',  oblig:false, txt:'⚡ Activación en hotel'},
+              {tipo:'team',  oblig:false, noParts:true, txt:'📋 Agenda equipo — '},
             ].map((opt,oi)=>`<div class="add-act-opt" onclick="addDayAct('${day.date}','${encodeURIComponent(JSON.stringify(opt))}')">
               <span class="cal-event-dot ce-${opt.tipo}" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:0"></span>
               ${opt.txt}
