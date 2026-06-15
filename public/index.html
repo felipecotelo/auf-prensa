@@ -183,7 +183,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .cal-event{display:flex;align-items:flex-start;gap:8px;font-size:12px}
 .cal-event-h{font-size:10.5px;font-weight:700;color:var(--cel-dk);min-width:55px;flex-shrink:0;padding-top:1px}
 .cal-event-dot{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#5B4B8A}.ce-team{background:var(--team)}
+.ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#5B4B8A}.ce-team{background:var(--team)}.ce-partido{background:var(--red)}
 .cal-event-txt{color:var(--text);line-height:1.4;flex:1}
 .cal-day-note{
   width:100%;margin-top:8px;padding:5px 9px;
@@ -908,8 +908,8 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab" onclick="showTab('partidos')"><i class="ti ti-world"></i>Partidos</button>
   <button class="tab" onclick="showTab('plantel')"><i class="ti ti-users"></i>Plantel</button>
   <button class="tab" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
-  <button class="tab" onclick="showTab('registro')"><i class="ti ti-clipboard-list"></i>Registro</button>
   <button class="tab" onclick="showTab('infogeneral')"><i class="ti ti-info-circle"></i>Información general</button>
+  <button class="tab" onclick="showTab('registro')"><i class="ti ti-clipboard-list"></i>Registro</button>
 </div>
 
 <main>
@@ -1556,6 +1556,7 @@ const CALENDAR_DAYS = [
      {h:'15:35',tipo:'team',txt:'🗣️ Charla pre-partido',oblig:false,noParts:true},
      {h:'15:50',tipo:'team',txt:'🚌 Salida del bus al estadio',oblig:false,noParts:true},
      {h:'21:30',tipo:'team',txt:'🚌 Salida del estadio al aeropuerto',oblig:false,noParts:true},
+     {h:'18:00',tipo:'partido',txt:'EL PARTIDO — vs. Arabia Saudita 🇸🇦',rivalName:'Arabia Saudita 🇸🇦',fixId:'m2',oblig:false,noParts:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Grabación vestuario — cámara fija FIFA',oblig:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Entrevista llegada estadio — 1 jugador titular',oblig:true},
      {h:'KO-75\'',tipo:'oblig',txt:'Entrevista pre-calentamiento — DT o AT',oblig:true},
@@ -1601,6 +1602,7 @@ const CALENDAR_DAYS = [
    },
    eventos:[
      {h:'Mañana',tipo:'team',txt:'⚡ Activación en hotel — sin entrenamiento',noParts:true},
+     {h:'18:00',tipo:'partido',txt:'EL PARTIDO — vs. Cabo Verde 🇨🇻',rivalName:'Cabo Verde 🇨🇻',fixId:'m4',oblig:false,noParts:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Grabación vestuario — cámara fija FIFA'},
      {h:'Pre-partido',tipo:'oblig',txt:'Entrevista llegada estadio — 1 jugador titular'},
      {h:'KO-75\'',tipo:'oblig',txt:'Entrevista pre-calentamiento — DT o AT'},
@@ -1640,6 +1642,7 @@ const CALENDAR_DAYS = [
    },
    eventos:[
      {h:'Mañana',tipo:'team',txt:'⚡ Activación en hotel — sin entrenamiento',noParts:true},
+     {h:'18:00',tipo:'partido',txt:'EL PARTIDO — vs. España 🇪🇸',rivalName:'España 🇪🇸',fixId:'m6',oblig:false,noParts:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Grabación vestuario — cámara fija FIFA'},
      {h:'Pre-partido',tipo:'oblig',txt:'Entrevista llegada estadio — 1 jugador titular'},
      {h:'KO-75\'',tipo:'oblig',txt:'Entrevista pre-calentamiento — DT o AT'},
@@ -2121,7 +2124,7 @@ function showTab(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','registro','infogeneral'];
+  const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','infogeneral','registro'];
   const i=map.indexOf(id);
   if(i>=0)document.querySelectorAll('.tab')[i].classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
@@ -2334,8 +2337,16 @@ function buildEventsHtml(day, startIdx=0){
     const doneIcon=s==='done'?'<span class="ev-done-icon">✓</span>':s==='sus'?'<span style="font-size:11px;color:var(--gold);font-weight:800">⏸</span>':s==='no'?'<span style="font-size:11px;color:var(--red);font-weight:800">✗</span>':'';
     const hasDetail=showParts||true; // always allow note
 
+    // EL PARTIDO — conectado al resultado final automático (ESPN, vía getFixture/getMatchResult)
+    const matchResult=e.tipo==='partido'?getMatchResult(e.fixId):null;
+    if(e.tipo==='partido'){
+      if(matchResult){
+        displayTxt=`🏁 Final — Uruguay ${matchResult.uru} – ${matchResult.rival} ${e.rivalName||''}`;
+      }
+    }
+
     return`
-      <div class="cal-ev" id="cev-${day.date}-${realIdx}">
+      <div class="cal-ev" id="cev-${day.date}-${realIdx}" ${matchResult?'style="background:var(--cel-lt);border-radius:8px;padding:5px 6px"':''}>
         <div class="cal-ev-row">
           <div class="ev-sts">
             <button class="ev-st st-done${s==='done'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'done',this)" title="Hecho">✓</button>
@@ -2355,7 +2366,11 @@ function buildEventsHtml(day, startIdx=0){
                 const ovr=obligOverride.state;
                 // Tag principal
                 let mainTag='';
-                if(e.tipo==='team'){
+                if(e.tipo==='partido'){
+                  mainTag=matchResult
+                    ?`<span class="tag" style="font-size:9.5px;background:var(--cel);color:#fff;font-weight:800">FINAL</span>`
+                    :`<span class="tag" style="font-size:9.5px;background:var(--red-lt);color:var(--red);font-weight:800">⚽ EL PARTIDO</span>`;
+                } else if(e.tipo==='team'){
                   mainTag=`<span class="tag" style="font-size:9.5px;background:var(--team-lt);color:var(--team)">Actividad</span>`;
                 } else if(isOblig){
                   mainTag=`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag tag-oblig" style="font-size:9.5px">Obligatorio</span>`;
@@ -2363,7 +2378,7 @@ function buildEventsHtml(day, startIdx=0){
                   mainTag=`<span class="tag tag-nooblig" style="font-size:9.5px">No obligatorio</span>`;
                 }
                 // Toggle sutil (solo si no es entrenamiento automático sin override)
-                const showToggle=!(isTrainEvent&&ovr==='auto')&&e.tipo!=='team';
+                const showToggle=!(isTrainEvent&&ovr==='auto')&&e.tipo!=='team'&&e.tipo!=='partido';
                 const toggleTip=ovr==='auto'?'Forzar obligatorio / no obligatorio':ovr==='oblig'?'Marcado obligatorio manualmente — click para cambiar':'Marcado no obligatorio — click para cambiar';
                 const toggleBtn=showToggle?`<button onclick="cycleEvOblig('${day.date}',${realIdx},event)" title="${toggleTip}" style="background:none;border:none;cursor:pointer;font-size:9px;color:${ovr==='auto'?'var(--hint)':ovr==='oblig'?'var(--cel-dk)':'var(--muted)'};padding:0 2px;line-height:1;opacity:.7" >✎</button>`:'';
                 return mainTag+toggleBtn;
@@ -4296,6 +4311,16 @@ const GROUP_H = {
 
 // Mapeo partido del fixture (GROUP_H) -> id de pizarra táctica (PIZ_MATCH_INFO/FORMATIONS)
 const FIX_TO_PIZ = {m2:'uru-ksa', m4:'uru-cpv', m6:'uru-esp'};
+
+// Resultado final de un partido de Uruguay (fixId = m2/m4/m6), si ya está cargado en el fixture (auto-sync ESPN)
+function getMatchResult(fixId){
+  if(!fixId)return null;
+  const r=getFixture()[fixId];
+  if(!r||r.h===''||r.a===''||r.h==null||r.a==null)return null;
+  const m=GROUP_H.matches.find(x=>x.id===fixId);
+  if(!m)return null;
+  return m.home==='uru'?{uru:r.h,rival:r.a}:{uru:r.a,rival:r.h};
+}
 
 // ID de Uruguay en la API de ESPN (site.api.espn.com) — usado para identificar el lado en incidencias/resultados
 const URU_ESPN_ID = '212';
