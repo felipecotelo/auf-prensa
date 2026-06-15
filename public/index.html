@@ -1504,6 +1504,11 @@ const CL_MATCH = [
    label:'Conferencia de prensa post-partido',
    sub:'DT obligatorio · Arranca 15-20 min tras el pitido · Duración 20-25 min · Sala de prensa',
    hasDT:true, hasPlayers:false, playerCount:0, cat:'conferencia', art:'TAM p.74'},
+
+  {id:'md-mvp-attn',  fase:'MD — Post-partido',
+   label:'Atención del MVP — Player of the Match (FIFA)',
+   sub:'Solo si el premiado es un jugador uruguayo · Entrevista breve + foto con el trofeo POTM · Designado por FIFA al término del partido · Coordinación directa con el FIFA Media Officer',
+   hasDT:false, hasPlayers:true, playerCount:1, cat:'flash', oblig:false},
 ];
 
 // Lookup checkId → ¿es obligatoria FIFA? (default true salvo oblig:false explícito)
@@ -1586,6 +1591,7 @@ const CALENDAR_DAYS = [
      {h:'HT',tipo:'oblig',txt:'Entrevista entretiempo — máx. 60 seg',hasDT:true,hasPlayers:true,oblig:true,enEstadio:true,art:'TAM p.73',lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Multi-flash pitchside — DT + 1 jugador',hasDT:true,hasPlayers:true,oblig:true,enEstadio:true,art:'TAM p.73',lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Uni-flash túnel — DT (mín. 4) + jugadores',hasDT:true,hasPlayers:true,oblig:true,enEstadio:true,art:'TAM p.74',lockOblig:true},
+     {h:'Post-pitido',tipo:'oblig',txt:'🏅 Atención del MVP — entrevista + foto con trofeo (si jugador uruguayo es premiado)',hasDT:false,hasPlayers:true,oblig:true,enEstadio:true,extra:true,lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Zona mixta — estación (2 titulares) + paso lineal',hasDT:false,hasPlayers:true,oblig:true,enEstadio:true,art:'TAM p.74',lockOblig:true},
      {h:'Post-pitido',tipo:'team',txt:'❄️ Inicio procesos de recuperación',oblig:false,noParts:true,enEstadio:true},
      {h:'Post-pitido',tipo:'team',txt:'🍗 Ingesta en vestuario',oblig:false,noParts:true,enEstadio:true},
@@ -1637,6 +1643,7 @@ const CALENDAR_DAYS = [
      {h:'HT',tipo:'oblig',txt:'Entrevista entretiempo — máx. 60 seg',hasDT:true,hasPlayers:true,enEstadio:true,art:'TAM p.73',lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Multi-flash pitchside — DT + 1 jugador',hasDT:true,hasPlayers:true,enEstadio:true,art:'TAM p.73',lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Uni-flash túnel — DT (mín. 4) + jugadores',hasDT:true,hasPlayers:true,enEstadio:true,art:'TAM p.74',lockOblig:true},
+     {h:'Post-pitido',tipo:'oblig',txt:'🏅 Atención del MVP — entrevista + foto con trofeo (si jugador uruguayo es premiado)',hasDT:false,hasPlayers:true,enEstadio:true,extra:true,lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Zona mixta — estación (2 titulares) + paso lineal',hasDT:false,hasPlayers:true,enEstadio:true,art:'TAM p.74',lockOblig:true},
      {h:'+15-30\'',tipo:'oblig',txt:'Conferencia de prensa post-partido — DT',hasDT:true,hasPlayers:false,enEstadio:true,art:'TAM p.74',lockOblig:true},
      {h:'Noche',tipo:'viaje',txt:'✈️ Vuelta a Riviera Maya'},
@@ -1677,6 +1684,7 @@ const CALENDAR_DAYS = [
      {h:'HT',tipo:'oblig',txt:'Entrevista entretiempo — máx. 60 seg',hasDT:true,hasPlayers:true,enEstadio:true,art:'TAM p.73',lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Multi-flash pitchside — DT + 1 jugador',hasDT:true,hasPlayers:true,enEstadio:true,art:'TAM p.73',lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Uni-flash túnel — DT (mín. 4) + jugadores',hasDT:true,hasPlayers:true,enEstadio:true,art:'TAM p.74',lockOblig:true},
+     {h:'Post-pitido',tipo:'oblig',txt:'🏅 Atención del MVP — entrevista + foto con trofeo (si jugador uruguayo es premiado)',hasDT:false,hasPlayers:true,enEstadio:true,extra:true,lockOblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Zona mixta — estación (2 titulares) + paso lineal',hasDT:false,hasPlayers:true,enEstadio:true,art:'TAM p.74',lockOblig:true},
      {h:'+15-30\'',tipo:'oblig',txt:'Conferencia de prensa post-partido — DT',hasDT:true,hasPlayers:false,enEstadio:true,art:'TAM p.74',lockOblig:true},
      {h:'Noche',tipo:'viaje',txt:'✈️ Vuelta a Riviera Maya'},
@@ -2553,6 +2561,8 @@ function buildEventsHtml(day, startIdx=0){
                     :`<span class="tag" style="font-size:9.5px;background:var(--red-lt);color:var(--red);font-weight:800">${e.tagLabel||'PARTIDO'}</span>`;
                 } else if(e.tipo==='team'){
                   mainTag=`<span class="tag" style="font-size:9.5px;background:var(--team-lt);color:var(--team)">Actividad</span>`;
+                } else if(e.extra){
+                  mainTag=`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag" style="font-size:9.5px;background:rgba(212,160,23,.18);color:var(--gold);font-weight:800">🏅 Extra · si hay MVP</span>`;
                 } else if(isOblig){
                   mainTag=`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag tag-oblig" style="font-size:9.5px">Obligatorio</span>`;
                 } else if(!isTrainEvent&&!e.noParts){
@@ -3040,7 +3050,7 @@ function matchForDate(date){
 }
 
 // Todos los checkId que pueden ser asignados por checkIdForEvent (vía calendario)
-const EVENT_DERIVED_CHECKIDS=['md2-crew','md1-stand','md-conf-post','md1-conf','md-flash','md-tunel','md-mix-lin','md-mix-est','md-ht','md-precal','md-llegada','md-vestuario','arr-ent','arr-media'];
+const EVENT_DERIVED_CHECKIDS=['md2-crew','md1-stand','md-conf-post','md1-conf','md-flash','md-tunel','md-mix-lin','md-mix-est','md-ht','md-precal','md-llegada','md-vestuario','arr-ent','arr-media','md-mvp-attn'];
 
 // ── Mapeo texto evento → checkId del partido ─────────
 function checkIdForEvent(txt){
@@ -3050,6 +3060,7 @@ function checkIdForEvent(txt){
   if(t.includes('stand-up')||t.includes('primera atencion')) return'md1-stand';
   if(t.includes('conferencia')&&(t.includes('post')||t.includes('+15'))) return'md-conf-post';
   if(t.includes('conferencia'))                      return'md1-conf';
+  if(t.includes('atencion')&&t.includes('mvp'))     return'md-mvp-attn';
   if(t.includes('multi-flash')||t.includes('pitchside')) return'md-flash';
   if(t.includes('uni-flash')||t.includes('tunel'))   return'md-tunel';
   // "Zona mixta (AUF) — ..." es una actividad organizada por AUF (no obligatoria),
@@ -7164,6 +7175,55 @@ async function tryAutoLoad(){
         stor.set(KDayActs,acts);
       }
     }
+    localStorage.setItem(FLAG,'1');
+  })();
+  // Migración: el 15/6 se insertó "Atención del MVP" en la posición 20 (tras el
+  // Uni-flash túnel), desplazando +1 los índices de los eventos siguientes ese día
+  // (Zona mixta, recuperación, ingesta, conferencia post-partido, salida al aeropuerto).
+  // Reubicamos los overrides guardados para que sigan apuntando al evento correcto.
+  (()=>{
+    const FLAG='auf4_mig_20260615_shift2';
+    if(localStorage.getItem(FLAG))return;
+    const date='2026-06-15', fromIdx=20;
+    const stores=[KEvN,KEvS,KEvP,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KEvOblig,KEvHidden,KYellow];
+    stores.forEach(storeKey=>{
+      const data=stor.get(storeKey,{});
+      const entries=Object.keys(data).filter(k=>k.startsWith(date+'_'))
+        .map(k=>({k,idx:parseInt(k.slice(date.length+1),10)}))
+        .filter(e=>!isNaN(e.idx)&&e.idx>=fromIdx)
+        .sort((a,b)=>b.idx-a.idx);
+      if(!entries.length)return;
+      entries.forEach(({k,idx})=>{
+        data[`${date}_${idx+1}`]=data[k];
+        delete data[k];
+      });
+      stor.set(storeKey,data);
+    });
+    localStorage.setItem(FLAG,'1');
+  })();
+  // Migración: se agregó "Atención del MVP" tras el Uni-flash túnel en 21/6 y 26/6
+  // (posición 8 de cada día), desplazando +1 los índices de los eventos siguientes
+  // (Zona mixta, conferencia post-partido, vuelta). Reubicamos los overrides guardados.
+  (()=>{
+    const FLAG='auf4_mig_mvpattn_2106_2606';
+    if(localStorage.getItem(FLAG))return;
+    const stores=[KEvN,KEvS,KEvP,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KEvOblig,KEvHidden,KYellow];
+    ['2026-06-21','2026-06-26'].forEach(date=>{
+      const fromIdx=8;
+      stores.forEach(storeKey=>{
+        const data=stor.get(storeKey,{});
+        const entries=Object.keys(data).filter(k=>k.startsWith(date+'_'))
+          .map(k=>({k,idx:parseInt(k.slice(date.length+1),10)}))
+          .filter(e=>!isNaN(e.idx)&&e.idx>=fromIdx)
+          .sort((a,b)=>b.idx-a.idx);
+        if(!entries.length)return;
+        entries.forEach(({k,idx})=>{
+          data[`${date}_${idx+1}`]=data[k];
+          delete data[k];
+        });
+        stor.set(storeKey,data);
+      });
+    });
     localStorage.setItem(FLAG,'1');
   })();
   resyncAllEvToChk(); // sincroniza calendario → checklist al abrir
