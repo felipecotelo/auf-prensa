@@ -909,6 +909,7 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab" onclick="showTab('plantel')"><i class="ti ti-users"></i>Plantel</button>
   <button class="tab" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
   <button class="tab" onclick="showTab('registro')"><i class="ti ti-clipboard-list"></i>Registro</button>
+  <button class="tab" onclick="showTab('infogeneral')"><i class="ti ti-info-circle"></i>Información general</button>
 </div>
 
 <main>
@@ -1105,6 +1106,18 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
     </div>
     <input type="file" id="imp-file" accept=".json" style="display:none" onchange="handleImport(event)">
   </div>
+</div>
+
+<!-- ═══════════ INFORMACIÓN GENERAL ═══════════ -->
+<div id="infogeneral" class="section">
+  <div class="sec-hdr">
+    <div class="sec-icon" style="background:var(--navy)"><i class="ti ti-info-circle"></i></div>
+    <div>
+      <div class="sec-title">Información general</div>
+      <div class="sec-desc">Copa Mundial 2026 · Delegación uruguaya</div>
+    </div>
+  </div>
+  <div id="infogeneral-container"></div>
 </div>
 
 </main>
@@ -2108,7 +2121,7 @@ function showTab(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','registro'];
+  const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','registro','infogeneral'];
   const i=map.indexOf(id);
   if(i>=0)document.querySelectorAll('.tab')[i].classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
@@ -2122,6 +2135,7 @@ function showTab(id){
   if(id==='pizarra'){renderPizarra(_pizMatch)}
   if(id==='estadisticas'){renderEstadisticas()}
   if(id==='registro'){renderLog(curLog)}
+  if(id==='infogeneral'){renderInfoGeneral()}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -4786,6 +4800,118 @@ async function loadOtherMatchTime(mId, espnId, tz){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// INFORMACIÓN GENERAL — datos del Mundial + delegación uruguaya
+// ═══════════════════════════════════════════════════════════════════════════
+const DELEGACION = [
+  {area:'Cuerpo técnico', people:[
+    {name:'Marcelo Bielsa',     iso:'ar', role:'Director técnico'},
+    {name:'Pablo Quiroga',      iso:'ar', role:'Segundo entrenador'},
+    {name:'Diego Reyes',        iso:'cl', role:'Ayudante técnico'},
+    {name:'Lucas Ouviña',       iso:'ar', role:'Auxiliar técnico'},
+    {name:'Sara Bouzas',        iso:'es', role:'Logística-analista'},
+    {name:'Enzo Ferrari',       iso:'uy', role:'Entrenador de arqueros'},
+    {name:'Santiago Ferro',     iso:'uy', role:'Profe principal'},
+    {name:'Diego Estavillo',    iso:'uy', role:'Profe secundario'},
+    {name:'Kevin Beckman',      iso:'uy', role:'Videoanalista'},
+    {name:'Gonzalo Rodríguez',  iso:'uy', role:'Videoanalista'},
+  ]},
+  {area:'Gerencia deportiva', people:[
+    {name:'Jorge Giordano', iso:'uy', role:'Director de Selecciones'},
+    {name:'Alvaro Núñez',   iso:'uy', role:'Gerencia'},
+  ]},
+  {area:'Sanidad', people:[
+    {name:'Enrique Ramos',   iso:'uy', role:'Médico'},
+    {name:'Santiago Rivoir', iso:'uy', role:'Médico'},
+    {name:'Luis Pinasco',    iso:'uy', role:'Fisio'},
+    {name:'Federico Antúnez',iso:'uy', role:'Fisio'},
+    {name:'Mathías Alza',    iso:'uy', role:'Fisio'},
+    {name:'Juan Abreu',      iso:'uy', role:'Fisio'},
+    {name:'Juan Rodríguez',  iso:'uy', role:'Fisio'},
+    {name:'Florencia Pena',  iso:'uy', role:'Nutricionista'},
+  ]},
+  {area:'Utilería', people:[
+    {name:'Chin Kobasyashi',  iso:'uy', role:'Utilero'},
+    {name:'Victor Brites',    iso:'uy', role:'Utilero'},
+    {name:'Maximiliano Vivanco', iso:'uy', role:'Utilero'},
+    {name:'Anarella Brites',  iso:'uy', role:'Lavandería'},
+  ]},
+  {area:'Comunicación', people:[
+    {name:'Marcos Méndez',  iso:'uy', role:'Director del área'},
+    {name:'Felipe Cotelo',  iso:'uy', role:'Comunicación y prensa'},
+    {name:'Juan Razquin',   iso:'uy', role:'Fotógrafo'},
+    {name:'Ricardo Sordi',  iso:'uy', role:'Audiovisual'},
+    {name:'Diego Covucci',  iso:'uy', role:'Prensa'},
+    {name:'Martín Mato',    iso:'uy', role:'Marketing'},
+  ]},
+  {area:'Cocina', people:[
+    {name:'Aldo Cauteruccio', iso:'uy', role:'Cocina'},
+    {name:'Agustín Cabrera',  iso:'uy', role:'Cocina'},
+  ]},
+  {area:'Seguridad', people:[
+    {name:'Juan Villalba',  iso:'uy', role:'Seguridad'},
+    {name:'Gustavo Mariosa',iso:'uy', role:'Seguridad'},
+  ]},
+  {area:'Otros', people:[
+    {name:'Jhonny Oroná', iso:'uy', role:'Viajes'},
+  ]},
+];
+
+function renderInfoGeneral(){
+  const con=document.getElementById('infogeneral-container');
+  if(!con)return;
+
+  const delegacionHtml=DELEGACION.map(g=>`
+    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px">${g.area}</div>
+    <div style="display:flex;flex-direction:column;margin-bottom:12px">
+      ${g.people.map((p,pi)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;${pi>0?'border-top:0.5px solid var(--border);':''}">
+        ${flagImg(p.iso,18)}
+        <span style="font-size:12.5px;font-weight:600;color:var(--text);flex:1">${p.name}</span>
+        <span style="font-size:10.5px;color:var(--muted)">${p.role}</span>
+      </div>`).join('')}
+    </div>`).join('');
+
+  con.innerHTML=`
+    <!-- Info general del Mundial -->
+    <div class="grp-card" style="margin-bottom:14px">
+      <div class="grp-hdr">
+        <div class="grp-hdr-name">🏆 Copa Mundial 2026</div>
+        <div class="grp-hdr-sub">Estados Unidos, México y Canadá</div>
+      </div>
+      <div style="padding:12px 16px">
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px">Data general</div>
+        <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--text)">
+          <li>Del 11 de junio al 19 de julio de 2026</li>
+          <li>Por primera vez en la historia será co-organizado por tres países</li>
+          <li>Se divide en tres regiones: "Oeste", "Centro" y "Este"</li>
+          <li>Hay 16 ciudades sede</li>
+          <li>Participarán por primera vez 48 equipos, en vez del formato clásico de 32</li>
+          <li>Serán 104 encuentros en total</li>
+          <li>El partido inaugural comenzará en la fecha de inicio, 11 de junio 2026</li>
+          <li>La final está programada para el 19 de julio 2026, en el área de Nueva York</li>
+        </ul>
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin:14px 0 6px">Data nuestra</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:var(--text)">
+          <div><b>Hotel en Playa del Carmen:</b> Fairmont Mayakoba</div>
+          <div><b>Hotel en Miami:</b> Renaissance Fort Lauderdale West Hotel<br><span style="color:var(--muted);font-size:11px">1230 S Pine Island Rd, Plantation, FL 33324, Estados Unidos</span></div>
+          <div><b>Hotel en Guadalajara:</b> Hilton Guadalajara Midtown<br><span style="color:var(--muted);font-size:11px">Av. Adolfo López Mateos 2405 300, Col. Italia Providencia, Guadalajara, 44648, México</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delegación -->
+    <div class="grp-card">
+      <div class="grp-hdr">
+        <div class="grp-hdr-name">🇺🇾 Delegación</div>
+        <div class="grp-hdr-sub">${DELEGACION.reduce((n,g)=>n+g.people.length,0)} integrantes</div>
+      </div>
+      <div style="padding:12px 16px">
+        ${delegacionHtml}
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // PARTIDOS — info general del Mundial (los 12 grupos + posibles cruces)
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -4853,33 +4979,6 @@ function renderPartidos(){
     </div>`).join('');
 
   con.innerHTML=`
-    <!-- Info general del Mundial -->
-    <div class="grp-card" style="margin-bottom:14px">
-      <div class="grp-hdr">
-        <div class="grp-hdr-name">🏆 Copa Mundial 2026</div>
-        <div class="grp-hdr-sub">Estados Unidos, México y Canadá</div>
-      </div>
-      <div style="padding:12px 16px">
-        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px">Data general</div>
-        <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--text)">
-          <li>Del 11 de junio al 19 de julio de 2026</li>
-          <li>Por primera vez en la historia será co-organizado por tres países</li>
-          <li>Se divide en tres regiones: "Oeste", "Centro" y "Este"</li>
-          <li>Hay 16 ciudades sede</li>
-          <li>Participarán por primera vez 48 equipos, en vez del formato clásico de 32</li>
-          <li>Serán 104 encuentros en total</li>
-          <li>El partido inaugural comenzará en la fecha de inicio, 11 de junio 2026</li>
-          <li>La final está programada para el 19 de julio 2026, en el área de Nueva York</li>
-        </ul>
-        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin:14px 0 6px">Data nuestra</div>
-        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:var(--text)">
-          <div><b>Hotel en Playa del Carmen:</b> Fairmont Mayakoba</div>
-          <div><b>Hotel en Miami:</b> Renaissance Fort Lauderdale West Hotel<br><span style="color:var(--muted);font-size:11px">1230 S Pine Island Rd, Plantation, FL 33324, Estados Unidos</span></div>
-          <div><b>Hotel en Guadalajara:</b> Hilton Guadalajara Midtown<br><span style="color:var(--muted);font-size:11px">Av. Adolfo López Mateos 2405 300, Col. Italia Providencia, Guadalajara, 44648, México</span></div>
-        </div>
-      </div>
-    </div>
-
     <!-- Tabla Grupo H -->
     <div class="grp-card" style="margin-bottom:14px">
       <div class="grp-hdr"><div class="grp-hdr-name">🏆 Grupo H · Uruguay</div></div>
