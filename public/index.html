@@ -4858,53 +4858,130 @@ const DELEGACION = [
   ]},
 ];
 
+const KDelegacion='auf4_delegacion', KInfoTexts='auf4_infotexts';
+let infoEditMode=false;
+
+function getDelegacion(){
+  const saved=stor.get(KDelegacion,null);
+  if(saved&&Array.isArray(saved)&&saved.length)return saved;
+  return JSON.parse(JSON.stringify(DELEGACION));
+}
+function setDelegacion(v){stor.set(KDelegacion,v)}
+function getInfoTexts(){return stor.get(KInfoTexts,{})}
+function setInfoTexts(v){stor.set(KInfoTexts,v)}
+function saveInfoText(key,el){const t=getInfoTexts();t[key]=el.innerHTML;setInfoTexts(t);}
+
+function toggleInfoEdit(){infoEditMode=!infoEditMode;renderInfoGeneral();}
+
+function updateDelegPerson(gi,pi,field,val){
+  const d=getDelegacion();
+  d[gi].people[pi][field]=field==='iso'?val.trim().toLowerCase():val;
+  setDelegacion(d);
+  renderInfoGeneral();
+}
+function toggleDelegHighlight(gi,pi){
+  const d=getDelegacion();
+  d[gi].people[pi].highlight=!d[gi].people[pi].highlight;
+  setDelegacion(d);
+  renderInfoGeneral();
+}
+function moveDelegPerson(gi,pi,dir){
+  const d=getDelegacion();
+  const arr=d[gi].people, ni=pi+dir;
+  if(ni<0||ni>=arr.length)return;
+  [arr[pi],arr[ni]]=[arr[ni],arr[pi]];
+  setDelegacion(d);
+  renderInfoGeneral();
+}
+function updateDelegArea(gi,el){
+  const d=getDelegacion();
+  d[gi].area=el.textContent.trim();
+  setDelegacion(d);
+  renderInfoGeneral();
+}
+
 function renderInfoGeneral(){
   const con=document.getElementById('infogeneral-container');
   if(!con)return;
 
-  const delegacionHtml=DELEGACION.map(g=>`
-    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px">${g.area}</div>
-    <div style="display:flex;flex-direction:column;margin-bottom:12px">
-      ${g.people.map((p,pi)=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;${pi>0?'border-top:0.5px solid var(--border);':''}">
-        ${flagImg(p.iso,18)}
-        <span style="font-size:12.5px;font-weight:600;color:var(--text);flex:1">${p.name}</span>
-        <span style="font-size:10.5px;color:var(--muted)">${p.role}</span>
-      </div>`).join('')}
-    </div>`).join('');
-
-  con.innerHTML=`
-    <!-- Info general del Mundial -->
-    <div class="grp-card" style="margin-bottom:14px">
-      <div class="grp-hdr">
-        <div class="grp-hdr-name">🏆 Copa Mundial 2026</div>
-        <div class="grp-hdr-sub">Estados Unidos, México y Canadá</div>
-      </div>
-      <div style="padding:12px 16px">
-        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px">Data general</div>
-        <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--text)">
-          <li>Del 11 de junio al 19 de julio de 2026</li>
+  const deleg=getDelegacion();
+  const it=getInfoTexts();
+  const cmTitle=it.cmTitle ?? '🏆 Copa Mundial 2026';
+  const cmSub=it.cmSub ?? 'Estados Unidos, México y Canadá';
+  const dataGeneral=it.dataGeneral ?? `<li>Del 11 de junio al 19 de julio de 2026</li>
           <li>Por primera vez en la historia será co-organizado por tres países</li>
           <li>Se divide en tres regiones: "Oeste", "Centro" y "Este"</li>
           <li>Hay 16 ciudades sede</li>
           <li>Participarán por primera vez 48 equipos, en vez del formato clásico de 32</li>
           <li>Serán 104 encuentros en total</li>
           <li>El partido inaugural comenzará en la fecha de inicio, 11 de junio 2026</li>
-          <li>La final está programada para el 19 de julio 2026, en el área de Nueva York</li>
-        </ul>
-        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin:14px 0 6px">Data nuestra</div>
-        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:var(--text)">
-          <div><b>Hotel en Playa del Carmen:</b> Fairmont Mayakoba</div>
+          <li>La final está programada para el 19 de julio 2026, en el área de Nueva York</li>`;
+  const dataNuestra=it.dataNuestra ?? `<div><b>Hotel en Playa del Carmen:</b> Fairmont Mayakoba</div>
           <div><b>Hotel en Miami:</b> Renaissance Fort Lauderdale West Hotel<br><span style="color:var(--muted);font-size:11px">1230 S Pine Island Rd, Plantation, FL 33324, Estados Unidos</span></div>
-          <div><b>Hotel en Guadalajara:</b> Hilton Guadalajara Midtown<br><span style="color:var(--muted);font-size:11px">Av. Adolfo López Mateos 2405 300, Col. Italia Providencia, Guadalajara, 44648, México</span></div>
-        </div>
+          <div><b>Hotel en Guadalajara:</b> Hilton Guadalajara Midtown<br><span style="color:var(--muted);font-size:11px">Av. Adolfo López Mateos 2405 300, Col. Italia Providencia, Guadalajara, 44648, México</span></div>`;
+  const degTitle=it.degTitle ?? '🇺🇾 Delegación';
+
+  const editWrap=(html,key,style='')=>infoEditMode
+    ?`<div contenteditable="true" onblur="saveInfoText('${key}',this)" style="outline:1px dashed var(--border);border-radius:4px;padding:2px 4px;${style}">${html}</div>`
+    :`<div style="${style}">${html}</div>`;
+
+  const delegacionHtml=deleg.map((g,gi)=>`
+    ${infoEditMode
+      ?`<div contenteditable="true" onblur="updateDelegArea(${gi},this)" style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px;outline:1px dashed var(--border);border-radius:4px;padding:2px 4px">${g.area}</div>`
+      :`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px">${g.area}</div>`}
+    <div style="display:flex;flex-direction:column;margin-bottom:12px">
+      ${g.people.map((p,pi)=>{
+        const hl=p.highlight?'background:var(--gold-lt);border-radius:6px;':'';
+        if(infoEditMode){
+          return `<div style="display:flex;align-items:center;gap:6px;padding:5px 4px;${pi>0?'border-top:0.5px solid var(--border);':''}${hl}">
+            <input value="${p.iso}" onchange="updateDelegPerson(${gi},${pi},'iso',this.value)" style="width:30px;font-size:11px;text-align:center;text-transform:lowercase;border:0.5px solid var(--border);border-radius:4px;padding:3px">
+            ${flagImg(p.iso,18)}
+            <input value="${p.name}" onchange="updateDelegPerson(${gi},${pi},'name',this.value)" style="flex:1;min-width:0;font-size:12.5px;font-weight:600;border:0.5px solid var(--border);border-radius:4px;padding:3px 5px">
+            <input value="${p.role}" onchange="updateDelegPerson(${gi},${pi},'role',this.value)" style="width:130px;font-size:10.5px;color:var(--muted);border:0.5px solid var(--border);border-radius:4px;padding:3px 5px">
+            <button onclick="toggleDelegHighlight(${gi},${pi})" title="Destacar" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px">${p.highlight?'⭐':'☆'}</button>
+            <button onclick="moveDelegPerson(${gi},${pi},-1)" title="Subir" ${pi===0?'disabled':''} style="background:none;border:none;cursor:${pi===0?'default':'pointer'};font-size:12px;padding:0 2px;opacity:${pi===0?0.3:1}">▲</button>
+            <button onclick="moveDelegPerson(${gi},${pi},1)" title="Bajar" ${pi===g.people.length-1?'disabled':''} style="background:none;border:none;cursor:${pi===g.people.length-1?'default':'pointer'};font-size:12px;padding:0 2px;opacity:${pi===g.people.length-1?0.3:1}">▼</button>
+          </div>`;
+        }
+        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;${pi>0?'border-top:0.5px solid var(--border);':''}${hl}">
+          ${flagImg(p.iso,18)}
+          <span style="font-size:12.5px;font-weight:${p.highlight?800:600};color:var(--text);flex:1">${p.highlight?'⭐ ':''}${p.name}</span>
+          <span style="font-size:10.5px;color:var(--muted)">${p.role}</span>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+
+  con.innerHTML=`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button onclick="toggleInfoEdit()" style="background:${infoEditMode?'var(--cel)':'var(--surface)'};color:${infoEditMode?'#fff':'var(--text)'};border:0.5px solid var(--border);border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
+        <i class="ti ti-${infoEditMode?'check':'edit'}"></i> ${infoEditMode?'Listo':'Editar'}
+      </button>
+    </div>
+
+    <!-- Info general del Mundial -->
+    <div class="grp-card" style="margin-bottom:14px">
+      <div class="grp-hdr">
+        ${infoEditMode
+          ?`<div contenteditable="true" onblur="saveInfoText('cmTitle',this)" class="grp-hdr-name" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${cmTitle}</div>
+            <div contenteditable="true" onblur="saveInfoText('cmSub',this)" class="grp-hdr-sub" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${cmSub}</div>`
+          :`<div class="grp-hdr-name">${cmTitle}</div>
+            <div class="grp-hdr-sub">${cmSub}</div>`}
+      </div>
+      <div style="padding:12px 16px">
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px">Data general</div>
+        ${editWrap(`<ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--text)">${dataGeneral}</ul>`,'dataGeneral')}
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin:14px 0 6px">Data nuestra</div>
+        ${editWrap(`<div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:var(--text)">${dataNuestra}</div>`,'dataNuestra')}
       </div>
     </div>
 
     <!-- Delegación -->
     <div class="grp-card">
       <div class="grp-hdr">
-        <div class="grp-hdr-name">🇺🇾 Delegación</div>
-        <div class="grp-hdr-sub">${DELEGACION.reduce((n,g)=>n+g.people.length,0)} integrantes</div>
+        ${infoEditMode
+          ?`<div contenteditable="true" onblur="saveInfoText('degTitle',this)" class="grp-hdr-name" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${degTitle}</div>`
+          :`<div class="grp-hdr-name">${degTitle}</div>`}
+        <div class="grp-hdr-sub">${deleg.reduce((n,g)=>n+g.people.length,0)} integrantes</div>
       </div>
       <div style="padding:12px 16px">
         ${delegacionHtml}
