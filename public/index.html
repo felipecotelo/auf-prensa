@@ -1550,12 +1550,18 @@ const CALENDAR_DAYS = [
      ref:'magenta', ball:'gris oscuro'
    },
    eventos:[
-     {h:'Mañana',tipo:'team',txt:'⚡ Activación en hotel Miami — sin entrenamiento',oblig:false,noParts:true},
+     {h:'9:00',tipo:'team',txt:'⚡ Activación en hotel Miami — sin entrenamiento',oblig:false,noParts:true},
+     {h:'10:00',tipo:'team',txt:'☕ Desayuno a disposición (hasta esta hora)',oblig:false,noParts:true},
+     {h:'11:00',tipo:'team',txt:'🚐 Movilidad opcional',oblig:false,noParts:true},
+     {h:'11:30',tipo:'team',txt:'🗣️ Charla y video',oblig:false,noParts:true},
      {h:'12:00',tipo:'team',txt:'🍽️ Almuerzo',oblig:false,noParts:true},
+     {h:'12:30',tipo:'team',txt:'🗣️ Charla y video',oblig:false,noParts:true},
+     {h:'13:00',tipo:'team',txt:'🛏️ Descanso',oblig:false,noParts:true},
      {h:'14:40',tipo:'team',txt:'🗣️ Charla',oblig:false,noParts:true},
+     {h:'15:00',tipo:'team',txt:'☕ Merienda',oblig:false,noParts:true},
      {h:'15:35',tipo:'team',txt:'🗣️ Charla pre-partido',oblig:false,noParts:true},
      {h:'15:50',tipo:'team',txt:'🚌 Salida del bus al estadio',oblig:false,noParts:true},
-     {h:'21:30',tipo:'team',txt:'🚌 Salida del estadio al aeropuerto',oblig:false,noParts:true},
+     {h:'17:10',tipo:'team',txt:'⚡ Inicio de activación',oblig:false,noParts:true},
      {h:'18:00',tipo:'partido',txt:'EL PARTIDO — vs. Arabia Saudita 🇸🇦',rivalName:'Arabia Saudita 🇸🇦',fixId:'m2',oblig:false,noParts:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Grabación vestuario — cámara fija FIFA',oblig:true},
      {h:'Pre-partido',tipo:'oblig',txt:'Entrevista llegada estadio — 1 jugador titular',oblig:true},
@@ -1564,8 +1570,13 @@ const CALENDAR_DAYS = [
      {h:'Post-pitido',tipo:'oblig',txt:'Multi-flash pitchside — DT + 1 jugador',oblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Uni-flash túnel — DT mínimo 4 entrevistas',oblig:true},
      {h:'Post-pitido',tipo:'oblig',txt:'Zona mixta — estación (2 titulares) + paso lineal',oblig:true},
+     {h:'Post-pitido',tipo:'team',txt:'❄️ Inicio procesos de recuperación',oblig:false,noParts:true},
+     {h:'Post-pitido',tipo:'team',txt:'🍗 Ingesta en vestuario',oblig:false,noParts:true},
      {h:'+15-30\'',tipo:'oblig',txt:'Conferencia de prensa post-partido — DT',oblig:true},
+     {h:'21:30',tipo:'team',txt:'🚌 Salida del estadio al aeropuerto',oblig:false,noParts:true},
      {h:'23:00 (MIA)',tipo:'viaje',txt:'✈️ Vuelta a México — desde el estadio',oblig:false},
+     {h:'TBD',tipo:'team',txt:'🍗 Cena en hotel',oblig:false,noParts:true},
+     {h:'TBD',tipo:'team',txt:'🛏️ Descanso',oblig:false,noParts:true},
    ]},
   {date:'2026-06-16',dow:'Mar',label:'16 jun',tipo:'descanso', lugar:'Riviera Maya, Playa del Carmen 🇲🇽', md:'MD-5 vs CPV',
    eventos:[
@@ -1670,7 +1681,16 @@ function flagImg(code, size=28){
   return `<img src="https://flagcdn.com/w40/${code}.png" alt="${code.toUpperCase()}" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;vertical-align:middle" onerror="this.style.display='none'">`;
 }
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden';
+function getEvHidden(){return stor.get(KEvHidden,{})}
+function hideEvent(date,idx,ev){
+  if(ev)ev.stopPropagation();
+  const h=getEvHidden();
+  h[evKey(date,idx)]=true;
+  stor.set(KEvHidden,h);
+  rerenderDayEvents(date);
+  toast('Actividad ocultada');
+}
 const getYellows=()=>stor.get(KYellow,{});
 const setYellows=v=>stor.set(KYellow,v);
 function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y); _luPhotos=null; renderPizarra(_pizMatch); }
@@ -2394,7 +2414,9 @@ function buildEventsHtml(day, startIdx=0){
             ].join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
             ${e.group?getGroupPairBar(e.group):''}
           </div>
-          ${e._isCustom?`<button onclick="deleteDayAct('${day.date}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`:''}
+          ${e._isCustom?`<button onclick="deleteDayAct('${day.date}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
+            :e.tipo==='team'?`<button onclick="hideEvent('${day.date}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
+            :''}
           <button class="ev-expand" onclick="toggleEvDetail('${day.date}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
         <div class="cal-ev-detail" id="ced-${day.date}-${realIdx}">
@@ -2533,7 +2555,8 @@ function renderCal(){
     const rival=day.rival?` · vs. ${day.rival}${day.sede?' ('+day.sede+')':''}`:day.md?' · '+day.md:'';
     const customActs=getDayActs()[day.date]||[];
     // Merge static + custom events, tag with original index, then sort by time
-    const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length}));
+    const evHidden=getEvHidden();
+    const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length})).filter(e=>!evHidden[evKey(day.date,e._origIdx)]);
     allEvs.sort((a,b)=>parseEvTime(getCalTime(day.date,a._origIdx,a.h))-parseEvTime(getCalTime(day.date,b._origIdx,b.h)));
     const div=document.createElement('div');
     div.className='cal-day'+(isToday?' today':'')+(isMatch||isToday?' open':'')+(day.tipo==='md1'?' tipo-md1':day.tipo==='partido'?' tipo-partido':'');
@@ -4093,7 +4116,8 @@ function rerenderDayEvents(date){
   // Preserve open state of expanded events
   const openIds=new Set([...dayEl.querySelectorAll('.cal-ev')].filter(e=>e.querySelector('.cal-ev-detail.open')).map(e=>e.id));
   const customActs=getDayActs()[date]||[];
-  const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length}));
+  const evHidden=getEvHidden();
+  const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length})).filter(e=>!evHidden[evKey(date,e._origIdx)]);
   allEvs.sort((a,b)=>parseEvTime(getCalTime(date,a._origIdx,a.h))-parseEvTime(getCalTime(date,b._origIdx,b.h)));
   evsCont.innerHTML=buildEventsHtml({...day,eventos:allEvs});
   // Restore open state
