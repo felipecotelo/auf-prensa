@@ -7140,6 +7140,28 @@ async function tryAutoLoad(){
     });
     localStorage.setItem(FLAG,'1');
   })();
+  // Migración: el Almuerzo (12:00) del 15/6 quedó sin mostrarse (tapado por la
+  // reubicación de actividades personalizadas). Si no hay ninguna actividad visible
+  // con "Almuerzo" ese día, se agrega como actividad personalizada (editable/borrable).
+  (()=>{
+    const FLAG='auf4_mig_20260615_almuerzo';
+    if(localStorage.getItem(FLAG))return;
+    const date='2026-06-15';
+    const day=CALENDAR_DAYS.find(d=>d.date===date);
+    if(day){
+      const evHidden=getEvHidden();
+      const customActs=getDayActs()[date]||[];
+      const allEvs=[...day.eventos,...customActs];
+      const visibleAlmuerzo=allEvs.some((e,i)=>!evHidden[evKey(date,i)]&&/almuerzo/i.test(e.txt||''));
+      if(!visibleAlmuerzo){
+        const acts=getDayActs();
+        if(!acts[date])acts[date]=[];
+        acts[date].push({tipo:'team',txt:'🍽️ Almuerzo',h:'12:00',oblig:false,noParts:true});
+        stor.set(KDayActs,acts);
+      }
+    }
+    localStorage.setItem(FLAG,'1');
+  })();
   resyncAllEvToChk(); // sincroniza calendario → checklist al abrir
   // Sincronizar grupos vinculados (EVENT_GROUPS) al cargar
   (()=>{
