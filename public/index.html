@@ -909,6 +909,7 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab" onclick="showTab('plantel')"><i class="ti ti-users"></i>Plantel</button>
   <button class="tab" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
   <button class="tab" onclick="showTab('infogeneral')"><i class="ti ti-info-circle"></i>Información general</button>
+  <button class="tab" onclick="showTab('grafica')"><i class="ti ti-photo"></i>Diseño</button>
   <button class="tab" onclick="showTab('registro')"><i class="ti ti-clipboard-list"></i>Registro</button>
 </div>
 
@@ -1118,6 +1119,18 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
     </div>
   </div>
   <div id="infogeneral-container"></div>
+</div>
+
+<!-- ═══════════ DISEÑO GRÁFICO ═══════════ -->
+<div id="grafica" class="section">
+  <div class="sec-hdr">
+    <div class="sec-icon" style="background:#A0522D"><i class="ti ti-photo"></i></div>
+    <div>
+      <div class="sec-title">Diseño gráfico</div>
+      <div class="sec-desc">Control de jugadores usados en piezas gráficas — Fase de grupos · MD-1 y MD por partido</div>
+    </div>
+  </div>
+  <div id="grafica-container"></div>
 </div>
 
 </main>
@@ -1681,7 +1694,34 @@ function flagImg(code, size=28){
   return `<img src="https://flagcdn.com/w40/${code}.png" alt="${code.toUpperCase()}" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;vertical-align:middle" onerror="this.style.display='none'">`;
 }
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica';
+
+// ── Diseño gráfico — jugadores usados por partido / MD-1 / MD ──────────────
+const GRAFICA_DEFAULTS={
+  'uru-ksa':{md1:[9,16], md:[6]},
+  'uru-cpv':{md1:[],     md:[]},
+  'uru-esp':{md1:[],     md:[]},
+};
+const GRAFICA_MATCHES=[
+  {id:'uru-ksa',label:'vs. Arabia Saudita 🇸🇦 — 15/6'},
+  {id:'uru-cpv',label:'vs. Cabo Verde 🇨🇻 — 21/6'},
+  {id:'uru-esp',label:'vs. España 🇪🇸 — 26/6'},
+];
+function getGrafica(){
+  const v=stor.get(KGrafica,null);
+  if(v)return v;
+  return JSON.parse(JSON.stringify(GRAFICA_DEFAULTS));
+}
+function setGrafica(v){stor.set(KGrafica,v)}
+function toggleGraficaPlayer(matchId,stage,num,btn){
+  const g=getGrafica();
+  if(!g[matchId])g[matchId]={md1:[],md:[]};
+  const list=g[matchId][stage]||(g[matchId][stage]=[]);
+  const i=list.indexOf(num);
+  if(i>=0)list.splice(i,1); else list.push(num);
+  setGrafica(g);
+  btn.classList.toggle('sel');
+}
 function getEvHidden(){return stor.get(KEvHidden,{})}
 function hideEvent(date,idx,ev){
   if(ev)ev.stopPropagation();
@@ -2177,7 +2217,7 @@ function showTab(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','infogeneral','registro'];
+  const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','infogeneral','grafica','registro'];
   const i=map.indexOf(id);
   if(i>=0)document.querySelectorAll('.tab')[i].classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
@@ -2192,6 +2232,7 @@ function showTab(id){
   if(id==='estadisticas'){renderEstadisticas()}
   if(id==='registro'){renderLog(curLog)}
   if(id==='infogeneral'){renderInfoGeneral()}
+  if(id==='grafica'){renderGrafica()}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5106,6 +5147,45 @@ const WC_CROSSES = [
    rival:'Posibles rivales: 1° Grupo I (Francia), 1° Grupo A (México) o 1° Grupo L (Inglaterra)',
    when:'30 jun – 1 jul · sede según combinación'},
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DISEÑO GRÁFICO
+// ═══════════════════════════════════════════════════════════════════════════
+function renderGrafica(){
+  const con=document.getElementById('grafica-container');
+  const g=getGrafica();
+
+  function playerGrid(matchId,stage){
+    const sel=(g[matchId]&&g[matchId][stage])||[];
+    return `<div class="player-chips">${PLAYERS.map(p=>{
+      const isSel=sel.includes(p.n);
+      return `<span class="ev-p-chip${isSel?' sel':''}" onclick="toggleGraficaPlayer('${matchId}','${stage}',${p.n},this)">#${p.n} ${p.name.split(' ').pop()}</span>`;
+    }).join('')}</div>`;
+  }
+
+  function stageBlock(matchId,stage,label){
+    return `<div style="flex:1;min-width:240px">
+      <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">${label}</div>
+      ${playerGrid(matchId,stage)}
+    </div>`;
+  }
+
+  const matchCards=GRAFICA_MATCHES.map(m=>`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px">${m.label}</div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap">
+        ${stageBlock(m.id,'md1','MD-1')}
+        ${stageBlock(m.id,'md','MD')}
+      </div>
+    </div>`).join('');
+
+  con.innerHTML=`
+    <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Plantel — 26 jugadores</div>
+    <div class="player-chips" style="margin-bottom:16px">${PLAYERS.map(p=>`<span class="ev-p-chip">#${p.n} ${p.name.split(' ').pop()}</span>`).join('')}</div>
+    <div style="font-size:15px;font-weight:900;color:var(--navy);margin-bottom:10px">FASE DE GRUPOS</div>
+    ${matchCards}
+  `;
+}
 
 let _wcMatchMode='day';
 
