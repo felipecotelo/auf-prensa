@@ -1727,18 +1727,22 @@ function getOrderedNums(key,defaultNums){
   if(!sameSet){ arr=[...defaultNums]; all[key]=arr; setStatsOrder(all); }
   return arr;
 }
-function moveStatRow(key,defaultNums,num,dir,renderFn){
+function moveStatRow(key,defaultNums,num,dir){
   const arr=getOrderedNums(key,defaultNums);
   const i=arr.indexOf(num), j=i+dir;
   if(i<0||j<0||j>=arr.length)return;
   [arr[i],arr[j]]=[arr[j],arr[i]];
   const all=getStatsOrder(); all[key]=arr; setStatsOrder(all);
-  renderFn();
+  // Movemos la fila directamente en el DOM — sin re-renderizar toda la sección
+  const row=document.getElementById(`stat-row-${key}-${num}`);
+  if(!row)return;
+  if(dir<0&&row.previousElementSibling) row.parentNode.insertBefore(row,row.previousElementSibling);
+  else if(dir>0&&row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling,row);
 }
-function statsOrderArrows(key,defaultNums,num,renderFnCall){
+function statsOrderArrows(key,defaultNums,num){
   return `<span style="display:inline-flex;flex-direction:column;margin-right:5px;vertical-align:middle;line-height:1">
-    <button onclick="event.stopPropagation();moveStatRow('${key}',[${defaultNums.join(',')}],${num},-1,${renderFnCall})" style="background:none;border:none;cursor:pointer;padding:0;font-size:9px;color:var(--hint);line-height:1" title="Subir">▲</button>
-    <button onclick="event.stopPropagation();moveStatRow('${key}',[${defaultNums.join(',')}],${num},1,${renderFnCall})" style="background:none;border:none;cursor:pointer;padding:0;font-size:9px;color:var(--hint);line-height:1" title="Bajar">▼</button>
+    <button onclick="event.stopPropagation();moveStatRow('${key}',[${defaultNums.join(',')}],${num},-1)" style="background:none;border:none;cursor:pointer;padding:0;font-size:9px;color:var(--hint);line-height:1" title="Subir">▲</button>
+    <button onclick="event.stopPropagation();moveStatRow('${key}',[${defaultNums.join(',')}],${num},1)" style="background:none;border:none;cursor:pointer;padding:0;font-size:9px;color:var(--hint);line-height:1" title="Bajar">▼</button>
   </span>`;
 }
 
@@ -6226,8 +6230,8 @@ async function renderPizarra(matchId){
           const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
           const pts=p.name.trim().split(' ');
           const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
-          return`<tr style="border-bottom:0.5px solid var(--border)">
-            <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n,`renderLineup('${matchId}')`)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
+          return`<tr id="stat-row-${starterKey}-${p.n}" style="border-bottom:0.5px solid var(--border)">
+            <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
@@ -6255,8 +6259,8 @@ async function renderPizarra(matchId){
     const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
     const pts=p.name.trim().split(' ');
     const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
-    return`<tr style="border-bottom:0.5px solid var(--border)">
-      <td style="padding:5px 10px;font-weight:700">${statsOrderArrows(benchKey,benchDefaultNums,p.n,`renderLineup('${matchId}')`)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
+    return`<tr id="stat-row-${benchKey}-${p.n}" style="border-bottom:0.5px solid var(--border)">
+      <td style="padding:5px 10px;font-weight:700">${statsOrderArrows(benchKey,benchDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
