@@ -1591,7 +1591,7 @@ const CALENDAR_DAYS = [
      {h:'Post-pitido',tipo:'team',txt:'🍗 Ingesta en vestuario',oblig:false,noParts:true,enEstadio:true},
      {h:'+15-30\'',tipo:'oblig',txt:'Conferencia de prensa post-partido — DT',hasDT:true,hasPlayers:false,oblig:true,enEstadio:true,art:'TAM p.74',lockOblig:true},
      {h:'21:30',tipo:'team',txt:'🚌 Salida del estadio al aeropuerto',oblig:false,noParts:true,enEstadio:true},
-     {h:'23:00 (MIA)',tipo:'viaje',txt:'✈️ Vuelta a México — desde el estadio',oblig:false},
+     {h:'23:00',tipo:'viaje',txt:'✈️ Vuelta a México — desde el estadio',oblig:false},
      {h:'TBD',tipo:'team',txt:'🍗 Cena en hotel',oblig:false,noParts:true},
      {h:'TBD',tipo:'team',txt:'🛏️ Descanso',oblig:false,noParts:true},
    ]},
@@ -7057,6 +7057,30 @@ async function tryAutoLoad(){
       if(e&&e.tipo==='info'){delete ovr[k];ch=true;}
     });
     if(ch)setEvObligStore(ovr);
+  })();
+  // Migración: el 15/6 se insertó un nuevo evento en la posición 3 (11:15, reunión FIFA),
+  // desplazando +1 los índices de los eventos siguientes ese día. Reubicamos los overrides
+  // guardados (textos, oblig, notas, links, participantes, etc.) para que sigan
+  // apuntando al evento correcto.
+  (()=>{
+    const FLAG='auf4_mig_20260615_shift1';
+    if(localStorage.getItem(FLAG))return;
+    const date='2026-06-15', fromIdx=3;
+    const stores=[KEvN,KEvS,KEvP,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KEvOblig,KEvHidden,KYellow];
+    stores.forEach(storeKey=>{
+      const data=stor.get(storeKey,{});
+      const entries=Object.keys(data).filter(k=>k.startsWith(date+'_'))
+        .map(k=>({k,idx:parseInt(k.slice(date.length+1),10)}))
+        .filter(e=>!isNaN(e.idx)&&e.idx>=fromIdx)
+        .sort((a,b)=>b.idx-a.idx);
+      if(!entries.length)return;
+      entries.forEach(({k,idx})=>{
+        data[`${date}_${idx+1}`]=data[k];
+        delete data[k];
+      });
+      stor.set(storeKey,data);
+    });
+    localStorage.setItem(FLAG,'1');
   })();
   resyncAllEvToChk(); // sincroniza calendario → checklist al abrir
   // Sincronizar grupos vinculados (EVENT_GROUPS) al cargar
