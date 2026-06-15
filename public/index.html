@@ -1698,7 +1698,35 @@ function flagImg(code, size=28){
   return `<img src="https://flagcdn.com/w40/${code}.png" alt="${code.toUpperCase()}" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;vertical-align:middle" onerror="this.style.display='none'">`;
 }
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder';
+
+// ── Orden manual de las tablas de estadísticas (titulares/suplentes) ───────
+function getStatsOrder(){return stor.get(KStatsOrder,{})}
+function setStatsOrder(v){stor.set(KStatsOrder,v)}
+// Devuelve el orden guardado para `key`, validando que coincida con el set actual
+// de jugadores (mismos números); si no coincide (cambió el plantel/titulares),
+// se reinicia al orden por defecto.
+function getOrderedNums(key,defaultNums){
+  const all=getStatsOrder();
+  let arr=all[key];
+  const sameSet=Array.isArray(arr)&&arr.length===defaultNums.length&&defaultNums.every(n=>arr.includes(n));
+  if(!sameSet){ arr=[...defaultNums]; all[key]=arr; setStatsOrder(all); }
+  return arr;
+}
+function moveStatRow(key,defaultNums,num,dir,renderFn){
+  const arr=getOrderedNums(key,defaultNums);
+  const i=arr.indexOf(num), j=i+dir;
+  if(i<0||j<0||j>=arr.length)return;
+  [arr[i],arr[j]]=[arr[j],arr[i]];
+  const all=getStatsOrder(); all[key]=arr; setStatsOrder(all);
+  renderFn();
+}
+function statsOrderArrows(key,defaultNums,num,renderFnCall){
+  return `<span style="display:inline-flex;flex-direction:column;margin-right:5px;vertical-align:middle;line-height:1">
+    <button onclick="event.stopPropagation();moveStatRow('${key}',[${defaultNums.join(',')}],${num},-1,${renderFnCall})" style="background:none;border:none;cursor:pointer;padding:0;font-size:9px;color:var(--hint);line-height:1" title="Subir">▲</button>
+    <button onclick="event.stopPropagation();moveStatRow('${key}',[${defaultNums.join(',')}],${num},1,${renderFnCall})" style="background:none;border:none;cursor:pointer;padding:0;font-size:9px;color:var(--hint);line-height:1" title="Bajar">▼</button>
+  </span>`;
+}
 
 // ── Diseño gráfico — jugadores usados por partido / MD-1 / MD ──────────────
 const GRAFICA_DEFAULTS={
@@ -6151,9 +6179,13 @@ async function renderPizarra(matchId){
   const rival  = PIZ_MATCHES.find(m=>m.id===matchId);
 
   // Tabla stats — generada antes del template
-  const starterRows = slots
+  let starterRows = slots
     .map(s=>({slot:s, p:st[s.id]?PLAYERS.find(x=>x.n===st[s.id]):null}))
     .filter(x=>x.p);
+  const starterKey=`starters_${matchId}`;
+  const starterDefaultNums=starterRows.map(x=>x.p.n);
+  const starterOrder=getOrderedNums(starterKey,starterDefaultNums);
+  starterRows=starterOrder.map(n=>starterRows.find(x=>x.p.n===n)).filter(Boolean);
   const statsTableHtml = starterRows.length ? `
     <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
       <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px 6px;border-bottom:0.5px solid var(--border)">
@@ -6175,7 +6207,7 @@ async function renderPizarra(matchId){
           const pts=p.name.trim().split(' ');
           const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
           return`<tr style="border-bottom:0.5px solid var(--border)">
-            <td style="padding:6px 10px;font-weight:700"><span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}</td>
+            <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n,`renderLineup('${matchId}')`)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
@@ -6187,11 +6219,15 @@ async function renderPizarra(matchId){
 
   // Tabla stats suplentes
   const POS_SORT={POR:0,DEF:1,MED:2,DEL:3};
-  const benchSorted=[...bench].sort((a,b)=>{
+  let benchSorted=[...bench].sort((a,b)=>{
     const pa=POS_SORT[a.pos]??9, pb=POS_SORT[b.pos]??9;
     if(pa!==pb) return pa-pb;
     return a.n-b.n;
   });
+  const benchKey=`bench_${matchId}`;
+  const benchDefaultNums=benchSorted.map(p=>p.n);
+  const benchOrder=getOrderedNums(benchKey,benchDefaultNums);
+  benchSorted=benchOrder.map(n=>benchSorted.find(p=>p.n===n)).filter(Boolean);
   const benchRows=benchSorted.filter(p=>p).map(p=>{
     const inj=getPlayerInjury(p.n);
     const injBadge=inj==='red'?'<span style="width:8px;height:8px;border-radius:50%;background:#C0392B;display:inline-block;margin-left:5px;vertical-align:middle" title="Lesionado"></span>':inj==='yellow'?'<span style="width:8px;height:8px;border-radius:50%;background:#F97316;display:inline-block;margin-left:5px;vertical-align:middle" title="Duda"></span>':'';
@@ -6200,7 +6236,7 @@ async function renderPizarra(matchId){
     const pts=p.name.trim().split(' ');
     const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
     return`<tr style="border-bottom:0.5px solid var(--border)">
-      <td style="padding:5px 10px;font-weight:700"><span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${injBadge}</td>
+      <td style="padding:5px 10px;font-weight:700">${statsOrderArrows(benchKey,benchDefaultNums,p.n,`renderLineup('${matchId}')`)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${injBadge}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
