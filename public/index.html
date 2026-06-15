@@ -2356,6 +2356,7 @@ function buildEventsHtml(day, startIdx=0){
             ].join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
             ${e.group?getGroupPairBar(e.group):''}
           </div>
+          ${e._isCustom?`<button onclick="deleteDayAct('${day.date}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`:''}
           <button class="ev-expand" onclick="toggleEvDetail('${day.date}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
         <div class="cal-ev-detail" id="ced-${day.date}-${realIdx}">
@@ -2486,7 +2487,7 @@ function renderCal(){
     const rival=day.rival?` · vs. ${day.rival}${day.sede?' ('+day.sede+')':''}`:day.md?' · '+day.md:'';
     const customActs=getDayActs()[day.date]||[];
     // Merge static + custom events, tag with original index, then sort by time
-    const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i}));
+    const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length}));
     allEvs.sort((a,b)=>parseEvTime(getCalTime(day.date,a._origIdx,a.h))-parseEvTime(getCalTime(day.date,b._origIdx,b.h)));
     const div=document.createElement('div');
     div.className='cal-day'+(isToday?' today':'')+(isMatch||isToday?' open':'')+(day.tipo==='md1'?' tipo-md1':day.tipo==='partido'?' tipo-partido':'');
@@ -2653,6 +2654,19 @@ function addDayAct(date,optJson){
   stor.set(KDayActs,acts);
   renderCal();
   toast('Actividad agregada');
+}
+
+function deleteDayAct(date,idx,ev){
+  if(ev)ev.stopPropagation();
+  const day=CALENDAR_DAYS.find(d=>d.date===date);
+  if(!day)return;
+  const customIdx=idx-day.eventos.length;
+  const acts=getDayActs();
+  if(!acts[date]||!acts[date][customIdx])return;
+  acts[date].splice(customIdx,1);
+  stor.set(KDayActs,acts);
+  rerenderDayEvents(date);
+  toast('Actividad eliminada');
 }
 
 function addCustomAct(date,input){
@@ -4032,7 +4046,7 @@ function rerenderDayEvents(date){
   // Preserve open state of expanded events
   const openIds=new Set([...dayEl.querySelectorAll('.cal-ev')].filter(e=>e.querySelector('.cal-ev-detail.open')).map(e=>e.id));
   const customActs=getDayActs()[date]||[];
-  const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i}));
+  const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length}));
   allEvs.sort((a,b)=>parseEvTime(getCalTime(date,a._origIdx,a.h))-parseEvTime(getCalTime(date,b._origIdx,b.h)));
   evsCont.innerHTML=buildEventsHtml({...day,eventos:allEvs});
   // Restore open state
