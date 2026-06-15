@@ -2413,8 +2413,16 @@ function buildEventsHtml(day, startIdx=0){
     if(i===0)return html;
     const cur=day.eventos[i], prev=day.eventos[i-1];
     const isTBD=e=>parseEvTime(getCalTime(day.date,e._origIdx,e.h))===9999;
-    const divider=(isTBD(cur)&&!isTBD(prev))
-      ?`<div style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;padding:0 2px"><div style="flex:1;border-top:2px dashed #F5DFA0"></div><span style="font-size:10px;font-weight:800;color:#92600A;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">⏳ Sin agendar</span><div style="flex:1;border-top:2px dashed #F5DFA0"></div></div>`:'';
+    const tzOf=e=>{const m=getCalTime(day.date,e._origIdx,e.h).match(/\(([^)]+)\)/);return m?m[1]:null};
+    let divider='';
+    if(isTBD(cur)&&!isTBD(prev)){
+      divider=`<div style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;padding:0 2px"><div style="flex:1;border-top:2px dashed #F5DFA0"></div><span style="font-size:10px;font-weight:800;color:#92600A;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">⏳ Sin agendar</span><div style="flex:1;border-top:2px dashed #F5DFA0"></div></div>`;
+    } else {
+      const curTz=tzOf(cur), prevTz=tzOf(prev);
+      if(curTz&&curTz!==prevTz&&!isTBD(cur)){
+        divider=`<div style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;padding:0 2px"><div style="flex:1;border-top:2px dashed var(--cel)"></div><span style="font-size:10px;font-weight:800;color:var(--cel-dk);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap">🕐 Cambio de horario — hora de ${curTz}</span><div style="flex:1;border-top:2px dashed var(--cel)"></div></div>`;
+      }
+    }
     return acc+divider+html;
   },'');
 }
