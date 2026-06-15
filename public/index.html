@@ -1698,7 +1698,21 @@ function flagImg(code, size=28){
   return `<img src="https://flagcdn.com/w40/${code}.png" alt="${code.toUpperCase()}" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;vertical-align:middle" onerror="this.style.display='none'">`;
 }
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp';
+
+// ── MVP del partido (Player of the Match — premio oficial FIFA) ────────────
+function getMvp(){return stor.get(KMvp,{})}
+function setMvp(v){stor.set(KMvp,v)}
+function toggleMvp(matchId,num){
+  const m=getMvp();
+  if(m[matchId]===num)delete m[matchId];
+  else m[matchId]=num;
+  setMvp(m);
+  if(document.getElementById('lineup-wrap'))renderLineup(matchId);
+}
+function mvpBadgeHtml(extraStyle=''){
+  return `<span title="MVP del partido — Player of the Match (FIFA)" style="font-size:10px;font-weight:900;background:var(--gold);color:#fff;padding:1px 4px;border-radius:4px;white-space:nowrap;${extraStyle}">🏅 MVP</span>`;
+}
 
 // ── Orden manual de las tablas de estadísticas (titulares/suplentes) ───────
 function getStatsOrder(){return stor.get(KStatsOrder,{})}
@@ -4076,13 +4090,17 @@ function renderLog(f){
   let data=getLog();
   if(f!=='all')data=data.filter(r=>r.tipo===f||r.partido===f);
   if(!data.length){con.innerHTML=`<div class="log-empty"><i class="ti ti-inbox" style="font-size:22px;display:block;margin-bottom:6px"></i>Sin registros${f!=='all'?' para este filtro':''}</div>`;return}
-  con.innerHTML=data.map(r=>`
+  const mvp=getMvp();
+  con.innerHTML=data.map(r=>{
+    const mvpPlayer=r.partido&&mvp[r.partido]?PLAYERS.find(p=>p.n===mvp[r.partido]):null;
+    return`
     <div class="log-item">
       <div class="log-dot${r.tipo==='nooblig'?' no':''}"></div>
       <div class="log-content">
         <div class="log-title">${r.actividad} <span class="tag ${r.tipo==='oblig'?'tag-oblig':'tag-done'}" style="font-size:9.5px">${r.tipo==='oblig'?'Obligatoria':'No obligatoria'}</span></div>
         <div class="log-meta">
           ${r.partido?`<strong>${PLABELS[r.partido]||r.partido}</strong> · `:''}
+          ${mvpPlayer?`${mvpBadgeHtml()} ${mvpPlayer.name} · `:''}
           ${r.fecha?`${r.fecha} · `:''}
           ${r.participantes?`👤 ${r.participantes}${r.medio?' · ':''}` :''}
           ${r.medio?`📺 ${r.medio}`:''}
@@ -4090,7 +4108,8 @@ function renderLog(f){
         </div>
       </div>
       <button class="btn danger" onclick="delEntry(${r.id})"><i class="ti ti-trash" style="font-size:12px"></i></button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -6175,6 +6194,7 @@ async function renderPizarra(matchId){
   // Cinta de capitán: Giménez (1er capitán) si está en el XI, sino Valverde (2do capitán) si está en el XI.
   // Si ninguno de los dos es titular, no se asigna automáticamente (a definir).
   const captainNum = usedNums.has(2)?2:usedNums.has(8)?8:null;
+  const mvpNum = getMvp()[matchId]||null;
   const bench  = PLAYERS.filter(p => !usedNums.has(p.n)).sort((a,b)=>a.n-b.n);
   const rival  = PIZ_MATCHES.find(m=>m.id===matchId);
 
@@ -6189,7 +6209,7 @@ async function renderPizarra(matchId){
   const statsTableHtml = starterRows.length ? `
     <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
       <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px 6px;border-bottom:0.5px solid var(--border)">
-        Once confirmado — estadísticas
+        Once — estadísticas
       </div>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px">
         <thead><tr style="background:var(--surface)">
@@ -6207,7 +6227,7 @@ async function renderPizarra(matchId){
           const pts=p.name.trim().split(' ');
           const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
           return`<tr style="border-bottom:0.5px solid var(--border)">
-            <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n,`renderLineup('${matchId}')`)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}</td>
+            <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n,`renderLineup('${matchId}')`)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
@@ -6236,7 +6256,7 @@ async function renderPizarra(matchId){
     const pts=p.name.trim().split(' ');
     const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
     return`<tr style="border-bottom:0.5px solid var(--border)">
-      <td style="padding:5px 10px;font-weight:700">${statsOrderArrows(benchKey,benchDefaultNums,p.n,`renderLineup('${matchId}')`)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${injBadge}</td>
+      <td style="padding:5px 10px;font-weight:700">${statsOrderArrows(benchKey,benchDefaultNums,p.n,`renderLineup('${matchId}')`)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
@@ -6274,6 +6294,7 @@ async function renderPizarra(matchId){
     const injCol=inj==='red'?'#C0392B':inj==='yellow'?'#F59E0B':null;
     // Cinta de capitán dinámica (ver captainNum más arriba): solo se muestra al titular designado
     const isCap=p&&p.n===captainNum;
+    const isMvp=p&&p.n===mvpNum;
     const hasYellow=p&&yellows[p.n];
     const isSuspended=p&&suspendedNums.has(p.n);
     const ms=p?computeMilestones(p):[];
@@ -6296,6 +6317,7 @@ async function renderPizarra(matchId){
         ${hasYellow?`<div style="position:absolute;top:-4px;right:-4px;width:10px;height:13px;background:#F59E0B;border-radius:1px;z-index:10;border:1px solid rgba(255,255,255,.6)" title="Tarjeta amarilla acumulada" onclick="event.stopPropagation();toggleYellow(${p.n})"></div>`:''}
         ${isSuspended?`<div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#DC2626;color:#fff;font-size:7px;font-weight:900;padding:1px 4px;border-radius:4px;z-index:10;white-space:nowrap;border:1px solid rgba(255,255,255,.6)" title="Suspendido por acumulación de tarjetas">SUSP</div>`:''}
         ${injCol?`<div style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-radius:50%;background:${injCol};border:2px solid #fff;z-index:10"></div>`:''}
+        ${p?`<div style="position:absolute;bottom:-5px;right:-5px;font-size:12px;cursor:pointer;opacity:${isMvp?'1':'.22'};z-index:11;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))" title="${isMvp?'Quitar MVP del partido':'Marcar como MVP del partido (premio oficial FIFA)'}" onclick="event.stopPropagation();toggleMvp('${matchId}',${p.n})">🏅</div>`:''}
         ${p?`<div class="p-slot-remove" onclick="event.stopPropagation();pizRemove('${matchId}','${slot.id}')">×</div>`:''}
       </div>
       <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${p?`#${p.n} ${lbl}`:slot.pos}</div>
