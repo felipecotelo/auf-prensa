@@ -6888,18 +6888,42 @@ async function renderPizarra(matchId){
   const rats=getRatings()[matchId]||{};
   const fixRes=getMatchResult(GROUP_H.matches.find(m=>FIX_TO_PIZ[m.id]===matchId)?.id);
 
-  function evIcon(e){return e.type==='goal'?'⚽':e.type==='card'?(e.extra==='r'?'🟥':'🟨'):'🔁';}
-  function evText(e){
-    if(e.type==='goal')return`<b>${e.player}</b>${e.extra?`<span style="font-size:9px;color:var(--muted)"> · Asist: ${e.extra}</span>`:''}`;
-    if(e.type==='card')return`<b>${e.player}</b>`;
-    return`<span style="color:var(--green);font-weight:700">▲ ${e.extra}</span> <span style="color:#C0392B">▼ ${e.player}</span>`;
-  }
-  const incidenciasHtml=evs.length?evs.map(e=>`
-    <div style="display:flex;gap:6px;align-items:flex-start;padding:4px 0;border-bottom:0.5px solid var(--border);font-size:10.5px">
-      <span style="font-weight:800;color:var(--cel-dk);min-width:22px">${e.min}'</span>
-      <span>${evIcon(e)}</span>
-      <div style="flex:1">${evText(e)}<span style="font-size:8.5px;color:var(--hint);margin-left:4px">${e.side==='uru'?'URU':'Rival'}</span></div>
-    </div>`).join('')
+  // Incidencias: cambios del rival se omiten; resto del rival va atenuado
+  const incidenciasHtml=evs.length?evs
+    .filter(e=>!(e.type==='sub'&&e.side!=='uru'))
+    .map(e=>{
+      const isUru=e.side==='uru';
+      const bg=isUru?(e.type==='goal'?'#F0FDF4':e.type==='card'&&e.extra==='r'?'#FEF2F2':'var(--white)'):'var(--white)';
+      const opacity=isUru?'1':'.5';
+      if(e.type==='goal'){
+        const pts=isUru?`<b style="color:var(--navy)">${e.player}</b>${e.extra?`<span style="font-size:9px;color:var(--muted);margin-left:3px">· Asist: ${e.extra}</span>`:''}`:
+          `<span style="color:var(--muted)">${e.player}</span>`;
+        return`<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:${bg};margin-bottom:3px;opacity:${opacity}">
+          <span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>
+          <span style="font-size:14px;flex-shrink:0">⚽</span>
+          <div style="flex:1;font-size:10.5px">${pts}</div>
+          ${!isUru?`<span style="font-size:8px;color:var(--hint);font-weight:700">Rival</span>`:''}
+        </div>`;
+      }
+      if(e.type==='card'){
+        const icon=e.extra==='r'?'🟥':'🟨';
+        const nameStyle=isUru?'font-weight:700;color:var(--navy)':'color:var(--muted)';
+        return`<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:${bg};margin-bottom:3px;opacity:${opacity}">
+          <span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>
+          <span style="font-size:13px;flex-shrink:0">${icon}</span>
+          <div style="flex:1;font-size:10.5px;${nameStyle}">${e.player}</div>
+          ${!isUru?`<span style="font-size:8px;color:var(--hint);font-weight:700">Rival</span>`:''}
+        </div>`;
+      }
+      if(e.type==='sub'&&isUru){
+        return`<div style="display:flex;gap:8px;align-items:center;padding:4px 8px;border-radius:6px;background:var(--surface);margin-bottom:3px">
+          <span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>
+          <span style="font-size:11px;flex-shrink:0">🔄</span>
+          <div style="flex:1;font-size:10px"><span style="color:var(--green);font-weight:700">▲ ${e.extra}</span> <span style="color:#C0392B;font-weight:600">▼ ${e.player}</span></div>
+        </div>`;
+      }
+      return'';
+    }).filter(Boolean).join('')
     :'<div style="font-size:10.5px;color:var(--hint);padding:4px 0">Sin datos — presioná Actualizar</div>';
 
   // Calificaciones: solo titulares URU + cambios URU, ordenados de mayor a menor
