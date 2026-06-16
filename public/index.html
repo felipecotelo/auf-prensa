@@ -4296,34 +4296,12 @@ const FOTMOB_EVENTS = {
   'uru-cpv': null,
   'uru-esp': null,
 };
-// SofaScore event IDs — se auto-descubren por fecha y se cachean
-const SOFASCORE_DATES = {
-  'uru-ksa': '2026-06-15',
-  'uru-cpv': '2026-06-21',
-  'uru-esp': '2026-06-26',
+// SofaScore event IDs (fuente: sofascore.com/football/match/...)
+const SOFASCORE_EVENTS = {
+  'uru-ksa': 15186811, // Saudi Arabia vs Uruguay — 15 jun
+  'uru-cpv': null,     // pendiente
+  'uru-esp': null,     // pendiente
 };
-const KSofaIds='auf4_sofa_ids';
-const getSofaIds=()=>stor.get(KSofaIds,{});
-const setSofaIds=v=>stor.set(KSofaIds,v);
-
-async function getSofaEventId(matchId){
-  const cached=getSofaIds()[matchId];
-  if(cached) return cached;
-  const date=SOFASCORE_DATES[matchId];
-  if(!date) return null;
-  try{
-    const r=await fetch(`https://api.sofascore.com/api/v1/sport/football/scheduled-events/${date}`,{headers:{Accept:'application/json'}});
-    if(!r.ok) return null;
-    const d=await r.json();
-    const match=(d.events||[]).find(e=>
-      (e.homeTeam?.name?.toLowerCase().includes('rugua')||e.awayTeam?.name?.toLowerCase().includes('rugua'))&&
-      (e.tournament?.name?.toLowerCase().includes('world')||e.tournament?.uniqueTournament?.name?.toLowerCase().includes('world'))
-    );
-    if(!match) return null;
-    const ids=getSofaIds(); ids[matchId]=match.id; setSofaIds(ids);
-    return match.id;
-  }catch{return null;}
-}
 const KRatings='auf4_ratings';
 const getRatings=()=>stor.get(KRatings,{});
 const setRatings=v=>stor.set(KRatings,v);
@@ -5106,9 +5084,9 @@ async function syncMatchFull(matchId){
   }catch(e){msgs.push('Error ESPN: '+e.message);}
 
   // 2. FotMob ratings via proxy
-  // Calificaciones SofaScore — auto-descubre event ID por fecha
+  // Calificaciones SofaScore
   try{
-    const sofaId=await getSofaEventId(matchId);
+    const sofaId=SOFASCORE_EVENTS[matchId];
     if(sofaId){
       const res=await fetch(`https://api.sofascore.com/api/v1/event/${sofaId}/lineups`,{headers:{Accept:'application/json'}});
       if(res.ok){
