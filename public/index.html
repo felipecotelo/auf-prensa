@@ -1861,19 +1861,23 @@ function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y);
 // SEGUIMIENTO DE TARJETAS / SANCIONES Y ESTADÍSTICAS DEL TORNEO
 // ═══════════════════════════════════════════════════════════════════════════
 const KCardTrack='auf4_cardtrack', KStatsDelta='auf4_statsdelta', KCardSynced='auf4_cardsynced';
+const KManualDelta='auf4_manual_delta';
+const KMatchDelta='auf4_match_delta'; // snapshot por partido para poder revertir en re-sync
 const getCardTrack=()=>stor.get(KCardTrack,{});
 const setCardTrack=v=>stor.set(KCardTrack,v);
 const getStatsDelta=()=>stor.get(KStatsDelta,{});
 const setStatsDelta=v=>stor.set(KStatsDelta,v);
+const getManualDelta=()=>stor.get(KManualDelta,{});
+const setManualDelta=v=>stor.set(KManualDelta,v);
 function patchStatsDelta(num, field, delta){
-  const d=getStatsDelta();
+  const d=getManualDelta();
   d[num]=d[num]||{};
   d[num][field]=(d[num][field]||0)+delta;
   if(d[num][field]<0) d[num][field]=0;
-  setStatsDelta(d);
+  setManualDelta(d);
   if(_pizMatch) renderPizarra(_pizMatch);
   renderEstadisticas();
-  openDeltaEditor(_pizMatch); // refresca el modal si está abierto
+  openDeltaEditor(_pizMatch);
   toast(`✅ ${field} de #${num} corregido (${delta>0?'+':''}${delta})`);
 }
 
@@ -1886,7 +1890,7 @@ function openDeltaEditor(matchId){
     overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
     document.body.appendChild(overlay);
   }
-  const delta=getStatsDelta();
+  const delta=getManualDelta();
   const fields=[
     {key:'caps',label:'PJ (caps)',color:'var(--cel-dk)'},
     {key:'goals',label:'Goles',color:'var(--green)'},
@@ -1935,17 +1939,18 @@ const setCardSynced=v=>stor.set(KCardSynced,v);
 // Estadísticas base + lo acumulado durante el Mundial 2026
 function effectiveStats(p){
   const d=getStatsDelta()[p.n]||{};
+  const m=getManualDelta()[p.n]||{};
   return {
-    caps:(p.stats.caps||0)+(d.caps||0),
-    goals:(p.stats.goals||0)+(d.goals||0),
-    wcCaps:(p.stats.wcCaps||0)+(d.wcCaps||0),
-    wcGoals:(p.stats.wcGoals||0)+(d.wcGoals||0),
+    caps:(p.stats.caps||0)+(d.caps||0)+(m.caps||0),
+    goals:(p.stats.goals||0)+(d.goals||0)+(m.goals||0),
+    wcCaps:(p.stats.wcCaps||0)+(d.wcCaps||0)+(m.wcCaps||0),
+    wcGoals:(p.stats.wcGoals||0)+(d.wcGoals||0)+(m.wcGoals||0),
     wcPart:p.stats.wcPart
   };
 }
 // Badge "+N" para mostrar lo sumado durante el torneo al lado de un valor
 function statDeltaBadge(num, field){
-  const d=getStatsDelta()[num]?.[field]||0;
+  const d=(getStatsDelta()[num]?.[field]||0)+(getManualDelta()[num]?.[field]||0);
   return d>0?`<span style="font-size:8px;font-weight:800;color:var(--green);background:#DCFCE7;border-radius:3px;padding:0 3px;line-height:1.4;white-space:nowrap;flex-shrink:0" title="Suma del Mundial 2026">+${d}</span>`:'';
 }
 
@@ -1970,29 +1975,18 @@ function applyPostMatchUpdates(pizMatchId, evs){
     }
   });
 
-  const delta=getStatsDelta();
-  played.forEach(num=>{
-    delta[num]=delta[num]||{};
-    delta[num].caps=(delta[num].caps||0)+1;
-    delta[num].wcCaps=(delta[num].wcCaps||0)+1;
-  });
+  // Calcular el nuevo snapshot para este partido (sin tocar KStatsDelta aún)
+  const snap={};
+  const addSnap=(num,field,val=1)=>{snap[num]=snap[num]||{};snap[num][field]=(snap[num][field]||0)+val;};
+
+  played.forEach(num=>{addSnap(num,'caps');addSnap(num,'wcCaps');});
 
   // Goles y asistencias (los autogoles no suman al jugador)
   evs.forEach(e=>{
     if(e.type==='goal' && e.side==='uru' && !/\(autogol\)$/.test(e.player)){
       const num=matchNum(e.player);
-      if(num){
-        delta[num]=delta[num]||{};
-        delta[num].goals=(delta[num].goals||0)+1;
-        delta[num].wcGoals=(delta[num].wcGoals||0)+1;
-      }
-      if(e.extra){
-        const aNum=matchNum(e.extra);
-        if(aNum){
-          delta[aNum]=delta[aNum]||{};
-          delta[aNum].assists=(delta[aNum].assists||0)+1;
-        }
-      }
+      if(num){addSnap(num,'goals');addSnap(num,'wcGoals');}
+      if(e.extra){const aNum=matchNum(e.extra);if(aNum)addSnap(aNum,'assists');}
     }
   });
 
@@ -2009,9 +2003,27 @@ function applyPostMatchUpdates(pizMatchId, evs){
     let minutes=90;
     if(subOutMin[num]!=null) minutes=subOutMin[num];
     else if(subInMin[num]!=null) minutes=Math.max(0,90-subInMin[num]);
-    delta[num]=delta[num]||{};
-    delta[num].minutesWC=(delta[num].minutesWC||0)+minutes;
+    addSnap(num,'minutesWC',minutes);
   });
+
+  // Revertir snapshot anterior de este partido y aplicar el nuevo
+  const allMatchDeltas=stor.get(KMatchDelta,{});
+  const prevSnap=allMatchDeltas[pizMatchId]||{};
+  const delta=getStatsDelta();
+  // Restar lo que había antes
+  Object.entries(prevSnap).forEach(([num,fields])=>{
+    Object.entries(fields).forEach(([field,val])=>{
+      if(delta[num]&&delta[num][field]) delta[num][field]=Math.max(0,delta[num][field]-val);
+    });
+  });
+  // Sumar el nuevo snapshot
+  Object.entries(snap).forEach(([num,fields])=>{
+    delta[num]=delta[num]||{};
+    Object.entries(fields).forEach(([field,val])=>{delta[num][field]=(delta[num][field]||0)+val;});
+  });
+  // Guardar snapshot del partido
+  allMatchDeltas[pizMatchId]=snap;
+  stor.set(KMatchDelta,allMatchDeltas);
   setStatsDelta(delta);
 
   // Tarjetas y sanciones (2 amarillas = suspendido para el próximo partido; roja = directo)
@@ -4254,8 +4266,10 @@ function buildNameMap(){
   map['nunez']=9;         // Darwin Núñez
   map['de arrascaeta']=10;
   map['de la cruz']=7;
+  // Araújo: Maxi (#20) es el único en la lista FWC26 que anota goles por URU
+  map['araujo']=20;
   map['maximiliano araujo']=20; map['m. araujo']=20; map['maxi araujo']=20;
-  map['ronald araujo']=4;  map['r. araujo']=4;
+  map['araújo']=20; map['maximiliano araújo']=20;
   return map;
 }
 
@@ -7648,7 +7662,7 @@ function showMatchStatus(matchId, status, clock){
     }
   });
 }
-const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KYellow,KEvOblig,KAeroUy,KEvHidden,KGrafica,KStatsOrder,KMvp,KCardTrack,KStatsDelta,KCardSynced,KMatchEvents,KDelegacion,KInfoTexts,KLineup];
+const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KYellow,KEvOblig,KAeroUy,KEvHidden,KGrafica,KStatsOrder,KMvp,KCardTrack,KStatsDelta,KManualDelta,KMatchDelta,KCardSynced,KMatchEvents,KDelegacion,KInfoTexts,KLineup];
 
 async function serverSave(silent){
   const btn=document.getElementById('btn-cloud-save');
