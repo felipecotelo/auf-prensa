@@ -2470,6 +2470,9 @@ function getMatchIdForDate(date){
 }
 
 // Chips de jugadores ordenados: sin actividad primero, con badge de conteo
+// Apellido para mostrar: todo excepto el primer nombre (maneja "De La Cruz", "Van Dijk", etc.)
+function pShort(p){ const parts=p.name.split(' '); return parts.length>1?parts.slice(1).join(' '):p.name; }
+
 function buildPlayerChipsHtml(selNums, matchId, onclickFn){
   const counts=matchId?getPlayerMatchCounts(matchId):{};
   const sorted=[...PLAYERS].sort((a,b)=>(counts[a.n]||0)-(counts[b.n]||0));
@@ -2478,7 +2481,7 @@ function buildPlayerChipsHtml(selNums, matchId, onclickFn){
     const cnt=counts[p.n]||0;
     const badge=cnt>0?`<sup style="font-size:8px;font-weight:800;opacity:.7;margin-left:1px">${cnt}</sup>`:'';
     const freshStyle=!sel&&cnt===0?'border-color:#86efac;color:var(--green-dk)':'';
-    return`<span class="ev-p-chip${sel?' sel':''}" style="${freshStyle}" onclick="${onclickFn(p)}">#${p.n} ${p.name.split(' ').pop()}${badge}</span>`;
+    return`<span class="ev-p-chip${sel?' sel':''}" style="${freshStyle}" onclick="${onclickFn(p)}">#${p.n} ${pShort(p)}${badge}</span>`;
   }).join('');
 }
 
@@ -2512,7 +2515,7 @@ function buildEventsHtml(day, startIdx=0){
 
     // Selected names display (apellido only for players)
     const dtNames=selParts.filter(x=>x.startsWith('dt_')).map(x=>{const d=DT_STAFF.find(s=>s.id===x.slice(3));return d?d.name:''}).filter(Boolean);
-    const playerNames=selParts.filter(x=>x.startsWith('p_')).map(x=>{const n=parseInt(x.slice(2));const pl=PLAYERS.find(pl=>pl.n===n);return pl?pl.name.split(' ').pop():''}).filter(Boolean);
+    const playerNames=selParts.filter(x=>x.startsWith('p_')).map(x=>{const n=parseInt(x.slice(2));const pl=PLAYERS.find(pl=>pl.n===n);return pl?pShort(pl):''}).filter(Boolean);
     const partNames=[...dtNames,...playerNames];
 
     // Training events when day is closed: not "obligatorio" (the obligation was to open it)
@@ -2614,7 +2617,7 @@ function buildEventsHtml(day, startIdx=0){
           ${isOblig?(()=>{
             const manualAtParts=[
               ...selParts.filter(x=>x.startsWith('dt_')).map(x=>({key:x,name:(DT_STAFF.find(s=>s.id===x.slice(3))||{}).name||x})),
-              ...selParts.filter(x=>x.startsWith('p_')).map(x=>{const n=parseInt(x.slice(2));const pl=PLAYERS.find(pl=>pl.n===n);return{key:x,name:pl?pl.name.split(' ').pop():x}})
+              ...selParts.filter(x=>x.startsWith('p_')).map(x=>{const n=parseInt(x.slice(2));const pl=PLAYERS.find(pl=>pl.n===n);return{key:x,name:pl?pShort(pl):x}})
             ];
             const saved=getEvManualAt()[k]||{};
             return`
@@ -2708,7 +2711,7 @@ function renderPendingAlerts(){
         const k=evKey(day.date,realIdx);
         const parts=getEvParts()[k]||[];
         const dtNames=parts.filter(x=>x.startsWith('dt_')).map(x=>{const d=DT_STAFF.find(s=>s.id===x.slice(3));return d?d.name:''}).filter(Boolean);
-        const playerNames=parts.filter(x=>x.startsWith('p_')).map(x=>{const pl=PLAYERS.find(p=>p.n===parseInt(x.slice(2)));return pl?pl.name.split(' ').pop():''}).filter(Boolean);
+        const playerNames=parts.filter(x=>x.startsWith('p_')).map(x=>{const pl=PLAYERS.find(p=>p.n===parseInt(x.slice(2)));return pl?pShort(pl):''}).filter(Boolean);
         const partLabel=[...dtNames,...playerNames].join(' · ');
         return`
         <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:0.5px solid #F5DFA0">
@@ -3265,7 +3268,7 @@ function toggleEvPart(date,idx,partKey,chip){
       const txtWrap=document.querySelector(`#cev-${date}-${idx} .ev-txt-wrap`);
       const names=[
         ...p[k].filter(x=>x.startsWith('dt_')).map(x=>{const d=DT_STAFF.find(s=>s.id===x.slice(3));return d?d.name:''}),
-        ...p[k].filter(x=>x.startsWith('p_')).map(x=>{const n=parseInt(x.slice(2));const pl=PLAYERS.find(pl=>pl.n===n);return pl?pl.name.split(' ').slice(-1)[0]:''})
+        ...p[k].filter(x=>x.startsWith('p_')).map(x=>{const n=parseInt(x.slice(2));const pl=PLAYERS.find(pl=>pl.n===n);return pl?pShort(pl):''})
       ].filter(Boolean);
       if(names.length){
         if(partsDiv)partsDiv.textContent='👤 '+names.join(' · ');
@@ -3273,7 +3276,7 @@ function toggleEvPart(date,idx,partKey,chip){
       }else{if(partsDiv)partsDiv.remove()}
     }
   }catch(err){ console.error('toggleEvPart: fallo al refrescar etiqueta',err); }
-  toast(!already?`Agregado: ${partKey.startsWith('dt_')?DT_STAFF.find(s=>s.id===partKey.slice(3))?.name:PLAYERS.find(pl=>pl.n===parseInt(partKey.slice(2)))?.name.split(' ').pop()}`:'Quitado');
+  toast(!already?`Agregado: ${partKey.startsWith('dt_')?DT_STAFF.find(s=>s.id===partKey.slice(3))?.name:((_pl=PLAYERS.find(pl=>pl.n===parseInt(partKey.slice(2))))=>_pl?pShort(_pl):partKey)()}`:'Quitado');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3412,7 +3415,7 @@ function _buildSessionsSummary(matchId,item){
       name=dt?dt.name:sess.label;
     } else {
       const sel=(s.players&&s.players.length)?s.players:(sess.defaultPlayer?[sess.defaultPlayer]:[]);
-      name=sel.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?p.name.split(' ').pop():n}).filter(Boolean).join(', ')||sess.label;
+      name=sel.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?pShort(p):n}).filter(Boolean).join(', ')||sess.label;
     }
     return`${done}${sess.fecha?' '+sess.fecha+' ·':''} ${name}`;
   });
@@ -3423,7 +3426,7 @@ function buildSummary(data,item){
   const parts=[];
   if(item.hasDT&&data.dt){const s=DT_STAFF.find(d=>d.id===data.dt);if(s)parts.push(s.full);}
   if(data.players&&data.players.length){
-    const names=data.players.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?p.name.split(' ').pop():n}).join(', ');
+    const names=data.players.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?pShort(p):n}).join(', ');
     parts.push(names);
   }
   if(data.note)parts.push('📝');
@@ -3451,7 +3454,7 @@ function buildPlayerSection(matchId,actId,data,count){
     <div class="player-chips" id="pchips-${matchId}-${actId}">
       ${PLAYERS.map(p=>{
         const isSel=sel.includes(p.n);
-        const surn=p.name.split(' ').pop();
+        const surn=pShort(p);
         return `<div class="p-chip${isSel?' sel':''}" onclick="togglePlayer('${matchId}','${actId}',${p.n},this)">#${p.n} ${surn}</div>`;
       }).join('')}
     </div>
@@ -3531,7 +3534,7 @@ function togglePlayer(matchId,actId,num,chip){
     }
   }
   const p=PLAYERS.find(x=>x.n===num);
-  toast(p?`${p.name.split(' ').pop()} ${data.players.includes(num)?'agregado':'quitado'}`:'');
+  toast(p?`${pShort(p)} ${data.players.includes(num)?'agregado':'quitado'}`:'');
   syncChkToDisp();
   try{ syncChkToCalEv(matchId,actId,data.players||[]); }catch(err){ console.error('syncChkToCalEv failed',err); }
 }
@@ -3567,7 +3570,7 @@ function toggleAllPlayers(date,idx,currentlyAll){
     if(pChipsEl){
       const allSel=PLAYERS.every(p=>selP.includes('p_'+p.n));
       const todoBtnHtml=`<span class="ev-p-chip${allSel?' sel':''}" style="font-weight:800;background:${allSel?'var(--navy)':'var(--surface)'};color:${allSel?'#fff':'var(--text)'};border-color:${allSel?'var(--navy)':'var(--border)'}" onclick="toggleAllPlayers('${date}',${idx},${allSel})">👥 ${allSel?'Quitar todos':'Todos'}</span>`;
-      const pChipsHtml=PLAYERS.map(p=>`<span class="ev-p-chip${selP.includes('p_'+p.n)?' sel':''}" onclick="toggleEvPart('${date}',${idx},'p_${p.n}',this)">#${p.n} ${p.name.split(' ').pop()}</span>`).join('');
+      const pChipsHtml=PLAYERS.map(p=>`<span class="ev-p-chip${selP.includes('p_'+p.n)?' sel':''}" onclick="toggleEvPart('${date}',${idx},'p_${p.n}',this)">#${p.n} ${pShort(p)}</span>`).join('');
       pChipsEl.innerHTML=todoBtnHtml+pChipsHtml;
     }
   }
@@ -3624,7 +3627,7 @@ function toggleSessionPlayer(matchId,actId,sId,num,chip,sessionsJson){
   else{s.players.push(num);chip.classList.add('sel')}
   _saveSessionData(matchId,actId,sId,s,sessions);
   const p=PLAYERS.find(x=>x.n===num);
-  toast(p?`${p.name.split(' ').pop()} ${s.players.includes(num)?'agregado':'quitado'}`:'');
+  toast(p?`${pShort(p)} ${s.players.includes(num)?'agregado':'quitado'}`:'');
 }
 function toggleSessionDT(matchId,actId,sId,dtId,chip,sessionsJson){
   const sessions=JSON.parse(sessionsJson);
@@ -3717,7 +3720,7 @@ function buildSessionsHtml(matchId,actId,sessions){
       const effectiveSel=selP.length?selP:(sess.defaultPlayer?[sess.defaultPlayer]:[]);
       const pChips=buildPlayerChipsHtml(effectiveSel,matchId,p=>`toggleSessionPlayer('${matchId}','${actId}','${sess.id}',${p.n},this,'${sessJson}')`);
       selectorHtml=`<div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Jugador</div><div class="player-chips">${pChips}</div></div>`;
-      partName=effectiveSel.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?p.name.split(' ').pop():n}).filter(Boolean).join(', ');
+      partName=effectiveSel.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?pShort(p):n}).filter(Boolean).join(', ');
     }
 
     return`
@@ -4042,7 +4045,7 @@ function savePartVal(num,matchId,sel){
   const opt=PART_OPTIONS.find(o=>o.val===sel.value)||PART_OPTIONS[0];
   // Update select class
   sel.className='part-sel '+opt.cls;
-  toast(PLAYERS.find(p=>p.n===num)?.name.split(' ').pop()+' · '+
+  toast(PLAYERS.find(p=>p.n===num)?pShort(PLAYERS.find(p=>p.n===num)):''+' · '+
     (sel.value||'—')+' · '+(MATCH_LIST.find(m=>m.id===matchId)?.label||matchId));
 }
 
@@ -5350,7 +5353,7 @@ function renderGrafica(){
     const sel=g[matchId][stage].players||[];
     return `<div class="player-chips">${PLAYERS.map(p=>{
       const isSel=sel.includes(p.n);
-      return `<span class="gr-chip${isSel?' sel':''}" onclick="toggleGraficaPlayer('${matchId}','${stage}',${p.n},this)">#${p.n} ${p.name.split(' ').pop()}</span>`;
+      return `<span class="gr-chip${isSel?' sel':''}" onclick="toggleGraficaPlayer('${matchId}','${stage}',${p.n},this)">#${p.n} ${pShort(p)}</span>`;
     }).join('')}</div>`;
   }
 
@@ -5359,7 +5362,7 @@ function renderGrafica(){
     if(!sel.length)return'<span style="font-size:10.5px;color:var(--hint)">— sin seleccionar —</span>';
     return `<div class="player-chips">${sel.map(n=>{
       const p=PLAYERS.find(pl=>pl.n===n);
-      return `<span class="gr-chip sel" onclick="toggleGraficaPlayer('${matchId}','${stage}',${n},this)">#${n} ${p.name.split(' ').pop()}</span>`;
+      return `<span class="gr-chip sel" onclick="toggleGraficaPlayer('${matchId}','${stage}',${n},this)">#${n} ${pShort(p)}</span>`;
     }).join('')}</div>`;
   }
 
@@ -5401,7 +5404,7 @@ function renderGrafica(){
       return `<button onclick="toggleGraficaFlag(${p.n},'${f.id}')" title="${f.title}" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 1px;opacity:${on?'1':'.25'};filter:${on?'none':'grayscale(1)'}">${f.icon}</button>`;
     }).join('');
     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11.5px">
-      <span style="font-weight:600;color:${tags?'var(--text)':'var(--hint)'}">#${p.n} ${p.name.split(' ').pop()}</span>
+      <span style="font-weight:600;color:${tags?'var(--text)':'var(--hint)'}">#${p.n} ${pShort(p)}</span>
       <span style="display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:2px">${tags||'<span style="font-size:9px;color:var(--hint)">sin uso</span>'}<span style="display:flex;margin-left:4px">${flagBtns}</span></span>
     </div>`;
   }).join('');
@@ -6759,7 +6762,7 @@ async function renderLineup(matchId){
           const pNum=st[slot.id];
           const p=pNum?PLAYERS.find(x=>x.n===pNum):null;
           const ph=p?(_luPhotos[p.n]||p.photo||''):'';
-          const lbl=p?p.name.split(' ').pop():'';
+          const lbl=p?pShort(p):'';
           return`<div class="p-slot" style="left:${slot.x}%;top:${slot.y}%" onclick="openSP('${matchId}','${slot.id}','${slot.pos}')">
             <div class="p-slot-av${p?'':' empty'}">
               ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
@@ -6782,7 +6785,7 @@ async function renderLineup(matchId){
               ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
               <span class="sup-n" style="${ph?'display:none':''}">${p.n}</span>
             </div>
-            <div class="sup-name">${p.name.split(' ').pop()}</div>
+            <div class="sup-name">${pShort(p)}</div>
           </div>`;
         }).join('')}
       </div>
