@@ -152,6 +152,37 @@ function buildCalendarICS(lsData) {
   return lines.join('\r\n');
 }
 
+// ── Proxy FotMob + ESPN summary (evita CORS desde el browser) ───────
+function proxyGet(hostname, path, headers) {
+  return new Promise((resolve, reject) => {
+    const req = https.request({ hostname, path, method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AUF-Prensa/1.0)', ...headers } }, res => {
+      let buf = '';
+      res.on('data', d => buf += d);
+      res.on('end', () => { try { resolve(JSON.parse(buf)); } catch(e) { reject(new Error('bad json')); } });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+app.get('/api/fotmob/:matchId', async (req, res) => {
+  try {
+    const data = await proxyGet('www.fotmob.com', `/api/matchDetails?matchId=${req.params.matchId}`, { Accept: 'application/json', Referer: 'https://www.fotmob.com/' });
+    res.json(data);
+  } catch(e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
+app.get('/api/espn/summary/:eventId', async (req, res) => {
+  try {
+    const data = await proxyGet('site.api.espn.com', `/apis/site/v2/sports/soccer/fifa.world/summary?event=${req.params.eventId}`, {});
+    res.json(data);
+  } catch(e) {
+    res.status(502).json({ error: e.message });
+  }
+});
+
 app.get('/api/calendar.ics', async (req, res) => {
   try {
     const { data } = await ghLoad();

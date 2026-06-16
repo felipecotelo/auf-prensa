@@ -4057,6 +4057,14 @@ const ESPN_EVENTS = {
   'uru-cpv': 760450,  // URU vs CPV — 21 jun
   'uru-esp': 760479,  // URU vs ESP — 26 jun
 };
+const FOTMOB_EVENTS = {
+  'uru-ksa': 4667799, // URU vs KSA — 15 jun
+  'uru-cpv': null,    // pendiente
+  'uru-esp': null,    // pendiente
+};
+const KRatings='auf4_ratings';
+const getRatings=()=>stor.get(KRatings,{});
+const setRatings=v=>stor.set(KRatings,v);
 
 function normName(s){
   return s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
@@ -4737,6 +4745,110 @@ function removeMatchEvent(mId, pizMatchId, evId){
 }
 
 // Trae goles, tarjetas y cambios desde la API pública de ESPN y reemplaza las incidencias del partido
+// ── Sync completo partido: ESPN (goles/cambios/tarjetas + XI) + FotMob (calificaciones) ──
+async function syncMatchFull(matchId){
+  const btn=document.getElementById(`piz-sync-btn-${matchId}`);
+  if(btn){btn.disabled=true;btn.textContent='Actualizando...';}
+  const espnId=ESPN_EVENTS[matchId], fotmobId=FOTMOB_EVENTS[matchId];
+  const BASE=window.location.origin==='null'||window.location.protocol==='file:'?'https://auf-prensa-production.up.railway.app':'';
+  let msgs=[];
+
+  // 1. ESPN summary via proxy
+  try{
+    const res=await fetch(`${BASE}/api/espn/summary/${espnId}`);
+    const data=await res.json();
+
+    // a) Incidencias (goles, tarjetas, cambios)
+    const TYPE_MAP={goal:'goal','yellow-card':'card','red-card':'card',substitution:'sub'};
+    const evs=[];
+    (data.keyEvents||[]).forEach(e=>{
+      const kind=TYPE_MAP[e.type?.type]; if(!kind)return;
+      const min=parseInt(e.clock?.displayValue)||0;
+      const side=e.team?.id===String(URU_ESPN_ID)?'uru':'rival';
+      const parts=e.participants||[];
+      let player='',extra='';
+      if(kind==='goal'){player=parts[0]?.athlete?.displayName||'';if(/own goal/i.test(e.text||''))player+=' (autogol)';extra=parts[1]?.athlete?.displayName||'';}
+      else if(kind==='card'){player=parts[0]?.athlete?.displayName||'';extra=e.type.type==='red-card'?'r':'y';}
+      else if(kind==='sub'){player=parts[1]?.athlete?.displayName||'';extra=parts[0]?.athlete?.displayName||'';}
+      if(!player)return;
+      evs.push({id:'espn'+e.id,min,type:kind,side,player,extra});
+    });
+    const allEv=getMatchEvents(); allEv[matchId]=evs; setMatchEvents(allEv);
+    msgs.push(`${evs.length} incidencias ESPN`);
+
+    // b) XI titular desde roster de ESPN
+    const rosters=data.rosters||[];
+    const uruRoster=rosters.find(r=>r.team?.displayName?.toLowerCase().includes('uruguay'));
+    if(uruRoster?.roster?.length){
+      const nameMap=buildNameMap();
+      const all=getLineup();
+      if(!all[matchId])all[matchId]={formation:'4-3-3',starters:{}};
+      const starterNums=[];
+      uruRoster.roster.forEach(entry=>{
+        if(!entry.starter)return;
+        const nm=entry.athlete?.displayName||'';
+        const num=nameMap[normName(nm)]||nameMap[normName(nm.split(' ').pop())];
+        if(num)starterNums.push(num);
+      });
+      if(starterNums.length>=10){
+        // Asignar a slots de la formación actual en orden de posición ESPN
+        const form=all[matchId].formation||'4-3-3';
+        const slots=FORMATIONS[form];
+        const newSt={};
+        starterNums.forEach((num,i)=>{if(slots[i])newSt[slots[i].id]=num;});
+        all[matchId].starters=newSt;
+        setLineup(all);
+        msgs.push(`XI cargado (${starterNums.length} titulares)`);
+      }
+    }
+
+    // c) Resultado si terminó
+    const comp=data.header?.competitions?.[0];
+    if(comp?.status?.type?.completed){
+      const home=comp.competitors.find(c=>c.homeAway==='home');
+      const away=comp.competitors.find(c=>c.homeAway==='away');
+      const fixMatch=GROUP_H.matches.find(m=>FIX_TO_PIZ[m.id]===matchId);
+      if(fixMatch){
+        const fix=getFixture();
+        const hScore=home.team.id===String(URU_ESPN_ID)?home.score:away.score;
+        const aScore=home.team.id===String(URU_ESPN_ID)?away.score:home.score;
+        fix[fixMatch.id]={h:fixMatch.home==='uru'?hScore:aScore,a:fixMatch.away==='uru'?aScore:hScore};
+        setFixture(fix);
+      }
+      if(!getCardSynced()[matchId]){
+        applyPostMatchUpdates(matchId,evs);
+        const cs=getCardSynced();cs[matchId]=true;setCardSynced(cs);
+        msgs.push('estadísticas actualizadas');
+      }
+    }
+  }catch(e){msgs.push('Error ESPN: '+e.message);}
+
+  // 2. FotMob ratings via proxy
+  if(fotmobId){
+    try{
+      const res=await fetch(`${BASE}/api/fotmob/${fotmobId}`);
+      const data=await res.json();
+      // FotMob devuelve ratings en content.playerRatings.homeTeam / awayTeam
+      const nameMap=buildNameMap();
+      const ratMap={};
+      const allTeams=[...(data.content?.playerRatings?.homeTeam||[]),...(data.content?.playerRatings?.awayTeam||[])];
+      allTeams.forEach(r=>{
+        const nm=r.name?.fullName||r.name||'';
+        const num=nameMap[normName(nm)]||nameMap[normName((nm.split(' ').pop()))];
+        if(num&&r.rating?.num) ratMap[num]=parseFloat(r.rating.num).toFixed(1);
+      });
+      const allRat=getRatings(); allRat[matchId]=ratMap; setRatings(allRat);
+      msgs.push(`${Object.keys(ratMap).length} calificaciones FotMob`);
+    }catch(e){msgs.push('FotMob no disponible');}
+  }
+
+  // Re-render
+  renderPizarra(matchId);
+  renderFixture();
+  if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar datos';}
+  toast('✅ '+msgs.join(' · '));
+}
+
 async function syncEspnIncidents(mId, pizMatchId){
   const statusEl=document.getElementById(`me-status-${mId}`);
   const eventId=ESPN_EVENTS[pizMatchId];
@@ -6315,7 +6427,7 @@ async function renderPizarra(matchId){
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">PJ</th>
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">GOL</th>
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">WC</th>
-          <th style="padding:5px 8px;text-align:left;font-size:9.5px;color:var(--muted);font-weight:700">Hito</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">⭐</th>
         </tr></thead>
         <tbody>${starterRows.map(({slot,p})=>{
           const inj=getPlayerInjury(p.n);
@@ -6324,12 +6436,14 @@ async function renderPizarra(matchId){
           const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
           const pts=p.name.trim().split(' ');
           const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+          const rat=getRatings()[matchId]?.[p.n];
+          const ratCol=rat>=8?'var(--green)':rat>=7?'var(--cel-dk)':rat>=6?'var(--gold)':'#C0392B';
           return`<tr id="stat-row-${starterKey}-${p.n}" style="border-bottom:0.5px solid var(--border)">
             <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
-            <td style="padding:6px 8px;font-size:10px;color:var(--muted);max-width:120px">${hint}</td>
+            <td style="padding:6px 8px;text-align:center;font-weight:800;${rat?`color:${ratCol}`:'color:var(--hint)'}">${rat||'—'}</td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>
@@ -6349,16 +6463,16 @@ async function renderPizarra(matchId){
   const benchRows=benchSorted.filter(p=>p).map(p=>{
     const inj=getPlayerInjury(p.n);
     const injBadge=inj==='red'?'<span style="width:8px;height:8px;border-radius:50%;background:#C0392B;display:inline-block;margin-left:5px;vertical-align:middle" title="Lesionado"></span>':inj==='yellow'?'<span style="width:8px;height:8px;border-radius:50%;background:#F97316;display:inline-block;margin-left:5px;vertical-align:middle" title="Duda"></span>':'';
-    const ms=computeMilestones(p);
-    const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
     const pts=p.name.trim().split(' ');
     const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+    const brat=getRatings()[matchId]?.[p.n];
+    const bratCol=brat>=8?'var(--green)':brat>=7?'var(--cel-dk)':brat>=6?'var(--gold)':'#C0392B';
     return`<tr id="stat-row-${benchKey}-${p.n}" style="border-bottom:0.5px solid var(--border)">
       <td style="padding:5px 10px;font-weight:700">${statsOrderArrows(benchKey,benchDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
-      <td style="padding:5px 8px;font-size:10px;color:var(--muted);max-width:120px">${hint}</td>
+      <td style="padding:5px 8px;text-align:center;font-weight:800;${brat?`color:${bratCol}`:'color:var(--hint)'}">${brat||'—'}</td>
     </tr>`;
   }).join('');
   const benchStatsHtml=bench.length?`
@@ -6372,7 +6486,7 @@ async function renderPizarra(matchId){
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">PJ</th>
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">GOL</th>
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">WC</th>
-          <th style="padding:5px 8px;text-align:left;font-size:9.5px;color:var(--muted);font-weight:700">Hito</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">⭐</th>
         </tr></thead>
         <tbody>${benchRows}</tbody>
       </table></div>
@@ -6451,6 +6565,65 @@ async function renderPizarra(matchId){
   const POS_LABELS={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
   const benchByPos=POS_ORDER.map(pos=>({pos,label:POS_LABELS[pos],players:bench.filter(p=>p.pos===pos)})).filter(g=>g.players.length);
 
+  // ── Resumen del partido (incidencias + calificaciones) ──
+  const evs=(getMatchEvents()[matchId]||[]).slice().sort((a,b)=>a.min-b.min);
+  const rats=getRatings()[matchId]||{};
+  const fixRes=getMatchResult(GROUP_H.matches.find(m=>FIX_TO_PIZ[m.id]===matchId)?.id);
+
+  function evIcon(e){return e.type==='goal'?'⚽':e.type==='card'?(e.extra==='r'?'🟥':'🟨'):'🔁';}
+  function evText(e){
+    if(e.type==='goal')return`<b>${e.player}</b>${e.extra?`<span style="font-size:9px;color:var(--muted)"> · Asist: ${e.extra}</span>`:''}`;
+    if(e.type==='card')return`<b>${e.player}</b>`;
+    return`<span style="color:var(--green);font-weight:700">▲ ${e.extra}</span> <span style="color:#C0392B">▼ ${e.player}</span>`;
+  }
+  const incidenciasHtml=evs.length?evs.map(e=>`
+    <div style="display:flex;gap:6px;align-items:flex-start;padding:4px 0;border-bottom:0.5px solid var(--border);font-size:10.5px">
+      <span style="font-weight:800;color:var(--cel-dk);min-width:22px">${e.min}'</span>
+      <span>${evIcon(e)}</span>
+      <div style="flex:1">${evText(e)}<span style="font-size:8.5px;color:var(--hint);margin-left:4px">${e.side==='uru'?'URU':'Rival'}</span></div>
+    </div>`).join('')
+    :'<div style="font-size:10.5px;color:var(--hint);padding:4px 0">Sin datos — presioná Actualizar</div>';
+
+  // Calificaciones: solo titulares URU + cambios URU, ordenados de mayor a menor
+  const ratedPlayers=Object.entries(rats)
+    .map(([num,rat])=>{const p=PLAYERS.find(x=>x.n===parseInt(num));return p?{p,rat:parseFloat(rat)}:null;})
+    .filter(Boolean).sort((a,b)=>b.rat-a.rat);
+  const ratingsHtml=ratedPlayers.length?`
+    <div style="display:flex;flex-direction:column;gap:2px">
+      ${ratedPlayers.map(({p,rat})=>{
+        const col=rat>=8?'var(--green)':rat>=7?'var(--cel-dk)':rat>=6?'var(--gold)':'#C0392B';
+        const pts=p.name.trim().split(' ');
+        const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+        return`<div style="display:flex;align-items:center;gap:6px;font-size:10.5px;padding:2px 0">
+          <span style="font-size:9.5px;color:var(--muted);min-width:18px">#${p.n}</span>
+          <span style="flex:1;font-weight:600">${sn}</span>
+          <span style="font-weight:800;font-size:12px;color:${col}">${rat.toFixed(1)}</span>
+        </div>`;
+      }).join('')}
+    </div>`
+    :'<div style="font-size:10.5px;color:var(--hint);padding:4px 0">Sin calificaciones — presioná Actualizar</div>';
+
+  const matchSummaryHtml=`
+    <div style="margin-top:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Resumen del partido</div>
+        <button id="piz-sync-btn-${matchId}" onclick="syncMatchFull('${matchId}')" style="font-size:9.5px;font-weight:700;padding:3px 8px;border:0.5px solid var(--cel);border-radius:5px;background:var(--cel-lt);color:var(--cel-dk);cursor:pointer;white-space:nowrap">🔄 Actualizar datos</button>
+      </div>
+      ${fixRes?`<div style="background:var(--navy);color:#fff;border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:8px;font-size:13px;font-weight:800">Uruguay ${fixRes.uru} – ${fixRes.rival} ${rival?.abbr||''}</div>`:''}
+      <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px">
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Incidencias</div>
+        ${incidenciasHtml}
+      </div>
+      <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
+          <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Calificaciones</div>
+          ${FOTMOB_EVENTS[matchId]?`<a href="https://www.fotmob.com/es/matches/uruguay-vs-saudi-arabia/1izuvb#${FOTMOB_EVENTS[matchId]}:tab=stats" target="_blank" style="font-size:8.5px;color:var(--cel-dk);text-decoration:none;font-weight:700">↗ FotMob</a>`:''}
+        </div>
+        ${ratingsHtml}
+      </div>
+    </div>
+  `;
+
   wrap.innerHTML = `
     <!-- Selector de partido -->
     <div class="piz-match-sel" style="margin-bottom:10px">
@@ -6500,6 +6673,8 @@ async function renderPizarra(matchId){
             ${Object.keys(FORMATIONS).map(f=>`<button class="form-btn${f===form?' active':''}" onclick="pizChangeForm('${matchId}','${f}')">${f}</button>`).join('')}
           </div>
         </div>
+
+        ${matchSummaryHtml}
 
       </div>
 
