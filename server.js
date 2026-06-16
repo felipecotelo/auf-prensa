@@ -69,6 +69,12 @@ app.get('/icon.png', (req, res) => {
   res.send(Buffer.from(ICON_B64, 'base64'));
 });
 
+app.get('/app-icon.jpg', (req, res) => {
+  res.setHeader('Content-Type', 'image/jpeg');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.join(__dirname, 'public', 'app-icon.jpg'));
+});
+
 // ── API ───────────────────────────────────────────────
 app.get('/api/load', async (req, res) => {
   try {
