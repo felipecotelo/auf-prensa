@@ -7903,18 +7903,19 @@ async function tryAutoLoad(){
       if(m.chk) syncEvToChkSession(m.date,m.idx,ev[evKey(m.date,m.idx)]||'');
     });
   })();
-  // Parchar eventos oficiales FIFA en datos ya guardados (sin necesitar re-sync)
+  // Al cargar: parchar eventos oficiales FIFA y recalcular stats de partidos ya jugados
   (()=>{
     const all=getMatchEvents();
-    let changed=false;
     Object.entries(FIFA_OFFICIAL_EVENTS).forEach(([mid,official])=>{
       if(!all[mid]) return;
       official.forEach(oe=>{
         const dup=all[mid].find(e=>e.type===oe.type&&e.side===oe.side&&Math.abs(e.min-oe.min)<=1);
-        if(!dup){all[mid].push(oe);changed=true;}
+        if(!dup) all[mid].push(oe);
       });
     });
-    if(changed) setMatchEvents(all);
+    setMatchEvents(all);
+    // Recalcular stats para todos los partidos que tienen eventos guardados
+    Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
   })();
   renderInicio();
   renderCal();
