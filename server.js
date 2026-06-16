@@ -165,6 +165,8 @@ function proxyGet(hostname, path, headers) {
   });
 }
 
+app.get('/api/ping', (req, res) => res.json({ ok: true, v: 2, ts: Date.now() }));
+
 app.get('/api/fotmob/:matchId', async (req, res) => {
   try {
     const data = await proxyGet('www.fotmob.com', `/api/matchDetails?matchId=${req.params.matchId}`, { Accept: 'application/json', Referer: 'https://www.fotmob.com/' });
