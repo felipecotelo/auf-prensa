@@ -4660,19 +4660,19 @@ const GROUP_H = {
     {id:'m1', num:1, fecha:2, date:'Dom 21 jun', isoDate:'2026-06-21', home:'esp', away:'ksa',
      stadium:'Mercedes-Benz Stadium', city:'Atlanta, Georgia', pais:'USA', tz:'America/New_York',
      horaLocal:'12:00', horaUru:'13:00'},
-    {id:'m2', num:2, fecha:1, date:'Lun 15 jun', home:'ksa', away:'uru',
+    {id:'m2', num:2, fecha:1, date:'Lun 15 jun', isoDate:'2026-06-15', home:'ksa', away:'uru',
      stadium:'Hard Rock Stadium', city:'Miami Gardens, Florida', pais:'USA', tz:'America/New_York',
      horaLocal:'18:00', horaUru:'19:00'},
     {id:'m3', num:3, fecha:1, date:'Lun 15 jun', isoDate:'2026-06-15', home:'esp', away:'cpv',
      stadium:'Mercedes-Benz Stadium', city:'Atlanta, Georgia', pais:'USA', tz:'America/New_York',
      horaLocal:'12:00', horaUru:'13:00'},
-    {id:'m4', num:4, fecha:2, date:'Dom 21 jun', home:'uru', away:'cpv',
+    {id:'m4', num:4, fecha:2, date:'Dom 21 jun', isoDate:'2026-06-21', home:'uru', away:'cpv',
      stadium:'Hard Rock Stadium', city:'Miami Gardens, Florida', pais:'USA', tz:'America/New_York',
      horaLocal:'18:00', horaUru:'19:00'},
     {id:'m5', num:5, fecha:3, date:'Vie 26 jun', isoDate:'2026-06-26', home:'ksa', away:'cpv',
      stadium:'NRG Stadium', city:'Houston, Texas', pais:'USA', tz:'America/Chicago',
      horaLocal:'19:00', horaUru:'21:00'},
-    {id:'m6', num:6, fecha:3, date:'Vie 26 jun', home:'uru', away:'esp',
+    {id:'m6', num:6, fecha:3, date:'Vie 26 jun', isoDate:'2026-06-26', home:'uru', away:'esp',
      stadium:'Estadio Akron', city:'Guadalajara, México', pais:'MEX', tz:'America/Mexico_City',
      horaLocal:'19:00', horaUru:'21:00'},
   ]
@@ -7456,6 +7456,17 @@ async function tryAutoLoad(){
   if(localStorage.getItem('auf4_photos'))localStorage.removeItem('auf4_photos');
   await tryAutoLoad();
   startAutoSync();
+  // Auto-sync partidos ya jugados: carga XI, incidencias, ratings y actualiza stats/badges
+  (async()=>{
+    const PIZ_TO_FIX=Object.fromEntries(Object.entries(FIX_TO_PIZ).map(([f,p])=>[p,f]));
+    for(const m of PIZ_MATCHES){
+      if(!ESPN_EVENTS[m.id]) continue;
+      const fixId=PIZ_TO_FIX[m.id];
+      const matchDate=GROUP_H.matches.find(x=>x.id===fixId)?.isoDate;
+      if(!matchDate||matchDate>=TODAY) continue; // solo partidos ya jugados
+      await syncMatchFull(m.id);
+    }
+  })();
   // Migración: limpiar overrides "Obligatorio" guardados por error en eventos tipo:'info'
   // (zona mixta AUF, activaciones, etc.) — estos NUNCA son obligación FIFA por definición.
   (()=>{
