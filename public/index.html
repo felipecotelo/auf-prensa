@@ -4296,37 +4296,6 @@ const FOTMOB_EVENTS = {
   'uru-cpv': null,
   'uru-esp': null,
 };
-// SofaScore — Uruguay team ID + event IDs conocidos
-const SOFA_URU_TEAM=4725;
-const SOFASCORE_EVENTS = {
-  'uru-ksa': 15186811, // Saudi Arabia vs Uruguay — 15 jun
-  'uru-cpv': null,     // se auto-descubre al sincronizar
-  'uru-esp': null,     // se auto-descubre al sincronizar
-};
-const SOFASCORE_DATES={'uru-ksa':'2026-06-15','uru-cpv':'2026-06-21','uru-esp':'2026-06-26'};
-const KSofaIds='auf4_sofa_ids';
-const getSofaIds=()=>stor.get(KSofaIds,{});
-const setSofaIds=v=>stor.set(KSofaIds,v);
-
-async function getSofaEventId(matchId){
-  if(SOFASCORE_EVENTS[matchId]) return SOFASCORE_EVENTS[matchId];
-  const cached=getSofaIds()[matchId]; if(cached) return cached;
-  const date=SOFASCORE_DATES[matchId]; if(!date) return null;
-  try{
-    // Buscar en los últimos partidos de Uruguay (team 4725)
-    const r=await fetch(`https://api.sofascore.com/api/v1/team/${SOFA_URU_TEAM}/events/last/0`,{headers:{Accept:'application/json'}});
-    if(!r.ok) return null;
-    const d=await r.json();
-    const target=new Date(date).toDateString();
-    const match=(d.events||[]).find(e=>{
-      const eDate=new Date(e.startTimestamp*1000).toDateString();
-      return eDate===target;
-    });
-    if(!match) return null;
-    const ids=getSofaIds(); ids[matchId]=match.id; setSofaIds(ids);
-    return match.id;
-  }catch{return null;}
-}
 const KRatings='auf4_ratings';
 const getRatings=()=>stor.get(KRatings,{});
 const setRatings=v=>stor.set(KRatings,v);
@@ -5108,34 +5077,6 @@ async function syncMatchFull(matchId){
     }
   }catch(e){msgs.push('Error ESPN: '+e.message);}
 
-  // 2. FotMob ratings via proxy
-  // Calificaciones SofaScore
-  try{
-    const sofaId=await getSofaEventId(matchId);
-    if(sofaId){
-      const res=await fetch(`https://api.sofascore.com/api/v1/event/${sofaId}/lineups`,{headers:{Accept:'application/json'}});
-      if(!res.ok){msgs.push(`SofaScore HTTP ${res.status}`);throw new Error(res.status);}
-      if(res.ok){
-        const data=await res.json();
-        const nameMap=buildNameMap();
-        const ratMap={};
-        const processTeam=(players)=>(players||[]).forEach(entry=>{
-          const nm=entry.player?.name||entry.player?.shortName||'';
-          const num=nameMap[normName(nm)]||nameMap[normName((nm.split(' ').pop()))];
-          const rating=entry.statistics?.rating;
-          if(num&&rating) ratMap[num]=parseFloat(rating).toFixed(1);
-        });
-        processTeam(data.home?.players);
-        processTeam(data.away?.players);
-        if(Object.keys(ratMap).length){
-          const allRat=getRatings(); allRat[matchId]=ratMap; setRatings(allRat);
-          msgs.push(`${Object.keys(ratMap).length} calificaciones SofaScore`);
-        }else{
-          msgs.push('SofaScore: partido sin calificaciones aún');
-        }
-      }
-    }
-  }catch(e){msgs.push('SofaScore no disponible');}
 
   // Re-render
   renderPizarra(matchId);
@@ -6809,7 +6750,6 @@ async function renderPizarra(matchId){
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700" title="Goles (carrera)">GOL</th>
           <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Partidos en Mundial 2026">🏆PJ</th>
           <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Goles en Mundial 2026">🏆G</th>
-          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">⭐</th>
         </tr></thead>
         <tbody>${starterRows.map(({slot,p})=>{
           const inj=getPlayerInjury(p.n);
@@ -6818,15 +6758,12 @@ async function renderPizarra(matchId){
           const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
           const pts=p.name.trim().split(' ');
           const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
-          const rat=getRatings()[matchId]?.[p.n];
-          const ratCol=rat>=8?'var(--green)':rat>=7?'var(--cel-dk)':rat>=6?'var(--gold)':'#C0392B';
           return`<tr id="stat-row-${starterKey}-${p.n}" style="border-bottom:0.5px solid var(--border)">
             <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)"><div style="display:flex;align-items:center;justify-content:center;gap:3px">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</div></td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)"><div style="display:flex;align-items:center;justify-content:center;gap:3px">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</div></td>
             <td style="padding:6px 6px;text-align:center;font-weight:800;color:var(--gold)"><div style="display:flex;align-items:center;justify-content:center;gap:3px">${effectiveStats(p).wcCaps}${statDeltaBadge(p.n,'wcCaps')}</div></td>
             <td style="padding:6px 6px;text-align:center;font-weight:800;color:var(--gold)"><div style="display:flex;align-items:center;justify-content:center;gap:3px">${effectiveStats(p).wcGoals}${statDeltaBadge(p.n,'wcGoals')}</div></td>
-            <td style="padding:6px 8px;text-align:center;font-weight:800;${rat?`color:${ratCol}`:'color:var(--hint)'}">${rat||'—'}</td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>
@@ -6868,8 +6805,6 @@ async function renderPizarra(matchId){
     const injBadge=inj==='red'?'<span style="width:8px;height:8px;border-radius:50%;background:#C0392B;display:inline-block;margin-left:5px;vertical-align:middle" title="Lesionado"></span>':inj==='yellow'?'<span style="width:8px;height:8px;border-radius:50%;background:#F97316;display:inline-block;margin-left:5px;vertical-align:middle" title="Duda"></span>':'';
     const pts=p.name.trim().split(' ');
     const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
-    const brat=getRatings()[matchId]?.[p.n];
-    const bratCol=brat>=8?'var(--green)':brat>=7?'var(--cel-dk)':brat>=6?'var(--gold)':'#C0392B';
     const subMin=_subInMin[p.n];
     const didPlay=subMin!=null;
     const subBadge=didPlay?`<span style="font-size:8px;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 3px;margin-left:4px;white-space:nowrap">▲ ${subMin}'</span>`:'';
@@ -6880,7 +6815,6 @@ async function renderPizarra(matchId){
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--green)"><div style="display:flex;align-items:center;justify-content:center;gap:3px">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</div></td>
       <td style="padding:5px 6px;text-align:center;font-weight:800;color:var(--gold)"><div style="display:flex;align-items:center;justify-content:center;gap:3px">${effectiveStats(p).wcCaps}${statDeltaBadge(p.n,'wcCaps')}</div></td>
       <td style="padding:5px 6px;text-align:center;font-weight:800;color:var(--gold)"><div style="display:flex;align-items:center;justify-content:center;gap:3px">${effectiveStats(p).wcGoals}${statDeltaBadge(p.n,'wcGoals')}</div></td>
-      <td style="padding:5px 8px;text-align:center;font-weight:800;${brat?`color:${bratCol}`:'color:var(--hint)'}">${brat||'—'}</td>
     </tr>`;
   }).join('');
   const benchStatsHtml=bench.length?`
@@ -6895,7 +6829,6 @@ async function renderPizarra(matchId){
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700" title="Goles (carrera)">GOL</th>
           <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Partidos en Mundial 2026">🏆PJ</th>
           <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Goles en Mundial 2026">🏆G</th>
-          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">⭐</th>
         </tr></thead>
         <tbody>${benchRows}</tbody>
       </table></div>
@@ -7009,7 +6942,6 @@ async function renderPizarra(matchId){
   const POS_ORDER=['POR','DEF','MED','DEL'];
   const POS_LABELS={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
   const benchByPos=POS_ORDER.map(pos=>({pos,label:POS_LABELS[pos],players:bench.filter(p=>p.pos===pos)})).filter(g=>g.players.length);
-  const rats=getRatings()[matchId]||{};
   const fixRes=getMatchResult(GROUP_H.matches.find(m=>FIX_TO_PIZ[m.id]===matchId)?.id);
 
   // Incidencias: cambios del rival se omiten; resto del rival va atenuado
@@ -7053,24 +6985,6 @@ async function renderPizarra(matchId){
     }).filter(Boolean).join('')
     :'<div style="font-size:10.5px;color:var(--hint);padding:4px 0">Sin datos — presioná Actualizar</div>';
 
-  // Calificaciones: solo titulares URU + cambios URU, ordenados de mayor a menor
-  const ratedPlayers=Object.entries(rats)
-    .map(([num,rat])=>{const p=PLAYERS.find(x=>x.n===parseInt(num));return p?{p,rat:parseFloat(rat)}:null;})
-    .filter(Boolean).sort((a,b)=>b.rat-a.rat);
-  const ratingsHtml=ratedPlayers.length?`
-    <div style="display:flex;flex-direction:column;gap:2px">
-      ${ratedPlayers.map(({p,rat})=>{
-        const col=rat>=8?'var(--green)':rat>=7?'var(--cel-dk)':rat>=6?'var(--gold)':'#C0392B';
-        const pts=p.name.trim().split(' ');
-        const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
-        return`<div style="display:flex;align-items:center;gap:6px;font-size:10.5px;padding:2px 0">
-          <span style="font-size:9.5px;color:var(--muted);min-width:18px">#${p.n}</span>
-          <span style="flex:1;font-weight:600">${sn}</span>
-          <span style="font-weight:800;font-size:12px;color:${col}">${rat.toFixed(1)}</span>
-        </div>`;
-      }).join('')}
-    </div>`
-    :'<div style="font-size:10.5px;color:var(--hint);padding:4px 0">Sin calificaciones — presioná Actualizar</div>';
 
   const matchSummaryHtml=`
     <div style="margin-top:10px">
@@ -7085,13 +6999,6 @@ async function renderPizarra(matchId){
       <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px">
         <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Incidencias</div>
         ${incidenciasHtml}
-      </div>
-      <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px">
-        <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
-          <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Calificaciones</div>
-          <a href="https://www.sofascore.com" target="_blank" style="font-size:8.5px;color:var(--cel-dk);text-decoration:none;font-weight:700">↗ SofaScore</a>
-        </div>
-        ${ratingsHtml}
       </div>
     </div>
   `;
