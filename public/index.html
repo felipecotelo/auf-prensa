@@ -4981,9 +4981,10 @@ async function syncMatchFull(matchId){
 
     // a) Incidencias (goles, tarjetas, cambios)
     const TYPE_MAP={goal:'goal','yellow-card':'card','red-card':'card',substitution:'sub'};
+    const kindOf=t=>t?.startsWith('goal')?'goal':TYPE_MAP[t];
     const evs=[];
     (data.keyEvents||[]).forEach(e=>{
-      const kind=TYPE_MAP[e.type?.type]; if(!kind)return;
+      const kind=kindOf(e.type?.type); if(!kind)return;
       const min=parseInt(e.clock?.displayValue)||0;
       const side=e.team?.id===String(URU_ESPN_ID)?'uru':'rival';
       const parts=e.participants||[];
@@ -5081,9 +5082,10 @@ async function syncEspnIncidents(mId, pizMatchId){
     const data=await res.json();
     const keyEvents=data.keyEvents||[];
     const TYPE_MAP={goal:'goal','yellow-card':'card','red-card':'card',substitution:'sub'};
+    const kindOf=t=>t?.startsWith('goal')?'goal':TYPE_MAP[t];
     const evs=[];
     keyEvents.forEach(e=>{
-      const kind=TYPE_MAP[e.type?.type];
+      const kind=kindOf(e.type?.type);
       if(!kind) return;
       const min=parseInt(e.clock?.displayValue)||0;
       const side=e.team?.id===URU_ESPN_ID?'uru':'rival';
@@ -5164,14 +5166,16 @@ async function renderOtherMatchInfo(espnId, container){
     const away=comp?.competitors?.find(c=>c.homeAway==='away');
     const keyEvents=data.keyEvents||[];
     const TYPE_MAP={goal:'⚽',['yellow-card']:'🟨',['red-card']:'🟥',substitution:'🔁'};
+    const kindOf=t=>t?.startsWith('goal')?'⚽':TYPE_MAP[t];
     let su=0, sr=0;
-    const rows=keyEvents.filter(e=>TYPE_MAP[e.type?.type]).map(e=>{
+    const rows=keyEvents.filter(e=>kindOf(e.type?.type)).map(e=>{
       const min=e.clock?.displayValue||'';
       const teamName=e.team?.displayName||'';
       const isHome=e.team?.id===home?.team?.id;
       const parts=e.participants||[];
       let text='';
-      if(e.type.type==='goal'){
+      const eKind=kindOf(e.type.type);
+      if(eKind==='⚽'){
         if(isHome) su++; else sr++;
         let scorer=parts[0]?.athlete?.displayName||'';
         if(/own goal/i.test(e.text||'')) scorer+=' (autogol)';
@@ -5184,7 +5188,7 @@ async function renderOtherMatchInfo(espnId, container){
       }
       return`<div style="display:flex;gap:6px;align-items:flex-start;padding:4px 0;border-bottom:0.5px solid var(--border);font-size:10.5px">
         <span style="font-weight:800;color:var(--cel-dk);min-width:30px">${min}</span>
-        <span>${TYPE_MAP[e.type.type]}</span>
+        <span>${eKind}</span>
         <div style="flex:1">${text}</div>
       </div>`;
     }).join('');
