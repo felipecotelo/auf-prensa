@@ -2326,7 +2326,7 @@ function showTab(id){
   if(id==='inicio'){renderInicio()}
   if(id==='disponibilidad'){renderDisponibilidad()}
   if(id==='calendario'){renderCal()}
-  if(id==='partido'){renderChecklist(curMatch)}
+  if(id==='partido'){aggregateMatchActivities();renderChecklist(curMatch)}
   if(id==='fixture'){renderFixture();fetchFromESPN();}
   if(id==='partidos'){renderPartidos()}
   if(id==='plantel'){renderPlantel()}
@@ -2954,7 +2954,8 @@ function setEvSt(date,idx,val,btn){
   const k=evKey(date,idx);
   ev[k]=(ev[k]===val)?'':val; // toggle off if same
   setEvStatus_store(ev);
-  try{ syncEvToChkSession(date,idx,ev[k]||''); }catch(err){ console.error('syncEvToChkSession failed',err); } // cal → checklist
+  try{ syncEvToChkSession(date,idx,ev[k]||''); }catch(err){ console.error('syncEvToChkSession failed',err); }
+  try{ aggregateMatchActivities(); }catch(err){ console.error('aggregateMatchActivities failed',err); }
   // rebuild this event row (y sus pares de grupo); si algo falla, refrescar todo el calendario como respaldo
   try{
     const day=CALENDAR_DAYS.find(d=>d.date===date);
@@ -3127,6 +3128,7 @@ function aggregateMatchActivities(){
     const dynEvs  = (getDayActs()[day.date]||[]);
     const allEvs  = [...baseEvs, ...dynEvs];
 
+    const evStatus = getEvStatus();
     allEvs.forEach((ev, realIdx)=>{
       // Solo actividades de prensa (tipo='oblig' y no viaje/info/cerrado), considerando
       // el override manual de obligatoriedad (✎) si lo hay
@@ -3143,23 +3145,31 @@ function aggregateMatchActivities(){
 
       const k   = evKey(day.date, realIdx);
       const pts = evParts[k]||[];
-      if(!pts.length) return;
+      const st  = evStatus[k]||'';
+
+      // Si no hay participantes ni estado relevante, ignorar
+      if(!pts.length && st!=='done' && st!=='no') return;
 
       const aggKey = `${matchId}__${checkId}`;
-      if(!agg[aggKey]) agg[aggKey]={matchId,checkId,players:new Set(),dts:new Set()};
+      if(!agg[aggKey]) agg[aggKey]={matchId,checkId,players:new Set(),dts:new Set(),done:false,cancelled:false};
 
       pts.filter(x=>x.startsWith('p_')).forEach(x=>agg[aggKey].players.add(parseInt(x.slice(2))));
       pts.filter(x=>x.startsWith('dt_')).forEach(x=>agg[aggKey].dts.add(x.slice(3)));
+      if(st==='done') agg[aggKey].done=true;
+      if(st==='no')   agg[aggKey].cancelled=true;
     });
   });
 
   // Volcar al checklist
-  Object.values(agg).forEach(({matchId,checkId,players,dts})=>{
+  Object.values(agg).forEach(({matchId,checkId,players,dts,done,cancelled})=>{
     if(!chkData[matchId]) chkData[matchId]={};
     if(!chkData[matchId][checkId]) chkData[matchId][checkId]={};
-    chkData[matchId][checkId].players = [...players]; // Set → sin duplicados
+    chkData[matchId][checkId].players = [...players];
     if(dts.size) chkData[matchId][checkId].dt = [...dts][0];
-    if(players.size) chkData[matchId][checkId].done = true;
+    // Marcar done si: hay jugadores asignados, o el evento está marcado ✓ en calendario
+    if(players.size || done) chkData[matchId][checkId].done = true;
+    // Si está cancelado (✗) y no hay ninguna info positiva, marcarlo como no realizado
+    else if(cancelled) chkData[matchId][checkId].done = false;
   });
 
   // Limpiar mapeos viejos/incorrectos: si un checkId derivado de eventos ya no tiene
