@@ -184,7 +184,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .cal-event{display:flex;align-items:flex-start;gap:8px;font-size:12px}
 .cal-event-h{font-size:10.5px;font-weight:700;color:var(--cel-dk);min-width:55px;flex-shrink:0;padding-top:1px}
 .cal-event-dot{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#5B4B8A}.ce-team{background:var(--team)}.ce-partido{background:var(--red)}.ce-sched{background:#94A3B8}
+.ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#5B4B8A}.ce-team{background:var(--team)}.ce-partido{background:var(--red)}.ce-sched{background:#94A3B8}.ce-partido-fifa{background:#00A651}
+.ev-sts-ph-wc{width:72px;flex-shrink:0;display:block;height:4px;background:#00A651;border-radius:2px;margin-top:9px}
 .cal-event-txt{color:var(--text);line-height:1.4;flex:1}
 .cal-day-note{
   width:100%;margin-top:8px;padding:5px 9px;
@@ -743,6 +744,7 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   .ev-st{width:26px;height:26px;font-size:13px}
   .ev-sts{width:90px}
   .ev-sts-ph{width:90px}
+  .ev-sts-ph-wc{width:90px}
   .match-sel{gap:5px}
   .ms-btn{font-size:11px;padding:6px 10px}
   #btn-sync-espn span{display:none}
@@ -1722,7 +1724,7 @@ function flagImg(code, size=28){
   return `<img src="https://flagcdn.com/w40/${code}.png" alt="${code.toUpperCase()}" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;vertical-align:middle" onerror="this.style.display='none'">`;
 }
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp', KWCCache='auf4_wc_cache';
 
 // ── MVP del partido (Player of the Match — premio oficial FIFA) ────────────
 function getMvp(){return stor.get(KMvp,{})}
@@ -2570,7 +2572,7 @@ function buildEventsHtml(day, startIdx=0){
       <div class="cal-ev" id="cev-${day.date}-${realIdx}" ${matchResult?'style="background:var(--cel-lt);border-radius:8px;padding:5px 6px"':''}>
         <div class="cal-ev-row">
           <div class="ev-sts">
-            ${(e.tipo==='sched'||(e.tipo==='team'&&e.noParts))?'<span class="ev-sts-ph"></span>':`
+            ${e.tipo==='partido-fifa'?'<span class="ev-sts-ph-wc"></span>':(e.tipo==='sched'||(e.tipo==='team'&&e.noParts))?'<span class="ev-sts-ph"></span>':`
             <button class="ev-st st-done${s==='done'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'done',this)" title="Hecho">✓</button>
             <button class="ev-st st-sus${s==='sus'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'sus',this)" title="Suspendida">⏸</button>
             <button class="ev-st st-no${s==='no'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'no',this)" title="No realizada">✗</button>`}
@@ -2597,6 +2599,8 @@ function buildEventsHtml(day, startIdx=0){
                     :`<span class="tag" style="font-size:9.5px;background:var(--red-lt);color:var(--red);font-weight:800">${e.tagLabel||'PARTIDO'}</span>`;
                 } else if(e.tipo==='sched'){
                   mainTag=`<span class="tag" style="font-size:9.5px;background:#F1F5F9;color:#64748B;font-weight:600">Cronograma</span>`;
+                } else if(e.tipo==='partido-fifa'){
+                  mainTag=`<span class="tag" style="font-size:9.5px;background:#E8F8EF;color:#007A3D;font-weight:700">Partido FIFA</span>`;
                 } else if(e.tipo==='team'){
                   mainTag=`<span class="tag" style="font-size:9.5px;background:var(--team-lt);color:var(--team)">Actividad</span>`;
                 } else if(e.extra){
@@ -2757,6 +2761,43 @@ function agendarDesdeAlerta(date,idx){
   },450);
 }
 
+const _wcFetching={};
+async function fetchWCDay(isoDate){
+  const cache=stor.get(KWCCache,{});
+  const ts=cache[isoDate]?.ts||0;
+  if(Date.now()-ts<3600000&&cache[isoDate]?.games) return; // cache 1h
+  if(_wcFetching[isoDate]) return;
+  _wcFetching[isoDate]=true;
+  try{
+    const dateStr=isoDate.replace(/-/g,'');
+    const data=await fetch(`/api/espn/wc/${dateStr}`).then(r=>r.json());
+    const games=(data.events||[]).map(ev=>{
+      const comp=ev.competitions?.[0];
+      const home=comp?.competitors?.find(c=>c.homeAway==='home');
+      const away=comp?.competitors?.find(c=>c.homeAway==='away');
+      const status=comp?.status?.type?.shortDetail||'';
+      const homeScore=home?.score;
+      const awayScore=away?.score;
+      const hasScore=homeScore!=null&&awayScore!=null&&comp?.status?.type?.completed;
+      return{
+        name:ev.name,
+        home:home?.team?.shortDisplayName||home?.team?.displayName||'?',
+        away:away?.team?.shortDisplayName||away?.team?.displayName||'?',
+        homeFlag:home?.team?.flag||'',
+        awayFlag:away?.team?.flag||'',
+        time:ev.date?new Date(ev.date).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',timeZone:'America/Montevideo'}):'TBD',
+        status,
+        score:hasScore?`${homeScore}-${awayScore}`:'',
+        venue:comp?.venue?.fullName||'',
+      };
+    });
+    const updated={...cache,[isoDate]:{ts:Date.now(),games}};
+    stor.set(KWCCache,updated);
+    renderCal();
+  }catch(e){console.warn('WC fetch error',e);}
+  finally{delete _wcFetching[isoDate];}
+}
+
 function renderCal(){
   renderPendingAlerts();
   const tl=document.getElementById('cal-timeline');
@@ -2771,15 +2812,19 @@ function renderCal(){
     const customActs=getDayActs()[day.date]||[];
     // Merge static + custom events, tag with original index, then sort by time
     const evHidden=getEvHidden();
-    // Partidos del Grupo H que no son de Uruguay — mostrar como informativos
-    const _ghOtherEvs=GROUP_H.matches
-      .filter(m=>m.isoDate===day.date&&m.home!=='uru'&&m.away!=='uru')
-      .map(m=>{
-        const homeT=GROUP_H.teams.find(t=>t.id===m.home);
-        const awayT=GROUP_H.teams.find(t=>t.id===m.away);
-        return{h:m.horaLocal,tipo:'sched',txt:`⚽ ${homeT?.name||m.home} vs ${awayT?.name||m.away} — ${m.city.split(',')[0]}`,noParts:true,_ghMatch:true};
+    // Partidos FIFA World Cup — desde cache ESPN (async, se actualiza al cargar)
+    const _wcCache=stor.get(KWCCache,{});
+    let _wcEvs=[];
+    if(_wcCache[day.date]?.games){
+      _wcEvs=_wcCache[day.date].games.map(g=>{
+        const scoreStr=g.score?` ${g.score}`:'';
+        const statusStr=g.status&&g.status!=='TBD'&&g.status!=='Scheduled'?` · ${g.status}`:'';
+        return{h:g.time,tipo:'partido-fifa',txt:`🏆 ${g.home} vs ${g.away}${scoreStr}${statusStr}`,noParts:true,_wcMatch:true};
       });
-    const allEvs=[...day.eventos,...customActs,..._ghOtherEvs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length&&!e._ghMatch})).filter(e=>e._ghMatch||!evHidden[evKey(day.date,e._origIdx)]);
+    } else {
+      fetchWCDay(day.date); // dispara fetch, re-renderiza al terminar
+    }
+    const allEvs=[...day.eventos,...customActs,..._wcEvs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length&&!e._wcMatch})).filter(e=>e._wcMatch||!evHidden[evKey(day.date,e._origIdx)]);
     allEvs.sort((a,b)=>evSortKey(day.date,a)-evSortKey(day.date,b));
     const div=document.createElement('div');
     div.className='cal-day'+(isToday?' today':'')+(isMatch||isToday?' open':'')+(day.tipo==='md1'?' tipo-md1':day.tipo==='partido'?' tipo-partido':'');
