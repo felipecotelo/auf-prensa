@@ -3068,6 +3068,36 @@ function matchForDate(date){
   return null;
 }
 
+// Encuentra todos los eventos de calendario que corresponden a un checkId+matchId
+// Devuelve array de {date, idx}
+function calEventsForCheckId(matchId, checkId){
+  const evParts=getEvParts();
+  const results=[];
+  CALENDAR_DAYS.forEach(day=>{
+    if(matchForDate(day.date)!==matchId) return;
+    const allEvs=[...(day.eventos||[]),...(getDayActs()[day.date]||[])];
+    allEvs.forEach((ev,realIdx)=>{
+      if(checkIdForEventEff(day.date,realIdx,ev)===checkId) results.push({date:day.date,idx:realIdx});
+    });
+  });
+  return results;
+}
+
+// Sync jugadores del checklist → eventos de calendario correspondientes
+function syncChkToCalEv(matchId, checkId, players){
+  const targets=calEventsForCheckId(matchId,checkId);
+  if(!targets.length) return;
+  const evp=getEvParts();
+  targets.forEach(({date,idx})=>{
+    const k=evKey(date,idx);
+    const cur=evp[k]||[];
+    // Preservar chips de DT; reemplazar solo los de jugador
+    const dtChips=cur.filter(x=>x.startsWith('dt_'));
+    evp[k]=[...dtChips,...players.map(n=>`p_${n}`)];
+  });
+  stor.set(KEvP,evp);
+}
+
 // Todos los checkId que pueden ser asignados por checkIdForEvent (vía calendario)
 const EVENT_DERIVED_CHECKIDS=['md2-crew','md1-stand','md-conf-post','md1-conf','md-flash','md-tunel','md-mix-lin','md-mix-est','md-ht','md-precal','md-llegada','md-vestuario','arr-ent','arr-media','md-mvp-attn'];
 
@@ -3503,6 +3533,7 @@ function togglePlayer(matchId,actId,num,chip){
   const p=PLAYERS.find(x=>x.n===num);
   toast(p?`${p.name.split(' ').pop()} ${data.players.includes(num)?'agregado':'quitado'}`:'');
   syncChkToDisp();
+  try{ syncChkToCalEv(matchId,actId,data.players||[]); }catch(err){ console.error('syncChkToCalEv failed',err); }
 }
 
 // Refresca Disponibilidad cada vez que cambia el checklist
