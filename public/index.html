@@ -6762,6 +6762,26 @@ async function renderPizarra(matchId){
   const yellows=getYellows();
   const cardTrack=getCardTrack();
   const suspendedNums=new Set(PLAYERS.filter(p=>cardTrack[p.n]?.suspendedFor===matchId).map(p=>p.n));
+  // ── Pre-cómputo de eventos (necesario para slotHtml y benchChipHtml) ──
+  const evs=(getMatchEvents()[matchId]||[]).slice().sort((a,b)=>a.min-b.min);
+  const _subInMin={}, _subOutMin={}, _evsByNum={};
+  {
+    const _nm=buildNameMap();
+    const _mn=name=>_nm[normName(name)]||_nm[normName(name.split(' ').pop())];
+    evs.forEach(e=>{
+      if(!e.side||e.side!=='uru') return;
+      if(e.type==='sub'){
+        const outN=_mn(e.player), inN=_mn(e.extra);
+        if(outN) _subOutMin[outN]=e.min;
+        if(inN)  _subInMin[inN]=e.min;
+      } else if(e.type==='goal'){
+        const n=_mn(e.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'goal',min:e.min});
+      } else if(e.type==='card'){
+        const n=_mn(e.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'card',extra:e.extra,min:e.min});
+      }
+    });
+  }
+
   function slotHtml(slot){
     const pNum=st[slot.id];
     const p=pNum?PLAYERS.find(x=>x.n===pNum):null;
@@ -6776,65 +6796,45 @@ async function renderPizarra(matchId){
     const hasYellow=p&&yellows[p.n];
     const isSuspended=p&&suspendedNums.has(p.n);
     const ms=p?computeMilestones(p):[];
-    // Hito más relevante — solo si es muy cercano (primer texto)
     const topMsItem=ms.length?ms[0]:null;
     const topMs=topMsItem?topMsItem.txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
     const topMsStyle=topMsItem?.cls==='debut'
       ?'color:#fff;background:#7C3AED;font-weight:800'
       :'color:var(--gold);background:rgba(0,0,0,.55);font-weight:700';
+
+    // Eventos del jugador en este partido
+    const pEvs=p?(_evsByNum[p.n]||[]):[];
+    const goals=pEvs.filter(e=>e.type==='goal');
+    const cards=pEvs.filter(e=>e.type==='card');
+    const subOut=p?(_subOutMin[p.n]!=null):false;
+    // Debut en Mundial: wcCaps era 0 antes de este torneo y entró
+    const isWCDebut=p&&(p.stats?.wcCaps||0)===0&&(getStatsDelta()[p.n]?.wcCaps||0)>0;
+
     return`<div class="p-slot" id="pslot-${slot.id}" style="left:${slot.x}%;top:${slot.y}%"
       data-slot="${slot.id}" data-match="${matchId}" data-pos="${slot.pos}"
       onclick="pizSlotClick('${matchId}','${slot.id}','${slot.pos}')">
       <div style="position:relative;display:inline-block">
-        <div class="p-slot-av${p?'':' empty'}" id="pslot-av-${slot.id}" style="overflow:hidden${isSuspended?';outline:2px solid #DC2626':''}">
+        <div class="p-slot-av${p?'':' empty'}" id="pslot-av-${slot.id}" style="overflow:hidden${isSuspended?';outline:2px solid #DC2626':''}${subOut?';outline:2px solid #DC2626':''}">
           ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
           ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.5);font-weight:700">${slot.pos}</span>`:''}
         </div>
-        ${p?`<div class="p-slot-num">${p.n}</div>`:''}
+        ${p?`<div class="p-slot-num" style="font-family:'NikeNumber','Inter',sans-serif;font-size:10px;letter-spacing:-.5px">${p.n}</div>`:''}
         ${isCap?`<div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);color:#fff;font-size:7px;font-weight:900;padding:1px 4px;border-radius:4px;z-index:10;white-space:nowrap;border:1px solid rgba(255,255,255,.5)">(C)</div>`:''}
-        ${hasYellow?`<div style="position:absolute;top:-4px;right:-4px;width:10px;height:13px;background:#F59E0B;border-radius:1px;z-index:10;border:1px solid rgba(255,255,255,.6)" title="Tarjeta amarilla acumulada" onclick="event.stopPropagation();toggleYellow(${p.n})"></div>`:''}
-        ${isSuspended?`<div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#DC2626;color:#fff;font-size:7px;font-weight:900;padding:1px 4px;border-radius:4px;z-index:10;white-space:nowrap;border:1px solid rgba(255,255,255,.6)" title="Suspendido por acumulación de tarjetas">SUSP</div>`:''}
-        ${injCol?`<div style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-radius:50%;background:${injCol};border:2px solid #fff;z-index:10"></div>`:''}
-        ${p?`<div style="position:absolute;bottom:-5px;right:-5px;font-size:12px;cursor:pointer;opacity:${isMvp?'1':'.22'};z-index:11;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))" title="${isMvp?'Quitar MVP del partido':'Marcar como MVP del partido (premio oficial FIFA)'}" onclick="event.stopPropagation();toggleMvp('${matchId}',${p.n})">🏅</div>`:''}
+        ${hasYellow?`<div style="position:absolute;top:-4px;right:-4px;width:10px;height:13px;background:#F59E0B;border-radius:1px;z-index:10;border:1px solid rgba(255,255,255,.6)" title="Tarjeta amarilla" onclick="event.stopPropagation();toggleYellow(${p.n})"></div>`:''}
+        ${isSuspended?`<div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#DC2626;color:#fff;font-size:7px;font-weight:900;padding:1px 4px;border-radius:4px;z-index:10;white-space:nowrap;border:1px solid rgba(255,255,255,.6)">SUSP</div>`:''}
+        ${injCol&&!subOut?`<div style="position:absolute;bottom:-1px;left:-1px;width:10px;height:10px;border-radius:50%;background:${injCol};border:2px solid #fff;z-index:10"></div>`:''}
+        ${subOut?`<div style="position:absolute;bottom:-1px;left:-1px;width:14px;height:14px;border-radius:50%;background:#DC2626;border:2px solid #fff;z-index:10;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:900" title="Salió en el min ${_subOutMin[p?.n]}">↓</div>`:''}
+        ${goals.map((g,i)=>`<div style="position:absolute;bottom:-1px;right:${-1+i*14}px;width:14px;height:14px;border-radius:50%;background:#fff;border:1.5px solid rgba(0,0,0,.15);z-index:10;display:flex;align-items:center;justify-content:center;font-size:9px" title="Gol ${g.min}'">⚽</div>`).join('')}
+        ${cards.filter(c=>c.extra==='r').length?`<div style="position:absolute;top:-4px;left:-4px;width:8px;height:11px;background:#DC2626;border-radius:1px;z-index:10;border:1px solid rgba(255,255,255,.7)" title="Tarjeta roja"></div>`:''}
+        ${p?`<div style="position:absolute;bottom:-5px;right:-5px;font-size:12px;cursor:pointer;opacity:${isMvp?'1':'.22'};z-index:11;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))" title="${isMvp?'Quitar MVP':'Marcar MVP'}" onclick="event.stopPropagation();toggleMvp('${matchId}',${p.n})">🏅</div>`:''}
+        ${isWCDebut?`<div style="position:absolute;top:-11px;right:-6px;background:#7C3AED;color:#fff;font-size:6.5px;font-weight:900;padding:1px 3px;border-radius:3px;z-index:12;white-space:nowrap;border:1px solid rgba(255,255,255,.5)">NEW</div>`:''}
         ${p?`<div class="p-slot-remove" onclick="event.stopPropagation();pizRemove('${matchId}','${slot.id}')">×</div>`:''}
       </div>
       <div class="p-slot-lbl" id="pslot-lbl-${slot.id}">${p?`#${p.n} ${lbl}`:slot.pos}</div>
-      ${topMs&&p?`<div style="font-size:7px;${topMsStyle};padding:1px 3px;border-radius:2px;margin-top:1px;max-width:70px;text-align:center;line-height:1.3;text-shadow:none">${topMs}</div>`:''}
+      ${topMs&&p&&!isWCDebut?`<div style="font-size:7px;${topMsStyle};padding:1px 3px;border-radius:2px;margin-top:1px;max-width:70px;text-align:center;line-height:1.3;text-shadow:none">${topMs}</div>`:''}
     </div>`;
   }
 
-  // ── Eventos del partido (necesarios para banco) ──
-  const evs=(getMatchEvents()[matchId]||[]).slice().sort((a,b)=>a.min-b.min);
-
-  // Minutos de entrada/salida por número de jugador
-  const _subInMin={}, _subOutMin={};
-  {
-    const _nm=buildNameMap();
-    const _mn=name=>_nm[normName(name)]||_nm[normName(name.split(' ').pop())];
-    evs.forEach(e=>{
-      if(e.type==='sub'&&e.side==='uru'){
-        const outN=_mn(e.player), inN=_mn(e.extra);
-        if(outN) _subOutMin[outN]=e.min;
-        if(inN)  _subInMin[inN]=e.min;
-      }
-    });
-  }
-  // Eventos por jugador (goles, tarjetas) para mostrar en el chip del banco
-  const _evsByNum={};
-  {
-    const _nm2=buildNameMap();
-    const _mn2=name=>_nm2[normName(name)]||_nm2[normName(name.split(' ').pop())];
-    evs.forEach(e=>{
-      if(e.side!=='uru') return;
-      if(e.type==='goal'){
-        const n=_mn2(e.player); if(!n) return;
-        (_evsByNum[n]=_evsByNum[n]||[]).push({type:'goal',min:e.min});
-      } else if(e.type==='card'){
-        const n=_mn2(e.player); if(!n) return;
-        (_evsByNum[n]=_evsByNum[n]||[]).push({type:'card',extra:e.extra,min:e.min});
-      }
-    });
-  }
 
   // Ficha de banco
   function benchChipHtml(p){
