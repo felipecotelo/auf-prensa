@@ -4292,10 +4292,38 @@ const ESPN_EVENTS = {
   'uru-esp': 760479,  // URU vs ESP — 26 jun
 };
 const FOTMOB_EVENTS = {
-  'uru-ksa': 4667799, // URU vs KSA — 15 jun
-  'uru-cpv': null,    // pendiente
-  'uru-esp': null,    // pendiente
+  'uru-ksa': 4667799,
+  'uru-cpv': null,
+  'uru-esp': null,
 };
+// SofaScore event IDs — se auto-descubren por fecha y se cachean
+const SOFASCORE_DATES = {
+  'uru-ksa': '2026-06-15',
+  'uru-cpv': '2026-06-21',
+  'uru-esp': '2026-06-26',
+};
+const KSofaIds='auf4_sofa_ids';
+const getSofaIds=()=>stor.get(KSofaIds,{});
+const setSofaIds=v=>stor.set(KSofaIds,v);
+
+async function getSofaEventId(matchId){
+  const cached=getSofaIds()[matchId];
+  if(cached) return cached;
+  const date=SOFASCORE_DATES[matchId];
+  if(!date) return null;
+  try{
+    const r=await fetch(`https://api.sofascore.com/api/v1/sport/football/scheduled-events/${date}`,{headers:{Accept:'application/json'}});
+    if(!r.ok) return null;
+    const d=await r.json();
+    const match=(d.events||[]).find(e=>
+      (e.homeTeam?.name?.toLowerCase().includes('rugua')||e.awayTeam?.name?.toLowerCase().includes('rugua'))&&
+      (e.tournament?.name?.toLowerCase().includes('world')||e.tournament?.uniqueTournament?.name?.toLowerCase().includes('world'))
+    );
+    if(!match) return null;
+    const ids=getSofaIds(); ids[matchId]=match.id; setSofaIds(ids);
+    return match.id;
+  }catch{return null;}
+}
 const KRatings='auf4_ratings';
 const getRatings=()=>stor.get(KRatings,{});
 const setRatings=v=>stor.set(KRatings,v);
@@ -5078,23 +5106,32 @@ async function syncMatchFull(matchId){
   }catch(e){msgs.push('Error ESPN: '+e.message);}
 
   // 2. FotMob ratings via proxy
-  if(fotmobId){
-    try{
-      const res=await fetch(`${BASE}/api/fotmob/${fotmobId}`);
-      const data=await res.json();
-      // FotMob devuelve ratings en content.playerRatings.homeTeam / awayTeam
-      const nameMap=buildNameMap();
-      const ratMap={};
-      const allTeams=[...(data.content?.playerRatings?.homeTeam||[]),...(data.content?.playerRatings?.awayTeam||[])];
-      allTeams.forEach(r=>{
-        const nm=r.name?.fullName||r.name||'';
-        const num=nameMap[normName(nm)]||nameMap[normName((nm.split(' ').pop()))];
-        if(num&&r.rating?.num) ratMap[num]=parseFloat(r.rating.num).toFixed(1);
-      });
-      const allRat=getRatings(); allRat[matchId]=ratMap; setRatings(allRat);
-      msgs.push(`${Object.keys(ratMap).length} calificaciones FotMob`);
-    }catch(e){msgs.push('FotMob no disponible');}
-  }
+  // Calificaciones SofaScore — auto-descubre event ID por fecha
+  try{
+    const sofaId=await getSofaEventId(matchId);
+    if(sofaId){
+      const res=await fetch(`https://api.sofascore.com/api/v1/event/${sofaId}/lineups`,{headers:{Accept:'application/json'}});
+      if(res.ok){
+        const data=await res.json();
+        const nameMap=buildNameMap();
+        const ratMap={};
+        const processTeam=(players)=>(players||[]).forEach(entry=>{
+          const nm=entry.player?.name||entry.player?.shortName||'';
+          const num=nameMap[normName(nm)]||nameMap[normName((nm.split(' ').pop()))];
+          const rating=entry.statistics?.rating;
+          if(num&&rating) ratMap[num]=parseFloat(rating).toFixed(1);
+        });
+        processTeam(data.home?.players);
+        processTeam(data.away?.players);
+        if(Object.keys(ratMap).length){
+          const allRat=getRatings(); allRat[matchId]=ratMap; setRatings(allRat);
+          msgs.push(`${Object.keys(ratMap).length} calificaciones SofaScore`);
+        }else{
+          msgs.push('SofaScore: partido sin calificaciones aún');
+        }
+      }
+    }
+  }catch(e){msgs.push('SofaScore no disponible');}
 
   // Re-render
   renderPizarra(matchId);
@@ -7045,7 +7082,7 @@ async function renderPizarra(matchId){
       <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px">
         <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
           <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Calificaciones</div>
-          ${FOTMOB_EVENTS[matchId]?`<a href="https://www.fotmob.com/es/matches/uruguay-vs-saudi-arabia/1izuvb#${FOTMOB_EVENTS[matchId]}:tab=stats" target="_blank" style="font-size:8.5px;color:var(--cel-dk);text-decoration:none;font-weight:700">↗ FotMob</a>`:''}
+          <a href="https://www.sofascore.com" target="_blank" style="font-size:8.5px;color:var(--cel-dk);text-decoration:none;font-weight:700">↗ SofaScore</a>
         </div>
         ${ratingsHtml}
       </div>
