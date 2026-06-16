@@ -2775,20 +2775,21 @@ async function fetchWCDay(isoDate){
       const comp=ev.competitions?.[0];
       const home=comp?.competitors?.find(c=>c.homeAway==='home');
       const away=comp?.competitors?.find(c=>c.homeAway==='away');
-      const status=comp?.status?.type?.shortDetail||'';
+      const completed=comp?.status?.type?.completed;
       const homeScore=home?.score;
       const awayScore=away?.score;
-      const hasScore=homeScore!=null&&awayScore!=null&&comp?.status?.type?.completed;
+      const group=comp?.groups?.find(g=>g.groupName)?.groupName||ev.season?.slug?.includes('group')?'':'';
+      // intentar extraer grupo del nombre del evento o notes
+      const groupNote=comp?.notes?.find(n=>n.type==='event'&&n.headline?.toLowerCase().includes('group'))?.headline||'';
+      const groupLabel=groupNote?groupNote.replace(/^group\s*/i,'Grupo ').split(' ').slice(0,2).join(' '):'';
       return{
-        name:ev.name,
-        home:home?.team?.shortDisplayName||home?.team?.displayName||'?',
-        away:away?.team?.shortDisplayName||away?.team?.displayName||'?',
-        homeFlag:home?.team?.flag||'',
-        awayFlag:away?.team?.flag||'',
-        time:ev.date?new Date(ev.date).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',timeZone:'America/Montevideo'}):'TBD',
-        status,
-        score:hasScore?`${homeScore}-${awayScore}`:'',
-        venue:comp?.venue?.fullName||'',
+        home:home?.team?.displayName||'?',
+        away:away?.team?.displayName||'?',
+        time:ev.date?new Date(ev.date).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'TBD',
+        completed:!!completed,
+        score:completed&&homeScore!=null&&awayScore!=null?`${homeScore}-${awayScore}`:'',
+        group:groupLabel,
+        isoDate,
       };
     });
     const updated={...cache,[isoDate]:{ts:Date.now(),games}};
@@ -2817,9 +2818,9 @@ function renderCal(){
     let _wcEvs=[];
     if(_wcCache[day.date]?.games){
       _wcEvs=_wcCache[day.date].games.map(g=>{
-        const scoreStr=g.score?` ${g.score}`:'';
-        const statusStr=g.status&&g.status!=='TBD'&&g.status!=='Scheduled'?` · ${g.status}`:'';
-        return{h:g.time,tipo:'partido-fifa',txt:`🏆 ${g.home} vs ${g.away}${scoreStr}${statusStr}`,noParts:true,_wcMatch:true};
+        const groupPart=g.group?` | ${g.group}`:'';
+        const scorePart=g.score?`   ${g.score}`:'';
+        return{h:g.time,tipo:'partido-fifa',txt:`${g.home} vs. ${g.away}${groupPart}${scorePart}`,noParts:true,_wcMatch:true};
       });
     } else {
       fetchWCDay(day.date); // dispara fetch, re-renderiza al terminar
