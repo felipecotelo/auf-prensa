@@ -5114,6 +5114,7 @@ async function syncMatchFull(matchId){
     const sofaId=await getSofaEventId(matchId);
     if(sofaId){
       const res=await fetch(`https://api.sofascore.com/api/v1/event/${sofaId}/lineups`,{headers:{Accept:'application/json'}});
+      if(!res.ok){msgs.push(`SofaScore HTTP ${res.status}`);throw new Error(res.status);}
       if(res.ok){
         const data=await res.json();
         const nameMap=buildNameMap();
@@ -7012,15 +7013,18 @@ async function renderPizarra(matchId){
   const fixRes=getMatchResult(GROUP_H.matches.find(m=>FIX_TO_PIZ[m.id]===matchId)?.id);
 
   // Incidencias: cambios del rival se omiten; resto del rival va atenuado
+  // "Nicolás de la Cruz" → "N. de la Cruz"
+  const shortName=n=>{const p=n.trim().split(' ');return p.length<2?n:`${p[0][0]}. ${p.slice(1).join(' ')}`};
   const incidenciasHtml=evs.length?evs
     .filter(e=>!(e.type==='sub'&&e.side!=='uru'))
     .map(e=>{
       const isUru=e.side==='uru';
       const bg=isUru?(e.type==='goal'?'#F0FDF4':e.type==='card'&&e.extra==='r'?'#FEF2F2':'var(--white)'):'var(--white)';
       const opacity=isUru?'1':'.5';
+      const pn=shortName(e.player), ex=e.extra?shortName(e.extra):'';
       if(e.type==='goal'){
-        const pts=isUru?`<b style="color:var(--navy)">${e.player}</b>${e.extra?`<span style="font-size:9px;color:var(--muted);margin-left:3px">· Asist: ${e.extra}</span>`:''}`:
-          `<span style="color:var(--muted)">${e.player}</span>`;
+        const pts=isUru?`<b style="color:var(--navy)">${pn}</b>${ex?`<span style="font-size:9px;color:var(--muted);margin-left:3px">· Asist: ${ex}</span>`:''}`:
+          `<span style="color:var(--muted)">${pn}</span>`;
         return`<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:${bg};margin-bottom:3px;opacity:${opacity}">
           <span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>
           <span style="font-size:14px;flex-shrink:0">⚽</span>
@@ -7034,7 +7038,7 @@ async function renderPizarra(matchId){
         return`<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:${bg};margin-bottom:3px;opacity:${opacity}">
           <span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>
           <span style="font-size:13px;flex-shrink:0">${icon}</span>
-          <div style="flex:1;font-size:10.5px;${nameStyle}">${e.player}</div>
+          <div style="flex:1;font-size:10.5px;${nameStyle}">${pn}</div>
           ${!isUru?`<span style="font-size:8px;color:var(--hint);font-weight:700">Rival</span>`:''}
         </div>`;
       }
@@ -7042,7 +7046,7 @@ async function renderPizarra(matchId){
         return`<div style="display:flex;gap:8px;align-items:center;padding:4px 8px;border-radius:6px;background:var(--surface);margin-bottom:3px">
           <span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>
           <span style="font-size:11px;flex-shrink:0">🔄</span>
-          <div style="flex:1;font-size:10px"><span style="color:var(--green);font-weight:700">▲ ${e.extra}</span> <span style="color:#C0392B;font-weight:600">▼ ${e.player}</span></div>
+          <div style="flex:1;font-size:10px"><span style="color:var(--green);font-weight:700">▲ ${ex}</span> <span style="color:#C0392B;font-weight:600">▼ ${pn}</span></div>
         </div>`;
       }
       return'';
