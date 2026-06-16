@@ -2782,13 +2782,20 @@ async function fetchWCDay(isoDate){
       // intentar extraer grupo del nombre del evento o notes
       const groupNote=comp?.notes?.find(n=>n.type==='event'&&n.headline?.toLowerCase().includes('group'))?.headline||'';
       const groupLabel=groupNote?groupNote.replace(/^group\s*/i,'Grupo ').split(' ').slice(0,2).join(' '):'';
+      const homeId=home?.team?.id||'';
+      const awayId=away?.team?.id||'';
+      const isUru=homeId===String(URU_ESPN_ID)||awayId===String(URU_ESPN_ID);
       return{
+        espnId:ev.id,
         home:home?.team?.displayName||'?',
         away:away?.team?.displayName||'?',
+        homeEspnId:homeId,
+        awayEspnId:awayId,
         time:ev.date?new Date(ev.date).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'TBD',
         completed:!!completed,
         score:completed&&homeScore!=null&&awayScore!=null?`${homeScore}-${awayScore}`:'',
         group:groupLabel,
+        isUru,
         isoDate,
       };
     });
@@ -4824,9 +4831,39 @@ function removeMatchEvent(mId, pizMatchId, evId){
 async function syncMatchFull(matchId){
   const btn=document.getElementById(`piz-sync-btn-${matchId}`);
   if(btn){btn.disabled=true;btn.textContent='Actualizando...';}
-  const espnId=ESPN_EVENTS[matchId], fotmobId=FOTMOB_EVENTS[matchId];
+  const fotmobId=FOTMOB_EVENTS[matchId];
   const BASE=window.location.origin==='null'||window.location.protocol==='file:'?'https://auf-prensa-production.up.railway.app':'';
   let msgs=[];
+
+  // Buscar ESPN event ID real desde el cache del scoreboard WC (más confiable que el hardcodeado)
+  const PIZ_TO_FIX_=Object.fromEntries(Object.entries(FIX_TO_PIZ).map(([f,p])=>[p,f]));
+  const matchIsoDate=GROUP_H.matches.find(m=>m.id===PIZ_TO_FIX_[matchId])?.isoDate;
+  const wcCache=stor.get(KWCCache,{});
+  const espnIdFromCache=wcCache[matchIsoDate]?.games?.find(g=>g.isUru)?.espnId;
+  let espnId=espnIdFromCache||ESPN_EVENTS[matchId];
+
+  // Si no tenemos el ID aún, intentar obtenerlo ahora del scoreboard
+  if(!espnId&&matchIsoDate){
+    try{
+      const dateStr=matchIsoDate.replace(/-/g,'');
+      const sc=await fetch(`${BASE}/api/espn/wc/${dateStr}`).then(r=>r.json());
+      const uruEv=(sc.events||[]).find(ev=>{
+        const comp=ev.competitions?.[0];
+        return comp?.competitors?.some(c=>c.team?.id===String(URU_ESPN_ID));
+      });
+      if(uruEv){
+        espnId=uruEv.id;
+        // Guardar en cache para próximas veces
+        const existing=wcCache[matchIsoDate]||{};
+        if(existing.games){
+          existing.games=existing.games.map(g=>g.isUru?{...g,espnId:uruEv.id}:g);
+          stor.set(KWCCache,{...wcCache,[matchIsoDate]:existing});
+        }
+      }
+    }catch(_){}
+  }
+
+  if(!espnId){msgs.push('Sin ID ESPN para este partido');toast(msgs.join(' · '));if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar datos';}return;}
 
   // 1. ESPN summary via proxy
   try{
