@@ -6709,6 +6709,26 @@ async function renderPizarra(matchId){
       </table></div>
     </div>` : '';
 
+  // ── Pre-cómputo de eventos (necesario para benchRows y slotHtml) ──
+  const evs=(getMatchEvents()[matchId]||[]).slice().sort((a,b)=>a.min-b.min);
+  const _subInMin={}, _subOutMin={}, _evsByNum={};
+  {
+    const _nm=buildNameMap();
+    const _mn=name=>_nm[normName(name)]||_nm[normName(name.split(' ').pop())];
+    evs.forEach(e=>{
+      if(!e.side||e.side!=='uru') return;
+      if(e.type==='sub'){
+        const outN=_mn(e.player), inN=_mn(e.extra);
+        if(outN) _subOutMin[outN]=e.min;
+        if(inN)  _subInMin[inN]=e.min;
+      } else if(e.type==='goal'){
+        const n=_mn(e.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'goal',min:e.min});
+      } else if(e.type==='card'){
+        const n=_mn(e.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'card',extra:e.extra,min:e.min});
+      }
+    });
+  }
+
   // Tabla stats suplentes
   const POS_SORT={POR:0,DEF:1,MED:2,DEL:3};
   let benchSorted=[...bench].sort((a,b)=>{
@@ -6762,26 +6782,6 @@ async function renderPizarra(matchId){
   const yellows=getYellows();
   const cardTrack=getCardTrack();
   const suspendedNums=new Set(PLAYERS.filter(p=>cardTrack[p.n]?.suspendedFor===matchId).map(p=>p.n));
-  // ── Pre-cómputo de eventos (necesario para slotHtml y benchChipHtml) ──
-  const evs=(getMatchEvents()[matchId]||[]).slice().sort((a,b)=>a.min-b.min);
-  const _subInMin={}, _subOutMin={}, _evsByNum={};
-  {
-    const _nm=buildNameMap();
-    const _mn=name=>_nm[normName(name)]||_nm[normName(name.split(' ').pop())];
-    evs.forEach(e=>{
-      if(!e.side||e.side!=='uru') return;
-      if(e.type==='sub'){
-        const outN=_mn(e.player), inN=_mn(e.extra);
-        if(outN) _subOutMin[outN]=e.min;
-        if(inN)  _subInMin[inN]=e.min;
-      } else if(e.type==='goal'){
-        const n=_mn(e.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'goal',min:e.min});
-      } else if(e.type==='card'){
-        const n=_mn(e.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'card',extra:e.extra,min:e.min});
-      }
-    });
-  }
-
   function slotHtml(slot){
     const pNum=st[slot.id];
     const p=pNum?PLAYERS.find(x=>x.n===pNum):null;
