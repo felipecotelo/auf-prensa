@@ -185,8 +185,8 @@ app.get('/api/espn/summary/:eventId', async (req, res) => {
 
 app.get('/api/espn/wc/:date', async (req, res) => {
   try {
-    const data = await proxyGet('site.api.espn.com', `/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${req.params.date}`, {});
-    res.json(data);
+    const d = await proxyGet('site.api.espn.com', `/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${req.params.date}`, {});
+    res.json(d);
   } catch(e) {
     res.status(502).json({ error: e.message });
   }
