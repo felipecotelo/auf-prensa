@@ -4234,6 +4234,24 @@ function savePartVal(num,matchId,sel){
 // ═══════════════════════════════════════════════════════════════════════════
 // ESPN SYNC
 // ═══════════════════════════════════════════════════════════════════════════
+
+// Eventos del documento oficial FIFA que ESPN no registra
+// Se fusionan después del sync, sin duplicar si ESPN ya los tiene (misma key type+min+side)
+const FIFA_OFFICIAL_EVENTS = {
+  'uru-ksa': [
+    {id:'fifa-uru-ksa-g80', min:80, type:'goal', side:'uru', player:'Maxi Araújo', extra:''},
+  ],
+};
+
+function mergeOfficialEvents(matchId, evs){
+  const official=FIFA_OFFICIAL_EVENTS[matchId]||[];
+  official.forEach(oe=>{
+    const dup=evs.find(e=>e.type===oe.type&&e.side===oe.side&&Math.abs(e.min-oe.min)<=1);
+    if(!dup) evs.push(oe);
+  });
+  return evs;
+}
+
 const ESPN_EVENTS = {
   'uru-ksa': 760429,  // URU vs KSA — 15 jun
   'uru-cpv': 760450,  // URU vs CPV — 21 jun
@@ -4976,6 +4994,7 @@ async function syncMatchFull(matchId){
       if(!player)return;
       evs.push({id:'espn'+e.id,min,type:kind,side,player,extra});
     });
+    mergeOfficialEvents(matchId, evs);
     const allEv=getMatchEvents(); allEv[matchId]=evs; setMatchEvents(allEv);
     msgs.push(`${evs.length} incidencias ESPN`);
 
@@ -5084,6 +5103,7 @@ async function syncEspnIncidents(mId, pizMatchId){
       if(!player) return;
       evs.push({id:'espn'+e.id, min, type:kind, side, player, extra});
     });
+    mergeOfficialEvents(pizMatchId, evs);
     const all=getMatchEvents();
     all[pizMatchId]=evs;
     setMatchEvents(all);
