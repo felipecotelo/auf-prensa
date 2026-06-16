@@ -329,7 +329,6 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
   overflow:hidden;position:relative;flex-shrink:0;
   box-shadow:0 2px 12px rgba(0,157,216,.4);
 }
-.p-avatar img{width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;border-radius:50%}
 .p-avatar-n{font-size:32px;font-weight:900;line-height:1;font-family:'NikeNumber','Inter',system-ui,sans-serif}
 .p-avatar-ini{font-size:9px;font-weight:700;opacity:.6;margin-top:2px}
 .p-pos-badge{
@@ -573,7 +572,6 @@ textarea{resize:vertical;min-height:52px}
 .st2 .uru-row td:nth-child(2){font-weight:800}
 .st-bar{width:4px;display:block;height:100%}
 .st-adv1{background:var(--green)}
-.st-adv2{background:var(--green)}
 .st-play{background:#F59E0B}
 .st-none{background:transparent}
 .st-pts2{font-size:13px;font-weight:900;color:var(--text)}
@@ -2570,7 +2568,6 @@ function buildEventsHtml(day, startIdx=0){
     }
     const statusClass=s==='done'?'ev-done':s==='sus'?'ev-sus':s==='no'?'ev-no':'';
     const doneIcon=s==='done'?'<span class="ev-done-icon">✓</span>':s==='sus'?'<span style="font-size:11px;color:var(--gold);font-weight:800">⏸</span>':s==='no'?'<span style="font-size:11px;color:var(--red);font-weight:800">✗</span>':'';
-    const hasDetail=showParts||true; // always allow note
 
     // EL PARTIDO — conectado al resultado final automático (ESPN, vía getFixture/getMatchResult)
     const matchResult=e.tipo==='partido'?getMatchResult(e.fixId):null;
@@ -2782,7 +2779,7 @@ async function fetchWCDay(isoDate){
   _wcFetching[isoDate]=true;
   try{
     const dateStr=isoDate.replace(/-/g,'');
-    const data=await fetch(`/api/espn/wc/${dateStr}`).then(r=>r.json());
+    const data=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`).then(r=>r.json());
     const games=(data.events||[]).map(ev=>{
       const comp=ev.competitions?.[0];
       const home=comp?.competitors?.find(c=>c.homeAway==='home');
@@ -3161,7 +3158,6 @@ function matchForDate(date){
   if(date>='2026-06-10'&&date<='2026-06-15')return'uru-ksa';
   if(date>='2026-06-16'&&date<='2026-06-21')return'uru-cpv';
   if(date>='2026-06-22'&&date<='2026-06-26')return'uru-esp';
-  if(date>='2026-06-10'&&date<='2026-06-10')return'llegada';
   return null;
 }
 
@@ -4856,7 +4852,7 @@ async function syncMatchFull(matchId){
   if(!espnId&&matchIsoDate){
     try{
       const dateStr=matchIsoDate.replace(/-/g,'');
-      const sc=await fetch(`${BASE}/api/espn/wc/${dateStr}`).then(r=>r.json());
+      const sc=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`).then(r=>r.json());
       const uruEv=(sc.events||[]).find(ev=>ev.competitions?.[0]?.competitors?.some(c=>c.team?.id===String(URU_ESPN_ID)));
       if(uruEv) espnId=uruEv.id;
     }catch(_){}
@@ -4864,9 +4860,9 @@ async function syncMatchFull(matchId){
 
   if(!espnId){msgs.push('Sin ID ESPN para este partido');toast(msgs.join(' · '));if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar datos';}return;}
 
-  // 1. ESPN summary via proxy
+  // 1. ESPN summary directo (CORS abierto)
   try{
-    const res=await fetch(`${BASE}/api/espn/summary/${espnId}`);
+    const res=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${espnId}`);
     const data=await res.json();
 
     // a) Incidencias (goles, tarjetas, cambios)
@@ -6489,8 +6485,6 @@ const PIZ_MATCHES = [
   {id:'uru-cpv', label:'vs. Cabo Verde',     short:'CPV', rival:'Cabo Verde',     codeR:'cv', abbr:'CPV', group:'Grupo H · Fecha 2'},
   {id:'uru-esp', label:'vs. España',         short:'ESP', rival:'España',         codeR:'es', abbr:'ESP', group:'Grupo H · Fecha 3'},
 ];
-// flagImg() definida al inicio del archivo — ver arriba
-
 async function renderPizarra(matchId){
   matchId = matchId || _pizMatch;
   _pizMatch = matchId;
@@ -6535,9 +6529,10 @@ async function renderPizarra(matchId){
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px">
         <thead><tr style="background:var(--surface)">
           <th style="padding:5px 10px;text-align:left;font-size:9.5px;color:var(--muted);font-weight:700">Jugador</th>
-          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">PJ</th>
-          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">GOL</th>
-          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">WC</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700" title="Partidos jugados (carrera)">PJ</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700" title="Goles (carrera)">GOL</th>
+          <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Partidos en Mundial 2026">🏆PJ</th>
+          <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Goles en Mundial 2026">🏆G</th>
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">⭐</th>
         </tr></thead>
         <tbody>${starterRows.map(({slot,p})=>{
@@ -6553,7 +6548,8 @@ async function renderPizarra(matchId){
             <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
-            <td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
+            <td style="padding:6px 6px;text-align:center;font-weight:800;color:var(--gold)">${effectiveStats(p).wcCaps}${statDeltaBadge(p.n,'wcCaps')}</td>
+            <td style="padding:6px 6px;text-align:center;font-weight:800;color:var(--gold)">${effectiveStats(p).wcGoals}${statDeltaBadge(p.n,'wcGoals')}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;${rat?`color:${ratCol}`:'color:var(--hint)'}">${rat||'—'}</td>
           </tr>`;
         }).join('')}</tbody>
@@ -6582,7 +6578,8 @@ async function renderPizarra(matchId){
       <td style="padding:5px 10px;font-weight:700">${statsOrderArrows(benchKey,benchDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}${statDeltaBadge(p.n,'caps')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}${statDeltaBadge(p.n,'goals')}</td>
-      <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--gold)">${p.stats.wcPart}</td>
+      <td style="padding:5px 6px;text-align:center;font-weight:800;color:var(--gold)">${effectiveStats(p).wcCaps}${statDeltaBadge(p.n,'wcCaps')}</td>
+      <td style="padding:5px 6px;text-align:center;font-weight:800;color:var(--gold)">${effectiveStats(p).wcGoals}${statDeltaBadge(p.n,'wcGoals')}</td>
       <td style="padding:5px 8px;text-align:center;font-weight:800;${brat?`color:${bratCol}`:'color:var(--hint)'}">${brat||'—'}</td>
     </tr>`;
   }).join('');
@@ -6594,9 +6591,10 @@ async function renderPizarra(matchId){
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px">
         <thead><tr style="background:var(--surface)">
           <th style="padding:5px 10px;text-align:left;font-size:9.5px;color:var(--muted);font-weight:700">Jugador</th>
-          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">PJ</th>
-          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">GOL</th>
-          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">WC</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700" title="Partidos jugados (carrera)">PJ</th>
+          <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700" title="Goles (carrera)">GOL</th>
+          <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Partidos en Mundial 2026">🏆PJ</th>
+          <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Goles en Mundial 2026">🏆G</th>
           <th style="padding:5px 8px;text-align:center;font-size:9.5px;color:var(--muted);font-weight:700">⭐</th>
         </tr></thead>
         <tbody>${benchRows}</tbody>
