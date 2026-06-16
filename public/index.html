@@ -4296,12 +4296,37 @@ const FOTMOB_EVENTS = {
   'uru-cpv': null,
   'uru-esp': null,
 };
-// SofaScore event IDs (fuente: sofascore.com/football/match/...)
+// SofaScore — Uruguay team ID + event IDs conocidos
+const SOFA_URU_TEAM=4725;
 const SOFASCORE_EVENTS = {
   'uru-ksa': 15186811, // Saudi Arabia vs Uruguay — 15 jun
-  'uru-cpv': null,     // pendiente
-  'uru-esp': null,     // pendiente
+  'uru-cpv': null,     // se auto-descubre al sincronizar
+  'uru-esp': null,     // se auto-descubre al sincronizar
 };
+const SOFASCORE_DATES={'uru-ksa':'2026-06-15','uru-cpv':'2026-06-21','uru-esp':'2026-06-26'};
+const KSofaIds='auf4_sofa_ids';
+const getSofaIds=()=>stor.get(KSofaIds,{});
+const setSofaIds=v=>stor.set(KSofaIds,v);
+
+async function getSofaEventId(matchId){
+  if(SOFASCORE_EVENTS[matchId]) return SOFASCORE_EVENTS[matchId];
+  const cached=getSofaIds()[matchId]; if(cached) return cached;
+  const date=SOFASCORE_DATES[matchId]; if(!date) return null;
+  try{
+    // Buscar en los últimos partidos de Uruguay (team 4725)
+    const r=await fetch(`https://api.sofascore.com/api/v1/team/${SOFA_URU_TEAM}/events/last/0`,{headers:{Accept:'application/json'}});
+    if(!r.ok) return null;
+    const d=await r.json();
+    const target=new Date(date).toDateString();
+    const match=(d.events||[]).find(e=>{
+      const eDate=new Date(e.startTimestamp*1000).toDateString();
+      return eDate===target;
+    });
+    if(!match) return null;
+    const ids=getSofaIds(); ids[matchId]=match.id; setSofaIds(ids);
+    return match.id;
+  }catch{return null;}
+}
 const KRatings='auf4_ratings';
 const getRatings=()=>stor.get(KRatings,{});
 const setRatings=v=>stor.set(KRatings,v);
@@ -5086,7 +5111,7 @@ async function syncMatchFull(matchId){
   // 2. FotMob ratings via proxy
   // Calificaciones SofaScore
   try{
-    const sofaId=SOFASCORE_EVENTS[matchId];
+    const sofaId=await getSofaEventId(matchId);
     if(sofaId){
       const res=await fetch(`https://api.sofascore.com/api/v1/event/${sofaId}/lineups`,{headers:{Accept:'application/json'}});
       if(res.ok){
