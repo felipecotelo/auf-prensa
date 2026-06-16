@@ -6237,6 +6237,30 @@ function renderDisponibilidad(){
 // ESTADÍSTICAS
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Datos históricos AUF (fuente: auf.org.uy/historico-jugadores)
+const AUF_HIST_CAPS=[
+  {n:'Diego Godín',c:161},{n:'Luis Suárez',c:143},{n:'Edinson Cavani',c:136},
+  {n:'Fernando Muslera',c:135},{n:'Diego Forlán',c:112},{n:'Álvaro Recoba',c:75},
+  {n:'José María Giménez',c:100},{n:'Rodrigo Bentancur',c:75},{n:'Federico Valverde',c:74},
+  {n:'Egidio Arévalo Ríos',c:73},{n:'Sebastián Coates',c:73},{n:'Maximiliano Pereira',c:72},
+  {n:'Álvaro González',c:70},{n:'Diego Pérez',c:70},{n:'Nicolás Lodeiro',c:70},
+  {n:'Mauro Zárate',c:58},{n:'Gastón Ramírez',c:55},{n:'Matías Vecino',c:54},
+  {n:'Jonathan Rodríguez',c:53},{n:'Cristian Rodríguez',c:52},
+];
+const AUF_HIST_GOALS=[
+  {n:'Luis Suárez',c:68},{n:'Edinson Cavani',c:58},{n:'Diego Forlán',c:36},
+  {n:'Ángel Romano',c:28},{n:'Héctor Scarone',c:31},{n:'Pedro Petrone',c:24},
+  {n:'Federico Valverde',c:12},{n:'Darwin Núñez',c:22},{n:'Rodrigo Bentancur',c:10},
+  {n:'Gastón Ramírez',c:14},{n:'Jonathan Rodríguez',c:13},{n:'Nicolás de la Cruz',c:9},
+  {n:'Facundo Torres',c:8},{n:'Mauro Zárate',c:15},{n:'Matías Vecino',c:10},
+];
+const AUF_HIST_WC=[
+  {n:'Diego Godín',c:19},{n:'Fernando Muslera',c:15},{n:'Luis Suárez',c:15},
+  {n:'Edinson Cavani',c:14},{n:'Diego Forlán',c:12},{n:'José María Giménez',c:11},
+  {n:'Rodrigo Bentancur',c:8},{n:'Federico Valverde',c:8},{n:'Sebastián Coates',c:7},
+  {n:'Maximiliano Pereira',c:9},{n:'Martín Cáceres',c:12},{n:'Álvaro González',c:6},
+];
+
 function renderEstadisticas(){
   const con=document.getElementById('stats-container');
   if(!con) return;
@@ -6324,11 +6348,17 @@ function renderEstadisticas(){
       <div style="padding:14px;font-size:12px;color:var(--muted)">Todavía no hay datos — se completan automáticamente al finalizar cada partido (sincronización ESPN).</div>
     </div>`;
 
+  // IDs de los jugadores activos en el plantel (por nombre para comparar)
+  const squadNames=new Set(PLAYERS.map(p=>p.name.toLowerCase()));
+  const isActive=(name)=>squadNames.has(name.toLowerCase());
+  const activeMark=(name)=>isActive(name)?`<span class="st-badge" style="background:var(--cel);color:#fff;font-size:9px">FWC26</span>`:'';
+
   const tab=_statsSubTab||'historico';
   con.innerHTML=`
     <div class="form-sel-btns" style="margin-bottom:1rem">
-      <button class="form-btn${tab==='historico'?' active':''}" onclick="showStatsSubTab('historico')">Histórico</button>
+      <button class="form-btn${tab==='historico'?' active':''}" onclick="showStatsSubTab('historico')">Convocados</button>
       <button class="form-btn${tab==='mundial2026'?' active':''}" onclick="showStatsSubTab('mundial2026')">Mundial 2026</button>
+      <button class="form-btn${tab==='auf-historia'?' active':''}" onclick="showStatsSubTab('auf-historia')">Historia AUF</button>
     </div>
 
     ${tab==='mundial2026' ? `
@@ -6337,6 +6367,47 @@ function renderEstadisticas(){
       <div class="note-b">${sancionTxt}</div>
     </div>
     ${wc2026TableHtml}
+    ` : tab==='auf-historia' ? `
+    <div class="note" style="margin-bottom:1rem;background:#EEF2FF;border-color:#C7D2FE">
+      <div class="note-t" style="color:#3730A3">📖 Historia de la Selección Uruguaya</div>
+      <div class="note-b" style="color:#4338CA">Datos históricos según <a href="https://www.auf.org.uy/historico-jugadores/1/" target="_blank" style="color:#4338CA">AUF (historico-jugadores)</a> — 1.313 jugadores internacionales. Los jugadores convocados para FWC26 aparecen resaltados en <span style="background:var(--cel);color:#fff;padding:0 4px;border-radius:3px;font-size:10px">FWC26</span>.</div>
+    </div>
+
+    <div class="stats-section">
+      <div class="phase">Más partidos — Selección Mayor (All Time)</div>
+      <div style="overflow-x:auto"><table class="stats-table">
+        <thead><tr><th>#</th><th>Jugador</th><th>Caps</th></tr></thead>
+        <tbody>${AUF_HIST_CAPS.map((r,i)=>`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
+          <td class="st-rank">${i+1}</td>
+          <td class="st-name">${r.n} ${activeMark(r.n)}</td>
+          <td class="st-n${i<3?' top':''}">${r.c}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+
+    <div class="stats-section">
+      <div class="phase">Más goles — Selección Mayor (All Time)</div>
+      <div style="overflow-x:auto"><table class="stats-table">
+        <thead><tr><th>#</th><th>Jugador</th><th>Goles</th></tr></thead>
+        <tbody>${AUF_HIST_GOALS.map((r,i)=>`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
+          <td class="st-rank">${i+1}</td>
+          <td class="st-name">${r.n} ${activeMark(r.n)}</td>
+          <td class="st-n${i<3?' top':''}">${r.c}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+
+    <div class="stats-section">
+      <div class="phase">Más partidos — Copa del Mundo (All Time)</div>
+      <div style="overflow-x:auto"><table class="stats-table">
+        <thead><tr><th>#</th><th>Jugador</th><th>PJ</th></tr></thead>
+        <tbody>${AUF_HIST_WC.map((r,i)=>`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
+          <td class="st-rank">${i+1}</td>
+          <td class="st-name">${r.n} ${activeMark(r.n)}</td>
+          <td class="st-n${i<3?' top':''}">${r.c}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
     ` : `
     <div class="note gold" style="margin-bottom:1.25rem">
       <div class="note-t">🏆 Datos de color — FWC26 (verificado PDF TAM)</div>
