@@ -2537,11 +2537,13 @@ function buildEventsHtml(day, startIdx=0){
 
     // EL PARTIDO — conectado al resultado final automático (ESPN, vía getFixture/getMatchResult)
     const matchResult=e.tipo==='partido'?getMatchResult(e.fixId):null;
+    const fixIdToMatch={'m2':'uru-ksa','m4':'uru-cpv','m6':'uru-esp'};
     if(e.tipo==='partido'){
       if(matchResult){
         displayTxt=`🏁 Final — Uruguay ${matchResult.uru} – ${matchResult.rival} ${e.rivalName||''}`;
       }
     }
+    const partidoMatchId=e.tipo==='partido'&&e.fixId?fixIdToMatch[e.fixId]:null;
 
     return`
       <div class="cal-ev" id="cev-${day.date}-${realIdx}" ${matchResult?'style="background:var(--cel-lt);border-radius:8px;padding:5px 6px"':''}>
@@ -2556,7 +2558,10 @@ function buildEventsHtml(day, startIdx=0){
           <div class="cal-event-dot ${e.isDT?'ce-dt':'ce-'+e.tipo}" style="margin-top:5px;flex-shrink:0"></div>
           <div class="ev-txt-wrap">
             <div class="ev-main-txt ${statusClass}">
-              <span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${day.date}',${realIdx},this)">${displayTxt}</span>
+              ${partidoMatchId
+                ?`<span class="ev-editable-txt" title="Ver información del partido" onclick="goToPartido('${partidoMatchId}')" style="cursor:pointer;font-weight:700">${displayTxt} <span style="font-size:9.5px;color:var(--cel);font-weight:600">→ ver partido</span></span>`
+                :`<span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${day.date}',${realIdx},this)">${displayTxt}</span>`
+              }
               ${(()=>{
                 const isViaje=e.tipo==='viaje';
                 const isTrainEvent=e.esTrain;
@@ -3223,6 +3228,12 @@ function renderMatchSelBtns(activeId){
       ${m.iso?flagImg(m.iso,16):''}
       ${m.label} · ${m.sub}
     </button>`).join('');
+}
+
+function goToPartido(matchId){
+  showTab('partido');
+  selMatch(matchId,null);
+  setTimeout(()=>document.getElementById('tab-partido')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
 }
 
 function selMatch(id,btn){
