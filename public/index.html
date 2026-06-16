@@ -184,7 +184,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .cal-event{display:flex;align-items:flex-start;gap:8px;font-size:12px}
 .cal-event-h{font-size:10.5px;font-weight:700;color:var(--cel-dk);min-width:55px;flex-shrink:0;padding-top:1px}
 .cal-event-dot{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#5B4B8A}.ce-team{background:var(--team)}.ce-partido{background:var(--red)}
+.ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#5B4B8A}.ce-team{background:var(--team)}.ce-partido{background:var(--red)}.ce-sched{background:#94A3B8}
 .cal-event-txt{color:var(--text);line-height:1.4;flex:1}
 .cal-day-note{
   width:100%;margin-top:8px;padding:5px 9px;
@@ -1611,6 +1611,13 @@ const CALENDAR_DAYS = [
    eventos:[
      {h:'0:50',tipo:'viaje',txt:'🛬 Llegada Cancún — Riviera Maya',oblig:false},
      {h:'TBD',tipo:'oblig',txt:'Entrenamiento — primeros 15 min abiertos (recuperación) · MD-5 vs Cabo Verde',esTrain:true},
+     {h:'Hasta 10:00',tipo:'sched',txt:'☕ Desayuno a disposición',noParts:true},
+     {h:'12:00',tipo:'sched',txt:'🍽️ Almuerzo',noParts:true},
+     {h:'',tipo:'sched',txt:'🛏️ Descanso',noParts:true},
+     {h:'16:00',tipo:'sched',txt:'☕ Merienda',noParts:true},
+     {h:'16:45',tipo:'sched',txt:'⚡ Inicio de activación — grupo compensatorio',noParts:true},
+     {h:'17:30',tipo:'sched',txt:'🚴 Inicio de protocolo regenerativo',noParts:true},
+     {h:'20:30',tipo:'sched',txt:'🍽️ Cena',noParts:true},
    ]},
   {date:'2026-06-17',dow:'Mié',label:'17 jun',tipo:'entreno', lugar:'Riviera Maya, Playa del Carmen 🇲🇽', md:'MD-4 vs CPV',
    eventos:[{h:'TBD',tipo:'oblig',txt:'Entrenamiento — primeros 15 min · MD-4 vs Cabo Verde'}]},
@@ -2471,7 +2478,15 @@ function getMatchIdForDate(date){
 
 // Chips de jugadores ordenados: sin actividad primero, con badge de conteo
 // Apellido para mostrar: todo excepto el primer nombre (maneja "De La Cruz", "Van Dijk", etc.)
-function pShort(p){ const parts=p.name.split(' '); return parts.length>1?parts.slice(1).join(' '):p.name; }
+function pShort(p){
+  const parts=p.name.split(' ');
+  if(parts.length<=1)return p.name;
+  // Si la segunda palabra es partícula (De, Del, La...) → apellido compuesto desde word[1]
+  const PART=new Set(['de','del','la','las','los','van','von','da','di','dos','das']);
+  if(PART.has(parts[1].toLowerCase()))return parts.slice(1).join(' ');
+  // Segundo nombre → solo última palabra (ej: "Juan Manuel Sanabria" → "Sanabria")
+  return parts[parts.length-1];
+}
 
 function buildPlayerChipsHtml(selNums, matchId, onclickFn){
   const counts=matchId?getPlayerMatchCounts(matchId):{};
@@ -2552,9 +2567,10 @@ function buildEventsHtml(day, startIdx=0){
       <div class="cal-ev" id="cev-${day.date}-${realIdx}" ${matchResult?'style="background:var(--cel-lt);border-radius:8px;padding:5px 6px"':''}>
         <div class="cal-ev-row">
           <div class="ev-sts">
+            ${e.tipo==='sched'?'<span style="width:52px;flex-shrink:0"></span>':`
             <button class="ev-st st-done${s==='done'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'done',this)" title="Hecho">✓</button>
             <button class="ev-st st-sus${s==='sus'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'sus',this)" title="Suspendida">⏸</button>
-            <button class="ev-st st-no${s==='no'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'no',this)" title="No realizada">✗</button>
+            <button class="ev-st st-no${s==='no'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'no',this)" title="No realizada">✗</button>`}
           </div>
           <div class="cal-event-h editable-time${isDraftTime(t)?' draft-time':''}" style="margin-top:2px;min-width:50px" title="${isDraftTime(t)?'Horario a confirmar — click para editar':'Click para editar horario'}" onclick="editEventTime('${day.date}',${realIdx},this)">${t}${isDraftTime(t)?'<span class="draft-tag">a confirmar</span>':''}</div>
           <button onclick="toggleEvFifa('${day.date}',${realIdx},event)" title="${isFifaChange?'Horario reprogramado por FIFA — click para quitar la marca':'Marcar como horario reprogramado por FIFA (no fue un cambio nuestro)'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 2px;margin-top:2px;line-height:1;opacity:${isFifaChange?'1':'.25'}">⛔️</button>
@@ -2576,6 +2592,8 @@ function buildEventsHtml(day, startIdx=0){
                   mainTag=matchResult
                     ?`<span class="tag" style="font-size:9.5px;background:var(--cel);color:#fff;font-weight:800">FINAL</span>`
                     :`<span class="tag" style="font-size:9.5px;background:var(--red-lt);color:var(--red);font-weight:800">${e.tagLabel||'PARTIDO'}</span>`;
+                } else if(e.tipo==='sched'){
+                  mainTag=`<span class="tag" style="font-size:9.5px;background:#F1F5F9;color:#64748B;font-weight:600">Cronograma</span>`;
                 } else if(e.tipo==='team'){
                   mainTag=`<span class="tag" style="font-size:9.5px;background:var(--team-lt);color:var(--team)">Actividad</span>`;
                 } else if(e.extra){
@@ -2608,13 +2626,13 @@ function buildEventsHtml(day, startIdx=0){
             ${e.group?getGroupPairBar(e.group):''}
           </div>
           ${e._isCustom?`<button onclick="deleteDayAct('${day.date}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
-            :e.tipo==='team'?`<button onclick="hideEvent('${day.date}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
+            :(e.tipo==='team'||e.tipo==='sched')?`<button onclick="hideEvent('${day.date}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
             :''}
           <button class="ev-expand" onclick="toggleEvDetail('${day.date}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
         <div class="cal-ev-detail" id="ced-${day.date}-${realIdx}">
           ${isFifaChange&&getEvFifaOrig()[k]&&getEvFifaOrig()[k]!==t?`<div style="font-size:11px;color:var(--gold);margin-bottom:4px">* Horario original: ${getEvFifaOrig()[k]} — reprogramado por FIFA</div>`:''}
-          ${isOblig?(()=>{
+          ${isOblig&&!e.extra?(()=>{
             const manualAtParts=[
               ...selParts.filter(x=>x.startsWith('dt_')).map(x=>({key:x,name:(DT_STAFF.find(s=>s.id===x.slice(3))||{}).name||x})),
               ...selParts.filter(x=>x.startsWith('p_')).map(x=>{const n=parseInt(x.slice(2));const pl=PLAYERS.find(pl=>pl.n===n);return{key:x,name:pl?pShort(pl):x}})
@@ -2750,7 +2768,15 @@ function renderCal(){
     const customActs=getDayActs()[day.date]||[];
     // Merge static + custom events, tag with original index, then sort by time
     const evHidden=getEvHidden();
-    const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length})).filter(e=>!evHidden[evKey(day.date,e._origIdx)]);
+    // Partidos del Grupo H que no son de Uruguay — mostrar como informativos
+    const _ghOtherEvs=GROUP_H.matches
+      .filter(m=>m.isoDate===day.date&&m.home!=='uru'&&m.away!=='uru')
+      .map(m=>{
+        const homeT=GROUP_H.teams.find(t=>t.id===m.home);
+        const awayT=GROUP_H.teams.find(t=>t.id===m.away);
+        return{h:m.horaLocal,tipo:'sched',txt:`⚽ ${homeT?.name||m.home} vs ${awayT?.name||m.away} — ${m.city.split(',')[0]}`,noParts:true,_ghMatch:true};
+      });
+    const allEvs=[...day.eventos,...customActs,..._ghOtherEvs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length&&!e._ghMatch})).filter(e=>e._ghMatch||!evHidden[evKey(day.date,e._origIdx)]);
     allEvs.sort((a,b)=>evSortKey(day.date,a)-evSortKey(day.date,b));
     const div=document.createElement('div');
     div.className='cal-day'+(isToday?' today':'')+(isMatch||isToday?' open':'')+(day.tipo==='md1'?' tipo-md1':day.tipo==='partido'?' tipo-partido':'');
@@ -4582,19 +4608,19 @@ const GROUP_H = {
     {id:'cpv', iso:'cv', name:'Cabo Verde',    abbr:'CPV', isUs:false},
   ],
   matches:[
-    {id:'m1', num:1, fecha:2, date:'Dom 21 jun', home:'esp', away:'ksa',
+    {id:'m1', num:1, fecha:2, date:'Dom 21 jun', isoDate:'2026-06-21', home:'esp', away:'ksa',
      stadium:'Mercedes-Benz Stadium', city:'Atlanta, Georgia', pais:'USA', tz:'America/New_York',
      horaLocal:'12:00', horaUru:'13:00'},
     {id:'m2', num:2, fecha:1, date:'Lun 15 jun', home:'ksa', away:'uru',
      stadium:'Hard Rock Stadium', city:'Miami Gardens, Florida', pais:'USA', tz:'America/New_York',
      horaLocal:'18:00', horaUru:'19:00'},
-    {id:'m3', num:3, fecha:1, date:'Lun 15 jun', home:'esp', away:'cpv',
+    {id:'m3', num:3, fecha:1, date:'Lun 15 jun', isoDate:'2026-06-15', home:'esp', away:'cpv',
      stadium:'Mercedes-Benz Stadium', city:'Atlanta, Georgia', pais:'USA', tz:'America/New_York',
      horaLocal:'12:00', horaUru:'13:00'},
     {id:'m4', num:4, fecha:2, date:'Dom 21 jun', home:'uru', away:'cpv',
      stadium:'Hard Rock Stadium', city:'Miami Gardens, Florida', pais:'USA', tz:'America/New_York',
      horaLocal:'18:00', horaUru:'19:00'},
-    {id:'m5', num:5, fecha:3, date:'Vie 26 jun', home:'ksa', away:'cpv',
+    {id:'m5', num:5, fecha:3, date:'Vie 26 jun', isoDate:'2026-06-26', home:'ksa', away:'cpv',
      stadium:'NRG Stadium', city:'Houston, Texas', pais:'USA', tz:'America/Chicago',
      horaLocal:'19:00', horaUru:'21:00'},
     {id:'m6', num:6, fecha:3, date:'Vie 26 jun', home:'uru', away:'esp',
