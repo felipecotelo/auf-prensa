@@ -2576,7 +2576,11 @@ function buildEventsHtml(day, startIdx=0){
                 } else if(e.tipo==='team'){
                   mainTag=`<span class="tag" style="font-size:9.5px;background:var(--team-lt);color:var(--team)">Actividad</span>`;
                 } else if(e.extra){
-                  mainTag=`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag" style="font-size:9.5px;background:rgba(212,160,23,.18);color:var(--gold);font-weight:800">🏅 Extra · si hay MVP</span>`;
+                  const _mvpParts=evParts[evKey(day.date,realIdx)]||[];
+                  const _hasMvp=_mvpParts.some(k=>k.startsWith('p_'));
+                  mainTag=_hasMvp
+                    ?`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag tag-oblig" style="font-size:9.5px">Obligatorio 🏅</span>`
+                    :`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag" style="font-size:9.5px;background:rgba(212,160,23,.18);color:var(--gold);font-weight:800">🏅 Extra · si hay MVP</span>`;
                 } else if(isOblig){
                   mainTag=`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag tag-oblig" style="font-size:9.5px">Obligatorio</span>`;
                 } else if(!isTrainEvent&&!e.noParts){
@@ -3193,7 +3197,26 @@ function toggleEvPart(date,idx,partKey,chip){
     chip.classList.add(partKey.startsWith('dt_')?'sel-bielsa':'sel');
   }
   setEvParts(p);
-  try{ syncEvToChk(date,idx,p); }catch(err){ console.error('syncEvToChk failed',err); } // ← sincronización automática
+  try{ syncEvToChk(date,idx,p); }catch(err){ console.error('syncEvToChk failed',err); }
+  // Si es el evento MVP, sincronizar con KMvp para que Stats/Inicio lo reflejen
+  try{
+    const _day=CALENDAR_DAYS.find(d=>d.date===date);
+    const _allEvs=[...(_day?.eventos||[]),...(getDayActs()[date]||[])];
+    const _e=_allEvs[idx];
+    if(_e&&_e.extra){
+      const _fixMap={'m2':'uru-ksa','m4':'uru-cpv','m6':'uru-esp'};
+      const _partEv=(_day?.eventos||[]).find(ev=>ev.tipo==='partido'&&ev.fixId);
+      const _matchId=_partEv?_fixMap[_partEv.fixId]:null;
+      if(_matchId){
+        const _cur=p[evKey(date,idx)]||[];
+        const _playerKey=_cur.find(x=>x.startsWith('p_'));
+        const _mvpMap=getMvp();
+        if(_playerKey){_mvpMap[_matchId]=parseInt(_playerKey.slice(2));}
+        else{delete _mvpMap[_matchId];}
+        setMvp(_mvpMap);
+      }
+    }
+  }catch(err){console.error('mvp sync failed',err);}
   // update the selected names label
   try{
     const day=CALENDAR_DAYS.find(d=>d.date===date);
