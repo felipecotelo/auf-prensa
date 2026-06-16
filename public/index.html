@@ -7914,6 +7914,11 @@ async function tryAutoLoad(){
       });
     });
     setMatchEvents(all);
+    // Si KMatchDelta está vacío (primera vez con este sistema), resetear KStatsDelta
+    // para que applyPostMatchUpdates calcule desde cero sin duplicar lo anterior
+    const allMatchDeltas=stor.get(KMatchDelta,{});
+    const isFirstRun=Object.keys(allMatchDeltas).length===0;
+    if(isFirstRun) setStatsDelta({});
     // Recalcular stats para todos los partidos que tienen eventos guardados
     Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
   })();
