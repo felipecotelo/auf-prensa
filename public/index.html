@@ -4835,31 +4835,18 @@ async function syncMatchFull(matchId){
   const BASE=window.location.origin==='null'||window.location.protocol==='file:'?'https://auf-prensa-production.up.railway.app':'';
   let msgs=[];
 
-  // Buscar ESPN event ID real desde el cache del scoreboard WC (más confiable que el hardcodeado)
+  // Obtener ESPN event ID dinámicamente del scoreboard (siempre más confiable que el hardcodeado)
   const PIZ_TO_FIX_=Object.fromEntries(Object.entries(FIX_TO_PIZ).map(([f,p])=>[p,f]));
   const matchIsoDate=GROUP_H.matches.find(m=>m.id===PIZ_TO_FIX_[matchId])?.isoDate;
   const wcCache=stor.get(KWCCache,{});
-  const espnIdFromCache=wcCache[matchIsoDate]?.games?.find(g=>g.isUru)?.espnId;
-  let espnId=espnIdFromCache||ESPN_EVENTS[matchId];
+  let espnId=wcCache[matchIsoDate]?.games?.find(g=>g.isUru)?.espnId||null;
 
-  // Si no tenemos el ID aún, intentar obtenerlo ahora del scoreboard
   if(!espnId&&matchIsoDate){
     try{
       const dateStr=matchIsoDate.replace(/-/g,'');
       const sc=await fetch(`${BASE}/api/espn/wc/${dateStr}`).then(r=>r.json());
-      const uruEv=(sc.events||[]).find(ev=>{
-        const comp=ev.competitions?.[0];
-        return comp?.competitors?.some(c=>c.team?.id===String(URU_ESPN_ID));
-      });
-      if(uruEv){
-        espnId=uruEv.id;
-        // Guardar en cache para próximas veces
-        const existing=wcCache[matchIsoDate]||{};
-        if(existing.games){
-          existing.games=existing.games.map(g=>g.isUru?{...g,espnId:uruEv.id}:g);
-          stor.set(KWCCache,{...wcCache,[matchIsoDate]:existing});
-        }
-      }
+      const uruEv=(sc.events||[]).find(ev=>ev.competitions?.[0]?.competitors?.some(c=>c.team?.id===String(URU_ESPN_ID)));
+      if(uruEv) espnId=uruEv.id;
     }catch(_){}
   }
 
