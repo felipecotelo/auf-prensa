@@ -1204,6 +1204,10 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <div class="sp-box">
     <div class="sp-handle"></div>
     <div class="sp-title" id="sp-title">Seleccionar jugador</div>
+    <div style="padding:8px 12px 4px">
+      <input id="sp-search" type="search" placeholder="Nombre o número..." oninput="filterSP(this.value)" autocomplete="off"
+        style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;background:var(--bg);color:var(--text);box-sizing:border-box;outline:none">
+    </div>
     <div class="sp-list" id="sp-list"></div>
   </div>
 </div>
@@ -7603,7 +7607,16 @@ function openSP(matchId,slotId,posLabel,preselNum){
 
   const POS_LABEL={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
 
-  function playerRow(p){
+  // Sugerencias inteligentes del partido anterior
+  const prevMatchId=PIZ_ORDER[PIZ_ORDER.indexOf(matchId)-1]||null;
+  const prevSt=prevMatchId?(all[prevMatchId]?.starters||{}):{};
+  const prevForm=prevMatchId?(all[prevMatchId]?.formation||'4-3-3'):'4-3-3';
+  const prevSlots=prevMatchId?(FORMATIONS[prevForm]||[]):[];
+  const prevSamePosNums=new Set(prevSlots.filter(s=>s.pos===posLabel).map(s=>prevSt[s.id]).filter(Boolean));
+  const prevSubNames=new Set((getMatchEvents()[prevMatchId]||[]).filter(e=>e.type==='sub'&&e.side==='uru'&&e.extra).flatMap(e=>[e.extra.trim().toLowerCase(),e.extra.trim().split(' ').pop().toLowerCase()]));
+  const suggested=prevMatchId?PLAYERS.filter(p=>prevSamePosNums.has(p.n)||prevSubNames.has(p.name.toLowerCase())||prevSubNames.has(p.name.split(' ').pop().toLowerCase())):[];
+
+  function playerRow(p, isSug=false){
     const ph=_luPhotos?.[p.n]||p.photo||'';
     const inUse=usedNums.has(p.n)&&p.n!==curNum;
     const inj=getPlayerInjury(p.n);
@@ -7611,13 +7624,14 @@ function openSP(matchId,slotId,posLabel,preselNum){
                 :inj==='yellow'?'<span style="width:7px;height:7px;border-radius:50%;background:#F59E0B;display:inline-block;margin-right:4px;flex-shrink:0"></span>':'';
     const ms=computeMilestones(p);
     const hint=ms.length?`<div style="font-size:9.5px;color:var(--gold);margin-top:1px">${ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim()}</div>`:'';
-    return`<div class="sp-item${p.n===curNum?' sp-sel':''}${inUse?' sp-used':''}" onclick="assignP('${matchId}','${slotId||''}',${p.n})">
+    const wrongPos=isSug&&p.pos!==posLabel;
+    return`<div class="sp-item${p.n===curNum?' sp-sel':''}${inUse?' sp-used':''}" data-n="${p.n}" data-name="${p.name.toLowerCase()}" onclick="assignP('${matchId}','${slotId||''}',${p.n})">
       <div class="sp-av">
         ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
         <span style="font-size:11px;font-weight:900;color:#fff;position:relative;z-index:1">${ph?'':p.n}</span>
       </div>
       <div style="flex:1">
-        <div style="font-size:12.5px;font-weight:700;display:flex;align-items:center">${injDot}${p.name} <span style="font-size:10px;color:var(--muted);font-weight:500;margin-left:5px">#${p.n}</span></div>
+        <div style="font-size:12.5px;font-weight:700;display:flex;align-items:center">${injDot}${p.name} <span style="font-size:10px;color:var(--muted);font-weight:500;margin-left:5px">#${p.n}</span>${wrongPos?`<span style="font-size:8.5px;color:var(--hint);margin-left:5px">${p.pos}</span>`:''}</div>
         <div style="font-size:10.5px;color:var(--muted)">${p.club||''}</div>
         ${hint}
       </div>
@@ -7626,18 +7640,25 @@ function openSP(matchId,slotId,posLabel,preselNum){
     </div>`;
   }
 
-  function separator(label){
-    return`<div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:8px 16px 4px;background:var(--surface);border-bottom:0.5px solid var(--border)">${label}</div>`;
+  function separator(label, cls=''){
+    return`<div class="sp-sep ${cls}" style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:8px 16px 4px;background:var(--surface);border-bottom:0.5px solid var(--border)">${label}</div>`;
   }
 
+  const sugSamePos=suggested.filter(p=>p.pos===posLabel);
+  const sugOtherPos=suggested.filter(p=>p.pos!==posLabel);
+  const sugSet=new Set(suggested.map(p=>p.n));
+
   document.getElementById('sp-title').innerHTML=`Elegir jugador <span style="font-size:11px;font-weight:500;color:var(--muted)">· ${posLabel}</span>`;
+  const srch=document.getElementById('sp-search');
+  if(srch){srch.value='';srch.focus();}
   document.getElementById('sp-list').innerHTML=`
     ${slotId?`<div class="sp-item" onclick="clearSlotP('${matchId}','${slotId}')">
       <div class="sp-av" style="background:var(--red-lt);color:var(--red);font-size:16px">✕</div>
       <div style="font-size:12px;font-weight:600;color:var(--red)">Quitar del 11</div>
     </div>`:''}
-    ${same.length?separator(POS_LABEL[posLabel]||posLabel)+''+same.map(playerRow).join(''):''}
-    ${others.length?separator('Fuera de puesto')+''+others.map(playerRow).join(''):''}
+    ${suggested.length?separator('⚡ Del partido anterior','sp-sep-sug')+(sugSamePos.map(p=>playerRow(p,true)).join(''))+(sugOtherPos.map(p=>playerRow(p,true)).join('')):''}
+    ${same.length?separator(POS_LABEL[posLabel]||posLabel)+same.filter(p=>!sugSet.has(p.n)).map(p=>playerRow(p)).join(''):''}
+    ${others.length?separator('Fuera de puesto')+others.filter(p=>!sugSet.has(p.n)).map(p=>playerRow(p)).join(''):''}
   `;
   document.getElementById('sp-modal').classList.add('open');
 }
@@ -7669,7 +7690,22 @@ function clearSlotP(matchId,slotId){
   if(all[matchId]?.starters)delete all[matchId].starters[slotId];
   setLineup(all); closeSP(); renderLineup(matchId);
 }
-function closeSP(){document.getElementById('sp-modal').classList.remove('open');}
+function filterSP(q){
+  const lq=q.trim().toLowerCase();
+  document.querySelectorAll('#sp-list .sp-item[data-n]').forEach(row=>{
+    const match=!lq||row.dataset.name.includes(lq)||row.dataset.n.includes(lq);
+    row.style.display=match?'':'none';
+  });
+  document.querySelectorAll('#sp-list .sp-sep').forEach(sep=>{
+    let next=sep.nextElementSibling, hasVisible=false;
+    while(next&&!next.classList.contains('sp-sep')){
+      if(next.dataset.n&&next.style.display!=='none')hasVisible=true;
+      next=next.nextElementSibling;
+    }
+    sep.style.display=hasVisible?'':'none';
+  });
+}
+function closeSP(){document.getElementById('sp-modal').classList.remove('open');_pizSwap=null;document.querySelectorAll('.p-slot--sel').forEach(e=>e.classList.remove('p-slot--sel'));}
 
 async function syncLineupESPN(matchId){
   const eventId=ESPN_EVENTS[matchId];
