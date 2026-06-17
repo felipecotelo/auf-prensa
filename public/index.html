@@ -5811,13 +5811,56 @@ const WC_GROUPS = {
 
 // Posibles cruces de Ronda de 32 según la posición final de Uruguay en el Grupo H
 const WC_CROSSES = [
-  {pos:'1°', desc:'1° Grupo H vs 2° Grupo J', rival:'Ganador probable: Argentina, Argelia, Austria o Jordania',
-   when:'2 jul · SoFi Stadium, Inglewood (CA)'},
-  {pos:'2°', desc:'2° Grupo H vs 1° Grupo J', rival:'Rival probable: Argentina (favorita del Grupo J)',
-   when:'3 jul · Hard Rock Stadium, Miami Gardens (FL)'},
-  {pos:'3° (mejor tercero)', desc:'Depende de la matriz de combinaciones de terceros (Anexo C FIFA)',
-   rival:'Posibles rivales: 1° Grupo I (Francia), 1° Grupo A (México) o 1° Grupo L (Inglaterra)',
-   when:'30 jun – 1 jul · sede según combinación'},
+  {pos:'1°', label:'Si URU sale 1°', desc:'1° Grupo H vs 2° Grupo J',
+   rival:'Rival probable: 2° del Grupo J',
+   when:'2 jul · SoFi Stadium, Inglewood (CA)',
+   detail:{
+     rival_group:'J',
+     rival_group_teams:[{n:'Argentina',iso:'ar'},{n:'Argelia',iso:'dz'},{n:'Austria',iso:'at'},{n:'Jordania',iso:'jo'}],
+     rival_pos:'2°',
+     estadio:'SoFi Stadium',
+     ciudad:'Inglewood, California',
+     pais:'🇺🇸 USA',
+     fecha_hora:'2 jul · 22:00 hs (UY)',
+     notas:'El 2° del Grupo J enfrentará al 1° del Grupo H. Argentina es favorita de ese grupo, por lo que su eventual 2° sería Argelia, Austria o Jordania. Si Argentina queda 2°, Uruguay la enfrenta aquí.',
+   }},
+  {pos:'2°', label:'Si URU sale 2°', desc:'2° Grupo H vs 1° Grupo J',
+   rival:'Rival probable: Argentina (1° Grupo J)',
+   when:'3 jul · Hard Rock Stadium, Miami Gardens (FL)',
+   detail:{
+     rival_group:'J',
+     rival_group_teams:[{n:'Argentina',iso:'ar'},{n:'Argelia',iso:'dz'},{n:'Austria',iso:'at'},{n:'Jordania',iso:'jo'}],
+     rival_pos:'1°',
+     estadio:'Hard Rock Stadium',
+     ciudad:'Miami Gardens, Florida',
+     pais:'🇺🇸 USA',
+     fecha_hora:'3 jul · 22:00 hs (UY)',
+     notas:'Argentina es la favorita del Grupo J. Si sale 1°, Uruguay la enfrenta en Miami — misma sede que el partido vs. KSA.',
+   }},
+  {pos:'3° (mejor tercero)', label:'Si URU sale 3°', desc:'Depende de la matriz de combinaciones (Anexo C FIFA)',
+   rival:'Posibles rivales: 1° Grupo I, A o L',
+   when:'30 jun – 1 jul · sede según combinación',
+   detail:{
+     rival_group:null,
+     matriz:[
+       {grupos_3ros:'A B C D', rival:'1° Grupo I (Francia)', sede:'SoFi Stadium · 30 jun'},
+       {grupos_3ros:'A B C E', rival:'1° Grupo L (Inglaterra)', sede:'NRG Stadium · 1 jul'},
+       {grupos_3ros:'A B C F', rival:'1° Grupo I (Francia)', sede:'SoFi Stadium · 30 jun'},
+       {grupos_3ros:'A B D E', rival:'1° Grupo A (México)', sede:'Rose Bowl · 30 jun'},
+       {grupos_3ros:'A B D F', rival:'1° Grupo A (México)', sede:'Rose Bowl · 30 jun'},
+       {grupos_3ros:'A B E F', rival:'1° Grupo A (México)', sede:'Rose Bowl · 30 jun'},
+       {grupos_3ros:'A C D E', rival:'1° Grupo I (Francia)', sede:'SoFi Stadium · 30 jun'},
+       {grupos_3ros:'A C D F', rival:'1° Grupo L (Inglaterra)', sede:'NRG Stadium · 1 jul'},
+       {grupos_3ros:'A C E F', rival:'1° Grupo L (Inglaterra)', sede:'NRG Stadium · 1 jul'},
+       {grupos_3ros:'A D E F', rival:'1° Grupo L (Inglaterra)', sede:'NRG Stadium · 1 jul'},
+       {grupos_3ros:'B C D E', rival:'1° Grupo I (Francia)', sede:'SoFi Stadium · 30 jun'},
+       {grupos_3ros:'B C D F', rival:'1° Grupo I (Francia)', sede:'SoFi Stadium · 30 jun'},
+       {grupos_3ros:'B C E F', rival:'1° Grupo A (México)', sede:'Rose Bowl · 30 jun'},
+       {grupos_3ros:'B D E F', rival:'1° Grupo A (México)', sede:'Rose Bowl · 30 jun'},
+       {grupos_3ros:'C D E F', rival:'1° Grupo A (México)', sede:'Rose Bowl · 30 jun'},
+     ],
+     notas:'Uruguay sale 3° sólo si es uno de los 4 mejores terceros entre los 12 grupos. El rival y sede se definen al cerrar la fase de grupos según qué combinación de letras (A–F) representan los 4 terceros clasificados junto a H.',
+   }},
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5939,15 +5982,56 @@ function renderPartidos(){
     </div>`;
   }).join('');
 
-  const crossesHtml=WC_CROSSES.map(c=>`
-    <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:10px 12px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        <span style="font-size:10px;font-weight:800;background:var(--cel-lt);color:var(--cel-dk);padding:2px 8px;border-radius:8px">Si URU sale ${c.pos}</span>
+  const crossesHtml=WC_CROSSES.map((c,ci)=>{
+    const d=c.detail;
+    let detailHtml='';
+    if(d.rival_group){
+      const flags=d.rival_group_teams.map(t=>`<span style="display:flex;align-items:center;gap:4px;font-size:11px"><img src="https://flagcdn.com/16x12/${t.iso}.png" style="border-radius:1px"> ${t.n}</span>`).join('');
+      detailHtml=`
+        <div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">
+          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Grupo J — posible rival</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${flags}</div>
+          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Logística</div>
+          <div style="font-size:11px;color:var(--text);display:flex;flex-direction:column;gap:2px">
+            <div>🏟 ${d.estadio}</div>
+            <div>📍 ${d.ciudad} · ${d.pais}</div>
+            <div>📅 ${d.fecha_hora}</div>
+          </div>
+          ${d.notas?`<div style="font-size:10.5px;color:var(--muted);margin-top:8px;padding:7px 10px;background:var(--surface);border-radius:7px;line-height:1.5">${d.notas}</div>`:''}
+        </div>`;
+    } else if(d.matriz){
+      const rows=d.matriz.map(r=>`<tr><td style="padding:3px 6px;font-size:10px;color:var(--hint);white-space:nowrap">${r.grupos_3ros}</td><td style="padding:3px 6px;font-size:10.5px;font-weight:600">${r.rival}</td><td style="padding:3px 6px;font-size:9.5px;color:var(--muted)">${r.sede}</td></tr>`).join('');
+      detailHtml=`
+        <div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border)">
+          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Matriz Anexo C FIFA — según 4 terceros clasificados (sin contar H)</div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+              <thead><tr style="border-bottom:1px solid var(--border)">
+                <th style="padding:3px 6px;text-align:left;font-size:9px;color:var(--muted);font-weight:700">Grupos con 3ros</th>
+                <th style="padding:3px 6px;text-align:left;font-size:9px;color:var(--muted);font-weight:700">Rival de URU</th>
+                <th style="padding:3px 6px;text-align:left;font-size:9px;color:var(--muted);font-weight:700">Sede · Fecha</th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:8px;padding:7px 10px;background:var(--surface);border-radius:7px;line-height:1.5">${d.notas}</div>
+        </div>`;
+    }
+    return`<div data-cross="${ci}" style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;overflow:hidden">
+      <div style="padding:10px 12px;cursor:pointer;display:flex;align-items:flex-start;gap:8px" onclick="toggleCross(this)">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:10px;font-weight:800;background:var(--cel-lt);color:var(--cel-dk);padding:2px 8px;border-radius:8px">${c.label||'Si URU sale '+c.pos}</span>
+          </div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text)">${c.desc}</div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${c.rival}</div>
+          <div style="font-size:10px;color:var(--hint);margin-top:4px">📅 ${c.when}</div>
+        </div>
+        <span class="cross-chev" style="font-size:12px;color:var(--hint);margin-top:2px;transition:transform .2s;flex-shrink:0">⌄</span>
       </div>
-      <div style="font-size:12.5px;font-weight:700;color:var(--text)">${c.desc}</div>
-      <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${c.rival}</div>
-      <div style="font-size:10px;color:var(--hint);margin-top:4px">📅 ${c.when}</div>
-    </div>`).join('');
+      <div class="cross-detail" style="display:none;padding:0 12px 12px">${detailHtml}</div>
+    </div>`;
+  }).join('');
 
   con.innerHTML=`
     <!-- Tabla Grupo H -->
@@ -7709,6 +7793,14 @@ function filterSP(q){
   });
 }
 function closeSP(){document.getElementById('sp-modal').classList.remove('open');_pizSwap=null;document.querySelectorAll('.p-slot--sel').forEach(e=>e.classList.remove('p-slot--sel'));}
+function toggleCross(btn){
+  const card=btn.closest('[data-cross]');
+  const detail=card.querySelector('.cross-detail');
+  const chev=btn.querySelector('.cross-chev');
+  const open=detail.style.display==='block';
+  detail.style.display=open?'none':'block';
+  if(chev)chev.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
 
 async function syncLineupESPN(matchId){
   const eventId=ESPN_EVENTS[matchId];
