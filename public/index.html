@@ -16,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 @font-face {
@@ -950,6 +951,7 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
     <img src="./logos/logo Copa Mundial.png" class="nav-fifa-logo" alt="FWC26" onerror="this.style.display='none'">
   </div>
   <div class="nav-right">
+    <span id="sync-dot" title="Sincronizando..." style="width:8px;height:8px;border-radius:50%;background:#F59E0B;display:inline-block;flex-shrink:0;cursor:default;transition:background .4s"></span>
     <button class="nav-btn" id="btn-cloud-load" onclick="serverLoad()" title="Cargar datos del servidor"><i class="ti ti-cloud-download" style="font-size:12px"></i> <span class="nav-sync-lbl">Cargar</span></button>
     <button class="nav-btn" id="btn-cloud-save" onclick="serverSave()" title="Guardar datos en el servidor"><i class="ti ti-cloud-upload" style="font-size:12px"></i> <span class="nav-sync-lbl">Guardar</span></button>
     <button class="nav-btn" onclick="exportData()"><i class="ti ti-download" style="font-size:12px"></i> <span class="nav-sync-lbl">Backup</span></button>
@@ -2416,11 +2418,61 @@ const VIEW_MODE=new URLSearchParams(location.search).get('view')==='1';
 if(VIEW_MODE) document.documentElement.classList.add('view-mode');
 
 let _autoSyncDirty=false;
+// ── Supabase cloud sync ────────────────────────────────────────────────────
+const _SB_URL='https://wsiudiexcodrhyejevco.supabase.co';
+const _SB_KEY='sb_publishable_GaiAMaH49DGCJgzDOTKHSQ_42jKWXNq';
+const _sb=supabase.createClient(_SB_URL,_SB_KEY);
+const _SKIP_SYNC=new Set([KWCCache]); // caché ESPN: no sincronizar entre dispositivos
+let _syncDebounceTimers={};
+let _syncStatus='idle'; // 'idle'|'syncing'|'ok'|'error'
+
+function _setSyncStatus(s){
+  _syncStatus=s;
+  const el=document.getElementById('sync-dot');
+  if(!el)return;
+  el.title=s==='ok'?'Sincronizado ✓':s==='syncing'?'Sincronizando...':'Error de sync';
+  el.style.background=s==='ok'?'#22C55E':s==='syncing'?'#F59E0B':'#EF4444';
+}
+
+async function cloudPush(key,value){
+  if(_SKIP_SYNC.has(key))return;
+  try{
+    _setSyncStatus('syncing');
+    await _sb.from('sync_data').upsert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()},{onConflict:'key'});
+    _setSyncStatus('ok');
+  }catch(e){_setSyncStatus('error');console.warn('cloudPush error',e);}
+}
+
+function cloudPushDebounced(key,value){
+  if(_SKIP_SYNC.has(key))return;
+  clearTimeout(_syncDebounceTimers[key]);
+  _syncDebounceTimers[key]=setTimeout(()=>cloudPush(key,value),800);
+}
+
+async function cloudPull(){
+  try{
+    _setSyncStatus('syncing');
+    const {data,error}=await _sb.from('sync_data').select('key,value');
+    if(error)throw error;
+    if(data&&data.length){
+      data.forEach(row=>{
+        if(!_SKIP_SYNC.has(row.key)&&row.value!=null){
+          try{localStorage.setItem(row.key,row.value);}catch(e){}
+        }
+      });
+    }
+    _setSyncStatus('ok');
+    return true;
+  }catch(e){_setSyncStatus('error');console.warn('cloudPull error',e);return false;}
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 const stor = {
   get:(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}},
   set:(k,v)=>{
     const json=JSON.stringify(v);
     _pushUndo(k,localStorage.getItem(k));
+    cloudPushDebounced(k,v);
     try{
       localStorage.setItem(k,json);
       _autoSyncDirty=true;
@@ -8087,6 +8139,8 @@ async function tryAutoLoad(){
     // Recalcular stats para todos los partidos que tienen eventos guardados
     Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
   })();
+  // Pull datos de la nube antes de renderizar
+  await cloudPull();
   renderInicio();
   renderCal();
   renderMatchSelBtns('uru-ksa');
