@@ -1612,7 +1612,7 @@ const CALENDAR_DAYS = [
      {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS · Playa del Carmen',oblig:true,esTrain:true},
      {h:'14:00 (MEX)',tipo:'viaje',txt:'✈️ Viaje Playa del Carmen → Miami, Florida',oblig:false,linkTo:2,durMin:170}, // 1:50h de vuelo + 1h de diferencia horaria (MEX → MIA)
      {h:'16:50 (MIA)',tipo:'viaje',txt:'🛬 Llegada Miami International Airport',oblig:false},
-     {h:'18:30 (MIA)',tipo:'oblig',txt:'Conferencia de prensa — primera atención + 2×15\' · Hard Rock Stadium, Miami',oblig:true,art:'TAM p.72',confMD1:true},
+     {h:'18:30 (MIA)',tipo:'oblig',txt:'Conferencia de prensa — primera atención + 2×15\' · Hard Rock Stadium, Miami',oblig:true,art:'TAM p.72',confMD1:true,chkId:'md1-conf'},
      {h:'19:00 (MIA)',tipo:'info',txt:'Reunión de coordinación (MCM) — Directores FIFA · Estadio',oblig:false,noParts:true,link:'https://www.dropbox.com/scl/fi/fotg9cbk52lk9c4gqojny/FWC26_Match-Coordination-Meeting_Presentation_M13-KSA-v-URU.pdf?rlkey=5soi0xe1jq3enau1axre9byiz&dl=0'},
    ]},
   {date:'2026-06-15',dow:'Lun',label:'15 jun',tipo:'partido', lugar:'Miami, Florida 🇺🇸 → Riviera Maya 🇲🇽', rival:'Arabia Saudita', sede:'Hard Rock Stadium, Miami',
@@ -1699,7 +1699,7 @@ const CALENDAR_DAYS = [
    eventos:[
      {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS',esTrain:true},
      {h:'~14:00',tipo:'viaje',txt:'✈️ Viaje a Miami, Florida'},
-     {h:'18:45',tipo:'oblig',txt:'Conferencia de prensa — DT · Estadio Miami (Hard Rock)'},
+     {h:'18:45',tipo:'oblig',txt:'Conferencia de prensa — DT · Estadio Miami (Hard Rock)',chkId:'md1-conf'},
      {h:'18:45',tipo:'oblig',txt:'Stand-up DT + 1 jugador — TV Uruguay (RH) + TV rival + equipo FIFA'},
    ]},
   {date:'2026-06-21',dow:'Dom',label:'21 jun',tipo:'partido', lugar:'Miami 🇺🇸 → Riviera Maya 🇲🇽', rival:'Cabo Verde', sede:'Hard Rock Stadium, Miami',
@@ -1740,7 +1740,7 @@ const CALENDAR_DAYS = [
    eventos:[
      {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS',esTrain:true},
      {h:'~14:00',tipo:'viaje',txt:'✈️ Viaje a Guadalajara, Jalisco'},
-     {h:'18:45',tipo:'oblig',txt:'Conferencia de prensa — DT · Estadio Akron, Guadalajara'},
+     {h:'18:45',tipo:'oblig',txt:'Conferencia de prensa — DT · Estadio Akron, Guadalajara',chkId:'md1-conf'},
      {h:'18:45',tipo:'oblig',txt:'Stand-up DT + 1 jugador — TV Uruguay (RH) + TV rival + equipo FIFA'},
    ]},
   {date:'2026-06-26',dow:'Vie',label:'26 jun',tipo:'partido', lugar:'Guadalajara 🇲🇽 → Riviera Maya 🇲🇽', rival:'España', sede:'Estadio Akron, Guadalajara',
@@ -3813,14 +3813,14 @@ function toggleDone(matchId,actId){
   if(el&&item){const newEl=buildChkItem(matchId,item);if(el.classList.contains('open'))newEl.classList.add('open');el.replaceWith(newEl);}
   refreshChkProgress(matchId);
   renderInicio();
-  // Sync back to calendar event with matching chkId
+  // Sync back to calendar event with matching chkId (busca en todos los días del rango del partido)
   if(!_syncLock){
-    const matchDay=CALENDAR_DAYS.find(d=>d.tipo==='partido'&&getMatchIdForDate(d.date)===matchId);
-    if(matchDay){
-      matchDay.eventos.forEach((e,idx)=>{
+    const matchDays=CALENDAR_DAYS.filter(d=>getMatchIdForDate(d.date)===matchId);
+    matchDays.forEach(calDay=>{
+      calDay.eventos.forEach((e,idx)=>{
         if(e.chkId!==actId)return;
         const ev=getEvStatus();
-        const k=evKey(matchDay.date,idx);
+        const k=evKey(calDay.date,idx);
         const cur=ev[k]||'';
         const target=data.done?'done':'';
         if(cur===target)return;
@@ -3829,10 +3829,10 @@ function toggleDone(matchId,actId){
         setEvStatus_store(ev);
         _syncLock=false;
         // Re-render calendar row if visible
-        const wrap=document.getElementById(`cev-${matchDay.date}-${idx}`);
-        if(wrap){const newHtml=buildEventsHtml({...matchDay,eventos:[getDayEventByIdx(matchDay.date,idx)]},idx);const tmp=document.createElement('div');tmp.innerHTML=newHtml;const newEl=tmp.firstElementChild;if(newEl)wrap.replaceWith(newEl);}
+        const wrap=document.getElementById(`cev-${calDay.date}-${idx}`);
+        if(wrap){const newHtml=buildEventsHtml({...calDay,eventos:[getDayEventByIdx(calDay.date,idx)]},idx);const tmp=document.createElement('div');tmp.innerHTML=newHtml;const newEl=tmp.firstElementChild;if(newEl)wrap.replaceWith(newEl);}
       });
-    }
+    });
   }
   toast(data.done?'✓ Completada':'Marcada como pendiente');
 }
