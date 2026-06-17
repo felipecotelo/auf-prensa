@@ -1785,7 +1785,7 @@ function flagImg(code, size=28){
   return `<img src="https://flagcdn.com/w40/${code}.png" alt="${code.toUpperCase()}" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;vertical-align:middle" onerror="this.style.display='none'">`;
 }
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp', KWCCache='auf4_wc_cache3';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp', KWCCache='auf4_wc_cache3', KSlotPos='auf4_slotpos';
 
 // ── MVP del partido (Player of the Match — premio oficial FIFA) ────────────
 function getMvp(){return stor.get(KMvp,{})}
@@ -7317,6 +7317,11 @@ function pizAssign(matchId, slotId, pNum){
 const KLineup='auf4_lineup';
 const getLineup=()=>stor.get(KLineup,{});
 const setLineup=v=>stor.set(KLineup,v);
+const getSlotPos=()=>stor.get(KSlotPos,{});
+const setSlotPos=v=>stor.set(KSlotPos,v);
+function getMatchSlotPos(matchId){return getSlotPos()[matchId]||{};}
+function saveSlotPos(matchId,slotId,x,y){const all=getSlotPos();if(!all[matchId])all[matchId]={};all[matchId][slotId]={x,y};setSlotPos(all);}
+function resetMatchSlotPos(matchId){const all=getSlotPos();delete all[matchId];setSlotPos(all);}
 
 const FORMATIONS={
   '4-3-3':[
@@ -7380,6 +7385,9 @@ async function renderLineup(matchId){
       <button class="nav-btn" onclick="syncLineupESPN('${matchId}')" style="font-size:10.5px;padding:5px 10px;background:rgba(0,0,0,.06)">
         <i class="ti ti-refresh" style="font-size:11px"></i> ESPN
       </button>
+      <button class="nav-btn" onclick="resetMatchSlotPos('${matchId}');_luPhotos=null;renderLineup('${matchId}')" style="font-size:10.5px;padding:5px 10px;background:rgba(0,0,0,.06)" title="Restablecer posiciones originales de la formación">
+        <i class="ti ti-layout-distribute-vertical" style="font-size:11px"></i> Reset pos.
+      </button>
     </div>
 
     <div class="pitch-outer">
@@ -7392,7 +7400,9 @@ async function renderLineup(matchId){
           const p=pNum?PLAYERS.find(x=>x.n===pNum):null;
           const ph=p?(_luPhotos[p.n]||p.photo||''):'';
           const lbl=p?pShort(p):'';
-          return`<div class="p-slot" style="left:${slot.x}%;top:${slot.y}%" onclick="openSP('${matchId}','${slot.id}','${slot.pos}')">
+          const cp=getMatchSlotPos(matchId)[slot.id];
+          const sx=cp?cp.x:slot.x, sy=cp?cp.y:slot.y;
+          return`<div class="p-slot" id="pslot-lu-${slot.id}" data-slot="${slot.id}" data-match="${matchId}" data-pos="${slot.pos}" style="left:${sx}%;top:${sy}%;cursor:grab" onclick="openSP('${matchId}','${slot.id}','${slot.pos}')">
             <div class="p-slot-av${p?'':' empty'}">
               ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
               ${!p?`<span style="font-size:8px;color:rgba(255,255,255,.55);font-weight:700">${slot.pos}</span>`:''}
@@ -7420,6 +7430,39 @@ async function renderLineup(matchId){
       </div>
     </div>
   `;
+  initSlotDrag(matchId);
+}
+
+function initSlotDrag(matchId){
+  const pitch=document.querySelector('#lineup-wrap .pitch');
+  if(!pitch)return;
+  pitch.querySelectorAll('.p-slot[data-slot]').forEach(el=>{
+    let dragging=false,startX=0,startY=0,origL=0,origT=0,moved=false;
+    const onStart=(cx,cy)=>{dragging=true;moved=false;startX=cx;startY=cy;origL=parseFloat(el.style.left);origT=parseFloat(el.style.top);el.style.cursor='grabbing';el.style.zIndex=999;el.style.transition='none';};
+    const onMove=(cx,cy)=>{
+      if(!dragging)return;
+      const r=pitch.getBoundingClientRect();
+      const dx=(cx-startX)/r.width*100, dy=(cy-startY)/r.height*100;
+      if(Math.abs(dx)>1||Math.abs(dy)>1) moved=true;
+      const nx=Math.max(3,Math.min(97,origL+dx)), ny=Math.max(3,Math.min(97,origT+dy));
+      el.style.left=nx+'%'; el.style.top=ny+'%';
+    };
+    const onEnd=()=>{
+      if(!dragging)return; dragging=false;
+      el.style.cursor='grab'; el.style.zIndex=''; el.style.transition='';
+      if(moved){
+        const x=parseFloat(el.style.left), y=parseFloat(el.style.top);
+        saveSlotPos(matchId,el.dataset.slot,Math.round(x*10)/10,Math.round(y*10)/10);
+        el.onclick=null; setTimeout(()=>{ el.onclick=()=>openSP(matchId,el.dataset.slot,el.dataset.pos); },50);
+      }
+    };
+    el.addEventListener('mousedown',e=>{if(e.button!==0)return;e.preventDefault();onStart(e.clientX,e.clientY);});
+    window.addEventListener('mousemove',e=>{onMove(e.clientX,e.clientY);});
+    window.addEventListener('mouseup',onEnd);
+    el.addEventListener('touchstart',e=>{e.preventDefault();onStart(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+    el.addEventListener('touchmove',e=>{e.preventDefault();onMove(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+    el.addEventListener('touchend',onEnd);
+  });
 }
 
 function changeForm(matchId,form){
