@@ -8755,7 +8755,14 @@ async function tryAutoLoad(){
       official.forEach(oe=>{
         const dup=all[mid].find(e=>e.id&&e.id===oe.id||
           (e.type===oe.type&&e.side===oe.side&&Math.abs(e.min-oe.min)<=1&&(e.player===oe.player||!e.player)));
-        if(!dup) all[mid].push(oe);
+        if(dup){
+          // Fusionar campos oficiales en el evento existente (p.ej. extra con nombre del sustituto)
+          if(!dup.id) dup.id=oe.id;
+          if(oe.extra&&!dup.extra) dup.extra=oe.extra;
+          if(oe.player&&!dup.player) dup.player=oe.player;
+        } else {
+          all[mid].push(oe);
+        }
       });
     });
     setMatchEvents(all);
