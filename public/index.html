@@ -76,6 +76,10 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
   display:flex;overflow-x:auto;padding:0 1.25rem;
   position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:200;scrollbar-width:none;
 }
+/* Modo diseñador — oculta tabs no permitidos y nav */
+[data-dmode] .tab:not(.d-tab){display:none}
+[data-dmode] nav{display:none!important}
+[data-dmode] .tabs{top:0}
 .tabs::-webkit-scrollbar{display:none}
 .tab{
   padding:12px 15px;font-size:12.5px;font-weight:600;color:var(--muted);
@@ -969,9 +973,9 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab" onclick="showTab('pizarra')"><i class="ti ti-ball-football"></i>Pizarra</button>
   <button class="tab" onclick="showTab('fixture')"><i class="ti ti-tournament"></i>Fixture</button>
   <button class="tab" onclick="showTab('partidos')"><i class="ti ti-world"></i>Partidos</button>
-  <button class="tab" onclick="showTab('plantel')"><i class="ti ti-users"></i>Plantel</button>
-  <button class="tab" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
-  <button class="tab" onclick="showTab('grafica')"><i class="ti ti-photo"></i>Diseño</button>
+  <button class="tab d-tab" onclick="showTab('plantel')"><i class="ti ti-users"></i>Plantel</button>
+  <button class="tab d-tab" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
+  <button class="tab d-tab" onclick="showTab('grafica')"><i class="ti ti-photo"></i>Diseño</button>
   <button class="tab" onclick="showTab('infogeneral')"><i class="ti ti-info-circle"></i>Información general</button>
   <button class="tab" onclick="showTab('registro')"><i class="ti ti-clipboard-list"></i>Registro</button>
 </div>
@@ -1802,6 +1806,18 @@ function flagImg(code, size=28){
 const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp', KWCCache='auf4_wc_cache3', KSlotPos='auf4_slotpos';
 
 // ── Partido "cerrado con oficial" — ESPN no puede modificar nada ─────────────
+// ── Modo diseñador ──────────────────────────────────────────────────────────
+const DESIGNER_KEY = 'auf2026dis';
+const DESIGNER_TABS = ['plantel','estadisticas','grafica'];
+(()=>{
+  const p=new URLSearchParams(location.search);
+  if(p.get('k')===DESIGNER_KEY) sessionStorage.setItem('auf_dmode','1');
+})();
+const IS_DESIGNER = sessionStorage.getItem('auf_dmode')==='1';
+if(IS_DESIGNER){
+  document.documentElement.setAttribute('data-dmode','1');
+}
+// ─────────────────────────────────────────────────────────────────────────────
 const KMatchLocked='auf4_match_locked';
 const getMatchLocked=()=>stor.get(KMatchLocked,{});
 const isMatchLocked=matchId=>!!getMatchLocked()[matchId];
@@ -2594,6 +2610,7 @@ function toast(msg){
 // TABS
 // ═══════════════════════════════════════════════════════════════════════════
 function showTab(id){
+  if(IS_DESIGNER&&!DESIGNER_TABS.includes(id)) return;
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -9269,13 +9286,19 @@ async function tryAutoLoad(){
   })();
   // Pull datos de la nube antes de renderizar
   await cloudPull();
-  renderInicio();
-  renderCal();
-  renderMatchSelBtns('uru-ksa');
-  renderChecklist('uru-ksa');
-  renderLineup('uru-ksa');
-  await renderPlantel();
-  renderLog('all');
+  if(IS_DESIGNER){
+    await renderPlantel();
+    renderEstadisticas();
+    showTab('estadisticas');
+  } else {
+    renderInicio();
+    renderCal();
+    renderMatchSelBtns('uru-ksa');
+    renderChecklist('uru-ksa');
+    renderLineup('uru-ksa');
+    await renderPlantel();
+    renderLog('all');
+  }
   // Auto-sync ESPN al abrir — detecta si hay partido en curso o recién terminado
   autoSyncCheck();
   // Verificar cada 5 min aunque no haya partido activo (por si abre la app justo cuando empieza)
