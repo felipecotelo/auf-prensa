@@ -8518,6 +8518,22 @@ async function tryAutoLoad(){
   autoSyncCheck();
   // Verificar cada 5 min aunque no haya partido activo (por si abre la app justo cuando empieza)
   setInterval(()=>{ if(!_autoSyncInterval) autoSyncCheck(); }, 300000);
+  // Carga forzada de incidentes para partidos pasados sin datos guardados
+  (async()=>{
+    const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const stored=getMatchEvents();
+    for(const [matchId,date] of Object.entries(ESPN_MATCH_DATES)){
+      if(date>=today) continue; // partido futuro, saltar
+      if(stored[matchId]?.length) continue; // ya hay datos, saltar
+      const eventId=ESPN_EVENTS[matchId];
+      if(!eventId) continue;
+      try{
+        const data=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`).then(r=>r.json());
+        await syncIncidentsSilent(matchId,data);
+        await syncLineupSilent(matchId,eventId,data);
+      }catch(e){}
+    }
+  })();
   const undoMsg=sessionStorage.getItem('auf4_undo_toast');
   if(undoMsg){sessionStorage.removeItem('auf4_undo_toast');toast(undoMsg);}
 })();
