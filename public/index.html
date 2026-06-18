@@ -6635,10 +6635,13 @@ function toggleLegend(name){
   stor.set(KLegends,custom);
   renderEstadisticas();
 }
-const legendStar=(name,small=false)=>{
+// editMode=true → ★/☆ tocable; editMode=false → ★ solo si es leyenda, nada si no
+const legendStar=(name,editMode=false)=>{
   const isLeg=getLegends().has(name);
-  const sz=small?'11px':'12px';
-  return `<span onclick="event.stopPropagation();toggleLegend('${name.replace(/'/g,"\\'")}')" title="${isLeg?'Quitar leyenda':'Marcar como leyenda'}" style="cursor:pointer;font-size:${sz};margin-left:4px;opacity:${isLeg?'1':'0.25'};user-select:none" class="leg-star">${isLeg?'★':'☆'}</span>`;
+  if(editMode){
+    return `<span onclick="event.stopPropagation();toggleLegend('${name.replace(/'/g,"\\'")}')" title="${isLeg?'Quitar leyenda':'Marcar como leyenda'}" style="cursor:pointer;font-size:11px;margin-left:3px;opacity:${isLeg?'1':'0.25'};user-select:none">${isLeg?'★':'☆'}</span>`;
+  }
+  return isLeg?`<span style="font-size:11px;color:var(--gold);margin-left:3px">★</span>`:'';
 };
 
 // Datos históricos AUF (fuente: auf.org.uy/historico-jugadores)
@@ -6699,25 +6702,25 @@ function renderEstadisticas(){
 
   const rowCaps=(p,i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name}${plusBadge(p.n)} ${legendStar(p.name)} ${capBadge(p)}<div style="font-size:10px;color:var(--muted);font-weight:400">${ms(p)}</div></td>
+    <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name} ${legendStar(p.name)} ${capBadge(p)}<div style="font-size:10px;color:var(--muted);font-weight:400">${ms(p)}</div></td>
     <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).caps}</span>${statDeltaBadge(p.n,'caps')}</div></td>
   </tr>`;
 
   const rowGoals=(p,i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${p.name}${plusBadge(p.n)} ${legendStar(p.name)} ${effectiveStats(p).goals===0?'<span class="st-badge sb-debut" style="margin-left:5px">Sin goles</span>':''}</td>
+    <td class="st-name">${p.name} ${legendStar(p.name)} ${effectiveStats(p).goals===0?'<span class="st-badge sb-debut" style="margin-left:5px">Sin goles</span>':''}</td>
     <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).goals}</span>${statDeltaBadge(p.n,'goals')}</div></td>
   </tr>`;
 
   const rowWC=(p,i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${p.name}${plusBadge(p.n)} ${legendStar(p.name)} ${effectiveStats(p).wcCaps===0?'<span class="st-badge sb-wcdebut">Debut Mundial</span>':''} ${p.wcCount===5?'<span class="st-badge sb-wc5">5° Mundial</span>':''}</td>
+    <td class="st-name">${p.name} ${legendStar(p.name)} ${effectiveStats(p).wcCaps===0?'<span class="st-badge sb-wcdebut">Debut Mundial</span>':''} ${p.wcCount===5?'<span class="st-badge sb-wc5">5° Mundial</span>':''}</td>
     <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).wcCaps}</span>${statDeltaBadge(p.n,'wcCaps')}</div></td>
   </tr>`;
 
   const rowWCG=(p,i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${p.name}${plusBadge(p.n)} ${legendStar(p.name)}</td>
+    <td class="st-name">${p.name} ${legendStar(p.name)}</td>
     <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).wcGoals}</span>${statDeltaBadge(p.n,'wcGoals')}</div></td>
   </tr>`;
 
@@ -6733,7 +6736,7 @@ function renderEstadisticas(){
     .sort((a,b)=>(b.d.minutesWC||0)-(a.d.minutesWC||0) || (b.d.caps||0)-(a.d.caps||0) || a.p.n-b.p.n);
   const rowWC2026=({p,d},i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name}${plusBadge(p.n)} ${legendStar(p.name)}</td>
+    <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name} ${legendStar(p.name)}</td>
     <td class="st-n">${d.caps||0}</td>
     <td class="st-n">${d.minutesWC||0}'</td>
     <td class="st-n">${d.assists||0}</td>
