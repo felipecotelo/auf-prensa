@@ -3005,7 +3005,11 @@ const _wcFetching={};
 async function fetchWCDay(isoDate){
   const cache=stor.get(KWCCache,{});
   const ts=cache[isoDate]?.ts||0;
-  if(Date.now()-ts<3600000&&cache[isoDate]?.games) return; // cache 1h
+  const allCompleted=cache[isoDate]?.games?.length>0&&cache[isoDate].games.every(g=>g.completed);
+  const isPast=isoDate<new Date().toISOString().slice(0,10);
+  // Para fechas pasadas con partidos sin completar, refetch cada 15 min. Para el resto, cache 1h.
+  const ttl=(isPast&&!allCompleted)?900000:3600000;
+  if(Date.now()-ts<ttl&&cache[isoDate]?.games) return;
   if(_wcFetching[isoDate]) return;
   _wcFetching[isoDate]=true;
   try{
