@@ -5093,9 +5093,23 @@ function toggleFixExpand(mId, pizMatchId){
 }
 
 // Suplentes (no titulares) del partido — panel de solo lectura (mismos chips que pizarra)
-// Función compartida: banco idéntico en pizarra y fixture expand
+// Función compartida: banco idéntico en pizarra y fixture expand.
+// Si se llama sin container, actualiza TODOS los lugares donde aparece este matchId.
 async function renderBenchPanel(pizMatchId, container){
-  if(!container) return;
+  if(!container){
+    // Actualizar todos los contenedores activos para este partido
+    const pizCol=document.getElementById('piz-bench-col');
+    if(pizCol && _pizMatch===pizMatchId) await renderBenchPanel(pizMatchId, pizCol);
+    const fixId=Object.keys(FIX_TO_PIZ||{}).find(k=>FIX_TO_PIZ[k]===pizMatchId);
+    if(fixId){
+      const box=document.getElementById(`fix-expand-${fixId}`);
+      if(box&&box.style.display!=='none'){
+        const bc=box.querySelector('.fix-bench');
+        if(bc) await renderBenchPanel(pizMatchId, bc);
+      }
+    }
+    return;
+  }
   const all=getLineup();
   const ml=all[pizMatchId]||{starters:{}};
   const st=ml.starters||{};
