@@ -968,10 +968,11 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   padding:5px 12px;border-radius:20px;z-index:9999;pointer-events:none;
   letter-spacing:.03em;
 }
+/* Ocultar body hasta que el init de JS lo libere */
+html.auf-loading body { visibility:hidden }
 </style>
-</head>
-<body>
 <script>
+// Corre en <head> — antes de pintar cualquier cosa
 (function(){
   var p=new URLSearchParams(location.search);
   var tabs=p.get('tabs'),token=p.get('t'),ro=p.get('ro');
@@ -982,11 +983,13 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
     sessionStorage.removeItem('auf_authed');
     history.replaceState(null,'',location.pathname);
   }
-  var r=sessionStorage.getItem('auf_rtabs');
-  if(!r) return;
-  document.write('<div id="restrict-cover" style="position:fixed;inset:0;z-index:2147483647;background:#0A0A0F;pointer-events:all"></div>');
+  if(sessionStorage.getItem('auf_rtabs')){
+    document.documentElement.classList.add('auf-loading');
+  }
 })();
 </script>
+</head>
+<body>
 <nav class="nav">
   <div class="nav-brand">
     <img src="./logos/logo Selección.png" class="nav-logo" alt="AUF" onerror="this.style.display='none'">
@@ -9648,19 +9651,18 @@ function lgCopy(i,url){
     const _rToken=sessionStorage.getItem('auf_rtoken');
     if(_rToken && sessionStorage.getItem('auf_authed')!=='1'){
       await new Promise(resolve=>{
-        const ov=document.getElementById('restrict-cover');
-        if(ov) ov.style.background='#0A0A0F';
+        // Modal sobre el html (no sobre body — body está visibility:hidden)
         const modal=document.createElement('div');
-        modal.style.cssText='position:fixed;inset:0;z-index:2147483648;display:flex;align-items:center;justify-content:center;background:#0A0A0F';
-        modal.innerHTML=`<div style="background:#111827;border:1px solid #1F2937;border-radius:16px;padding:2rem;width:min(360px,90vw);text-align:center;font-family:system-ui,sans-serif">
-          <div style="font-size:13px;font-weight:800;letter-spacing:.15em;color:#009DD8;text-transform:uppercase;margin-bottom:1.5rem">AUF Prensa · FWC26</div>
+        modal.style.cssText='position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0A0A0F;font-family:system-ui,sans-serif';
+        modal.innerHTML=`<div style="background:#111827;border:1px solid #374151;border-radius:16px;padding:2rem;width:min(360px,90vw);text-align:center">
+          <div style="font-size:12px;font-weight:800;letter-spacing:.15em;color:#009DD8;text-transform:uppercase;margin-bottom:1.5rem">AUF Prensa · FWC26</div>
           <h2 style="font-size:18px;font-weight:700;color:#F9FAFB;margin:0 0 .5rem">Acceso restringido</h2>
           <p style="font-size:13px;color:#6B7280;margin:0 0 1.5rem">Ingresá la contraseña que te compartieron</p>
           <input id="_pwd" type="password" placeholder="Contraseña" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #374151;background:#1F2937;color:#F9FAFB;font-size:15px;outline:none;margin-bottom:1rem;box-sizing:border-box">
           <button id="_pwd_btn" style="width:100%;padding:11px;border-radius:8px;border:none;background:#009DD8;color:#fff;font-size:14px;font-weight:700;cursor:pointer">Ingresar</button>
           <div id="_pwd_err" style="color:#F87171;font-size:13px;margin-top:.75rem;min-height:18px"></div>
         </div>`;
-        document.body.appendChild(modal);
+        document.documentElement.appendChild(modal);
         modal.querySelector('#_pwd').focus();
         async function tryAuth(){
           const pwd=modal.querySelector('#_pwd').value.trim();
@@ -9683,10 +9685,13 @@ function lgCopy(i,url){
         modal.querySelector('#_pwd').addEventListener('keydown',e=>{if(e.key==='Enter')tryAuth();});
       });
     }
+    // Revelar body ahora que el acceso está confirmado
+    document.documentElement.classList.remove('auf-loading');
     await renderPlantel();
     renderEstadisticas();
     showTab(RESTRICTED_TABS[0]||'estadisticas');
   } else {
+    document.documentElement.classList.remove('auf-loading');
     renderInicio();
     renderCal();
     renderMatchSelBtns('uru-ksa');
