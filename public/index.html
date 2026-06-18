@@ -8102,7 +8102,9 @@ async function autoSyncCheck(){
       const syncKey = `${eventId}-${isFinished?'final':isLive?clock:'pre'}`;
       if(_lastSyncedEvent===syncKey) continue;
 
-      await syncLineupSilent(matchId, eventId, summary);
+      // Solo sincronizar lineup si no hay uno cargado manualmente
+      const existingStarters=Object.values(getLineup()[matchId]?.starters||{}).filter(Boolean);
+      if(!existingStarters.length) await syncLineupSilent(matchId, eventId, summary);
       await syncIncidentsSilent(matchId, summary);
       _lastSyncedEvent = syncKey;
 
@@ -8531,7 +8533,7 @@ async function tryAutoLoad(){
       try{
         const data=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`).then(r=>r.json());
         await syncIncidentsSilent(matchId,data);
-        await syncLineupSilent(matchId,eventId,data);
+        // NO llamar syncLineupSilent aquí — sobreescribiría el formulario oficial cargado manualmente
       }catch(e){}
     }
   })();
