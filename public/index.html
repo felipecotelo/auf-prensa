@@ -6787,6 +6787,22 @@ function dtChipsForMatch(dtId,matchId){
   return count?`<span class="att-chip att-cf">${count}×</span>`:'<span class="att-none">—</span>';
 }
 
+let _dispFilters={preMundial:true,llegada:true,'uru-ksa':true,'uru-cpv':true,'uru-esp':true};
+function toggleDispFilter(key){_dispFilters[key]=!_dispFilters[key];renderDisponibilidad();}
+
+function countFWCPerMatch(num){
+  const chk=getChk(), res={llegada:0,'uru-ksa':0,'uru-cpv':0,'uru-esp':0};
+  Object.keys(res).forEach(mid=>{
+    if(TODAY<(MATCH_RANGES[mid]?.from||'9999'))return;
+    const mc=chk[mid]||{};
+    Object.entries(mc).forEach(([actId,d])=>{
+      if(actId==='arr-ent')return;
+      if(d&&d.done&&d.players&&d.players.includes(num))res[mid]++;
+    });
+  });
+  return res;
+}
+
 function renderDisponibilidad(){
   const con=document.getElementById('disp-container');
   const chk=getChk();
@@ -6899,11 +6915,20 @@ function renderDisponibilidad(){
     </div>`;
 
   // ─── JUGADORES ─── compact visual list ────────────────────────────────────
-  const sorted=[...PLAYERS].sort((a,b)=>{
-    const totA=p=>{const f=countFWC(p.n);return((p.preT||[]).filter(x=>x.tipo!=='ae').length)+getAeroUy(p.n)+f.ob+f.noOb+countCalParts(p.n).ob+countCalParts(p.n).noOb;};
-    const fa=totA(a), fb=totA(b);
-    return fa-fb||(a.n-b.n);
-  });
+  // Totales filtrados por jugador
+  function playerPreTotal(p){
+    const calP=countCalParts(p.n);
+    return((p.preT||[]).filter(x=>x.tipo!=='ae').length)+getAeroUy(p.n)+calP.ob+calP.noOb;
+  }
+  function playerFilteredTotal(p){
+    let t=0;
+    if(_dispFilters.preMundial) t+=playerPreTotal(p);
+    const fm=countFWCPerMatch(p.n);
+    ['llegada','uru-ksa','uru-cpv','uru-esp'].forEach(mid=>{if(_dispFilters[mid])t+=fm[mid]||0;});
+    return t;
+  }
+
+  const sorted=[...PLAYERS].sort((a,b)=>playerFilteredTotal(a)-playerFilteredTotal(b)||(a.n-b.n));
 
   const inj=getPlayerInjury; // shorthand
 
@@ -6983,9 +7008,50 @@ function renderDisponibilidad(){
     </tr>`;
   }).join('');
 
+  // ─── SELECTOR RÁPIDO ──────────────────────────────────────────────────────
+  const fPhases=[
+    {key:'preMundial',label:'Pre-Mundial'},
+    {key:'llegada',   label:'Llegada 10/6'},
+    {key:'uru-ksa',   label:'vs KSA'},
+    {key:'uru-cpv',   label:'vs CPV'},
+    {key:'uru-esp',   label:'vs ESP'},
+  ];
+  const filterBtns=fPhases.map(f=>{
+    const on=_dispFilters[f.key];
+    return`<button onclick="toggleDispFilter('${f.key}')" style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:20px;border:1.5px solid ${on?'var(--cel)':'var(--border)'};background:${on?'var(--cel-lt)':'transparent'};color:${on?'var(--cel-dk)':'var(--muted)'};cursor:pointer;font-family:inherit">${on?'✓ ':''}${f.label}</button>`;
+  }).join('');
+
+  // Agrupar jugadores por carga filtrada
+  const groups=[
+    {label:'Sin atenciones',color:'#3B6D11',bg:'#EAF3DE',border:'#C0DD97',textColor:'#27500A',countBg:'#C0DD97',min:0,max:0},
+    {label:'1–2 atenciones',color:'#854F0B',bg:'#FAEEDA',border:'#FAC775',textColor:'#633806',countBg:'#FAC775',min:1,max:2},
+    {label:'3 o más',       color:'#A32D2D',bg:'#FCEBEB',border:'#F7C1C1',textColor:'#501313',countBg:'#F7C1C1',min:3,max:999},
+  ];
+  const selectorHtml=groups.map(g=>{
+    const members=sorted.filter(p=>{const t=playerFilteredTotal(p);return t>=g.min&&t<=g.max;});
+    if(!members.length)return'';
+    const chips=members.map(p=>{
+      const t=playerFilteredTotal(p);
+      const injColor=inj(p.n)==='red'?'#C0392B':inj(p.n)==='yellow'?'#F59E0B':'';
+      const injDot=injColor?`<span style="width:6px;height:6px;border-radius:50%;background:${injColor};display:inline-block;flex-shrink:0"></span>`:'';
+      return`<span style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;background:${g.bg};color:${g.color};border:1px solid ${g.border};font-size:12px;font-weight:500;white-space:nowrap">${injDot}<span style="font-size:10px;opacity:.7">#${p.n}</span> ${pShort(p)} <span style="font-size:10px;font-weight:700;background:${g.countBg};color:${g.textColor};padding:1px 5px;border-radius:8px;margin-left:2px">${t}</span></span>`;
+    }).join('');
+    return`<div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;color:${g.color};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${g.label} · ${members.length} jugadores</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
+    </div>`;
+  }).join('');
+
   // ─── RENDER ───────────────────────────────────────────────────────────────
   con.innerHTML=`
     ${dtSection}
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:1.25rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">Selector rápido</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${filterBtns}</div>
+      </div>
+      ${selectorHtml}
+    </div>
     <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding:8px 0 5px;border-bottom:0.5px solid var(--border);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
       <span>Jugadores — 26 convocados · ordenados de menos a más atenciones</span>
       <span style="font-weight:400;font-size:9.5px">• = 1 atención</span>
