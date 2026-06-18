@@ -1,19 +1,10 @@
-// v2026-06-18-access
+// v2026-06-18-clean
 const express  = require('express');
 const https    = require('https');
 const path     = require('path');
-const crypto   = require('crypto');
-const fs       = require('fs');
 const { loadCalendarDays } = require('./calendar-data');
 
 const app = express();
-
-// Secreto para firmar tokens de acceso (configurable por env var en Railway)
-function makeToken(tabs, password) {
-  return crypto.createHash('sha256')
-    .update(tabs + ':' + password)
-    .digest('hex').slice(0, 24);
-}
 
 // CORS
 app.use((req, res, next) => {
@@ -26,92 +17,15 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '50mb' }));
 
-// ── API: generar token para un link (lo llama el link generator de la app) ──
-app.post('/api/sign-link', (req, res) => {
-  const { tabs, password, ro } = req.body;
-  if (!tabs || !password) return res.status(400).json({ error: 'Faltan tabs o contraseña' });
-  const token = makeToken(tabs, password);
-  res.json({ token });
-});
-
-// ── API: verificar contraseña ─────────────────────────────────────────────────
-app.post('/api/verify-link', (req, res) => {
-  const { tabs, token, password } = req.body;
-  if (!tabs || !token || !password) return res.status(400).json({ error: 'Faltan parámetros' });
-  if (makeToken(tabs, password) !== token) {
-    return res.status(403).json({ error: 'Contraseña incorrecta' });
+// No cachear el HTML principal — evita que Railway CDN sirva versión vieja
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path === '/index.html') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
   }
-  res.json({ ok: true });
-});
-
-// ── Acceso restringido: detectar ?tabs=&t=TOKEN y servir gate de contraseña ──
-// Ruta dedicada /access — evita que el CDN de Railway la confunda con GET /
-app.get('/access', (req, res) => {
-  const tabs  = req.query.tabs;
-  const token = req.query.t;
-  const ro    = req.query.ro;
-  if (!tabs || !token) return res.redirect('/');
-
-  const safeT  = tabs.replace(/[^a-z0-9,\-]/gi, '');
-  const safeRo = ro === '1' ? '1' : '0';
-  res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(`<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AUF Prensa — Acceso</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0A0A0F;min-height:100dvh;display:flex;align-items:center;justify-content:center}
-  .box{background:#111827;border:1px solid #1F2937;border-radius:16px;padding:2rem;width:min(360px,90vw);text-align:center}
-  .logo{font-size:13px;font-weight:800;letter-spacing:.15em;color:#009DD8;text-transform:uppercase;margin-bottom:1.5rem}
-  h1{font-size:18px;font-weight:700;color:#F9FAFB;margin-bottom:.5rem}
-  p{font-size:13px;color:#6B7280;margin-bottom:1.5rem}
-  input{width:100%;padding:10px 14px;border-radius:8px;border:1px solid #374151;background:#1F2937;color:#F9FAFB;font-size:15px;outline:none;margin-bottom:1rem}
-  input:focus{border-color:#009DD8}
-  button{width:100%;padding:11px;border-radius:8px;border:none;background:#009DD8;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
-  button:disabled{opacity:.5;cursor:default}
-  .err{color:#F87171;font-size:13px;margin-top:.75rem;min-height:20px}
-</style>
-</head>
-<body>
-<div class="box">
-  <div class="logo">AUF Prensa · FWC26</div>
-  <h1>Acceso restringido</h1>
-  <p>Ingresá la contraseña que te compartieron</p>
-  <input id="pwd" type="password" placeholder="Contraseña" autofocus>
-  <button id="btn" onclick="verify()">Ingresar</button>
-  <div class="err" id="err"></div>
-</div>
-<script>
-  var TABS='${safeT}', TOKEN='${token}', RO='${safeRo}';
-  document.getElementById('pwd').addEventListener('keydown',function(e){if(e.key==='Enter')verify();});
-  async function verify(){
-    var pwd=document.getElementById('pwd').value.trim();
-    if(!pwd)return;
-    var btn=document.getElementById('btn');
-    btn.disabled=true; btn.textContent='Verificando…';
-    try{
-      var r=await fetch('/api/verify-link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tabs:TABS,token:TOKEN,password:pwd})});
-      if(r.ok){
-        sessionStorage.setItem('auf_rtabs',TABS);
-        if(RO==='1') sessionStorage.setItem('auf_ro','1');
-        location.href='/';
-      } else {
-        var d=await r.json();
-        document.getElementById('err').textContent=d.error||'Error al verificar';
-        btn.disabled=false; btn.textContent='Ingresar';
-      }
-    }catch(e){
-      document.getElementById('err').textContent='Error de conexión';
-      btn.disabled=false; btn.textContent='Ingresar';
-    }
-  }
-</script>
-</body>
-</html>`);
+  next();
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
