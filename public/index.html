@@ -5983,9 +5983,9 @@ function renderGrafica(){
   function selectedChips(matchId,stage){
     const sel=g[matchId][stage].players||[];
     if(!sel.length)return'<span style="font-size:10.5px;color:var(--hint)">— sin seleccionar —</span>';
-    return `<div class="player-chips">${sel.map(n=>{
+    return `<div class="player-chips" style="pointer-events:none">${sel.map(n=>{
       const p=PLAYERS.find(pl=>pl.n===n);
-      return `<span class="gr-chip sel" onclick="toggleGraficaPlayer('${matchId}','${stage}',${n},this)">#${n} ${pShort(p)}</span>`;
+      return `<span class="gr-chip sel" style="cursor:default">#${n} ${pShort(p)}</span>`;
     }).join('')}</div>`;
   }
 
@@ -5993,16 +5993,20 @@ function renderGrafica(){
     const link=g[matchId][stage].link||'';
     const key=`${matchId}_${stage}`;
     const expanded=_graficaExpanded.has(key);
+    const sel=g[matchId][stage].players||[];
     return `<div style="flex:1;min-width:220px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${label}</div>
         ${link?`<a href="${link}" target="_blank" rel="noopener" style="font-size:10px;text-decoration:none;color:var(--cel-dk);font-weight:700">🔗 Ver diseño</a>`:''}
       </div>
       ${expanded?playerGrid(matchId,stage):selectedChips(matchId,stage)}
-      <button onclick="toggleGraficaExpand('${key}')" style="background:none;border:none;cursor:pointer;font-size:10px;font-weight:700;color:var(--cel-dk);padding:4px 0 6px;text-decoration:underline">${expanded?'Ocultar lista':'+ Elegir jugadores'}</button>
-      ${expanded?`<input type="text" value="${link.replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)"
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <button onclick="toggleGraficaExpand('${key}')" style="background:none;border:none;cursor:pointer;font-size:10px;font-weight:700;color:var(--cel-dk);padding:4px 0;text-decoration:underline;flex-shrink:0">${expanded?'✓ Listo':'✏️ Editar'}</button>
+        ${!expanded&&sel.length?`<span style="font-size:10px;color:var(--muted)">${sel.length} jugador${sel.length!==1?'es':''} seleccionado${sel.length!==1?'s':''}</span>`:''}
+      </div>
+      <input type="text" value="${link.replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)"
         onchange="saveGraficaLink('${matchId}','${stage}',this)"
-        style="width:100%;margin-top:6px;font-size:10.5px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted)">`:''}
+        style="width:100%;margin-top:6px;font-size:10.5px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted)">
     </div>`;
   }
 
