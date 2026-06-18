@@ -1008,18 +1008,21 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab" onclick="showTab('linkgen')" style="color:#7C3AED"><i class="ti ti-link"></i>Links</button>
 </div>
 <script>
-// Restricción aplicada inmediatamente — antes de que el usuario pueda interactuar
 (function(){
   var p=new URLSearchParams(location.search);
   var tabs=p.get('tabs'),key=p.get('k'),ro=p.get('ro');
   if(tabs){ sessionStorage.setItem('auf_rtabs',tabs); if(key) sessionStorage.setItem('auf_rkey',key); else sessionStorage.removeItem('auf_rkey'); if(ro==='1') sessionStorage.setItem('auf_ro','1'); else sessionStorage.removeItem('auf_ro'); }
   var r=sessionStorage.getItem('auf_rtabs');
   if(!r) return;
+  // Cubrir TODO el viewport con overlay opaco — se saca solo cuando showTab lo quite
+  var ov=document.createElement('div');
+  ov.id='restrict-cover';
+  ov.style.cssText='position:fixed;inset:0;z-index:999999;background:#F3F4F6';
+  document.body.appendChild(ov);
+  // Ocultar tabs no permitidos
   var allowed=r.split(',');
   var map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
   document.querySelectorAll('.tab').forEach(function(tab,i){ if(!allowed.includes(map[i])) tab.style.display='none'; });
-  var nav=document.querySelector('nav'); if(nav) nav.style.display='none';
-  var ini=document.getElementById('inicio'); if(ini) ini.classList.remove('active');
   document.documentElement.setAttribute('data-dmode','1');
   if(sessionStorage.getItem('auf_ro')==='1') document.documentElement.setAttribute('data-readonly','1');
 })();
@@ -2665,6 +2668,8 @@ function showTab(id){
   const _sec=document.getElementById(id);
   _sec.classList.add('active');
   if(IS_RESTRICTED) _sec.classList.add('dmode-visible');
+  // Quitar overlay de restricción (se puso en el inline script para cubrir todo hasta acá)
+  document.getElementById('restrict-cover')?.remove();
   const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
   const i=map.indexOf(id);
   if(i>=0)document.querySelectorAll('.tab')[i].classList.add('active');
