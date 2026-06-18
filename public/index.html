@@ -9418,12 +9418,10 @@ async function lgSaveProfile(){
 
   let token=null;
   if(key){
-    try{
-      const apiBase=location.protocol==='file:'?'https://auf-prensa-production.up.railway.app':'';
-      const r=await fetch(apiBase+'/api/sign-link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tabs:tabs.join(','),password:key,ro:ro?'1':'0'})});
-      const d=await r.json();
-      token=d.token||null;
-    }catch(e){alert('Error al generar el link seguro. Verificá la conexión.');return;}
+    // Token calculado localmente con WebCrypto SHA-256 — mismo algoritmo que el servidor
+    const msg=new TextEncoder().encode(tabs.join(',')+':'+key);
+    const hashBuf=await crypto.subtle.digest('SHA-256',msg);
+    token=Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,24);
   }
 
   const profiles=getLinkProfiles();

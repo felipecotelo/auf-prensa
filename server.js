@@ -8,10 +8,8 @@ const { loadCalendarDays } = require('./calendar-data');
 const app = express();
 
 // Secreto para firmar tokens de acceso (configurable por env var en Railway)
-const LINK_SECRET = process.env.LINK_SECRET || 'auf-prensa-fwc26-secret';
-
 function makeToken(tabs, password) {
-  return crypto.createHmac('sha256', LINK_SECRET)
+  return crypto.createHash('sha256')
     .update(tabs + ':' + password)
     .digest('hex').slice(0, 24);
 }
