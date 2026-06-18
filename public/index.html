@@ -1792,6 +1792,18 @@ function flagImg(code, size=28){
 
 const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp', KWCCache='auf4_wc_cache3', KSlotPos='auf4_slotpos';
 
+// ── Partido "cerrado con oficial" — ESPN no puede modificar nada ─────────────
+const KMatchLocked='auf4_match_locked';
+const getMatchLocked=()=>stor.get(KMatchLocked,{});
+const isMatchLocked=matchId=>!!getMatchLocked()[matchId];
+function toggleMatchLock(matchId){
+  const ml=getMatchLocked();
+  ml[matchId]=!ml[matchId];
+  stor.set(KMatchLocked,ml);
+  renderPizarra(matchId);
+  toast(ml[matchId]?'🔒 Partido cerrado con formulario oficial — ESPN desactivado':'🔓 Partido desbloqueado — ESPN puede sincronizar');
+}
+
 // ── MVP del partido (Player of the Match — premio oficial FIFA) ────────────
 function getMvp(){return stor.get(KMvp,{})}
 function setMvp(v){stor.set(KMvp,v)}
@@ -5225,6 +5237,7 @@ function removeMatchEvent(mId, pizMatchId, evId){
 // Trae goles, tarjetas y cambios desde la API pública de ESPN y reemplaza las incidencias del partido
 // ── Sync completo partido: ESPN (goles/cambios/tarjetas + XI) + FotMob (calificaciones) ──
 async function syncMatchFull(matchId){
+  if(isMatchLocked(matchId)){toast('🔒 Partido cerrado con formulario oficial — desbloqueá para sincronizar ESPN');return;}
   const btn=document.getElementById(`piz-sync-btn-${matchId}`);
   if(btn){btn.disabled=true;btn.textContent='Actualizando...';}
   const fotmobId=FOTMOB_EVENTS[matchId];
@@ -7398,8 +7411,12 @@ async function renderPizarra(matchId){
     <div style="margin-top:10px">
       <div style="margin-bottom:8px">
         <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Resumen del partido</div>
-        <div style="display:flex;gap:5px">
-          <button id="piz-sync-btn-${matchId}" onclick="syncMatchFull('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid var(--cel);border-radius:5px;background:var(--cel-lt);color:var(--cel-dk);cursor:pointer;white-space:nowrap;flex:1">🔄 Actualizar</button>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${isMatchLocked(matchId)
+            ? `<button onclick="toggleMatchLock('${matchId}')" style="font-size:9.5px;font-weight:800;padding:4px 10px;border:0.5px solid #16A34A;border-radius:5px;background:#F0FDF4;color:#16A34A;cursor:pointer;white-space:nowrap;width:100%">🔒 Oficial cargado — tocar para desbloquear ESPN</button>`
+            : `<button id="piz-sync-btn-${matchId}" onclick="syncMatchFull('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid var(--cel);border-radius:5px;background:var(--cel-lt);color:var(--cel-dk);cursor:pointer;white-space:nowrap;flex:1">🔄 Actualizar</button>
+               <button onclick="toggleMatchLock('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid #16A34A;border-radius:5px;background:var(--surface);color:#16A34A;cursor:pointer;white-space:nowrap">🔒 Cerrar con oficial</button>`
+          }
           <button onclick="openDeltaEditor('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap;flex:1">✏️ Corregir</button>
         </div>
       </div>
@@ -8102,7 +8119,7 @@ async function autoSyncCheck(){
       const syncKey = `${eventId}-${isFinished?'final':isLive?clock:'pre'}`;
       if(_lastSyncedEvent===syncKey) continue;
 
-      // Solo sincronizar lineup si no hay uno cargado manualmente
+      if(isMatchLocked(matchId)) continue; // partido cerrado con oficial — ESPN no toca nada
       const existingStarters=Object.values(getLineup()[matchId]?.starters||{}).filter(Boolean);
       if(!existingStarters.length) await syncLineupSilent(matchId, eventId, summary);
       await syncIncidentsSilent(matchId, summary);
@@ -8527,6 +8544,7 @@ async function tryAutoLoad(){
     const stored=getMatchEvents();
     for(const [matchId,date] of Object.entries(ESPN_MATCH_DATES)){
       if(date>=today) continue; // partido futuro, saltar
+      if(isMatchLocked(matchId)) continue; // cerrado con oficial
       if(stored[matchId]?.length) continue; // ya hay datos, saltar
       const eventId=ESPN_EVENTS[matchId];
       if(!eventId) continue;
