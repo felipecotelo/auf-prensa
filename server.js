@@ -246,3 +246,4 @@ app.get('/api/calendar.ics', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));
+// trigger deploy Thu Jun 18 18:40:44 EST 2026
