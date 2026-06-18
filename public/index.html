@@ -119,6 +119,7 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 /* ── MAIN ───────────────────────────────────────── */
 main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .section{display:none}.section.active{display:block}
+[data-dmode] .section{display:none}
 
 /* ── SECTION HEADER ─────────────────────────────── */
 .sec-hdr{
@@ -2658,9 +2659,11 @@ function toast(msg){
 // ═══════════════════════════════════════════════════════════════════════════
 function showTab(id){
   if(IS_RESTRICTED&&!RESTRICTED_TABS.includes(id)) return;
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active');if(IS_RESTRICTED)s.style.display='';});
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  const _sec=document.getElementById(id);
+  _sec.classList.add('active');
+  if(IS_RESTRICTED) _sec.style.display='block';
   const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
   const i=map.indexOf(id);
   if(i>=0)document.querySelectorAll('.tab')[i].classList.add('active');
@@ -3780,7 +3783,7 @@ function toggleEvPart(date,idx,partKey,chip){
 // ═══════════════════════════════════════════════════════════════════════════
 // CHECKLIST
 // ═══════════════════════════════════════════════════════════════════════════
-let curMatch='uru-ksa';
+let curMatch=(()=>{const matches=[{id:'uru-ksa',date:'2026-06-15'},{id:'uru-cpv',date:'2026-06-21'},{id:'uru-esp',date:'2026-06-26'}];const next=matches.find(m=>m.date>=TODAY);return next?next.id:matches[matches.length-1].id;})();
 
 function renderMatchSelBtns(activeId){
   const cont=document.getElementById('match-sel-btns');
