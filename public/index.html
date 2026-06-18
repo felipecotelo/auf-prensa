@@ -5037,27 +5037,48 @@ function rescheduleEvent(origDate,origIdx,renderDay,ev){
   const existing=getEvResch()[evKey(origDate,origIdx)];
   const overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
   const dateOpts=CALENDAR_DAYS.filter(d=>d.tipo!=='viaje'&&d.date!==origDate)
-    .map(d=>{const dt=new Date(d.date+'T12:00:00');const lbl=dt.toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short'});return`<option value="${d.date}"${existing&&existing.toDate===d.date?' selected':''}>${lbl}</option>`;}).join('');
-  overlay.innerHTML=`
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:280px;max-width:340px;font-family:inherit">
+    .map(d=>{const dt=new Date(d.date+'T12:00:00');const lbl=dt.toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short'});const sel=existing&&existing.toDate===d.date?' selected':'';return`<option value="${d.date}"${sel}>${lbl}</option>`;}).join('');
+  const inner=document.createElement('div');
+  inner.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:280px;max-width:340px;font-family:inherit';
+  inner.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <span style="font-weight:700;font-size:15px;color:var(--text)">📅 Reagendar evento</span>
-      <button onclick="this.closest('div[style]').parentElement.remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted)">✕</button>
+      <button id="resch-close" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted)">✕</button>
     </div>
-    <div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.4">Mové este evento a otro día del calendario. El evento original desaparece de su fecha y aparece en la nueva.</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.4">Mové este evento a otro día del calendario.</div>
     <label style="font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nuevo día</label>
     <select id="resch-date" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text);margin-bottom:12px">${dateOpts}</select>
     <label style="font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Hora</label>
     <input id="resch-time" type="text" placeholder="HH:MM" value="${existing?existing.toTime:''}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:15px;font-weight:700;color:var(--cel-dk);background:var(--bg);box-sizing:border-box;margin-bottom:16px">
     <div style="display:flex;gap:8px">
-      ${existing?`<button onclick="clearEvResch('${origDate}',${origIdx});this.closest('div[style]').parentElement.remove();rerenderDayEvents('${origDate}');rerenderDayEvents('${existing.toDate}')" style="flex:1;padding:9px;border:1.5px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:13px;color:var(--muted);font-family:inherit">Deshacer</button>`:''}
-      <button onclick="(()=>{const d=document.getElementById('resch-date').value,t=document.getElementById('resch-time').value.trim();if(!d||!t){alert('Completá día y hora');return;}saveEvResch('${origDate}',${origIdx},d,t);${existing?`rerenderDayEvents('${existing.toDate}');`:''}rerenderDayEvents('${origDate}');rerenderDayEvents(d);this.closest('div[style]').parentElement.remove();})()" style="flex:2;padding:9px;border:none;border-radius:8px;background:var(--cel);color:#fff;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit">Confirmar</button>
-    </div>
-  </div>`;
+      ${existing?'<button id="resch-undo" style="flex:1;padding:9px;border:1.5px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:13px;color:var(--muted);font-family:inherit">Deshacer</button>':''}
+      <button id="resch-confirm" style="flex:2;padding:9px;border:none;border-radius:8px;background:var(--cel);color:#fff;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit">Confirmar</button>
+    </div>`;
+  overlay.appendChild(inner);
   document.body.appendChild(overlay);
-  setTimeout(()=>document.getElementById('resch-time')?.focus(),50);
+  const close=()=>overlay.remove();
+  overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+  inner.querySelector('#resch-close').addEventListener('click',close);
+  if(existing){
+    inner.querySelector('#resch-undo').addEventListener('click',()=>{
+      clearEvResch(origDate,origIdx);
+      rerenderDayEvents(origDate);
+      rerenderDayEvents(existing.toDate);
+      close();
+    });
+  }
+  inner.querySelector('#resch-confirm').addEventListener('click',()=>{
+    const d=inner.querySelector('#resch-date').value;
+    const t=inner.querySelector('#resch-time').value.trim();
+    if(!d||!t){alert('Completá día y hora');return;}
+    if(existing) rerenderDayEvents(existing.toDate);
+    saveEvResch(origDate,origIdx,d,t);
+    rerenderDayEvents(origDate);
+    rerenderDayEvents(d);
+    close();
+  });
+  setTimeout(()=>inner.querySelector('#resch-time')?.focus(),50);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
