@@ -5092,8 +5092,8 @@ function toggleFixExpand(mId, pizMatchId){
   }
 }
 
-// Suplentes (no titulares) del partido — panel de solo lectura
-function renderFixBench(pizMatchId, container){
+// Suplentes (no titulares) del partido — panel de solo lectura (mismos chips que pizarra)
+async function renderFixBench(pizMatchId, container){
   if(!container) return;
   const all=getLineup();
   const ml=all[pizMatchId]||{starters:{}};
@@ -5102,17 +5102,57 @@ function renderFixBench(pizMatchId, container){
   const POS_SORT={POR:0,DEF:1,MED:2,DEL:3};
   const bench=PLAYERS.filter(p=>!usedNums.has(p.n))
     .sort((a,b)=>(POS_SORT[a.pos]??9)-(POS_SORT[b.pos]??9)||a.n-b.n);
+
+  const photos=await getAllPhotosIDB();
+  const yellows=getYellows();
+  const evs=(getMatchEvents()[pizMatchId]||[]);
+  const nm=buildNameMap();
+  const mn=name=>nm[normName(name)]||nm[normName(name.split(' ').pop())];
+  const subInMin={}, evsByNum={};
+  evs.forEach(e=>{
+    if(e.side!=='uru') return;
+    if(e.type==='sub'&&e.extra){const inN=mn(e.extra);if(inN)subInMin[inN]=e.min;}
+    else if(e.type==='goal'){const n=mn(e.player);if(n)(evsByNum[n]=evsByNum[n]||[]).push({type:'goal',min:e.min});}
+    else if(e.type==='card'){const n=mn(e.player);if(n)(evsByNum[n]=evsByNum[n]||[]).push({type:'card',extra:e.extra,min:e.min});}
+  });
+  const suspendedNums=new Set(PLAYERS.filter(p=>yellows[p.n]>=2).map(p=>p.n));
+
+  const POS_ORDER=['POR','DEF','MED','DEL'];
+  const POS_LABELS={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
+  const benchByPos=POS_ORDER.map(pos=>({pos,label:POS_LABELS[pos],players:bench.filter(p=>p.pos===pos)})).filter(g=>g.players.length);
+
+  function chipHtml(p){
+    const ph=photos[p.n]||p.photo||'';
+    const pts=p.name.trim().split(' ');
+    const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+    const inj=getPlayerInjury(p.n);
+    const injDot=inj==='red'?'<span style="width:6px;height:6px;border-radius:50%;background:#C0392B;display:inline-block;flex-shrink:0"></span>'
+                :inj==='yellow'?'<span style="width:6px;height:6px;border-radius:50%;background:#F59E0B;display:inline-block;flex-shrink:0"></span>':'';
+    const isSusp=suspendedNums.has(p.n);
+    const subMin=subInMin[p.n];
+    const didPlay=subMin!=null;
+    const pEvs=evsByNum[p.n]||[];
+    const evBadges=pEvs.map(e=>e.type==='goal'?`<span style="font-size:9px">⚽${e.min}'</span>`:e.extra==='r'?`<span style="font-size:9px">🟥</span>`:`<span style="font-size:9px">🟨</span>`).join('');
+    const subBadge=didPlay?`<span style="font-size:8px;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 3px;margin-left:3px;white-space:nowrap">▲ ${subMin}'</span>`:'';
+    const chipStyle=isSusp?'border-color:#DC2626;background:#FEF2F2':didPlay?'border-color:#16A34A;background:#F0FDF4':'opacity:.45;filter:grayscale(.5)';
+    return`<div class="piz-p-chip" style="${chipStyle}">
+      <div class="piz-chip-av">
+        ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
+        <span class="piz-chip-av-num" style="${ph?'display:none':''}">${p.n}</span>
+      </div>
+      <div class="piz-chip-info">
+        <div class="piz-chip-top">${injDot}<span class="piz-chip-num">#${p.n}</span><span class="piz-chip-name">${sn}</span>${subBadge}${isSusp?'<span style="font-size:7px;font-weight:900;background:#DC2626;color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">SUSP</span>':''}${p.captain===1?'<span style="font-size:7px;font-weight:900;background:var(--gold);color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">C</span>':''}</div>
+        ${evBadges?`<div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap">${evBadges}</div>`:''}
+      </div>
+    </div>`;
+  }
+
   container.innerHTML=`
-    <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Suplentes — ${bench.length}</div>
-    ${bench.map(p=>{
-      const pts=p.name.trim().split(' ');
-      const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
-      return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-bottom:0.5px solid var(--border)">
-        <span style="font-weight:800;color:var(--cel-dk);min-width:22px">${p.n}</span>
-        <span style="color:var(--muted);min-width:32px">${p.pos}</span>
-        <span>${sn}</span>
-      </div>`;
-    }).join('')}
+    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Banco — ${bench.length} jugadores</div>
+    ${benchByPos.map(g=>`
+      <div style="font-size:8.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;padding:5px 0 3px;border-bottom:0.5px solid var(--border);margin-bottom:4px">${g.label}</div>
+      <div class="piz-bench-chips" style="display:flex;flex-direction:column;gap:3px;margin-bottom:4px">${g.players.map(chipHtml).join('')}</div>
+    `).join('')}
   `;
 }
 
