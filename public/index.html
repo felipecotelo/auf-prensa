@@ -7372,6 +7372,12 @@ async function renderPizarra(matchId){
   const starterDefaultNums=starterRows.map(x=>x.p.n);
   const starterOrder=getOrderedNums(starterKey,starterDefaultNums);
   starterRows=starterOrder.map(n=>starterRows.find(x=>x.p.n===n)).filter(Boolean);
+  // Goleadores del partido actual (para badge ⚽ en tabla)
+  const _stNm=buildNameMap();
+  const _stMn=name=>_stNm[normName(name)]||_stNm[normName(name.split(' ').pop())];
+  const _matchGoalers=new Set();
+  (getMatchEvents()[matchId]||[]).forEach(e=>{if(e.type==='goal'&&e.side==='uru'){const n=_stMn(e.player);if(n)_matchGoalers.add(n);}});
+
   const statsTableHtml = starterRows.length ? `
     <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
       <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px 6px;border-bottom:0.5px solid var(--border)">
@@ -7392,8 +7398,9 @@ async function renderPizarra(matchId){
           const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
           const pts=p.name.trim().split(' ');
           const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+          const goalBadge=_matchGoalers.has(p.n)?`<span style="font-size:11px;margin-left:5px" title="Gol en este partido">⚽</span>`:'';
           return`<tr id="stat-row-${starterKey}-${p.n}" style="border-bottom:0.5px solid var(--border)">
-            <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
+            <td style="padding:6px 10px;font-weight:700">${statsOrderArrows(starterKey,starterDefaultNums,p.n)}<span style="font-size:10px;color:var(--muted);margin-right:4px">${slot.pos}</span>${sn}${goalBadge}${injBadge}${p.n===mvpNum?` ${mvpBadgeHtml('margin-left:5px')}`:''}</td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--cel-dk)"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).caps}</span>${statDeltaBadge(p.n,'caps')}</div></td>
             <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--green)"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).goals}</span>${statDeltaBadge(p.n,'goals')}</div></td>
             <td style="padding:6px 6px;text-align:center;font-weight:800;color:var(--gold)"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).wcCaps}</span>${statDeltaBadge(p.n,'wcCaps')}</div></td>
