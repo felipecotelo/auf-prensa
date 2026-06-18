@@ -15,6 +15,31 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: '50mb' }));
+
+// Claves válidas para acceso restringido
+const VALID_KEYS = { 'Bielsa2026': true, 'AUF2026': true };
+
+// Interceptar la ruta raíz cuando viene con ?tabs= y validar clave
+app.get('/', (req, res, next) => {
+  const tabs = req.query.tabs;
+  const key  = req.query.k;
+  if (!tabs) return next(); // acceso normal
+
+  if (!key || !VALID_KEYS[key]) {
+    return res.status(403).send('Acceso no autorizado.');
+  }
+
+  // Clave válida: servir HTML con no-cache para que siempre sea el más reciente
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// HTML principal siempre sin caché de CDN
+app.get('/index.html', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Config ────────────────────────────────────────────
