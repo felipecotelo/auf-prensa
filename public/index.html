@@ -973,28 +973,26 @@ html.auf-gate body { display:none !important }
 </style>
 <script>
 (function(){
-  // Leer de cookies (seteadas por el server en /r) — siempre llegan antes que el HTML
-  function gc(n){var m=document.cookie.match(new RegExp('(?:^| )'+n+'=([^;]*)'));return m?decodeURIComponent(m[1]):null;}
-  var tabs=gc('auf_rtabs'), token=gc('auf_rtoken'), ro=gc('auf_ro');
+  // Leer del hash: /#r?tabs=X&t=Y&ro=1
+  // El hash NUNCA se envía al servidor — funciona con static hosting, sin Express
+  var hash=location.hash;
+  var tabs,token,ro;
+  if(hash.startsWith('#r?')){
+    var hp=new URLSearchParams(hash.slice(3));
+    tabs=hp.get('tabs'); token=hp.get('t'); ro=hp.get('ro');
+    history.replaceState(null,'',location.pathname);
+  }
+  // Fallback: query params (por si alguien tiene un link viejo)
+  if(!tabs){
+    var qp=new URLSearchParams(location.search);
+    tabs=qp.get('tabs'); token=qp.get('t'); ro=qp.get('ro');
+    if(tabs) history.replaceState(null,'',location.pathname);
+  }
   if(tabs){
     sessionStorage.setItem('auf_rtabs',tabs);
     sessionStorage.setItem('auf_rtoken',token||'');
     if(ro==='1') sessionStorage.setItem('auf_ro','1'); else sessionStorage.removeItem('auf_ro');
     sessionStorage.removeItem('auf_authed');
-    // Borrar cookies — ya están en sessionStorage
-    ['auf_rtabs','auf_rtoken','auf_ro','auf_authed'].forEach(function(k){
-      document.cookie=k+'=; Path=/; Max-Age=0; SameSite=Strict';
-    });
-  }
-  // Fallback: leer de URL params también (por si alguien accede con ?tabs= directo)
-  var p=new URLSearchParams(location.search);
-  var ptabs=p.get('tabs'),pt=p.get('t'),pro=p.get('ro');
-  if(ptabs){
-    sessionStorage.setItem('auf_rtabs',ptabs);
-    sessionStorage.setItem('auf_rtoken',pt||'');
-    if(pro==='1') sessionStorage.setItem('auf_ro','1'); else sessionStorage.removeItem('auf_ro');
-    sessionStorage.removeItem('auf_authed');
-    history.replaceState(null,'',location.pathname);
   }
   if(sessionStorage.getItem('auf_rtabs')){
     document.documentElement.classList.add('auf-gate');
@@ -9351,8 +9349,8 @@ function renderLinkGen(){
   const profilesHtml=profiles.length?profiles.map((p,i)=>{
     const rBase='https://auf-prensa-production.up.railway.app';
     const url=p.token
-      ? rBase+'/r?tabs='+encodeURIComponent(p.tabs.join(','))+'&t='+p.token+(p.ro?'&ro=1':'')
-      : rBase+'/?tabs='+encodeURIComponent(p.tabs.join(','))+(p.ro?'&ro=1':'');
+      ? rBase+'/#r?tabs='+encodeURIComponent(p.tabs.join(','))+'&t='+p.token+(p.ro?'&ro=1':'')
+      : rBase+'/#r?tabs='+encodeURIComponent(p.tabs.join(','))+(p.ro?'&ro=1':'');
     return`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div>
