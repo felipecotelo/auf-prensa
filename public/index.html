@@ -5930,9 +5930,13 @@ function renderGrafica(){
 
   function playerGrid(matchId,stage){
     const sel=g[matchId][stage].players||[];
+    const curKey=`${matchId}_${stage==='md1'?'MD-1':'MD'}`;
     return `<div class="player-chips">${PLAYERS.map(p=>{
       const isSel=sel.includes(p.n);
-      return `<span class="gr-chip${isSel?' sel':''}" onclick="toggleGraficaPlayer('${matchId}','${stage}',${p.n},this)">#${p.n} ${pShort(p)}</span>`;
+      const usedElsewhere=(usage[p.n]||[]).filter(t=>t!==`${GRAFICA_MATCHES.find(m=>m.id===matchId)?.short} ${stage==='md1'?'MD-1':'MD'}`);
+      const usedTag=!isSel&&usedElsewhere.length?` <span style="font-size:8px;opacity:.7">${usedElsewhere.map(t=>t.replace(/ MD-?1?$/,'')).join('/')}</span>`:'';
+      const usedStyle=!isSel&&usedElsewhere.length?';opacity:.55;background:var(--cel-lt);color:var(--cel-dk);border-color:var(--cel)':'';
+      return `<span class="gr-chip${isSel?' sel':''}" style="${usedStyle}" onclick="toggleGraficaPlayer('${matchId}','${stage}',${p.n},this)">#${p.n} ${pShort(p)}${usedTag}</span>`;
     }).join('')}</div>`;
   }
 
