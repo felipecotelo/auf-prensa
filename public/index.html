@@ -1005,6 +1005,23 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab" onclick="showTab('registro')"><i class="ti ti-clipboard-list"></i>Registro</button>
   <button class="tab" onclick="showTab('linkgen')" style="color:#7C3AED"><i class="ti ti-link"></i>Links</button>
 </div>
+<script>
+// Restricción aplicada inmediatamente — antes de que el usuario pueda interactuar
+(function(){
+  var p=new URLSearchParams(location.search);
+  var tabs=p.get('tabs'),key=p.get('k'),ro=p.get('ro');
+  if(tabs){ sessionStorage.setItem('auf_rtabs',tabs); if(key) sessionStorage.setItem('auf_rkey',key); else sessionStorage.removeItem('auf_rkey'); if(ro==='1') sessionStorage.setItem('auf_ro','1'); else sessionStorage.removeItem('auf_ro'); }
+  var r=sessionStorage.getItem('auf_rtabs');
+  if(!r) return;
+  var allowed=r.split(',');
+  var map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
+  document.querySelectorAll('.tab').forEach(function(tab,i){ if(!allowed.includes(map[i])) tab.style.display='none'; });
+  var nav=document.querySelector('nav'); if(nav) nav.style.display='none';
+  var ini=document.getElementById('inicio'); if(ini) ini.classList.remove('active');
+  document.documentElement.setAttribute('data-dmode','1');
+  if(sessionStorage.getItem('auf_ro')==='1') document.documentElement.setAttribute('data-readonly','1');
+})();
+</script>
 
 <main>
 
@@ -1842,25 +1859,11 @@ const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart=
 
 // ── Acceso restringido por URL ───────────────────────────────────────────────
 // URL: ?tabs=plantel,estadisticas,grafica&k=CLAVE  (k es opcional)
-// La clave + config se guardan en sessionStorage para que dure la sesión.
 const KLinks='auf4_links'; // perfiles guardados en localStorage
-(()=>{
-  const p=new URLSearchParams(location.search);
-  const tabs=p.get('tabs'), key=p.get('k'), ro=p.get('ro');
-  if(tabs){
-    sessionStorage.setItem('auf_rtabs', tabs);
-    if(key) sessionStorage.setItem('auf_rkey', key);
-    else sessionStorage.removeItem('auf_rkey');
-    if(ro==='1') sessionStorage.setItem('auf_ro','1');
-    else sessionStorage.removeItem('auf_ro');
-  }
-})();
 const _rTabs=sessionStorage.getItem('auf_rtabs');
 const IS_RESTRICTED=!!_rTabs;
 const RESTRICTED_TABS=IS_RESTRICTED?_rTabs.split(','):[];
 const IS_READONLY=sessionStorage.getItem('auf_ro')==='1';
-if(IS_RESTRICTED) document.documentElement.setAttribute('data-dmode','1');
-if(IS_READONLY) document.documentElement.setAttribute('data-readonly','1');
 // ─────────────────────────────────────────────────────────────────────────────
 const KMatchLocked='auf4_match_locked';
 const getMatchLocked=()=>stor.get(KMatchLocked,{});
