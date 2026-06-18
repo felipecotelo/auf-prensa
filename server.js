@@ -14,30 +14,39 @@ app.use((req, res, next) => {
   next();
 });
 
+const fs = require('fs');
+
 app.use(express.json({ limit: '50mb' }));
 
 // Claves válidas para acceso restringido
 const VALID_KEYS = { 'Bielsa2026': true, 'AUF2026': true };
 
-// Interceptar la ruta raíz cuando viene con ?tabs= y validar clave
+// Acceso restringido: inyectar restricción server-side antes de servir el HTML
 app.get('/', (req, res, next) => {
   const tabs = req.query.tabs;
   const key  = req.query.k;
-  if (!tabs) return next(); // acceso normal
+  const ro   = req.query.ro;
+  if (!tabs) return next();
 
   if (!key || !VALID_KEYS[key]) {
-    return res.status(403).send('Acceso no autorizado.');
+    return res.status(403).send('<h2 style="font-family:sans-serif;padding:2rem">Acceso no autorizado.</h2>');
   }
 
-  // Clave válida: servir HTML con no-cache para que siempre sea el más reciente
-  res.setHeader('Cache-Control', 'no-store');
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+  const html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
 
-// HTML principal siempre sin caché de CDN
-app.get('/index.html', (req, res) => {
+  // Inyectar script al inicio del body:
+  // data-dmode en <html> activa el CSS que oculta todo inmediatamente
+  const safeT = tabs.replace(/[^a-z0-9,\-]/gi, '');
+  const injection = `<script>(function(){
+    sessionStorage.setItem('auf_rtabs','${safeT}');
+    ${ro==='1' ? "sessionStorage.setItem('auf_ro','1');" : "sessionStorage.removeItem('auf_ro');"}
+    document.documentElement.setAttribute('data-dmode','1');
+    ${ro==='1' ? "document.documentElement.setAttribute('data-readonly','1');" : ''}
+  })();</script>`;
+
   res.setHeader('Cache-Control', 'no-store');
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(html.replace('<body>', '<body>' + injection));
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
