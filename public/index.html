@@ -7433,6 +7433,7 @@ async function renderPizarra(matchId){
   const bench  = PLAYERS.filter(p => !usedNums.has(p.n)).sort((a,b)=>a.n-b.n);
   const rival  = PIZ_MATCHES.find(m=>m.id===matchId);
 
+  try{
   // Tabla stats — generada antes del template
   let starterRows = slots
     .map(s=>({slot:s, p:st[s.id]?PLAYERS.find(x=>x.n===st[s.id]):null}))
@@ -7827,6 +7828,10 @@ async function renderPizarra(matchId){
   renderBenchPanel(matchId, document.getElementById('piz-bench-col'));
   initPizDrag(matchId);
   startPizCountdown(matchId);
+  }catch(err){
+    wrap.innerHTML=`<div style="padding:20px;color:#DC2626;font-family:monospace;font-size:12px;background:#FEF2F2;border-radius:8px;margin:16px"><b>⚠️ Error en pizarra:</b><br>${err.message}<br><br><small>${err.stack?.split('\n').slice(0,4).join('<br>')}</small></div>`;
+    console.error('renderPizarra crash:',err);
+  }
 }
 
 let _cdownInterval=null;
