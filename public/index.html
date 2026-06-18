@@ -6784,9 +6784,9 @@ function renderEstadisticas(){
     </div>
     ${_legendsEdit?`<div class="note" style="margin-bottom:.75rem;background:#FEF9C3;border-color:#FDE047"><div class="note-b" style="color:#854D0E">Modo edición activo — tocá ★ junto a un jugador para marcarlo o quitarlo como leyenda</div></div>`:''}
 
-    ${aufHistSection('Más partidos — Selección Mayor (All Time)',AUF_HIST_CAPS,'Caps','c',PLAYERS,isActive,activeMark,plusBadge,legendStar,_legendsEdit)}
-    ${aufHistSection('Más goles — Selección Mayor (All Time)',AUF_HIST_GOALS,'Goles','c',PLAYERS,isActive,activeMark,plusBadge,legendStar,_legendsEdit)}
-    ${aufHistSection('Más partidos — Copa del Mundo (All Time)',AUF_HIST_WC,'PJ','c',PLAYERS,isActive,activeMark,plusBadge,legendStar,_legendsEdit)}
+    ${aufHistSection('Más partidos — Selección Mayor (All Time)',AUF_HIST_CAPS,'Caps','c',PLAYERS,isActive,activeMark,'caps',legendStar,_legendsEdit)}
+    ${aufHistSection('Más goles — Selección Mayor (All Time)',AUF_HIST_GOALS,'Goles','c',PLAYERS,isActive,activeMark,'goals',legendStar,_legendsEdit)}
+    ${aufHistSection('Más partidos — Copa del Mundo (All Time)',AUF_HIST_WC,'PJ','c',PLAYERS,isActive,activeMark,'wcCaps',legendStar,_legendsEdit)}
     ` : `
     <div class="note gold" style="margin-bottom:1.25rem">
       <div class="note-t">🏆 Datos de color — FWC26 (verificado PDF TAM)</div>
@@ -6838,18 +6838,20 @@ function showStatsSubTab(tab){ _statsSubTab=tab; renderEstadisticas(); }
 let _legendsEdit=false;
 function toggleLegendsEdit(){ _legendsEdit=!_legendsEdit; renderEstadisticas(); }
 
-function aufHistSection(title, data, colHeader, colKey, players, isActive, activeMark, plusBadge, legendStar, editMode){
+function aufHistSection(title, data, colHeader, colKey, players, isActive, activeMark, deltaField, legendStar, editMode){
   const SHOW=20;
   const uid='aufhist-'+title.replace(/[^a-z]/gi,'');
+  const delta=getStatsDelta();
   const rows=data.map((r,i)=>{
     const pMatch=players.find(p=>p.name===r.n);
-    const pb=pMatch?plusBadge(pMatch.n):'';
+    const d=pMatch&&deltaField?(delta[pMatch.n]?.[deltaField]||0):0;
+    const deltaBadge=d>0?`<span style="font-size:8px;font-weight:800;color:var(--green);background:#DCFCE7;border-radius:3px;padding:0 3px;line-height:1.4;white-space:nowrap;flex-shrink:0;min-width:22px;text-align:center;display:inline-block">+${d}</span>`:`<span style="min-width:22px;display:inline-block;flex-shrink:0"></span>`;
     const legs=getLegends().has(r.n);
     const star=editMode?legendStar(r.n,true):(legs?`<span style="font-size:11px;color:var(--gold);margin-left:3px">★</span>`:'');
     return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''} data-hist-row="${i}">
       <td class="st-rank">${i+1}</td>
-      <td class="st-name">${aufLink(r.n)}${pb}${star} ${activeMark(r.n)}</td>
-      <td class="st-n${i<3?' top':''}">${r[colKey]}</td>
+      <td class="st-name">${aufLink(r.n)}${star} ${activeMark(r.n)}</td>
+      <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${r[colKey]}</span>${deltaBadge}</div></td>
     </tr>`;
   });
   const visible=rows.slice(0,SHOW).join('');
