@@ -6774,47 +6774,19 @@ function renderEstadisticas(){
     </div>
     ${wc2026TableHtml}
     ` : tab==='auf-historia' ? `
-    <div class="note" style="margin-bottom:1rem;background:#EEF2FF;border-color:#C7D2FE">
-      <div class="note-t" style="color:#3730A3">📖 Historia de la Selección Uruguaya</div>
-      <div class="note-b" style="color:#4338CA">Datos según <a href="https://www.auf.org.uy/historico-jugadores/1/" target="_blank" style="color:#4338CA">AUF (historico-jugadores)</a> — 1.313 jugadores internacionales. Los convocados FWC26 aparecen resaltados en <span style="background:var(--cel);color:#fff;padding:0 4px;border-radius:3px;font-size:10px">FWC26</span>. Hacé clic en un jugador para ver su perfil en AUF.</div>
-      <div style="margin-top:5px;font-size:10px;color:#6366F1">🕐 Actualizado: ${AUF_HIST_UPDATED.date} · ${AUF_HIST_UPDATED.match}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem">
+      <div class="note" style="flex:1;margin:0;background:#EEF2FF;border-color:#C7D2FE">
+        <div class="note-t" style="color:#3730A3">📖 Historia de la Selección Uruguaya</div>
+        <div class="note-b" style="color:#4338CA">Datos según <a href="https://www.auf.org.uy/historico-jugadores/1/" target="_blank" style="color:#4338CA">AUF</a> · <span style="background:var(--cel);color:#fff;padding:0 4px;border-radius:3px;font-size:10px">FWC26</span> = convocado · ★ = leyenda. Hacé clic para editar.</div>
+        <div style="margin-top:3px;font-size:10px;color:#6366F1">🕐 Actualizado: ${AUF_HIST_UPDATED.date} · ${AUF_HIST_UPDATED.match}</div>
+      </div>
+      <button onclick="toggleLegendsEdit()" style="flex-shrink:0;padding:6px 12px;border-radius:8px;border:1.5px solid ${_legendsEdit?'var(--cel)':'var(--border)'};background:${_legendsEdit?'var(--cel)':'var(--white)'};color:${_legendsEdit?'#fff':'var(--text)'};font-size:11px;font-weight:700;cursor:pointer">✏️ Editar</button>
     </div>
+    ${_legendsEdit?`<div class="note" style="margin-bottom:.75rem;background:#FEF9C3;border-color:#FDE047"><div class="note-b" style="color:#854D0E">Modo edición activo — tocá ★ junto a un jugador para marcarlo o quitarlo como leyenda</div></div>`:''}
 
-    <div class="stats-section">
-      <div class="phase">Más partidos — Selección Mayor (All Time)</div>
-      <div style="overflow-x:auto"><table class="stats-table">
-        <thead><tr><th>#</th><th>Jugador</th><th>Caps</th></tr></thead>
-        <tbody>${AUF_HIST_CAPS.map((r,i)=>{const pMatch=PLAYERS.find(p=>p.name===r.n);const pb=pMatch?plusBadge(pMatch.n):'';return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
-          <td class="st-rank">${i+1}</td>
-          <td class="st-name">${aufLink(r.n)}${pb} ${legendStar(r.n,true)} ${activeMark(r.n)}</td>
-          <td class="st-n${i<3?' top':''}">${r.c}</td>
-        </tr>`}).join('')}</tbody>
-      </table></div>
-    </div>
-
-    <div class="stats-section">
-      <div class="phase">Más goles — Selección Mayor (All Time)</div>
-      <div style="overflow-x:auto"><table class="stats-table">
-        <thead><tr><th>#</th><th>Jugador</th><th>Goles</th></tr></thead>
-        <tbody>${AUF_HIST_GOALS.map((r,i)=>{const pMatch=PLAYERS.find(p=>p.name===r.n);const pb=pMatch?plusBadge(pMatch.n):'';return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
-          <td class="st-rank">${i+1}</td>
-          <td class="st-name">${aufLink(r.n)}${pb} ${legendStar(r.n,true)} ${activeMark(r.n)}</td>
-          <td class="st-n${i<3?' top':''}">${r.c}</td>
-        </tr>`}).join('')}</tbody>
-      </table></div>
-    </div>
-
-    <div class="stats-section">
-      <div class="phase">Más partidos — Copa del Mundo (All Time)</div>
-      <div style="overflow-x:auto"><table class="stats-table">
-        <thead><tr><th>#</th><th>Jugador</th><th>PJ</th></tr></thead>
-        <tbody>${AUF_HIST_WC.map((r,i)=>{const pMatch=PLAYERS.find(p=>p.name===r.n);const pb=pMatch?plusBadge(pMatch.n):'';return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
-          <td class="st-rank">${i+1}</td>
-          <td class="st-name">${aufLink(r.n)}${pb} ${legendStar(r.n,true)} ${activeMark(r.n)}</td>
-          <td class="st-n${i<3?' top':''}">${r.c}</td>
-        </tr>`}).join('')}</tbody>
-      </table></div>
-    </div>
+    ${aufHistSection('Más partidos — Selección Mayor (All Time)',AUF_HIST_CAPS,'Caps','c',PLAYERS,isActive,activeMark,plusBadge,legendStar,_legendsEdit)}
+    ${aufHistSection('Más goles — Selección Mayor (All Time)',AUF_HIST_GOALS,'Goles','c',PLAYERS,isActive,activeMark,plusBadge,legendStar,_legendsEdit)}
+    ${aufHistSection('Más partidos — Copa del Mundo (All Time)',AUF_HIST_WC,'PJ','c',PLAYERS,isActive,activeMark,plusBadge,legendStar,_legendsEdit)}
     ` : `
     <div class="note gold" style="margin-bottom:1.25rem">
       <div class="note-t">🏆 Datos de color — FWC26 (verificado PDF TAM)</div>
@@ -6862,6 +6834,36 @@ function renderEstadisticas(){
 
 let _statsSubTab='historico';
 function showStatsSubTab(tab){ _statsSubTab=tab; renderEstadisticas(); }
+
+let _legendsEdit=false;
+function toggleLegendsEdit(){ _legendsEdit=!_legendsEdit; renderEstadisticas(); }
+
+function aufHistSection(title, data, colHeader, colKey, players, isActive, activeMark, plusBadge, legendStar, editMode){
+  const SHOW=20;
+  const uid='aufhist-'+title.replace(/[^a-z]/gi,'');
+  const rows=data.map((r,i)=>{
+    const pMatch=players.find(p=>p.name===r.n);
+    const pb=pMatch?plusBadge(pMatch.n):'';
+    const legs=getLegends().has(r.n);
+    const star=editMode?legendStar(r.n,true):(legs?`<span style="font-size:11px;color:var(--gold);margin-left:3px">★</span>`:'');
+    return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''} data-hist-row="${i}">
+      <td class="st-rank">${i+1}</td>
+      <td class="st-name">${aufLink(r.n)}${pb}${star} ${activeMark(r.n)}</td>
+      <td class="st-n${i<3?' top':''}">${r[colKey]}</td>
+    </tr>`;
+  });
+  const visible=rows.slice(0,SHOW).join('');
+  const hidden=rows.slice(SHOW).join('');
+  return`<div class="stats-section">
+    <div class="phase">${title}</div>
+    <div style="overflow-x:auto"><table class="stats-table">
+      <thead><tr><th>#</th><th>Jugador</th><th>${colHeader}</th></tr></thead>
+      <tbody>${visible}${hidden?`<tr id="${uid}-more" style="display:none"><td colspan="3" style="padding:0"><table style="width:100%;border-collapse:collapse">${hidden}</table></td></tr>`:''}
+      </tbody>
+    </table></div>
+    ${hidden?`<button onclick="document.getElementById('${uid}-more').style.display='';this.style.display='none'" style="width:100%;margin-top:4px;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:11px;color:var(--muted);cursor:pointer">Ver todos (${data.length}) ↓</button>`:''}
+  </div>`;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ESPN SYNC — fetches live WC 2026 results
