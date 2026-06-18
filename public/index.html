@@ -76,10 +76,35 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
   display:flex;overflow-x:auto;padding:0 1.25rem;
   position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:200;scrollbar-width:none;
 }
-/* Modo diseñador — oculta tabs no permitidos y nav */
+/* Modo restringido — oculta tabs no permitidos y nav */
 [data-dmode] .tab:not(.d-tab){display:none}
 [data-dmode] nav{display:none!important}
 [data-dmode] .tabs{top:0}
+/* Modo solo lectura — oculta todos los controles de edición */
+[data-readonly] .ev-st,
+[data-readonly] .ev-expand,
+[data-readonly] button[onclick*="editEv"],
+[data-readonly] button[onclick*="setEvSt"],
+[data-readonly] button[onclick*="toggleEv"],
+[data-readonly] button[onclick*="cycleEv"],
+[data-readonly] button[onclick*="addDayAct"],
+[data-readonly] button[onclick*="deleteDayAct"],
+[data-readonly] button[onclick*="hideEvent"],
+[data-readonly] button[onclick*="toggleEvFifa"],
+[data-readonly] .ev-p-chip,
+[data-readonly] .ev-note-field,
+[data-readonly] .ev-parts-lbl,
+[data-readonly] .ev-parts-chips,
+[data-readonly] .editable-time,
+[data-readonly] .ev-editable-txt::after,
+[data-readonly] button[onclick*="toggleLegend"],
+[data-readonly] button[onclick*="savePhoto"],
+[data-readonly] .plantel-filters button[onclick*="editPlayer"],
+[data-readonly] .pf-btn[onclick*="edit"],
+[data-readonly] button[onclick*="lgSave"],
+[data-readonly] [data-edit-only]{display:none!important}
+[data-readonly] .ev-editable-txt{cursor:default;border-bottom-color:transparent;pointer-events:none}
+[data-readonly] .editable-time{cursor:default;pointer-events:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab{
   padding:12px 15px;font-size:12.5px;font-weight:600;color:var(--muted);
@@ -1821,17 +1846,21 @@ const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart=
 const KLinks='auf4_links'; // perfiles guardados en localStorage
 (()=>{
   const p=new URLSearchParams(location.search);
-  const tabs=p.get('tabs'), key=p.get('k');
+  const tabs=p.get('tabs'), key=p.get('k'), ro=p.get('ro');
   if(tabs){
     sessionStorage.setItem('auf_rtabs', tabs);
     if(key) sessionStorage.setItem('auf_rkey', key);
     else sessionStorage.removeItem('auf_rkey');
+    if(ro==='1') sessionStorage.setItem('auf_ro','1');
+    else sessionStorage.removeItem('auf_ro');
   }
 })();
 const _rTabs=sessionStorage.getItem('auf_rtabs');
 const IS_RESTRICTED=!!_rTabs;
 const RESTRICTED_TABS=IS_RESTRICTED?_rTabs.split(','):[];
+const IS_READONLY=sessionStorage.getItem('auf_ro')==='1';
 if(IS_RESTRICTED) document.documentElement.setAttribute('data-dmode','1');
+if(IS_READONLY) document.documentElement.setAttribute('data-readonly','1');
 // ─────────────────────────────────────────────────────────────────────────────
 const KMatchLocked='auf4_match_locked';
 const getMatchLocked=()=>stor.get(KMatchLocked,{});
@@ -9141,7 +9170,7 @@ function renderLinkGen(){
   const el=document.getElementById('linkgen-body');
 
   const profilesHtml=profiles.length?profiles.map((p,i)=>{
-    const url=base+'?tabs='+encodeURIComponent(p.tabs.join(','))+(p.key?'&k='+encodeURIComponent(p.key):'');
+    const url=base+'?tabs='+encodeURIComponent(p.tabs.join(','))+(p.key?'&k='+encodeURIComponent(p.key):'')+(p.ro?'&ro=1':'');
     return`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div>
@@ -9186,9 +9215,19 @@ function renderLinkGen(){
           </label>`).join('')}
       </div>
 
-      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Clave de acceso <span style="font-weight:400;opacity:.7">(opcional — si no ponés nada, el link funciona sin clave)</span></label>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Clave de acceso <span style="font-weight:400;opacity:.7">(opcional)</span></label>
       <input id="lg-key" type="text" placeholder="ej. auf2026" value="${formKey}"
-        style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;margin-bottom:14px;box-sizing:border-box">
+        style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;margin-bottom:12px;box-sizing:border-box">
+
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border-radius:10px;border:1.5px solid ${editing&&!editing.ro?'#22C55E':'var(--border)'};background:${editing&&!editing.ro?'#F0FDF4':'var(--white)'};margin-bottom:14px;transition:all .15s" id="lg-edit-lbl">
+        <input type="checkbox" id="lg-edit" ${editing&&!editing.ro?'':'checked'}
+          onchange="lgToggleEdit(this)"
+          style="accent-color:#DC2626;width:16px;height:16px;flex-shrink:0">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:var(--text)">Solo lectura <span style="font-size:10px;font-weight:600;background:#FEF2F2;color:#DC2626;padding:1px 6px;border-radius:4px;margin-left:4px">recomendado</span></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:1px">Oculta todos los controles de edición — solo pueden ver</div>
+        </div>
+      </label>
 
       <div style="display:flex;gap:8px">
         <button onclick="lgSaveProfile()" style="flex:1;padding:10px;border-radius:10px;border:none;background:#7C3AED;color:#fff;font-size:13px;font-weight:800;cursor:pointer">${editing?'Guardar cambios':'Generar link'}</button>
@@ -9207,15 +9246,20 @@ function lgUpdateTabCheck(){
 function lgSaveProfile(){
   const name=document.getElementById('lg-name').value.trim()||'Sin nombre';
   const key=document.getElementById('lg-key').value.trim();
+  const ro=document.getElementById('lg-edit')?.checked||false;
   const tabs=LINK_TABS_DEF.map(t=>t.id).filter(id=>document.getElementById('lg-tab-'+id)?.checked);
   if(!tabs.length){alert('Seleccioná al menos una sección');return;}
   const profiles=getLinkProfiles();
-  const profile={name,tabs,key};
+  const profile={name,tabs,key,ro};
   if(_lgEdit!==null) profiles[_lgEdit]=profile;
   else profiles.push(profile);
   saveLinkProfiles(profiles);
   _lgEdit=null;
   renderLinkGen();
+}
+function lgToggleEdit(cb){
+  const lbl=document.getElementById('lg-edit-lbl');
+  if(lbl){lbl.style.borderColor=cb.checked?'var(--border)':'#22C55E';lbl.style.background=cb.checked?'var(--white)':'#F0FDF4';}
 }
 
 function lgEditProfile(i){ _lgEdit=i; renderLinkGen(); document.getElementById('lg-name')?.focus(); }
