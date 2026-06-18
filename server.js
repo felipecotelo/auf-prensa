@@ -17,7 +17,25 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '50mb' }));
 
-// No cachear el HTML principal — evita que Railway CDN sirva versión vieja
+// ── Acceso restringido via /r — setea cookies y redirige a / ──────────────────
+// El path /r nunca está cacheado, el servidor siempre lo procesa.
+// Las cookies llegan al browser antes de que cargue el HTML → la restricción aplica sí o sí.
+app.get('/r', (req, res) => {
+  const tabs = req.query.tabs;
+  const t    = req.query.t;
+  const ro   = req.query.ro;
+  if (!tabs || !t) return res.redirect('/');
+  const safeT = tabs.replace(/[^a-z0-9,\-]/gi, '');
+  res.setHeader('Set-Cookie', [
+    `auf_rtabs=${encodeURIComponent(safeT)}; Path=/; SameSite=Strict`,
+    `auf_rtoken=${encodeURIComponent(t)}; Path=/; SameSite=Strict`,
+    `auf_ro=${ro === '1' ? '1' : '0'}; Path=/; SameSite=Strict`,
+    `auf_authed=0; Path=/; SameSite=Strict`
+  ]);
+  res.redirect(302, '/');
+});
+
+// No cachear el HTML
 app.use((req, res, next) => {
   if (req.path === '/' || req.path === '/index.html') {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
