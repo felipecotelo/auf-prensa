@@ -7448,6 +7448,19 @@ async function renderPizarra(matchId){
         const n=_mn(e.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'card',extra:e.extra,min:e.min});
       }
     });
+    // Para partidos cerrados: fuente oficial FIFA pisa cualquier dato de ESPN
+    if(isMatchLocked(matchId)&&FIFA_OFFICIAL_EVENTS[matchId]){
+      FIFA_OFFICIAL_EVENTS[matchId].forEach(oe=>{
+        if(oe.side!=='uru') return;
+        if(oe.type==='sub'){
+          const outN=_mn(oe.player), inN=_mn(oe.extra);
+          if(outN) _subOutMin[outN]=oe.min;
+          if(inN)  _subInMin[inN]=oe.min;
+        } else if(oe.type==='goal'){
+          const n=_mn(oe.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'goal',min:oe.min});
+        }
+      });
+    }
   }
 
   // Tabla stats suplentes
