@@ -6608,6 +6608,39 @@ function aufLink(name, label){
   return `<a href="${url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--muted)">${label||name}</a>`;
 }
 
+// ── Leyendas de la Selección Uruguaya ──
+const LEGENDS_BASE=[
+  'Luis Suárez','Diego Forlán','Enzo Francescoli','Edinson Cavani','Diego Godín',
+  'Obdulio Varela','Alcides Ghiggia','Diego Lugano','Juan Schiaffino','José Nasazzi',
+  'Héctor Scarone','Sebastián Abreu','Fernando Muslera','Ladislao Mazurkiewicz',
+  'Diego Pérez','Álvaro Recoba','Paolo Montero','Fabián O\'Neill','Pablo Bengoechea',
+  'Ruben Sosa','Hugo De León','Roque Gastón Máspoli','Luis Cubilla','Carlos Scarone',
+  'Cristian Rodríguez','Héctor Castro','Carlos Céspedes','Rodolfo Rodríguez',
+  'René Borjas','José Piendibene','Bolivar Céspedes','Fernando Álvez','Pedro Cea',
+  'Ángel Romano','Isabelino Grandín','Roberto Chery',
+];
+const KLegends='auf4_legends';
+function getLegends(){
+  const custom=stor.get(KLegends,{});
+  const base=new Set(LEGENDS_BASE);
+  Object.entries(custom).forEach(([n,v])=>{ if(v)base.add(n); else base.delete(n); });
+  return base;
+}
+function toggleLegend(name){
+  const custom=stor.get(KLegends,{});
+  const base=new Set(LEGENDS_BASE);
+  const isBaseOn=base.has(name);
+  const cur=custom[name]!==undefined ? custom[name] : isBaseOn;
+  custom[name]=!cur;
+  stor.set(KLegends,custom);
+  renderEstadisticas();
+}
+const legendStar=(name,small=false)=>{
+  const isLeg=getLegends().has(name);
+  const sz=small?'11px':'12px';
+  return `<span onclick="event.stopPropagation();toggleLegend('${name.replace(/'/g,"\\'")}')" title="${isLeg?'Quitar leyenda':'Marcar como leyenda'}" style="cursor:pointer;font-size:${sz};margin-left:4px;opacity:${isLeg?'1':'0.25'};user-select:none" class="leg-star">${isLeg?'★':'☆'}</span>`;
+};
+
 // Datos históricos AUF (fuente: auf.org.uy/historico-jugadores)
 const AUF_HIST_CAPS=[
   {n:'Diego Godín',c:161},{n:'Luis Suárez',c:143},{n:'Edinson Cavani',c:136},
@@ -6661,27 +6694,30 @@ function renderEstadisticas(){
     return hitos.map(h=>`<div style="font-size:10px;color:var(--gold);font-weight:600;margin-top:1px">${h.txt}</div>`).join('');
   };
 
+  const delta=getStatsDelta();
+  const plusBadge=(pn)=>(delta[pn]?.wcCaps>0)?`<span style="font-size:9px;font-weight:900;color:#16a34a;margin-left:3px">+</span>`:'';
+
   const rowCaps=(p,i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name} ${capBadge(p)}<div style="font-size:10px;color:var(--muted);font-weight:400">${ms(p)}</div></td>
+    <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name}${plusBadge(p.n)} ${legendStar(p.name)} ${capBadge(p)}<div style="font-size:10px;color:var(--muted);font-weight:400">${ms(p)}</div></td>
     <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).caps}</span>${statDeltaBadge(p.n,'caps')}</div></td>
   </tr>`;
 
   const rowGoals=(p,i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${p.name}${effectiveStats(p).goals===0?'<span class="st-badge sb-debut" style="margin-left:5px">Sin goles</span>':''}</td>
+    <td class="st-name">${p.name}${plusBadge(p.n)} ${legendStar(p.name)} ${effectiveStats(p).goals===0?'<span class="st-badge sb-debut" style="margin-left:5px">Sin goles</span>':''}</td>
     <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).goals}</span>${statDeltaBadge(p.n,'goals')}</div></td>
   </tr>`;
 
   const rowWC=(p,i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${p.name} ${effectiveStats(p).wcCaps===0?'<span class="st-badge sb-wcdebut">Debut Mundial</span>':''} ${p.wcCount===5?'<span class="st-badge sb-wc5">5° Mundial</span>':''}</td>
+    <td class="st-name">${p.name}${plusBadge(p.n)} ${legendStar(p.name)} ${effectiveStats(p).wcCaps===0?'<span class="st-badge sb-wcdebut">Debut Mundial</span>':''} ${p.wcCount===5?'<span class="st-badge sb-wc5">5° Mundial</span>':''}</td>
     <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).wcCaps}</span>${statDeltaBadge(p.n,'wcCaps')}</div></td>
   </tr>`;
 
   const rowWCG=(p,i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${p.name}</td>
+    <td class="st-name">${p.name}${plusBadge(p.n)} ${legendStar(p.name)}</td>
     <td class="st-n${i<3?' top':''}"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).wcGoals}</span>${statDeltaBadge(p.n,'wcGoals')}</div></td>
   </tr>`;
 
@@ -6697,7 +6733,7 @@ function renderEstadisticas(){
     .sort((a,b)=>(b.d.minutesWC||0)-(a.d.minutesWC||0) || (b.d.caps||0)-(a.d.caps||0) || a.p.n-b.p.n);
   const rowWC2026=({p,d},i)=>`<tr>
     <td class="st-rank">${i+1}</td>
-    <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name}</td>
+    <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name}${plusBadge(p.n)} ${legendStar(p.name)}</td>
     <td class="st-n">${d.caps||0}</td>
     <td class="st-n">${d.minutesWC||0}'</td>
     <td class="st-n">${d.assists||0}</td>
@@ -6748,11 +6784,11 @@ function renderEstadisticas(){
       <div class="phase">Más partidos — Selección Mayor (All Time)</div>
       <div style="overflow-x:auto"><table class="stats-table">
         <thead><tr><th>#</th><th>Jugador</th><th>Caps</th></tr></thead>
-        <tbody>${AUF_HIST_CAPS.map((r,i)=>`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
+        <tbody>${AUF_HIST_CAPS.map((r,i)=>{const pMatch=PLAYERS.find(p=>p.name===r.n);const pb=pMatch?plusBadge(pMatch.n):'';return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
           <td class="st-rank">${i+1}</td>
-          <td class="st-name">${aufLink(r.n)} ${activeMark(r.n)}</td>
+          <td class="st-name">${aufLink(r.n)}${pb} ${legendStar(r.n,true)} ${activeMark(r.n)}</td>
           <td class="st-n${i<3?' top':''}">${r.c}</td>
-        </tr>`).join('')}</tbody>
+        </tr>`}).join('')}</tbody>
       </table></div>
     </div>
 
@@ -6760,11 +6796,11 @@ function renderEstadisticas(){
       <div class="phase">Más goles — Selección Mayor (All Time)</div>
       <div style="overflow-x:auto"><table class="stats-table">
         <thead><tr><th>#</th><th>Jugador</th><th>Goles</th></tr></thead>
-        <tbody>${AUF_HIST_GOALS.map((r,i)=>`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
+        <tbody>${AUF_HIST_GOALS.map((r,i)=>{const pMatch=PLAYERS.find(p=>p.name===r.n);const pb=pMatch?plusBadge(pMatch.n):'';return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
           <td class="st-rank">${i+1}</td>
-          <td class="st-name">${aufLink(r.n)} ${activeMark(r.n)}</td>
+          <td class="st-name">${aufLink(r.n)}${pb} ${legendStar(r.n,true)} ${activeMark(r.n)}</td>
           <td class="st-n${i<3?' top':''}">${r.c}</td>
-        </tr>`).join('')}</tbody>
+        </tr>`}).join('')}</tbody>
       </table></div>
     </div>
 
@@ -6772,11 +6808,11 @@ function renderEstadisticas(){
       <div class="phase">Más partidos — Copa del Mundo (All Time)</div>
       <div style="overflow-x:auto"><table class="stats-table">
         <thead><tr><th>#</th><th>Jugador</th><th>PJ</th></tr></thead>
-        <tbody>${AUF_HIST_WC.map((r,i)=>`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
+        <tbody>${AUF_HIST_WC.map((r,i)=>{const pMatch=PLAYERS.find(p=>p.name===r.n);const pb=pMatch?plusBadge(pMatch.n):'';return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''}>
           <td class="st-rank">${i+1}</td>
-          <td class="st-name">${aufLink(r.n)} ${activeMark(r.n)}</td>
+          <td class="st-name">${aufLink(r.n)}${pb} ${legendStar(r.n,true)} ${activeMark(r.n)}</td>
           <td class="st-n${i<3?' top':''}">${r.c}</td>
-        </tr>`).join('')}</tbody>
+        </tr>`}).join('')}</tbody>
       </table></div>
     </div>
     ` : `
