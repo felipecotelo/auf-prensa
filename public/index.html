@@ -7738,7 +7738,17 @@ function startPizCountdown(matchId){
     const info=PIZ_MATCH_INFO[matchId];
     if(!info?.kickoff){el.textContent='';return;}
     const diff=new Date(info.kickoff)-new Date();
-    if(diff<=0){el.innerHTML='⚽ <b>En juego / Finalizado</b>';return;}
+    if(diff<=0){
+      const fixId=Object.keys(FIX_TO_PIZ).find(k=>FIX_TO_PIZ[k]===matchId);
+      const res=fixId?getMatchResult(fixId):null;
+      if(res){
+        const resColor=res.uru>res.rival?'#16A34A':res.uru<res.rival?'#DC2626':'#D97706';
+        el.innerHTML=`<span style="font-size:22px;font-weight:900;letter-spacing:.03em;color:${resColor}">${res.uru} – ${res.rival}</span><span style="font-size:10px;font-weight:600;color:var(--hint);display:block;margin-top:1px">Resultado final</span>`;
+      } else {
+        el.innerHTML='⚽ <b>Finalizado</b>';
+      }
+      return;
+    }
     const d=Math.floor(diff/86400000);
     const h=Math.floor((diff%86400000)/3600000);
     const m=Math.floor((diff%3600000)/60000);
