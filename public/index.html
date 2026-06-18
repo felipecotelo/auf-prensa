@@ -971,7 +971,24 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 </style>
 </head>
 <body>
-
+<script>
+// Bloqueo inmediato — corre ANTES de que el browser pinte cualquier contenido
+(function(){
+  var p=new URLSearchParams(location.search);
+  var tabs=p.get('tabs'),key=p.get('k'),ro=p.get('ro');
+  if(tabs){
+    sessionStorage.setItem('auf_rtabs',tabs);
+    if(key) sessionStorage.setItem('auf_rkey',key); else sessionStorage.removeItem('auf_rkey');
+    if(ro==='1') sessionStorage.setItem('auf_ro','1'); else sessionStorage.removeItem('auf_ro');
+    // Limpiar URL para ocultar la clave
+    history.replaceState(null,'',location.pathname);
+  }
+  var r=sessionStorage.getItem('auf_rtabs');
+  if(!r) return;
+  // Inyectar overlay sincrónico — antes de que se pinte NADA
+  document.write('<div id="restrict-cover" style="position:fixed;inset:0;z-index:2147483647;background:#F3F4F6;pointer-events:all"></div>');
+})();
+</script>
 <nav class="nav">
   <div class="nav-brand">
     <img src="./logos/logo Selección.png" class="nav-logo" alt="AUF" onerror="this.style.display='none'">
@@ -1008,18 +1025,10 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab" onclick="showTab('linkgen')" style="color:#7C3AED"><i class="ti ti-link"></i>Links</button>
 </div>
 <script>
+// Ocultar tabs no permitidos y marcar modo restringido
 (function(){
-  var p=new URLSearchParams(location.search);
-  var tabs=p.get('tabs'),key=p.get('k'),ro=p.get('ro');
-  if(tabs){ sessionStorage.setItem('auf_rtabs',tabs); if(key) sessionStorage.setItem('auf_rkey',key); else sessionStorage.removeItem('auf_rkey'); if(ro==='1') sessionStorage.setItem('auf_ro','1'); else sessionStorage.removeItem('auf_ro'); }
   var r=sessionStorage.getItem('auf_rtabs');
   if(!r) return;
-  // Cubrir TODO el viewport con overlay opaco — se saca solo cuando showTab lo quite
-  var ov=document.createElement('div');
-  ov.id='restrict-cover';
-  ov.style.cssText='position:fixed;inset:0;z-index:999999;background:#F3F4F6';
-  document.body.appendChild(ov);
-  // Ocultar tabs no permitidos
   var allowed=r.split(',');
   var map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
   document.querySelectorAll('.tab').forEach(function(tab,i){ if(!allowed.includes(map[i])) tab.style.display='none'; });
