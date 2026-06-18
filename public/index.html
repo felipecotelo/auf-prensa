@@ -2785,6 +2785,7 @@ function buildEventsHtml(day, startIdx=0){
     const note=evNotes[k]||'';
     const link=getEvLinks()[k]||e.link||'';
     let selParts=evParts[k]||[];
+    if(e.isDT) selParts=selParts.filter(x=>x.startsWith('dt_'));
     if(e.isDT&&!selParts.length) selParts=['dt_bielsa'];
     const showParts=isPresaActivity(e);
 
@@ -2834,7 +2835,7 @@ function buildEventsHtml(day, startIdx=0){
     const partidoMatchId=e.tipo==='partido'&&e.fixId?fixIdToMatch[e.fixId]:null;
 
     return`
-      <div class="cal-ev" id="cev-${day.date}-${realIdx}" style="${matchResult?'background:var(--cel-lt);border-radius:8px;padding:5px 6px':e.tipo==='partido-fifa'?'background:#F3F4F6;border-radius:6px':e.tipo==='sched'?'background:#FFFBEB;border-radius:6px;padding:3px 4px':''}">
+      <div class="cal-ev" id="cev-${day.date}-${realIdx}" style="${matchResult?'background:var(--cel-lt);border-radius:8px;padding:5px 6px':e.isDT?'background:#F5F3FF;border-left:3px solid #5B4B8A;padding-left:8px;border-radius:0 6px 6px 0':e.tipo==='partido-fifa'?'background:#F3F4F6;border-radius:6px':e.tipo==='sched'?'background:#FFFBEB;border-radius:6px;padding:3px 4px':''}">
         <div class="cal-ev-row">
           <div class="ev-sts">
             ${e.tipo==='partido'?'<span class="ev-sts-ph-uru"></span>':e.tipo==='partido-fifa'?'<span class="ev-sts-ph-wc"></span>':(e.tipo==='sched'||(e.tipo==='team'&&e.noParts))?'<span class="ev-sts-ph"></span>':`
@@ -2893,9 +2894,9 @@ function buildEventsHtml(day, startIdx=0){
               ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" style="font-size:11px;text-decoration:none;margin-left:2px">🔗${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
               ${doneIcon}
             </div>
-            ${(showParticipants||e.isDT)&&partNames.length?`<div class="ev-selected-parts">👤 ${[
+            ${(showParticipants||e.isDT)&&(dtNames.length||(showParticipants&&playerNames.length))?`<div class="ev-selected-parts">👤 ${[
               ...dtNames.map(n=>`<span style="color:var(--navy);background:rgba(15,29,46,.08);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`),
-              ...playerNames.map(n=>`<span style="color:var(--cel-dk);background:var(--cel-lt);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`)
+              ...(!e.isDT?playerNames:[]).map(n=>`<span style="color:var(--cel-dk);background:var(--cel-lt);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`)
             ].join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
             ${e.group?getGroupPairBar(e.group):''}
           </div>
@@ -7339,11 +7340,11 @@ function renderEstadisticas(){
             icon:'🤝', label:'Amistosos <span style="font-size:9px;font-weight:600;color:var(--hint)">2023–2026</span>', color:'var(--muted)',
             pj:11, g:5, e:4, p:2, gf:18, gc:12,
             detail:[
-              lnk('Nicaragua (L) 4-1',a+'amistoso-internacional-uruguay-vs-nicaragua/'),
+              lnk('Nicaragua (L) 4-1',a+'amistosouruguay-vs-nicaragua/'),
               lnk('Cuba (L) 2-0',a+'amistosouruguay-vs-cuba/'),
               ' | ',
-              lnk('País Vasco (V) 1-1',a+'uruguay-vs-pais-vasco-fecha-fifa-marzo-2024/'),
-              lnk('Costa de Marfil (V) 1-2',a+'uruguay-vs-costa-de-marfil-fecha-fifa-marzo-2024/'),
+              lnk('País Vasco (V) 1-1',a+'amistosopais-vasco-vs-uruguay/'),
+              lnk('Costa de Marfil (V) 1-2',a+'amistosocosta-de-marfil-vs-uruguay/'),
               ' | ',
               lnk('México (V) 4-0',a+'amistosomexico-vs-uruguay253762/'),
               ' | ',
@@ -7364,30 +7365,30 @@ function renderEstadisticas(){
             icon:'🌎', label:'Eliminatorias <span style="font-size:9px;font-weight:600;color:var(--hint)">2023–2025</span>', color:'var(--cel-dk)',
             pj:18, g:6, e:7, p:5, gf:21, gc:12,
             detail:[
-              lnk('Chile (L) 3-1',a+'uruguay-debuto-en-las-eliminatorias-venciendo-3-a-1-a-chile/'),
-              lnk('Ecuador (V) 1-2',a+'uruguay-ecuador-por-la-2-fecha-de-las-eliminatorias/'),
+              lnk('Chile (L) 3-1',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-chile/'),
+              lnk('Ecuador (V) 1-2',a+'eliminatorias-mundial-de-la-fifa-2026ecuador-vs-uruguay/'),
               ' | ',
-              lnk('Colombia (V) 1-1',a+'uruguay-colombia-por-la-3-fecha-de-las-eliminatorias/'),
-              lnk('Brasil (L) 2-0',a+'uruguay-vs-brasil-por-la-4-fecha-de-las-eliminatorias/'),
+              lnk('Colombia (V) 1-1',a+'eliminatorias-mundial-de-la-fifa-2026colombia-vs-uruguay/'),
+              lnk('Brasil (L) 2-0',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-brasil/'),
               ' | ',
-              lnk('Argentina (V) 2-0',a+'argentina-uruguay-por-la-5-fecha-de-las-eliminatorias/'),
-              lnk('Bolivia (L) 3-0',a+'uruguay-3-0-bolivia-por-la-6-fecha-de-las-eliminatorias/'),
+              lnk('Argentina (V) 2-0',a+'eliminatorias-mundial-de-la-fifa-2026argentina-vs-uruguay/'),
+              lnk('Bolivia (L) 3-0',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-bolivia/'),
               ' | ',
-              lnk('Paraguay (L) 0-0',a+'uruguay-paraguay-eliminatorias-2026/'),
-              lnk('Venezuela (V) 0-0',a+'venezuela-uruguay-8-fecha-eliminatorias-2026/'),
+              lnk('Paraguay (L) 0-0',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-paraguay/'),
+              lnk('Venezuela (V) 0-0',a+'eliminatorias-mundial-de-la-fifa-2026venezuela-vs-uruguay/'),
               ' | ',
-              lnk('Perú (V) 0-1',a+'peru-1-0-uruguay-9-fecha-eliminatorias-2026/'),
-              lnk('Ecuador (L) 0-0',a+'uruguay-0-0-ecuador-10-fecha-eliminatorias-2026/'),
+              lnk('Perú (V) 0-1',a+'eliminatorias-mundial-de-la-fifa-2026peru-vs-uruguay/'),
+              lnk('Ecuador (L) 0-0',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-ecuador/'),
               ' | ',
-              lnk('Colombia (V) 3-2',a+'uruguay-colombia-11-fecha-eliminatorias-2026/'),
-              lnk('Brasil (V) 0-0',a+'brasil-uruguay-12-fecha-eliminatorias-2026/'),
+              lnk('Colombia (V) 3-2',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-colombia/'),
+              lnk('Brasil (V) 0-0',a+'eliminatorias-mundial-de-la-fifa-2026brasil-vs-uruguay/'),
               ' | ',
-              lnk('Argentina (L) 0-1',a+'eliminatorias-mundial-de-la-fifa-2026argentina-vs-uruguay505801/'),
+              lnk('Argentina (L) 0-1',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-argentina/'),
               ' | ',
               lnk('Bolivia (V) 0-0',a+'eliminatorias-mundial-de-la-fifa-2026bolivia-vs-uruguay/'),
               ' | ',
-              lnk('Paraguay (V) 0-2',a+'paraguay-2-0-uruguay-15-fecha-eliminatorias-2026/'),
-              lnk('Venezuela (L) 2-0',a+'uruguay-2-0-venezuela-16-fecha-eliminatorias-2026/'),
+              lnk('Paraguay (V) 0-2',a+'eliminatorias-mundial-de-la-fifa-2026paraguay-vs-uruguay/'),
+              lnk('Venezuela (L) 2-0',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-venezuela/'),
               ' | ',
               lnk('Perú (L) 3-0',a+'eliminatorias-mundial-de-la-fifa-2026uruguay-vs-peru/'),
               lnk('Chile (V) 0-0',a+'eliminatorias-mundial-de-la-fifa-2026chile-vs-uruguay/'),
