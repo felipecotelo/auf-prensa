@@ -2060,12 +2060,20 @@ function applyPostMatchUpdates(pizMatchId, evs){
   // Quiénes jugaron: titulares del borrador/oficial + entraron desde el banco
   const lineup=getLineup()[pizMatchId]||{};
   const played=new Set(Object.values(lineup.starters||{}).filter(Boolean));
-  evs.forEach(e=>{
-    if(e.type==='sub' && e.side==='uru'){
+  // Para partidos cerrados, la fuente de verdad es FIFA_OFFICIAL_EVENTS y AUF_OFFICIAL_PART
+  const officialEvs=isMatchLocked(pizMatchId)&&FIFA_OFFICIAL_EVENTS[pizMatchId]
+    ? FIFA_OFFICIAL_EVENTS[pizMatchId] : [];
+  const subEvs=[...evs, ...officialEvs];
+  subEvs.forEach(e=>{
+    if(e.type==='sub' && e.side==='uru' && e.extra){
       const inNum=matchNum(e.extra);
       if(inNum) played.add(inNum);
     }
   });
+  // Si hay AUF_OFFICIAL_PART, también incluir los que "entraron" según el formulario
+  if(isMatchLocked(pizMatchId)&&AUF_OFFICIAL_PART[pizMatchId]){
+    AUF_OFFICIAL_PART[pizMatchId].entro.forEach(n=>played.add(n));
+  }
 
   // Calcular el nuevo snapshot para este partido (sin tocar KStatsDelta aún)
   const snap={};
