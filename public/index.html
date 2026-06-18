@@ -5630,11 +5630,32 @@ function renderFixture(){
         const hasScore=r.h!==''&&r.a!==''&&r.h!=null&&r.a!=null;
         const flag=(iso)=>flagImg(iso,28);
         const pizMatchId=FIX_TO_PIZ[m.id];
+        // Goleadores para el card
+        let homeGoalLines='', awayGoalLines='';
+        if(hasScore&&pizMatchId){
+          const allEvs=[...(getMatchEvents()[pizMatchId]||[])];
+          // Forzar eventos oficiales FIFA (fuente de verdad)
+          if(FIFA_OFFICIAL_EVENTS[pizMatchId]){
+            FIFA_OFFICIAL_EVENTS[pizMatchId].forEach(oe=>{
+              if(oe.type==='goal'){
+                if(!allEvs.find(e=>e.type==='goal'&&e.side===oe.side&&Math.abs((e.min||0)-(oe.min||0))<=1&&(e.player===oe.player||!e.player)))
+                  allEvs.push(oe);
+              }
+            });
+          }
+          const goals=allEvs.filter(e=>e.type==='goal').sort((a,b)=>a.min-b.min);
+          const uruIsHome=m.home==='uru';
+          const fmt=g=>`<div style="font-size:10px;font-weight:700;color:var(--text);white-space:nowrap">⚽ ${g.min}' ${g.player.split(' ').pop()}</div>`;
+          homeGoalLines=goals.filter(e=>e.side===(uruIsHome?'uru':'rival')).map(fmt).join('');
+          awayGoalLines=goals.filter(e=>e.side===(uruIsHome?'rival':'uru')).map(fmt).join('');
+        }
         const center=hasScore
-          ?`<div style="display:flex;align-items:center;gap:14px">
-              <input class="fix-score${m.home==='uru'?' uru':''}" value="${r.h}" oninput="saveScore('${m.id}','h',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.home==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.home==='uru'?'var(--cel-lt)':'var(--surface)'}">
-              <span style="font-size:18px;color:var(--hint);font-weight:300">—</span>
-              <input class="fix-score${m.away==='uru'?' uru':''}" value="${r.a}" oninput="saveScore('${m.id}','a',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.away==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.away==='uru'?'var(--cel-lt)':'var(--surface)'}">
+          ?`<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <input class="fix-score${m.home==='uru'?' uru':''}" value="${r.h}" oninput="saveScore('${m.id}','h',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.home==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.home==='uru'?'var(--cel-lt)':'var(--surface)'}">
+                <span style="font-size:18px;color:var(--hint);font-weight:300">—</span>
+                <input class="fix-score${m.away==='uru'?' uru':''}" value="${r.a}" oninput="saveScore('${m.id}','a',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.away==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.away==='uru'?'var(--cel-lt)':'var(--surface)'}">
+              </div>
             </div>`
           :`<div style="text-align:center;min-width:90px">
               <div style="font-size:30px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-.01em">${m.horaLocal}</div>
@@ -5647,14 +5668,20 @@ function renderFixture(){
           </div>
           <div style="background:#fff;padding:20px 24px">
             <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px">
-              <div style="display:flex;align-items:center;gap:10px">
-                ${flag(th.iso)}
-                <span style="font-size:16px;font-weight:${th.isUs?'800':'600'};color:${th.isUs?'var(--cel-dk)':'var(--text)'}">${th.name}</span>
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:${homeGoalLines?'6px':'0'}">
+                  ${flag(th.iso)}
+                  <span style="font-size:16px;font-weight:${th.isUs?'800':'600'};color:${th.isUs?'var(--cel-dk)':'var(--text)'}">${th.name}</span>
+                </div>
+                ${homeGoalLines?`<div style="padding-left:4px">${homeGoalLines}</div>`:''}
               </div>
               ${center}
-              <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
-                <span style="font-size:16px;font-weight:${ta.isUs?'800':'600'};color:${ta.isUs?'var(--cel-dk)':'var(--text)'}">${ta.name}</span>
-                ${flag(ta.iso)}
+              <div>
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:${awayGoalLines?'6px':'0'}">
+                  <span style="font-size:16px;font-weight:${ta.isUs?'800':'600'};color:${ta.isUs?'var(--cel-dk)':'var(--text)'}">${ta.name}</span>
+                  ${flag(ta.iso)}
+                </div>
+                ${awayGoalLines?`<div style="text-align:right;padding-right:4px">${awayGoalLines}</div>`:''}
               </div>
             </div>
           </div>
