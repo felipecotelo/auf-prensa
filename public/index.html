@@ -8088,6 +8088,7 @@ async function autoSyncCheck(){
       if(_lastSyncedEvent===syncKey) continue;
 
       await syncLineupSilent(matchId, eventId, summary);
+      await syncIncidentsSilent(matchId, summary);
       _lastSyncedEvent = syncKey;
 
       // Marcador si hay goles
@@ -8160,6 +8161,54 @@ async function syncLineupSilent(matchId, eventId, data){
     // Re-render si el partido activo es este
     _luPhotos=null;
     if(curMatch===matchId){ renderLineup(matchId); await renderPlantel(); }
+  }catch(e){ /* silencioso */ }
+}
+
+async function syncIncidentsSilent(matchId, data){
+  try{
+    if(!data) data=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${ESPN_EVENTS[matchId]}`).then(r=>r.json());
+    const keyEvents=data.keyEvents||[];
+    const TYPE_MAP={goal:'goal','yellow-card':'card','red-card':'card',substitution:'sub'};
+    const kindOf=t=>t?.startsWith('goal')?'goal':TYPE_MAP[t];
+    const evs=[];
+    keyEvents.forEach(e=>{
+      const kind=kindOf(e.type?.type);
+      if(!kind) return;
+      const min=parseInt(e.clock?.displayValue)||0;
+      const side=e.team?.id===URU_ESPN_ID?'uru':'rival';
+      const parts=e.participants||[];
+      let player='', extra='';
+      if(kind==='goal'){
+        player=parts[0]?.athlete?.displayName||'';
+        if(/own goal/i.test(e.text||'')) player+=' (autogol)';
+        extra=parts[1]?.athlete?.displayName||'';
+      } else if(kind==='card'){
+        player=parts[0]?.athlete?.displayName||'';
+        extra=e.type.type==='red-card'?'r':'y';
+      } else if(kind==='sub'){
+        player=parts[1]?.athlete?.displayName||'';
+        extra=parts[0]?.athlete?.displayName||'';
+      }
+      if(!player) return;
+      evs.push({id:'espn'+e.id,min,type:kind,side,player,extra});
+    });
+    if(!evs.length) return;
+    const all=getMatchEvents();
+    all[matchId]=evs;
+    setMatchEvents(all);
+    // Re-render banco si pizarra activa es este partido
+    if(_pizMatch===matchId){
+      renderBenchPanel(matchId, document.getElementById('piz-bench-col'));
+    }
+    // Re-render incidents en fixture expand si está abierto
+    const fixId=Object.keys(FIX_TO_PIZ).find(k=>FIX_TO_PIZ[k]===matchId);
+    if(fixId){
+      const box=document.getElementById(`fix-expand-${fixId}`);
+      if(box&&box.style.display!=='none'){
+        renderMatchIncidents(fixId, matchId, box.querySelector('.fix-incidents'));
+        renderBenchPanel(matchId, box.querySelector('.fix-bench'));
+      }
+    }
   }catch(e){ /* silencioso */ }
 }
 
