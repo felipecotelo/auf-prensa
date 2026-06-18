@@ -1796,12 +1796,35 @@ const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart=
 const KMatchLocked='auf4_match_locked';
 const getMatchLocked=()=>stor.get(KMatchLocked,{});
 const isMatchLocked=matchId=>!!getMatchLocked()[matchId];
+// Sesión: partidos desbloqueados manualmente (no auto-bloquear hasta recargar)
+const _sessionUnlocked=new Set();
 function toggleMatchLock(matchId){
   const ml=getMatchLocked();
-  ml[matchId]=!ml[matchId];
+  const newVal=!ml[matchId];
+  ml[matchId]=newVal;
   stor.set(KMatchLocked,ml);
+  if(!newVal) _sessionUnlocked.add(matchId); else _sessionUnlocked.delete(matchId);
   renderPizarra(matchId);
-  toast(ml[matchId]?'🔒 Partido cerrado con formulario oficial — ESPN desactivado':'🔓 Partido desbloqueado — ESPN puede sincronizar');
+  toast(newVal?'🔒 Partido cerrado — ESPN desactivado':'🔓 Desbloqueado — ESPN puede sincronizar');
+}
+// Auto-bloquear si el partido ya pasó y tiene 11 titulares (sin necesitar botón)
+function autoLockIfComplete(matchId){
+  if(isMatchLocked(matchId)||_sessionUnlocked.has(matchId)) return;
+  const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const mDate=ESPN_MATCH_DATES[matchId];
+  if(!mDate||mDate>=today) return;
+  const st=getLineup()[matchId]?.starters||{};
+  if(Object.values(st).filter(Boolean).length>=11){
+    const ml=getMatchLocked(); ml[matchId]=true; stor.set(KMatchLocked,ml);
+  }
+}
+// Toggle participación del banco (titular→no entró, entró↔no entró)
+function toggleBenchPartVal(num,matchId){
+  const cur=getPartVal(num,matchId);
+  const next=cur==='entró'?'no entró':'entró';
+  setPartVal(num,matchId,next);
+  renderBenchPanel(matchId);
+  toast(next==='entró'?`▲ ${PLAYERS.find(p=>p.n===num)?.name?.split(' ').pop()||num} marcado como ingresó`:`${PLAYERS.find(p=>p.n===num)?.name?.split(' ').pop()||num} — no ingresó`);
 }
 
 // ── MVP del partido (Player of the Match — premio oficial FIFA) ────────────
@@ -5163,7 +5186,8 @@ async function renderBenchPanel(pizMatchId, container){
     const evBadges=pEvs.map(e=>e.type==='goal'?`<span style="font-size:9px">⚽${e.min}'</span>`:e.extra==='r'?`<span style="font-size:9px">🟥</span>`:`<span style="font-size:9px">🟨</span>`).join('');
     const subBadge=subMin!=null?`<span style="font-size:8px;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 3px;margin-left:3px;white-space:nowrap">▲ ${subMin}'</span>`:partVal==='entró'?`<span style="font-size:8px;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 3px;margin-left:3px;white-space:nowrap">▲</span>`:'';
     const chipStyle=isSusp?'border-color:#DC2626;background:#FEF2F2':didPlay?'border-color:#16A34A;background:#F0FDF4':'opacity:.45;filter:grayscale(.5)';
-    return`<div class="piz-p-chip" style="${chipStyle}">
+    const isStarter=partVal==='titular';
+    return`<div class="piz-p-chip" style="${chipStyle};cursor:${isStarter?'default':'pointer'}" ${isStarter?'':` onclick="toggleBenchPartVal(${p.n},'${pizMatchId}')" title="${didPlay?'Tocar para marcar como no ingresó':'Tocar para marcar como ingresó'}"`}>
       <div class="piz-chip-av">
         ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
         <span class="piz-chip-av-num" style="${ph?'display:none':''}">${p.n}</span>
@@ -7136,6 +7160,9 @@ async function renderPizarra(matchId){
   if(Object.keys(st).length !== Object.keys(rawSt).length){
     all[matchId].starters = st; setLineup(all);
   }
+  // Auto-bloquear si el partido ya jugó y tiene 11 titulares
+  autoLockIfComplete(matchId);
+
   const usedNums = new Set(
     Object.values(st).filter(Boolean)
   );
@@ -7411,11 +7438,10 @@ async function renderPizarra(matchId){
     <div style="margin-top:10px">
       <div style="margin-bottom:8px">
         <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Resumen del partido</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${isMatchLocked(matchId)
-            ? `<button onclick="toggleMatchLock('${matchId}')" style="font-size:9.5px;font-weight:800;padding:4px 10px;border:0.5px solid #16A34A;border-radius:5px;background:#F0FDF4;color:#16A34A;cursor:pointer;white-space:nowrap;width:100%">🔒 Oficial cargado — tocar para desbloquear ESPN</button>`
-            : `<button id="piz-sync-btn-${matchId}" onclick="syncMatchFull('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid var(--cel);border-radius:5px;background:var(--cel-lt);color:var(--cel-dk);cursor:pointer;white-space:nowrap;flex:1">🔄 Actualizar</button>
-               <button onclick="toggleMatchLock('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid #16A34A;border-radius:5px;background:var(--surface);color:#16A34A;cursor:pointer;white-space:nowrap">🔒 Cerrar con oficial</button>`
+            ? `<span style="font-size:9px;color:#16A34A;font-weight:700;flex:1;white-space:nowrap">🔒 Oficial &nbsp;<button onclick="toggleMatchLock('${matchId}')" style="font-size:8.5px;font-weight:600;background:none;border:none;cursor:pointer;color:var(--hint);text-decoration:underline;padding:0">desbloquear ESPN</button></span>`
+            : `<button id="piz-sync-btn-${matchId}" onclick="syncMatchFull('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid var(--cel);border-radius:5px;background:var(--cel-lt);color:var(--cel-dk);cursor:pointer;white-space:nowrap;flex:1">🔄 Actualizar</button>`
           }
           <button onclick="openDeltaEditor('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap;flex:1">✏️ Corregir</button>
         </div>
