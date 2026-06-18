@@ -5662,7 +5662,10 @@ function renderFixture(){
               }
             });
           }
-          const goals=allEvs.filter(e=>e.type==='goal').sort((a,b)=>a.min-b.min);
+          // Deduplicar goles por lado+minuto (nombres pueden diferir entre ESPN y FIFA)
+          const goals=allEvs.filter((e,i,arr)=>e.type==='goal'&&
+            arr.findIndex(x=>x.type==='goal'&&x.side===e.side&&Math.abs((x.min||0)-(e.min||0))<=1)===i
+          ).sort((a,b)=>a.min-b.min);
           const uruIsHome=m.home==='uru';
           const fmt=g=>`<div style="font-size:10px;font-weight:700;color:var(--text);white-space:nowrap">⚽ ${g.min}' ${g.player.split(' ').pop()}</div>`;
           homeGoalLines=goals.filter(e=>e.side===(uruIsHome?'uru':'rival')).map(fmt).join('');
