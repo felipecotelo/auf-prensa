@@ -972,21 +972,19 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 </head>
 <body>
 <script>
-// Bloqueo inmediato — corre ANTES de que el browser pinte cualquier contenido
 (function(){
   var p=new URLSearchParams(location.search);
-  var tabs=p.get('tabs'),key=p.get('k'),ro=p.get('ro');
+  var tabs=p.get('tabs'),token=p.get('t'),ro=p.get('ro');
   if(tabs){
     sessionStorage.setItem('auf_rtabs',tabs);
-    if(key) sessionStorage.setItem('auf_rkey',key); else sessionStorage.removeItem('auf_rkey');
+    if(token) sessionStorage.setItem('auf_rtoken',token); else sessionStorage.removeItem('auf_rtoken');
     if(ro==='1') sessionStorage.setItem('auf_ro','1'); else sessionStorage.removeItem('auf_ro');
-    // Limpiar URL para ocultar la clave
+    sessionStorage.removeItem('auf_authed');
     history.replaceState(null,'',location.pathname);
   }
   var r=sessionStorage.getItem('auf_rtabs');
   if(!r) return;
-  // Inyectar overlay sincrónico — antes de que se pinte NADA
-  document.write('<div id="restrict-cover" style="position:fixed;inset:0;z-index:2147483647;background:#F3F4F6;pointer-events:all"></div>');
+  document.write('<div id="restrict-cover" style="position:fixed;inset:0;z-index:2147483647;background:#0A0A0F;pointer-events:all"></div>');
 })();
 </script>
 <nav class="nav">
@@ -9335,7 +9333,7 @@ function renderLinkGen(){
 
   const profilesHtml=profiles.length?profiles.map((p,i)=>{
     const url=p.token
-      ? 'https://auf-prensa-production.up.railway.app/access?tabs='+encodeURIComponent(p.tabs.join(','))+'&t='+p.token+(p.ro?'&ro=1':'')
+      ? base+'?tabs='+encodeURIComponent(p.tabs.join(','))+'&t='+p.token+(p.ro?'&ro=1':'')
       : base+'?tabs='+encodeURIComponent(p.tabs.join(','))+(p.ro?'&ro=1':'');
     return`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -9646,6 +9644,45 @@ function lgCopy(i,url){
   // Pull datos de la nube antes de renderizar
   await cloudPull();
   if(IS_RESTRICTED){
+    // Si hay token y no fue autenticado aún, mostrar modal de contraseña
+    const _rToken=sessionStorage.getItem('auf_rtoken');
+    if(_rToken && sessionStorage.getItem('auf_authed')!=='1'){
+      await new Promise(resolve=>{
+        const ov=document.getElementById('restrict-cover');
+        if(ov) ov.style.background='#0A0A0F';
+        const modal=document.createElement('div');
+        modal.style.cssText='position:fixed;inset:0;z-index:2147483648;display:flex;align-items:center;justify-content:center;background:#0A0A0F';
+        modal.innerHTML=`<div style="background:#111827;border:1px solid #1F2937;border-radius:16px;padding:2rem;width:min(360px,90vw);text-align:center;font-family:system-ui,sans-serif">
+          <div style="font-size:13px;font-weight:800;letter-spacing:.15em;color:#009DD8;text-transform:uppercase;margin-bottom:1.5rem">AUF Prensa · FWC26</div>
+          <h2 style="font-size:18px;font-weight:700;color:#F9FAFB;margin:0 0 .5rem">Acceso restringido</h2>
+          <p style="font-size:13px;color:#6B7280;margin:0 0 1.5rem">Ingresá la contraseña que te compartieron</p>
+          <input id="_pwd" type="password" placeholder="Contraseña" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #374151;background:#1F2937;color:#F9FAFB;font-size:15px;outline:none;margin-bottom:1rem;box-sizing:border-box">
+          <button id="_pwd_btn" style="width:100%;padding:11px;border-radius:8px;border:none;background:#009DD8;color:#fff;font-size:14px;font-weight:700;cursor:pointer">Ingresar</button>
+          <div id="_pwd_err" style="color:#F87171;font-size:13px;margin-top:.75rem;min-height:18px"></div>
+        </div>`;
+        document.body.appendChild(modal);
+        modal.querySelector('#_pwd').focus();
+        async function tryAuth(){
+          const pwd=modal.querySelector('#_pwd').value.trim();
+          if(!pwd)return;
+          const btn=modal.querySelector('#_pwd_btn');
+          btn.disabled=true; btn.textContent='Verificando…';
+          const msg=new TextEncoder().encode(RESTRICTED_TABS.join(',')+':'+pwd);
+          const buf=await crypto.subtle.digest('SHA-256',msg);
+          const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,24);
+          if(hash===_rToken){
+            sessionStorage.setItem('auf_authed','1');
+            modal.remove();
+            resolve();
+          } else {
+            modal.querySelector('#_pwd_err').textContent='Contraseña incorrecta';
+            btn.disabled=false; btn.textContent='Ingresar';
+          }
+        }
+        modal.querySelector('#_pwd_btn').addEventListener('click',tryAuth);
+        modal.querySelector('#_pwd').addEventListener('keydown',e=>{if(e.key==='Enter')tryAuth();});
+      });
+    }
     await renderPlantel();
     renderEstadisticas();
     showTab(RESTRICTED_TABS[0]||'estadisticas');
