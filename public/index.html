@@ -4497,6 +4497,16 @@ const FIFA_OFFICIAL_EVENTS = {
   ],
 };
 
+// Participación oficial según AUF (fuente de verdad, se aplica al inicio si el partido está cerrado)
+// Fuente: auf.org.uy — minutos jugados por partido
+const AUF_OFFICIAL_PART = {
+  'uru-ksa': {
+    titular: [3,5,6,8,9,13,16,17,20,21,23],   // once inicial
+    entro:   [7,18,25],                          // ingresaron: De La Cruz 72', Sanabria 45', B.Rodríguez 81'
+    noEntro: [1,2,4,10,11,12,14,15,19,22,24,26] // banco sin jugar
+  }
+};
+
 function mergeOfficialEvents(matchId, evs){
   const official=FIFA_OFFICIAL_EVENTS[matchId]||[];
   official.forEach(oe=>{
@@ -8705,6 +8715,16 @@ async function tryAutoLoad(){
       if(m.chk) syncEvToChkSession(m.date,m.idx,ev[evKey(m.date,m.idx)]||'');
     });
   })();
+  // Al cargar: aplicar participación oficial AUF para partidos cerrados
+  (()=>{
+    Object.entries(AUF_OFFICIAL_PART).forEach(([mid,data])=>{
+      if(!isMatchLocked(mid)) return; // solo si está cerrado con oficial
+      data.titular.forEach(n=>setPartVal(n,mid,'titular'));
+      data.entro.forEach(n=>setPartVal(n,mid,'entró'));
+      data.noEntro.forEach(n=>setPartVal(n,mid,'no entró'));
+    });
+  })();
+
   // Al cargar: parchar eventos oficiales FIFA y recalcular stats de partidos ya jugados
   (()=>{
     const all=getMatchEvents();
