@@ -978,6 +978,7 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   <button class="tab d-tab" onclick="showTab('grafica')"><i class="ti ti-photo"></i>Diseño</button>
   <button class="tab" onclick="showTab('infogeneral')"><i class="ti ti-info-circle"></i>Información general</button>
   <button class="tab" onclick="showTab('registro')"><i class="ti ti-clipboard-list"></i>Registro</button>
+  <button class="tab" onclick="showTab('linkgen')" style="color:#7C3AED"><i class="ti ti-link"></i>Links</button>
 </div>
 
 <main>
@@ -1197,6 +1198,15 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
     </div>
   </div>
   <div id="grafica-container"></div>
+</div>
+
+<!-- ═══════════ LINKS ═══════════ -->
+<div id="linkgen" class="section">
+  <div class="sec-hdr">
+    <div class="sec-icon" style="background:#7C3AED"><i class="ti ti-link"></i></div>
+    <div class="sec-title">Generador de links</div>
+  </div>
+  <div id="linkgen-body" style="padding:0 1rem 2rem"></div>
 </div>
 
 </main>
@@ -1805,18 +1815,23 @@ function flagImg(code, size=28){
 
 const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp', KWCCache='auf4_wc_cache3', KSlotPos='auf4_slotpos';
 
-// ── Partido "cerrado con oficial" — ESPN no puede modificar nada ─────────────
-// ── Modo diseñador ──────────────────────────────────────────────────────────
-const DESIGNER_KEY = 'auf2026dis';
-const DESIGNER_TABS = ['plantel','estadisticas','grafica'];
+// ── Acceso restringido por URL ───────────────────────────────────────────────
+// URL: ?tabs=plantel,estadisticas,grafica&k=CLAVE  (k es opcional)
+// La clave + config se guardan en sessionStorage para que dure la sesión.
+const KLinks='auf4_links'; // perfiles guardados en localStorage
 (()=>{
   const p=new URLSearchParams(location.search);
-  if(p.get('k')===DESIGNER_KEY) sessionStorage.setItem('auf_dmode','1');
+  const tabs=p.get('tabs'), key=p.get('k');
+  if(tabs){
+    sessionStorage.setItem('auf_rtabs', tabs);
+    if(key) sessionStorage.setItem('auf_rkey', key);
+    else sessionStorage.removeItem('auf_rkey');
+  }
 })();
-const IS_DESIGNER = sessionStorage.getItem('auf_dmode')==='1';
-if(IS_DESIGNER){
-  document.documentElement.setAttribute('data-dmode','1');
-}
+const _rTabs=sessionStorage.getItem('auf_rtabs');
+const IS_RESTRICTED=!!_rTabs;
+const RESTRICTED_TABS=IS_RESTRICTED?_rTabs.split(','):[];
+if(IS_RESTRICTED) document.documentElement.setAttribute('data-dmode','1');
 // ─────────────────────────────────────────────────────────────────────────────
 const KMatchLocked='auf4_match_locked';
 const getMatchLocked=()=>stor.get(KMatchLocked,{});
@@ -2610,11 +2625,11 @@ function toast(msg){
 // TABS
 // ═══════════════════════════════════════════════════════════════════════════
 function showTab(id){
-  if(IS_DESIGNER&&!DESIGNER_TABS.includes(id)) return;
+  if(IS_RESTRICTED&&!RESTRICTED_TABS.includes(id)) return;
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro'];
+  const map=['inicio','disponibilidad','calendario','partido','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
   const i=map.indexOf(id);
   if(i>=0)document.querySelectorAll('.tab')[i].classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
@@ -2628,6 +2643,7 @@ function showTab(id){
   if(id==='pizarra'){renderPizarra(_pizMatch)}
   if(id==='estadisticas'){renderEstadisticas()}
   if(id==='registro'){renderLog(curLog)}
+  if(id==='linkgen'){renderLinkGen()}
   if(id==='infogeneral'){renderInfoGeneral()}
   if(id==='grafica'){renderGrafica()}
 }
@@ -9097,6 +9113,130 @@ async function tryAutoLoad(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// GENERADOR DE LINKS
+// ═══════════════════════════════════════════════════════════════════════════
+const LINK_TABS_DEF=[
+  {id:'inicio',       label:'Inicio',              icon:'ti-layout-grid'},
+  {id:'disponibilidad',label:'Disponibilidad',     icon:'ti-list-check'},
+  {id:'calendario',   label:'Calendario',          icon:'ti-calendar'},
+  {id:'partido',      label:'Checklist',           icon:'ti-checklist'},
+  {id:'pizarra',      label:'Pizarra',             icon:'ti-ball-football'},
+  {id:'fixture',      label:'Fixture',             icon:'ti-tournament'},
+  {id:'partidos',     label:'Partidos',            icon:'ti-world'},
+  {id:'plantel',      label:'Plantel',             icon:'ti-users'},
+  {id:'estadisticas', label:'Stats',               icon:'ti-chart-bar'},
+  {id:'grafica',      label:'Diseño',              icon:'ti-photo'},
+  {id:'infogeneral',  label:'Info general',        icon:'ti-info-circle'},
+  {id:'registro',     label:'Registro',            icon:'ti-clipboard-list'},
+];
+
+let _lgEdit=null; // id del perfil en edición
+
+function getLinkProfiles(){ return stor.get(KLinks,[]); }
+function saveLinkProfiles(arr){ stor.set(KLinks,arr); }
+
+function renderLinkGen(){
+  const profiles=getLinkProfiles();
+  const base=location.origin+location.pathname;
+  const el=document.getElementById('linkgen-body');
+
+  const profilesHtml=profiles.length?profiles.map((p,i)=>{
+    const url=base+'?tabs='+encodeURIComponent(p.tabs.join(','))+(p.key?'&k='+encodeURIComponent(p.key):'');
+    return`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--text)">${p.name}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${p.tabs.map(t=>LINK_TABS_DEF.find(x=>x.id===t)?.label||t).join(' · ')}${p.key?` · 🔑 con clave`:' · sin clave'}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="lgEditProfile(${i})" style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-weight:700;color:var(--muted)">✏️ Editar</button>
+          <button onclick="lgDeleteProfile(${i})" style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid #FCA5A5;background:#FEF2F2;cursor:pointer;font-weight:700;color:#DC2626">🗑</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="lg-url-${i}" readonly value="${url}" onclick="this.select()" style="flex:1;font-size:10.5px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--muted);cursor:pointer;font-family:monospace">
+        <button onclick="lgCopy(${i},'${url}')" id="lg-copy-${i}" style="font-size:11px;padding:6px 12px;border-radius:8px;border:1.5px solid #7C3AED;background:#F5F3FF;cursor:pointer;font-weight:800;color:#7C3AED;white-space:nowrap">📋 Copiar</button>
+      </div>
+    </div>`;
+  }).join(''):`<div style="text-align:center;padding:32px 0;color:var(--hint);font-size:13px">No hay perfiles — creá uno abajo</div>`;
+
+  const editing=_lgEdit!==null?profiles[_lgEdit]:null;
+  const formTabs=editing?editing.tabs:['plantel','estadisticas','grafica'];
+  const formKey=editing?editing.key:'';
+  const formName=editing?editing.name:'';
+
+  el.innerHTML=`
+    ${profilesHtml}
+
+    <!-- Formulario nuevo / editar -->
+    <div style="background:var(--surface);border:1.5px dashed #C4B5FD;border-radius:12px;padding:16px;margin-top:${profiles.length?'16px':'0'}">
+      <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:#7C3AED;margin-bottom:12px">${editing?'✏️ Editando perfil':'➕ Nuevo perfil'}</div>
+
+      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Nombre del perfil</label>
+      <input id="lg-name" type="text" placeholder="ej. Diseñadores AUF" value="${formName}"
+        style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;margin-bottom:12px;box-sizing:border-box">
+
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px">Secciones visibles</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-bottom:14px">
+        ${LINK_TABS_DEF.map(t=>`
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 8px;border-radius:8px;background:var(--white);border:1px solid ${formTabs.includes(t.id)?'#7C3AED':'var(--border)'};transition:border-color .12s">
+            <input type="checkbox" id="lg-tab-${t.id}" ${formTabs.includes(t.id)?'checked':''} onchange="lgUpdateTabCheck()"
+              style="accent-color:#7C3AED;width:14px;height:14px;flex-shrink:0">
+            <span style="font-size:11.5px;font-weight:600;color:var(--text)">${t.label}</span>
+          </label>`).join('')}
+      </div>
+
+      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Clave de acceso <span style="font-weight:400;opacity:.7">(opcional — si no ponés nada, el link funciona sin clave)</span></label>
+      <input id="lg-key" type="text" placeholder="ej. auf2026" value="${formKey}"
+        style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;margin-bottom:14px;box-sizing:border-box">
+
+      <div style="display:flex;gap:8px">
+        <button onclick="lgSaveProfile()" style="flex:1;padding:10px;border-radius:10px;border:none;background:#7C3AED;color:#fff;font-size:13px;font-weight:800;cursor:pointer">${editing?'Guardar cambios':'Generar link'}</button>
+        ${editing?`<button onclick="lgCancelEdit()" style="padding:10px 16px;border-radius:10px;border:1px solid var(--border);background:var(--white);font-size:12px;font-weight:700;cursor:pointer;color:var(--muted)">Cancelar</button>`:''}
+      </div>
+    </div>`;
+}
+
+function lgUpdateTabCheck(){
+  LINK_TABS_DEF.forEach(t=>{
+    const lbl=document.getElementById('lg-tab-'+t.id)?.closest('label');
+    if(lbl) lbl.style.borderColor=document.getElementById('lg-tab-'+t.id)?.checked?'#7C3AED':'var(--border)';
+  });
+}
+
+function lgSaveProfile(){
+  const name=document.getElementById('lg-name').value.trim()||'Sin nombre';
+  const key=document.getElementById('lg-key').value.trim();
+  const tabs=LINK_TABS_DEF.map(t=>t.id).filter(id=>document.getElementById('lg-tab-'+id)?.checked);
+  if(!tabs.length){alert('Seleccioná al menos una sección');return;}
+  const profiles=getLinkProfiles();
+  const profile={name,tabs,key};
+  if(_lgEdit!==null) profiles[_lgEdit]=profile;
+  else profiles.push(profile);
+  saveLinkProfiles(profiles);
+  _lgEdit=null;
+  renderLinkGen();
+}
+
+function lgEditProfile(i){ _lgEdit=i; renderLinkGen(); document.getElementById('lg-name')?.focus(); }
+function lgCancelEdit(){ _lgEdit=null; renderLinkGen(); }
+function lgDeleteProfile(i){
+  if(!confirm('¿Eliminar este perfil?'))return;
+  const profiles=getLinkProfiles();
+  profiles.splice(i,1);
+  saveLinkProfiles(profiles);
+  renderLinkGen();
+}
+
+function lgCopy(i,url){
+  navigator.clipboard.writeText(url).then(()=>{
+    const btn=document.getElementById('lg-copy-'+i);
+    if(btn){btn.textContent='✅ Copiado';btn.style.background='#F0FDF4';btn.style.borderColor='#22C55E';btn.style.color='#15803D';
+    setTimeout(()=>{btn.innerHTML='📋 Copiar';btn.style.background='#F5F3FF';btn.style.borderColor='#7C3AED';btn.style.color='#7C3AED';},2000);}
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════
 (async()=>{
@@ -9286,10 +9426,10 @@ async function tryAutoLoad(){
   })();
   // Pull datos de la nube antes de renderizar
   await cloudPull();
-  if(IS_DESIGNER){
+  if(IS_RESTRICTED){
     await renderPlantel();
     renderEstadisticas();
-    showTab('estadisticas');
+    showTab(RESTRICTED_TABS[0]||'estadisticas');
   } else {
     renderInicio();
     renderCal();
