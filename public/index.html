@@ -1855,7 +1855,7 @@ function flagImg(code, size=28){
   return `<img src="https://flagcdn.com/w40/${code}.png" alt="${code.toUpperCase()}" style="width:${size}px;height:auto;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.18);flex-shrink:0;vertical-align:middle" onerror="this.style.display='none'">`;
 }
 
-const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp', KWCCache='auf4_wc_cache3', KSlotPos='auf4_slotpos';
+const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart='auf4_part', KPhoto='auf4_photos', KFix='auf4_fixture', KCalT='auf4_caltimes', KEvN='auf4_evnotes', KEvS='auf4_evstatus', KEvP='auf4_evparts', KDayClosed='auf4_dayclosed', KDayActs='auf4_dayacts', KInj='auf4_injuries', KEvC='auf4_evcount', KEvTxt='auf4_evtxt', KYellow='auf4_yellow', KEvOblig='auf4_evoblig', KAeroUy='auf4_aerouy', KEvFifa='auf4_evfifa', KEvFifaOrig='auf4_evfifaorig', KEvManualAt='auf4_evmanualat', KEvHidden='auf4_evhidden', KGrafica='auf4_grafica', KStatsOrder='auf4_statsorder', KMvp='auf4_mvp', KWCCache='auf4_wc_cache3', KSlotPos='auf4_slotpos', KEvResch='auf4_evresch';
 
 // ── Acceso restringido por URL ───────────────────────────────────────────────
 // URL: ?tabs=plantel,estadisticas,grafica&k=CLAVE  (k es opcional)
@@ -2843,8 +2843,9 @@ function buildEventsHtml(day, startIdx=0){
   const showPartsFor=(e)=>e.tipo!=='viaje'&&!e.noParts;
   return day.eventos.map((e,ei)=>{
     const realIdx=e._origIdx!==undefined?e._origIdx:startIdx+ei;
-    const k=evKey(day.date,realIdx);
-    const t=getCalTime(day.date,realIdx,e.h);
+    const dataDate=e._isResch?e._origDate:dataDate;
+    const k=evKey(dataDate,realIdx);
+    const t=e._isResch?e.h:getCalTime(dataDate,realIdx,e.h);
     const isFifaChange=getEvFifa()[k];
     const s=evStatus[k]||'';
     const note=evNotes[k]||'';
@@ -2858,12 +2859,12 @@ function buildEventsHtml(day, startIdx=0){
     const showParticipants=showPartsFor(e)&&!e.isDT;
     const showDTChips=showParticipants&&e.hasDT!==false;
     const showPlayerChips=showParticipants&&e.hasPlayers!==false;
-    const dtChips=showDTChips?DT_STAFF.map(dt=>`<span class="ev-p-chip${selParts.includes('dt_'+dt.id)?' sel-bielsa':''}" onclick="toggleEvPart('${day.date}',${realIdx},'dt_${dt.id}',this)">${dt.name}</span>`).join(''):'';
+    const dtChips=showDTChips?DT_STAFF.map(dt=>`<span class="ev-p-chip${selParts.includes('dt_'+dt.id)?' sel-bielsa':''}" onclick="toggleEvPart('${dataDate}',${realIdx},'dt_${dt.id}',this)">${dt.name}</span>`).join(''):'';
     const allSelected=showPlayerChips&&PLAYERS.every(p=>selParts.includes('p_'+p.n));
-    const todosBtn=showPlayerChips?`<span class="ev-p-chip${allSelected?' sel':''}" style="font-weight:800;background:${allSelected?'var(--navy)':'var(--surface)'};color:${allSelected?'#fff':'var(--text)'};border-color:${allSelected?'var(--navy)':'var(--border)'}" onclick="toggleAllPlayers('${day.date}',${realIdx},${allSelected})">👥 ${allSelected?'Quitar todos':'Todos'}</span>`:'';
+    const todosBtn=showPlayerChips?`<span class="ev-p-chip${allSelected?' sel':''}" style="font-weight:800;background:${allSelected?'var(--navy)':'var(--surface)'};color:${allSelected?'#fff':'var(--text)'};border-color:${allSelected?'var(--navy)':'var(--border)'}" onclick="toggleAllPlayers('${dataDate}',${realIdx},${allSelected})">👥 ${allSelected?'Quitar todos':'Todos'}</span>`:'';
     const _matchId=getMatchIdForDate(day.date);
     const _selNums=selParts.filter(x=>x.startsWith('p_')).map(x=>parseInt(x.slice(2)));
-    const pChips=showPlayerChips?buildPlayerChipsHtml(_selNums,_matchId,p=>`toggleEvPart('${day.date}',${realIdx},'p_${p.n}',this)`):'';
+    const pChips=showPlayerChips?buildPlayerChipsHtml(_selNums,_matchId,p=>`toggleEvPart('${dataDate}',${realIdx},'p_${p.n}',this)`):'';
 
     // Selected names display (apellido only for players)
     const dtNames=selParts.filter(x=>x.startsWith('dt_')).map(x=>{const d=DT_STAFF.find(s=>s.id===x.slice(3));return d?d.name:''}).filter(Boolean);
@@ -2872,7 +2873,7 @@ function buildEventsHtml(day, startIdx=0){
 
     // Training events when day is closed: not "obligatorio" (the obligation was to open it)
     const isTrainClosed=e.esTrain&&dayClosed;
-    const obligOverride=getEvObligState(day.date,realIdx);
+    const obligOverride=getEvObligState(dataDate,realIdx);
     const autoOblig=isTrainClosed?false:(e.esTrain&&!dayClosed?true:isPresaActivity(e));
     const isOblig=e.lockOblig?true:(obligOverride.state==='oblig'?true:obligOverride.state==='nooblig'?false:autoOblig);
     const effectiveArt=e.lockOblig?e.art:(obligOverride.state==='oblig'&&obligOverride.art?obligOverride.art:(e.art||(e.esTrain?'TAM p.72':null)));
@@ -2880,10 +2881,10 @@ function buildEventsHtml(day, startIdx=0){
     const baseTxt=isTrainClosed
       ?e.txt.replace(/—\s*abierto[^·]*/i,'— ').replace(/primeros 15 min abiertos\s*·?\s*/i,'').trim()
       :e.txt;
-    let displayTxt=getEvTxt(day.date,realIdx,baseTxt);
+    let displayTxt=getEvTxt(dataDate,realIdx,baseTxt);
     // Renumerar "sesión N/M" dinámicamente según el orden cronológico real del grupo
     if(e.group&&/sesión\s+\d+\/(\d+)/i.test(displayTxt)){
-      const rank=getGroupSessionRank(day.date,realIdx,e.group);
+      const rank=getGroupSessionRank(dataDate,realIdx,e.group);
       if(rank!=null) displayTxt=displayTxt.replace(/sesión\s+\d+\/(\d+)/i,`sesión ${rank}/$1`);
     }
     const statusClass=s==='done'?'ev-done':s==='sus'?'ev-sus':s==='no'?'ev-no':'';
@@ -2900,22 +2901,22 @@ function buildEventsHtml(day, startIdx=0){
     const partidoMatchId=e.tipo==='partido'&&e.fixId?fixIdToMatch[e.fixId]:null;
 
     return`
-      <div class="cal-ev" id="cev-${day.date}-${realIdx}" style="${matchResult?'background:var(--cel-lt);border-radius:8px;padding:5px 6px':e.isDT?'background:#F5F3FF;border-radius:6px':e.tipo==='partido-fifa'?'background:#F3F4F6;border-radius:6px':e.tipo==='sched'?'background:#FFFBEB;border-radius:6px;padding:3px 4px':''}">
+      <div class="cal-ev" id="cev-${dataDate}-${realIdx}" style="${matchResult?'background:var(--cel-lt);border-radius:8px;padding:5px 6px':e.isDT?'background:#F5F3FF;border-radius:6px':e.tipo==='partido-fifa'?'background:#F3F4F6;border-radius:6px':e.tipo==='sched'?'background:#FFFBEB;border-radius:6px;padding:3px 4px':''}">
         <div class="cal-ev-row">
           <div class="ev-sts">
             ${e.tipo==='partido'?'<span class="ev-sts-ph-uru"></span>':e.tipo==='partido-fifa'?'<span class="ev-sts-ph-wc"></span>':(e.tipo==='sched'||(e.tipo==='team'&&e.noParts))?'<span class="ev-sts-ph"></span>':`
-            <button class="ev-st st-done${s==='done'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'done',this)" title="Hecho">✓</button>
-            <button class="ev-st st-sus${s==='sus'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'sus',this)" title="Suspendida">⏸</button>
-            <button class="ev-st st-no${s==='no'?' act':''}" onclick="setEvSt('${day.date}',${realIdx},'no',this)" title="No realizada">✗</button>`}
+            <button class="ev-st st-done${s==='done'?' act':''}" onclick="setEvSt('${dataDate}',${realIdx},'done',this)" title="Hecho">✓</button>
+            <button class="ev-st st-sus${s==='sus'?' act':''}" onclick="setEvSt('${dataDate}',${realIdx},'sus',this)" title="Suspendida">⏸</button>
+            <button class="ev-st st-no${s==='no'?' act':''}" onclick="setEvSt('${dataDate}',${realIdx},'no',this)" title="No realizada">✗</button>`}
           </div>
-          <div class="cal-event-h editable-time${isDraftTime(t)?' draft-time':''}" style="margin-top:2px;min-width:50px" title="${isDraftTime(t)?'Horario a confirmar — click para editar':'Click para editar horario'}" onclick="editEventTime('${day.date}',${realIdx},this)">${t}${isDraftTime(t)?'<span class="draft-tag">a confirmar</span>':''}</div>
-          <button onclick="toggleEvFifa('${day.date}',${realIdx},event)" title="${isFifaChange?'Horario reprogramado por FIFA — click para quitar la marca':'Marcar como horario reprogramado por FIFA (no fue un cambio nuestro)'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 2px;margin-top:2px;line-height:1;opacity:${isFifaChange?'1':'.25'}">⛔️</button>
+          <div class="cal-event-h editable-time${isDraftTime(t)?' draft-time':''}" style="margin-top:2px;min-width:50px" title="${isDraftTime(t)?'Horario a confirmar — click para editar':'Click para editar horario'}" onclick="editEventTime('${dataDate}',${realIdx},this)">${t}${isDraftTime(t)?'<span class="draft-tag">a confirmar</span>':''}</div>
+          <button onclick="toggleEvFifa('${dataDate}',${realIdx},event)" title="${isFifaChange?'Horario reprogramado por FIFA — click para quitar la marca':'Marcar como horario reprogramado por FIFA (no fue un cambio nuestro)'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 2px;margin-top:2px;line-height:1;opacity:${isFifaChange?'1':'.25'}">⛔️</button>
           <div class="cal-event-dot ${e.isDT?'ce-dt':'ce-'+e.tipo}" style="margin-top:5px;flex-shrink:0"></div>
           <div class="ev-txt-wrap">
             <div class="ev-main-txt ${statusClass}">
               ${partidoMatchId
                 ?`<span class="ev-editable-txt" title="Ver información del partido" onclick="goToPartido('${partidoMatchId}')" style="cursor:pointer;font-weight:700">${displayTxt} <span style="font-size:9.5px;color:var(--cel);font-weight:600">→ ver partido</span></span>`
-                :`<span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${day.date}',${realIdx},this)">${displayTxt}</span>`
+                :`<span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${dataDate}',${realIdx},this)">${displayTxt}</span>`
               }
               ${(()=>{
                 const isViaje=e.tipo==='viaje';
@@ -2937,7 +2938,7 @@ function buildEventsHtml(day, startIdx=0){
                 } else if(e.tipo==='team'){
                   mainTag=`<span class="tag" style="font-size:9.5px;background:var(--team-lt);color:var(--team)">Actividad</span>`;
                 } else if(e.extra){
-                  const _mvpParts=evParts[evKey(day.date,realIdx)]||[];
+                  const _mvpParts=evParts[evKey(dataDate,realIdx)]||[];
                   const _hasMvp=_mvpParts.some(k=>k.startsWith('p_'));
                   mainTag=_hasMvp
                     ?`${effectiveArt?artTagHtml(effectiveArt):''}<span class="tag tag-oblig" style="font-size:9.5px">Obligatorio 🏅</span>`
@@ -2950,11 +2951,12 @@ function buildEventsHtml(day, startIdx=0){
                 // Toggle sutil (solo si no es entrenamiento automático sin override)
                 const showToggle=!(isTrainEvent&&ovr==='auto')&&e.tipo!=='team'&&e.tipo!=='partido'&&!e.lockOblig;
                 const toggleTip=ovr==='auto'?'Forzar obligatorio / no obligatorio':ovr==='oblig'?'Marcado obligatorio manualmente — click para cambiar':'Marcado no obligatorio — click para cambiar';
-                const toggleBtn=showToggle?`<button onclick="cycleEvOblig('${day.date}',${realIdx},event)" title="${toggleTip}" style="background:none;border:none;cursor:pointer;font-size:9px;color:${ovr==='auto'?'var(--hint)':ovr==='oblig'?'var(--cel-dk)':'var(--muted)'};padding:0 2px;line-height:1;opacity:.7" >✎</button>`:'';
+                const toggleBtn=showToggle?`<button onclick="cycleEvOblig('${dataDate}',${realIdx},event)" title="${toggleTip}" style="background:none;border:none;cursor:pointer;font-size:9px;color:${ovr==='auto'?'var(--hint)':ovr==='oblig'?'var(--cel-dk)':'var(--muted)'};padding:0 2px;line-height:1;opacity:.7" >✎</button>`:'';
                 return mainTag+toggleBtn;
               })()}
               ${e.enEstadio&&day.sede?`<span style="font-size:9.5px;color:var(--hint);font-weight:600">📍 ${day.sede.split(',')[0]}</span>`:''}
               ${isFifaChange?'<span class="tag" style="font-size:9.5px;background:rgba(212,160,23,.15);color:var(--gold)" title="Horario reprogramado por FIFA">⛔️ Reprogramado por FIFA</span>':''}
+              ${e._isResch?`<span class="tag" style="font-size:9.5px;background:rgba(249,115,22,.12);color:#c2410c;font-weight:600">📅 Reagendado · ${(()=>{const d=new Date(e._origDate+'T12:00:00');return d.toLocaleDateString('es-UY',{day:'numeric',month:'short'})})()}</span>`:''}
               ${(e.esTrain&&dayClosed)?'<span class="ev-cerrado-badge">CERRADO · Sin prensa</span>':''}
               ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" style="font-size:11px;text-decoration:none;margin-left:2px">🔗${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
               ${doneIcon}
@@ -2965,12 +2967,13 @@ function buildEventsHtml(day, startIdx=0){
             ].join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
             ${e.group?getGroupPairBar(e.group):''}
           </div>
-          ${e._isCustom?`<button onclick="deleteDayAct('${day.date}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
-            :(e.tipo==='team'||e.tipo==='sched')?`<button onclick="hideEvent('${day.date}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
+          ${e._isCustom?`<button onclick="deleteDayAct('${dataDate}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
+            :(e.tipo==='team'||e.tipo==='sched')?`<button onclick="hideEvent('${dataDate}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
             :''}
-          <button class="ev-expand" onclick="toggleEvDetail('${day.date}',${realIdx},this)" title="Nota / participantes">⌄</button>
+          ${e.tipo!=='partido'&&e.tipo!=='viaje'?`<button onclick="rescheduleEvent('${dataDate}',${realIdx},'${day.date}',event)" title="${e._isResch?'Reagendado — click para cambiar o deshacer':'Reagendar a otro día'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 3px;color:${e._isResch?'#c2410c':'var(--hint)'}">📅</button>`:''}
+          <button class="ev-expand" onclick="toggleEvDetail('${dataDate}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
-        <div class="cal-ev-detail" id="ced-${day.date}-${realIdx}">
+        <div class="cal-ev-detail" id="ced-${dataDate}-${realIdx}">
           ${isFifaChange&&getEvFifaOrig()[k]&&getEvFifaOrig()[k]!==t?`<div style="font-size:11px;color:var(--gold);margin-bottom:4px">* Horario original: ${getEvFifaOrig()[k]} — reprogramado por FIFA</div>`:''}
           ${isOblig&&!e.extra?(()=>{
             const manualAtParts=[
@@ -2986,7 +2989,7 @@ function buildEventsHtml(day, startIdx=0){
               <input type="number" min="0" inputmode="numeric" value="${saved[p.key]??''}" placeholder="0"
                 style="width:38px;font-size:11px;padding:1px 4px;border:1px solid var(--border);border-radius:4px;text-align:center;background:transparent;color:var(--muted)"
                 onclick="event.stopPropagation()"
-                oninput="saveEvManualAt('${day.date}',${realIdx},'${p.key}',this)">
+                oninput="saveEvManualAt('${dataDate}',${realIdx},'${p.key}',this)">
             </div>`).join('')}
           </div>`:`<div style="font-size:11px;color:var(--hint);margin-top:3px">Seleccioná los participantes abajo para anotar sus atenciones</div>`}`;
           })():''}
@@ -2995,19 +2998,19 @@ function buildEventsHtml(day, startIdx=0){
           <div class="ev-parts-chips">${dtChips}</div>`:''}
           ${showPlayerChips?`
           <div class="ev-parts-lbl">Jugadores</div>
-          <div class="ev-parts-chips" id="pchips-${day.date}-${realIdx}">${todosBtn}${pChips}</div>`:''}
+          <div class="ev-parts-chips" id="pchips-${dataDate}-${realIdx}">${todosBtn}${pChips}</div>`:''}
           <div class="ev-parts-lbl" style="margin-top:6px">📝 Nota</div>
           <textarea class="ev-note-field${note?' has-note':''}" rows="2"
             placeholder="Observación, recordatorio..."
-            oninput="saveEvNote('${day.date}',${realIdx},this)"
+            oninput="saveEvNote('${dataDate}',${realIdx},this)"
           >${note}</textarea>
           <div class="ev-parts-lbl" style="margin-top:6px">🔗 Links (tuit, video, etc.) — uno o más, separados por espacio o renglón</div>
           <textarea class="ev-note-field${link?' has-note':''}" rows="2" style="margin-top:3px"
             placeholder="https://..."
-            oninput="renderEvLinkChips('${day.date}',${realIdx},this)"
-            onchange="saveEvLink('${day.date}',${realIdx},this)"
+            oninput="renderEvLinkChips('${dataDate}',${realIdx},this)"
+            onchange="saveEvLink('${dataDate}',${realIdx},this)"
           >${link.replace(/</g,'&lt;')}</textarea>
-          <div id="ev-link-chips-${day.date}-${realIdx}" style="margin-top:3px;display:flex;flex-wrap:wrap;gap:5px">
+          <div id="ev-link-chips-${dataDate}-${realIdx}" style="margin-top:3px;display:flex;flex-wrap:wrap;gap:5px">
             ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:12px;text-decoration:none;background:var(--surface)">🔗 Link ${i+1}</a>`).join('')}
           </div>
         </div>
@@ -4842,7 +4845,7 @@ async function handleImport(e){
 }
 function clearAll(){
   if(!confirm('¿Borrar TODOS los datos? No se puede deshacer.'))return;
-  [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt].forEach(k=>localStorage.removeItem(k));
+  [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KEvResch].forEach(k=>localStorage.removeItem(k));
   renderInicio();renderLog('all');renderPlantel();renderChecklist(curMatch);
   toast('Datos eliminados');
 }
@@ -4860,6 +4863,14 @@ function saveCalTime(date,idx,val){
   t[date][idx]=val;
   stor.set(KCalT,t);
   renderPendingAlerts();
+}
+
+function getEvResch(){return stor.get(KEvResch,{})}
+function saveEvResch(origDate,origIdx,toDate,toTime){
+  const r=getEvResch(); r[evKey(origDate,origIdx)]={toDate,toTime}; stor.set(KEvResch,r);
+}
+function clearEvResch(origDate,origIdx){
+  const r=getEvResch(); delete r[evKey(origDate,origIdx)]; stor.set(KEvResch,r);
 }
 
 function getEvFifa(){return stor.get(KEvFifa,{})}
@@ -4953,14 +4964,31 @@ function rerenderDayEvents(date){
   if(!day)return;
   const evsCont=dayEl.querySelector('.cal-events');
   if(!evsCont)return;
-  // Preserve open state of expanded events
   const openIds=new Set([...dayEl.querySelectorAll('.cal-ev')].filter(e=>e.querySelector('.cal-ev-detail.open')).map(e=>e.id));
   const customActs=getDayActs()[date]||[];
   const evHidden=getEvHidden();
-  const allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length})).filter(e=>!evHidden[evKey(date,e._origIdx)]);
-  allEvs.sort((a,b)=>evSortKey(date,a)-evSortKey(date,b));
+  const resch=getEvResch();
+  const allEvs=[...day.eventos,...customActs]
+    .map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length}))
+    .filter(e=>!evHidden[evKey(date,e._origIdx)]&&!resch[evKey(date,e._origIdx)]);
+  // Inyectar eventos reagendados hacia este día desde otros días
+  Object.entries(resch).forEach(([key,val])=>{
+    if(val.toDate!==date)return;
+    const [origDate,origIdxStr]=key.split('_');
+    const origIdx=parseInt(origIdxStr);
+    const origDay=CALENDAR_DAYS.find(d=>d.date===origDate);
+    if(!origDay)return;
+    const origCustom=getDayActs()[origDate]||[];
+    const origEv=[...origDay.eventos,...origCustom][origIdx];
+    if(!origEv)return;
+    allEvs.push({...origEv,_origIdx:origIdx,_isResch:true,_origDate:origDate,h:val.toTime});
+  });
+  allEvs.sort((a,b)=>{
+    const tA=parseEvTime(a._isResch?a.h:getCalTime(date,a._origIdx,a.h));
+    const tB=parseEvTime(b._isResch?b.h:getCalTime(date,b._origIdx,b.h));
+    return tA-tB;
+  });
   evsCont.innerHTML=buildEventsHtml({...day,eventos:allEvs});
-  // Restore open state
   openIds.forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.querySelector('.cal-ev-detail')?.classList.add('open');el.querySelector('.ev-expand')?.classList.add('open');}
@@ -4998,6 +5026,34 @@ function editEventTime(date,idx,el){
   }
   inp.onblur=commit;
   inp.onkeydown=e=>{if(e.key==='Enter')commit(); if(e.key==='Escape'){committed=true;inp.replaceWith(el);}};
+}
+
+function rescheduleEvent(origDate,origIdx,renderDay,ev){
+  ev&&ev.stopPropagation();
+  const existing=getEvResch()[evKey(origDate,origIdx)];
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  const dateOpts=CALENDAR_DAYS.filter(d=>d.tipo!=='viaje'&&d.date!==origDate)
+    .map(d=>{const dt=new Date(d.date+'T12:00:00');const lbl=dt.toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short'});return`<option value="${d.date}"${existing&&existing.toDate===d.date?' selected':''}>${lbl}</option>`;}).join('');
+  overlay.innerHTML=`
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:280px;max-width:340px;font-family:inherit">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-weight:700;font-size:15px;color:var(--text)">📅 Reagendar evento</span>
+      <button onclick="this.closest('div[style]').parentElement.remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted)">✕</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.4">Mové este evento a otro día del calendario. El evento original desaparece de su fecha y aparece en la nueva.</div>
+    <label style="font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nuevo día</label>
+    <select id="resch-date" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text);margin-bottom:12px">${dateOpts}</select>
+    <label style="font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Hora</label>
+    <input id="resch-time" type="text" placeholder="HH:MM" value="${existing?existing.toTime:''}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:15px;font-weight:700;color:var(--cel-dk);background:var(--bg);box-sizing:border-box;margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      ${existing?`<button onclick="clearEvResch('${origDate}',${origIdx});this.closest('div[style]').parentElement.remove();rerenderDayEvents('${origDate}');rerenderDayEvents('${existing.toDate}')" style="flex:1;padding:9px;border:1.5px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:13px;color:var(--muted);font-family:inherit">Deshacer</button>`:''}
+      <button onclick="(()=>{const d=document.getElementById('resch-date').value,t=document.getElementById('resch-time').value.trim();if(!d||!t){alert('Completá día y hora');return;}saveEvResch('${origDate}',${origIdx},d,t);${existing?`rerenderDayEvents('${existing.toDate}');`:''}rerenderDayEvents('${origDate}');rerenderDayEvents(d);this.closest('div[style]').parentElement.remove();})()" style="flex:2;padding:9px;border:none;border-radius:8px;background:var(--cel);color:#fff;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit">Confirmar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(()=>document.getElementById('resch-time')?.focus(),50);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
