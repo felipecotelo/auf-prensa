@@ -9334,12 +9334,14 @@ function renderLinkGen(){
   const el=document.getElementById('linkgen-body');
 
   const profilesHtml=profiles.length?profiles.map((p,i)=>{
-    const url=base+'?tabs='+encodeURIComponent(p.tabs.join(','))+(p.key?'&k='+encodeURIComponent(p.key):'')+(p.ro?'&ro=1':'');
+    const url=p.token
+      ? base+'?tabs='+encodeURIComponent(p.tabs.join(','))+'&t='+p.token+(p.ro?'&ro=1':'')
+      : base+'?tabs='+encodeURIComponent(p.tabs.join(','))+(p.ro?'&ro=1':'');
     return`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div>
           <div style="font-size:13px;font-weight:800;color:var(--text)">${p.name}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">${p.tabs.map(t=>LINK_TABS_DEF.find(x=>x.id===t)?.label||t).join(' · ')}${p.key?` · 🔑 con clave`:' · sin clave'}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${p.tabs.map(t=>LINK_TABS_DEF.find(x=>x.id===t)?.label||t).join(' · ')}${p.key?` · 🔑 con contraseña`:' · sin contraseña'}</div>
         </div>
         <div style="display:flex;gap:6px">
           <button onclick="lgEditProfile(${i})" style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-weight:700;color:var(--muted)">✏️ Editar</button>
@@ -9379,7 +9381,7 @@ function renderLinkGen(){
           </label>`).join('')}
       </div>
 
-      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Clave de acceso <span style="font-weight:400;opacity:.7">(opcional)</span></label>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Contraseña de acceso <span style="font-weight:400;opacity:.7">(opcional — si no ponés, el link es libre)</span></label>
       <input id="lg-key" type="text" placeholder="ej. auf2026" value="${formKey}"
         style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;margin-bottom:12px;box-sizing:border-box">
 
@@ -9407,14 +9409,24 @@ function lgUpdateTabCheck(){
   });
 }
 
-function lgSaveProfile(){
+async function lgSaveProfile(){
   const name=document.getElementById('lg-name').value.trim()||'Sin nombre';
   const key=document.getElementById('lg-key').value.trim();
   const ro=document.getElementById('lg-edit')?.checked||false;
   const tabs=LINK_TABS_DEF.map(t=>t.id).filter(id=>document.getElementById('lg-tab-'+id)?.checked);
   if(!tabs.length){alert('Seleccioná al menos una sección');return;}
+
+  let token=null;
+  if(key){
+    try{
+      const r=await fetch('/api/sign-link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tabs:tabs.join(','),password:key,ro:ro?'1':'0'})});
+      const d=await r.json();
+      token=d.token||null;
+    }catch(e){alert('Error al generar el link seguro. Verificá la conexión.');return;}
+  }
+
   const profiles=getLinkProfiles();
-  const profile={name,tabs,key,ro};
+  const profile={name,tabs,key,ro,token};
   if(_lgEdit!==null) profiles[_lgEdit]=profile;
   else profiles.push(profile);
   saveLinkProfiles(profiles);
