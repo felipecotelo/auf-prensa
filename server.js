@@ -44,13 +44,13 @@ app.post('/api/verify-link', (req, res) => {
 });
 
 // ── Acceso restringido: detectar ?tabs=&t=TOKEN y servir gate de contraseña ──
-app.get('/', (req, res, next) => {
+// Ruta dedicada /access — evita que el CDN de Railway la confunda con GET /
+app.get('/access', (req, res) => {
   const tabs  = req.query.tabs;
   const token = req.query.t;
   const ro    = req.query.ro;
-  if (!tabs || !token) return next();
+  if (!tabs || !token) return res.redirect('/');
 
-  // Servir página de acceso (pide contraseña)
   const safeT  = tabs.replace(/[^a-z0-9,\-]/gi, '');
   const safeRo = ro === '1' ? '1' : '0';
   res.setHeader('Cache-Control', 'no-store');
