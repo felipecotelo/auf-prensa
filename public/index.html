@@ -6934,21 +6934,66 @@ function renderEstadisticas(){
   const isActive=(name)=>squadNames.has(name.toLowerCase());
   const activeMark=(name)=>isActive(name)?`<span class="st-badge" style="background:var(--cel);color:#fff;font-size:9px">FWC26</span>`:'';
 
-  const tab=_statsSubTab||'historico';
+  const tab=_statsSubTab||'copa-mundial';
+  const subTab=_statsSubSubTab||'generales';
   con.innerHTML=`
-    <div class="form-sel-btns" style="margin-bottom:1rem">
-      <button class="form-btn${tab==='historico'?' active':''}" onclick="showStatsSubTab('historico')">Convocados</button>
-      <button class="form-btn${tab==='mundial2026'?' active':''}" onclick="showStatsSubTab('mundial2026')">Mundial 2026</button>
-      <button class="form-btn${tab==='auf-historia'?' active':''}" onclick="showStatsSubTab('auf-historia')">Historia AUF</button>
-      <button class="form-btn${tab==='bielsa'?' active':''}" onclick="showStatsSubTab('bielsa')">Marcelo Bielsa</button>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem">
+      <button onclick="showStatsSubTab('copa-mundial')" style="font-size:10.5px;padding:5px 12px;border-radius:8px;font-weight:800;cursor:pointer;border:1.5px solid ${tab==='copa-mundial'?'#B45309':'#E5C98A'};background:${tab==='copa-mundial'?'#92400E':'#FEF3C7'};color:${tab==='copa-mundial'?'#fff':'#92400E'};transition:all .15s">🏆 Copa Mundial 2026</button>
+      <button onclick="showStatsSubTab('auf-historia')" style="font-size:10.5px;padding:5px 12px;border-radius:8px;font-weight:800;cursor:pointer;border:1.5px solid ${tab==='auf-historia'?'#3730A3':'#C7D2FE'};background:${tab==='auf-historia'?'#3730A3':'#EEF2FF'};color:${tab==='auf-historia'?'#fff':'#3730A3'};transition:all .15s">📖 Historia AUF</button>
+      <button onclick="showStatsSubTab('bielsa')" style="font-size:10.5px;padding:5px 12px;border-radius:8px;font-weight:800;cursor:pointer;border:1.5px solid ${tab==='bielsa'?'var(--navy)':'var(--border)'};background:${tab==='bielsa'?'var(--navy)':'var(--white)'};color:${tab==='bielsa'?'#fff':'var(--muted)'};transition:all .15s">🧠 Marcelo Bielsa</button>
     </div>
 
-    ${tab==='mundial2026' ? `
+    ${tab==='copa-mundial' ? `
+    <!-- Sub-tabs internos -->
+    <div style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1.5px solid var(--border);padding-bottom:8px">
+      <button onclick="showStatsSubSubTab('generales')" style="font-size:10px;padding:4px 12px;border-radius:6px;font-weight:700;cursor:pointer;border:1.5px solid ${subTab==='generales'?'var(--cel)':'var(--border)'};background:${subTab==='generales'?'var(--cel-lt)':'var(--surface)'};color:${subTab==='generales'?'var(--cel-dk)':'var(--muted)'}">Números generales</button>
+      <button onclick="showStatsSubSubTab('especificos')" style="font-size:10px;padding:4px 12px;border-radius:6px;font-weight:700;cursor:pointer;border:1.5px solid ${subTab==='especificos'?'var(--cel)':'var(--border)'};background:${subTab==='especificos'?'var(--cel-lt)':'var(--surface)'};color:${subTab==='especificos'?'var(--cel-dk)':'var(--muted)'}">Números específicos</button>
+    </div>
+    ${subTab==='especificos' ? `
     <div class="note gold" style="margin-bottom:1.25rem">
       <div class="note-t">🏆 Copa Mundial FIFA 2026</div>
       <div class="note-b">${sancionTxt}</div>
     </div>
     ${wc2026TableHtml}
+    ` : `
+    <div class="note gold" style="margin-bottom:1.25rem">
+      <div class="note-t">🏆 Datos de color — FWC26 (verificado PDF TAM)</div>
+      <div class="note-b">
+        <strong>Muslera</strong> 5° Mundial (convocatorias) — no jugó en Qatar 2022, por lo que no correspondería el Legacy Patch FIFA.<br>
+        <strong>Ugarte y Araújo</strong>: 2ª participación, 0 minutos en Qatar 2022. Siguen con Debut Patch.<br>
+        <strong>Giménez</strong>: 99 caps — <strong>a 1 del centenar 🎯</strong>. Capitán, 10 PJ mundiales, 1 gol.<br>
+        <strong>13 jugadores</strong> debutarán en Mundiales: llevan <strong>Debut Patch FIFA</strong> hasta el primer partido.<br>
+        ${sancionTxt}
+      </div>
+    </div>
+    <div class="stats-section">
+      <div class="phase">Partidos — Selección Mayor</div>
+      <div style="overflow-x:auto"><table class="stats-table">
+        <thead><tr><th>#</th><th>Jugador</th><th>Caps</th></tr></thead>
+        <tbody>${byCaps.map(rowCaps).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="stats-section">
+      <div class="phase">Goles — Selección Mayor</div>
+      <div style="overflow-x:auto"><table class="stats-table">
+        <thead><tr><th>#</th><th>Jugador</th><th>Goles</th></tr></thead>
+        <tbody>${byGoals.map(rowGoals).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="stats-section">
+      <div class="phase">Partidos — Copa del Mundo</div>
+      <div style="overflow-x:auto"><table class="stats-table">
+        <thead><tr><th>#</th><th>Jugador</th><th>PJ Mundial</th></tr></thead>
+        <tbody>${byWCCaps.map(rowWC).join('')}</tbody>
+      </table></div>
+    </div>
+    <div class="stats-section">
+      <div class="phase">Goles — Copa del Mundo</div>
+      <div style="overflow-x:auto"><table class="stats-table">
+        <thead><tr><th>#</th><th>Jugador</th><th>G Mundial</th></tr></thead>
+        <tbody>${byWCGoals.map(rowWCG).join('')}</tbody>
+      </table></div>
+    </div>`}
     ` : tab==='auf-historia' ? `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem">
       <div class="note" style="flex:1;margin:0;background:#EEF2FF;border-color:#C7D2FE">
@@ -7130,41 +7175,13 @@ function renderEstadisticas(){
       </div>
     </div>
 
-    <div class="stats-section">
-      <div class="phase">Partidos — Selección Mayor</div>
-      <div style="overflow-x:auto"><table class="stats-table">
-        <thead><tr><th>#</th><th>Jugador</th><th>Caps</th></tr></thead>
-        <tbody>${byCaps.map(rowCaps).join('')}</tbody>
-      </table></div>
-    </div>
-
-    <div class="stats-section">
-      <div class="phase">Goles — Selección Mayor</div>
-      <div style="overflow-x:auto"><table class="stats-table">
-        <thead><tr><th>#</th><th>Jugador</th><th>Goles</th></tr></thead>
-        <tbody>${byGoals.map(rowGoals).join('')}</tbody>
-      </table></div>
-    </div>
-
-    <div class="stats-section">
-      <div class="phase">Partidos — Copa del Mundo</div>
-      <div style="overflow-x:auto"><table class="stats-table">
-        <thead><tr><th>#</th><th>Jugador</th><th>PJ Mundial</th></tr></thead>
-        <tbody>${byWCCaps.map(rowWC).join('')}</tbody>
-      </table></div>
-    </div>
-
-    <div class="stats-section">
-      <div class="phase">Goles — Copa del Mundo</div>
-      <div style="overflow-x:auto"><table class="stats-table">
-        <thead><tr><th>#</th><th>Jugador</th><th>G Mundial</th></tr></thead>
-        <tbody>${byWCGoals.map(rowWCG).join('')}</tbody>
-      </table></div>
-    </div>`}`;
+    `}`;
 }
 
-let _statsSubTab='historico';
+let _statsSubTab='copa-mundial';
+let _statsSubSubTab='generales';
 function showStatsSubTab(tab){ _statsSubTab=tab; renderEstadisticas(); }
+function showStatsSubSubTab(sub){ _statsSubSubTab=sub; renderEstadisticas(); }
 
 let _legendsEdit=false;
 function toggleLegendsEdit(){ _legendsEdit=!_legendsEdit; renderEstadisticas(); }
