@@ -2066,11 +2066,12 @@ function applyPostMatchUpdates(pizMatchId, evs){
       if(inNum) played.add(inNum);
     }
   });
-  // Para partidos cerrados se complementa con datos oficiales (referenciados por nombre para evitar
-  // dependencia de orden de declaración — las constantes se inyectan vía getOfficialMatchData)
+  // Para partidos cerrados: complementar con datos oficiales lo que ESPN no captó
   const _offData=typeof getOfficialMatchData==='function'?getOfficialMatchData(pizMatchId):null;
   if(_offData){
+    // Solo agregar jugadores que no encontró ESPN en sus eventos
     _offData.subEvs.forEach(e=>{const n=matchNum(e.extra);if(n)played.add(n);});
+    // AUF_OFFICIAL_PART como respaldo final
     _offData.entro.forEach(n=>played.add(n));
   }
 
@@ -7495,16 +7496,16 @@ async function renderPizarra(matchId){
         const n=_mn(e.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'card',extra:e.extra,min:e.min});
       }
     });
-    // Para partidos cerrados: fuente oficial FIFA pisa cualquier dato de ESPN
+    // Para partidos cerrados: los eventos oficiales FIFA completan datos faltantes en ESPN
+    // (no pisan — ESPN es la base; el oficial agrega lo que ESPN no captó)
     if(isMatchLocked(matchId)&&FIFA_OFFICIAL_EVENTS[matchId]){
       FIFA_OFFICIAL_EVENTS[matchId].forEach(oe=>{
         if(oe.side!=='uru') return;
-        if(oe.type==='sub'){
-          const outN=_mn(oe.player), inN=_mn(oe.extra);
-          if(outN) _subOutMin[outN]=oe.min;
-          if(inN)  _subInMin[inN]=oe.min;
-        } else if(oe.type==='goal'){
-          const n=_mn(oe.player); if(n)(_evsByNum[n]=_evsByNum[n]||[]).push({type:'goal',min:oe.min});
+        if(oe.type==='sub'&&oe.extra){
+          const inN=_mn(oe.extra);
+          if(inN&&_subInMin[inN]==null) _subInMin[inN]=oe.min;
+          const outN=_mn(oe.player);
+          if(outN&&_subOutMin[outN]==null) _subOutMin[outN]=oe.min;
         }
       });
     }
