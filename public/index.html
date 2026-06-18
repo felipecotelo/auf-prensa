@@ -5087,13 +5087,14 @@ function toggleFixExpand(mId, pizMatchId){
   if(chevron) chevron.style.transform=willShow?'rotate(180deg)':'rotate(0deg)';
   if(willShow){
     renderFixMiniPizarra(pizMatchId, box.querySelector('.fix-mini-pitch'));
-    renderFixBench(pizMatchId, box.querySelector('.fix-bench'));
+    renderBenchPanel(pizMatchId, box.querySelector('.fix-bench'));
     renderMatchIncidents(mId, pizMatchId, box.querySelector('.fix-incidents'));
   }
 }
 
 // Suplentes (no titulares) del partido — panel de solo lectura (mismos chips que pizarra)
-async function renderFixBench(pizMatchId, container){
+// Función compartida: banco idéntico en pizarra y fixture expand
+async function renderBenchPanel(pizMatchId, container){
   if(!container) return;
   const all=getLineup();
   const ml=all[pizMatchId]||{starters:{}};
@@ -7464,22 +7465,13 @@ async function renderPizarra(matchId){
         ${benchStatsHtml}
       </div>
 
-      <!-- Columna derecha: banco -->
-      <div class="piz-col-right">
-        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
-          Banco — ${bench.length} jugadores
-        </div>
-        ${benchByPos.map(g=>`
-          <div style="font-size:8.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;padding:5px 0 3px;border-bottom:0.5px solid var(--border);margin-bottom:4px">${g.label}</div>
-          <div class="piz-bench-chips" style="display:flex;flex-direction:column;gap:3px;margin-bottom:4px">
-            ${g.players.map(benchChipHtml).join('')}
-          </div>
-        `).join('')}
-      </div>
+      <!-- Columna derecha: banco (compartida con fixture expand) -->
+      <div class="piz-col-right" id="piz-bench-col"></div>
 
     </div>
   `;
 
+  renderBenchPanel(matchId, document.getElementById('piz-bench-col'));
   initPizDrag(matchId);
   startPizCountdown(matchId);
 }
