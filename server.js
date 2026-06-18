@@ -203,7 +203,7 @@ function proxyGet(hostname, path, headers) {
   });
 }
 
-app.get('/api/ping', (req, res) => res.json({ ok: true, v: 2, ts: Date.now() }));
+app.get('/api/ping', (req, res) => res.json({ ok: true, v: 2, ts: Date.now(), routes: ['r','access','sign-link'] }));
 
 app.get('/api/fotmob/:matchId', async (req, res) => {
   try {
