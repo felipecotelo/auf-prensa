@@ -2656,6 +2656,7 @@ const stor = {
     try{
       localStorage.setItem(k,json);
       _autoSyncDirty=true;
+      triggerAutoSave();
     }catch(err){
       if(err.name!=='QuotaExceededError')throw err;
       // Espacio lleno — las fotos viejas (auf4_photos) ya no se usan (ahora viven en IndexedDB).
@@ -9445,7 +9446,12 @@ async function serverSave(silent){
   }
 }
 
-// Autoguardado periódico: si hubo cambios, guarda cada 30 segundos
+let _autoSyncDebounceTimer=null;
+function triggerAutoSave(){
+  clearTimeout(_autoSyncDebounceTimer);
+  _autoSyncDebounceTimer=setTimeout(()=>{ if(_autoSyncDirty) serverSave(true); },5000);
+}
+// Autoguardado periódico: fallback cada 30 segundos si el debounce falla
 function startAutoSync(){
   setInterval(()=>{ if(_autoSyncDirty) serverSave(true); },30000);
 }
