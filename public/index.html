@@ -9796,24 +9796,14 @@ function lgCopy(i,url){
     });
     localStorage.setItem(FLAG,'1');
   })();
-  // Migración: limpiar datos corruptos introducidos por migraciones anteriores en 2026-06-19_11
+  // Limpieza permanente: TV Crew CPV Jun 18 nunca debe estar reagendado (están en su lugar correcto)
   (()=>{
-    const FLAG='auf4_mig_tvcrewcpv_revert_v1';
-    if(localStorage.getItem(FLAG))return;
-    // Limpiar datos incorrectos en June 19 idx 11 (nunca debió tener datos de TV Crew)
-    const corruptKey='2026-06-19_11';
-    [KEvP,KEvS,KEvN,KEvTxt].forEach(store=>{
-      const d=stor.get(store,{});
-      if(d[corruptKey]!==undefined){delete d[corruptKey];stor.set(store,d);}
-    });
-    // Limpiar todos los KEvResch relacionados con TV Crew sessions de Jun 18
     const resch=getEvResch();
     let changed=false;
     ['2026-06-18_10','2026-06-18_11','2026-06-18_12','2026-06-18_13','2026-06-18_14'].forEach(k=>{
       if(resch[k]){delete resch[k];changed=true;}
     });
-    if(changed) stor.set(KEvResch,resch);
-    localStorage.setItem(FLAG,'1');
+    if(changed){stor.set(KEvResch,resch);serverSave(true);}
   })();
   // Migración puntual: limpiar md1-conf de CPV/ESP si el evento del calendario no está marcado ✓
   (()=>{
