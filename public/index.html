@@ -104,6 +104,8 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 [data-readonly] [data-edit-only]{display:none!important}
 [data-readonly] .ev-editable-txt{cursor:default;border-bottom-color:transparent;pointer-events:none}
 [data-readonly] .editable-time{cursor:default;pointer-events:none}
+[data-readonly] input:not([type=search]),[data-readonly] textarea,[data-readonly] select{pointer-events:none;user-select:none}
+[data-readonly] [contenteditable]{pointer-events:none;user-select:text}
 .tabs::-webkit-scrollbar{display:none}
 .tab{
   padding:12px 15px;font-size:12.5px;font-weight:600;color:var(--muted);
@@ -9253,6 +9255,7 @@ function showMatchStatus(matchId, status, clock){
 const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KYellow,KEvOblig,KAeroUy,KEvHidden,KGrafica,KStatsOrder,KMvp,KCardTrack,KStatsDelta,KManualDelta,KMatchDelta,KCardSynced,KMatchEvents,KDelegacion,KInfoTexts,KLineup];
 
 async function serverSave(silent){
+  if(IS_RESTRICTED) return;
   const btn=document.getElementById('btn-cloud-save');
   if(!silent){btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 ti-spin" style="font-size:12px"></i>';}
   try{
@@ -9277,9 +9280,9 @@ async function serverSave(silent){
   }
 }
 
-// Autoguardado periódico: si hubo cambios desde el último guardado, sube a GitHub cada 2 minutos
+// Autoguardado periódico: si hubo cambios, guarda cada 30 segundos
 function startAutoSync(){
-  setInterval(()=>{ if(_autoSyncDirty) serverSave(true); },120000);
+  setInterval(()=>{ if(_autoSyncDirty) serverSave(true); },30000);
 }
 
 async function serverLoad(){
