@@ -9795,15 +9795,6 @@ function lgCopy(i,url){
     });
     localStorage.setItem(FLAG,'1');
   })();
-  // Limpieza permanente: TV Crew CPV Jun 18 nunca debe estar reagendado (están en su lugar correcto)
-  (()=>{
-    const resch=getEvResch();
-    let changed=false;
-    ['2026-06-18_10','2026-06-18_11','2026-06-18_12','2026-06-18_13','2026-06-19_12'].forEach(k=>{
-      if(resch[k]){delete resch[k];changed=true;}
-    });
-    if(changed){stor.set(KEvResch,resch);serverSave(true);}
-  })();
   // Migración puntual: limpiar md1-conf de CPV/ESP si el evento del calendario no está marcado ✓
   (()=>{
     const FLAG='auf4_mig_conf_reset_v1';
@@ -9871,6 +9862,15 @@ function lgCopy(i,url){
   // Orden: GitHub base → Supabase overlay (per-key más reciente gana sobre bulk de GitHub)
   await tryAutoLoad();
   await cloudPull();
+  // Limpieza post-cloudPull: TV Crew CPV nunca debe tener evResch (están en su posición definitiva)
+  (()=>{
+    const resch=getEvResch();
+    let changed=false;
+    ['2026-06-18_10','2026-06-18_11','2026-06-18_12','2026-06-18_13','2026-06-19_12'].forEach(k=>{
+      if(resch[k]){delete resch[k];changed=true;}
+    });
+    if(changed){stor.set(KEvResch,resch);serverSave(true);}
+  })();
   if(IS_RESTRICTED){
     // Si hay token y no fue autenticado aún, mostrar modal de contraseña
     const _rToken=window.__AUF_RTOKEN||sessionStorage.getItem('auf_rtoken');
