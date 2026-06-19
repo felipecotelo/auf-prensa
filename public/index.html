@@ -6953,6 +6953,8 @@ function showPlayerAtenciones(n, chipEl){
 
 function countFWCPerMatch(num, playerObj){
   const chk=getChk(), res={llegada:0,'uru-ksa':0,'uru-cpv':0,'uru-esp':0};
+  // Atención obligatoria de llegada registrada en preT (fuera del guard de MATCH_RANGES)
+  if(playerObj) res['llegada']+=(playerObj.preT||[]).filter(a=>a.tipo==='ob'&&a.ctx==='llegada-mx').length;
   Object.keys(res).forEach(mid=>{
     if(TODAY<(MATCH_RANGES[mid]?.from||'9999'))return;
     const mc=chk[mid]||{};
@@ -6965,10 +6967,6 @@ function countFWCPerMatch(num, playerObj){
     if(range){
       const cp=countCalParts(num,range.from,range.to);
       res[mid]+=cp.ob+cp.noOb;
-    }
-    // Atención obligatoria de llegada registrada en preT
-    if(mid==='llegada'&&playerObj){
-      res[mid]+=(playerObj.preT||[]).filter(a=>a.tipo==='ob'&&a.ctx==='llegada-mx').length;
     }
   });
   return res;
