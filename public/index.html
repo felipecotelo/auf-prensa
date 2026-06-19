@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>AUF — Prensa FWC26</title>
 <!-- PWA / Home screen iOS & Android -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2343,13 +2346,13 @@ const EVENT_GROUPS={
     {date:'2026-06-13',idx:4, chk:{matchId:'uru-ksa',actId:'md2-crew',sessId:'s-dt'}},
   ],
   'fifa-tv-crew-cpv':[
-    {date:'2026-06-18',idx:1, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s1'}},
-    {date:'2026-06-18',idx:2, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s2'}},
-    {date:'2026-06-18',idx:3, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s3'}},
-    {date:'2026-06-18',idx:4, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s4'}},
+    {date:'2026-06-18',idx:10, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s1'}},
+    {date:'2026-06-18',idx:11, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s2'}},
+    {date:'2026-06-18',idx:12, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s3'}},
+    {date:'2026-06-18',idx:13, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s4'}},
   ],
   'fifa-tv-crew-cpv-dt':[
-    {date:'2026-06-18',idx:5, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s-dt'}},
+    {date:'2026-06-18',idx:14, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s-dt'}},
   ],
   'fifa-tv-crew-esp':[
     {date:'2026-06-22',idx:2, chk:{matchId:'uru-esp',actId:'md2-crew',sessId:'s1'}},
@@ -5136,8 +5139,8 @@ function rescheduleEvent(origDate,origIdx,renderDay,ev){
   }
   inner.querySelector('#resch-confirm').addEventListener('click',()=>{
     const d=inner.querySelector('#resch-date').value;
-    const t=inner.querySelector('#resch-time').value.trim();
-    if(!d||!t){alert('Completá día y hora');return;}
+    const t=inner.querySelector('#resch-time').value.trim()||'TBD';
+    if(!d){alert('Seleccioná un día');return;}
     if(existing) rerenderDayEvents(existing.toDate);
     saveEvResch(origDate,origIdx,d,t);
     rerenderDayEvents(origDate);
@@ -6778,10 +6781,12 @@ function getCalZMEntries(num){
   return out;
 }
 
-function countCalParts(num){
+function countCalParts(num, fromDate, toDate){
   const evP=getEvParts();
   let ob=0, noOb=0;
   CALENDAR_DAYS.forEach(day=>{
+    if(fromDate&&day.date<fromDate) return;
+    if(toDate&&day.date>toDate) return;
     const allEvs=[...day.eventos,...(getDayActs()[day.date]||[])];
     allEvs.forEach((e,idx)=>{
       const parts=evP[evKey(day.date,idx)]||[];
@@ -6851,7 +6856,7 @@ function dtChipsForMatch(dtId,matchId){
 let _dispFilters={preMundial:false,llegada:true,'uru-ksa':true,'uru-cpv':true,'uru-esp':true};
 function toggleDispFilter(key){_dispFilters[key]=!_dispFilters[key];renderDisponibilidad();}
 
-function countFWCPerMatch(num){
+function countFWCPerMatch(num, playerObj){
   const chk=getChk(), res={llegada:0,'uru-ksa':0,'uru-cpv':0,'uru-esp':0};
   Object.keys(res).forEach(mid=>{
     if(TODAY<(MATCH_RANGES[mid]?.from||'9999'))return;
@@ -6860,6 +6865,16 @@ function countFWCPerMatch(num){
       if(actId==='arr-ent')return;
       if(d&&d.done&&d.players&&d.players.includes(num))res[mid]++;
     });
+    // Actividades del calendario dentro del rango del partido (ZM AUF, notas AUFtv, etc.)
+    const range=MATCH_RANGES[mid];
+    if(range){
+      const cp=countCalParts(num,range.from,range.to);
+      res[mid]+=cp.ob+cp.noOb;
+    }
+    // Atención obligatoria de llegada registrada en preT
+    if(mid==='llegada'&&playerObj){
+      res[mid]+=(playerObj.preT||[]).filter(a=>a.tipo==='ob'&&a.ctx==='llegada-mx').length;
+    }
   });
   return res;
 }
@@ -6984,7 +6999,7 @@ function renderDisponibilidad(){
   function playerFilteredTotal(p){
     let t=0;
     if(_dispFilters.preMundial) t+=playerPreTotal(p);
-    const fm=countFWCPerMatch(p.n);
+    const fm=countFWCPerMatch(p.n,p);
     ['llegada','uru-ksa','uru-cpv','uru-esp'].forEach(mid=>{if(_dispFilters[mid])t+=fm[mid]||0;});
     return t;
   }
