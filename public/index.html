@@ -699,7 +699,6 @@ textarea{resize:vertical;min-height:52px}
 .sb-wcdebut{background:#F5F3FF;color:#5B21B6}
 .sb-wc5{background:var(--gold-lt);color:#7A5200;border:0.5px solid var(--gold)}
 .wc-dot{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--gold);margin-right:2px;vertical-align:middle}
-
 footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-top:0.5px solid var(--border);margin-top:2rem}
 
 /* ── CHECKLIST SUB-SESSIONS ─────────────────────── */
@@ -802,11 +801,23 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   .st2 td,.st2 th{padding:8px 6px}
   .st2{min-width:320px}
   .st-flag{font-size:15px;margin-right:4px}
-  #disp-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .disp-table{min-width:520px}
-  .disp-table th:first-child,.disp-table td:first-child{min-width:175px}
+  /* Ranking tables (3 cols): forzar layout fijo para que los números sean visibles */
+  .stats-table:not(.stats-table--wide){table-layout:fixed;width:100%}
+  .stats-table:not(.stats-table--wide) th:nth-child(1),
+  .stats-table:not(.stats-table--wide) td:nth-child(1){width:28px}
+  .stats-table:not(.stats-table--wide) th:nth-child(3),
+  .stats-table:not(.stats-table--wide) td:nth-child(3){width:76px}
+  .stats-table:not(.stats-table--wide) td:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* Stats WC2026 multi-col: scroll horizontal */
   #stats-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .stats-table{min-width:480px}
+  .stats-table--wide{min-width:480px}
+  /* Eliminatorias */
+  #disp-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .disp-table{min-width:420px}
+  .disp-table th:first-child,.disp-table td:first-child{min-width:130px}
+  /* Tabla grupo (st2): scroll horizontal, ancho mínimo */
+  .grp-card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .st2{min-width:340px}
   .form-row{grid-template-columns:1fr}
   .filter-row{gap:4px}
   .f-btn{font-size:11px;padding:7px 10px}
@@ -7549,17 +7560,17 @@ function renderEstadisticas(){
   const rowWC2026=({p,d},i)=>`<tr>
     <td class="st-rank">${i+1}</td>
     <td class="st-name">${INJ[p.injury]||'🟢'} ${p.name} ${legendStar(p.name)}</td>
-    <td class="st-n">${d.caps||0}</td>
-    <td class="st-n">${d.minutesWC||0}'</td>
-    <td class="st-n">${d.assists||0}</td>
-    <td class="st-n">${d.goals||0}</td>
-    <td class="st-n">${d.yellowsWC||0}</td>
-    <td class="st-n">${d.redsWC||0}</td>
+    <td class="st-n" data-label="PJ">${d.caps||0}</td>
+    <td class="st-n" data-label="Min">${d.minutesWC||0}'</td>
+    <td class="st-n" data-label="Ast">${d.assists||0}</td>
+    <td class="st-n" data-label="Gol">${d.goals||0}</td>
+    <td class="st-n" data-label="TA">${d.yellowsWC||0}</td>
+    <td class="st-n" data-label="TR">${d.redsWC||0}</td>
   </tr>`;
   const wc2026TableHtml = wcRows.length ? `
     <div class="stats-section">
       <div class="phase">Resumen — Copa Mundial FIFA 2026</div>
-      <div style="overflow-x:auto"><table class="stats-table">
+      <div><table class="stats-table stats-table--wide">
         <thead><tr><th>#</th><th>Jugador</th><th>PJ</th><th>Min</th><th>Asist</th><th>Goles</th><th>TA</th><th>TR</th></tr></thead>
         <tbody>${wcRows.map(rowWC2026).join('')}</tbody>
       </table></div>
@@ -7875,7 +7886,7 @@ function renderEstadisticas(){
     <!-- Estadísticas Eliminatorias -->
     <div class="stats-section">
       <div class="phase">🌎 Estadísticas — Eliminatorias 2026 <span style="font-size:9px;font-weight:600;color:var(--hint)">ESPN · 41 jugadores</span></div>
-      <div style="overflow-x:auto"><table class="disp-table">
+      <div><table class="disp-table">
         <thead><tr>
           <th style="text-align:left">Jugador</th>
           <th>MIN</th><th>PJ</th><th>TIT</th><th>G</th><th>A</th><th>🟡</th>
@@ -7926,11 +7937,11 @@ function renderEstadisticas(){
           const pMatch=PLAYERS.find(p=>p.name.toLowerCase().includes(r.n.toLowerCase().split(' ').pop()));
           return`<tr${pMatch?' style="background:#F0F9FF"':''}>
             <td style="font-size:11.5px">${r.n}${pMatch?'<span class="st-badge" style="background:var(--cel);color:#fff;font-size:8px;margin-left:4px">FWC26</span>':''}</td>
-            <td style="font-size:11px;font-weight:700">${r.min}'</td>
-            <td>${r.pj}</td><td style="color:var(--hint)">${r.tit}</td>
-            <td style="${r.g>0?'font-weight:900;color:var(--green)':''}">${r.g||'—'}</td>
-            <td style="${r.a>0?'font-weight:800;color:var(--cel-dk)':''}">${r.a||'—'}</td>
-            <td style="${r.am>0?'color:#D97706':'color:var(--border)'}">${r.am||'—'}</td>
+            <td data-label="MIN" style="font-size:11px;font-weight:700">${r.min}'</td>
+            <td data-label="PJ">${r.pj}</td><td data-label="TIT" style="color:var(--hint)">${r.tit}</td>
+            <td data-label="G" style="${r.g>0?'font-weight:900;color:var(--green)':''}">${r.g||'—'}</td>
+            <td data-label="A" style="${r.a>0?'font-weight:800;color:var(--cel-dk)':''}">${r.a||'—'}</td>
+            <td data-label="🟡" style="${r.am>0?'color:#D97706':'color:var(--border)'}">${r.am||'—'}</td>
           </tr>`;
         }).join('')}
         <tr><td colspan="7" style="font-size:9px;color:var(--hint);padding:4px 8px;background:var(--surface)">Sin minutos (13): Franco Israel, Fiermarín, Sant'Anna, J. Rodríguez, Sanabria, Abaldo, Mouriño, T. Palacios, Bernal, Torreira, L. Pino, Lavega, Laquintana</td></tr>
