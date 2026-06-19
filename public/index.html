@@ -986,6 +986,13 @@ html.auf-gate body { display:none !important }
     tabs=qp.get('tabs'); token=qp.get('t'); ro=qp.get('ro');
     if(tabs) history.replaceState(null,'',location.pathname);
   }
+  // Si no hay params de gate, limpiar sessionStorage para que el admin nunca quede en modo restringido
+  if(!tabs && location.protocol!=='file:'){
+    sessionStorage.removeItem('auf_rtabs');
+    sessionStorage.removeItem('auf_rtoken');
+    sessionStorage.removeItem('auf_ro');
+    sessionStorage.removeItem('auf_authed');
+  }
   // Variable global — disponible para TODOS los scripts del documento sin depender de sessionStorage
   window.__AUF_RTABS  = tabs  || sessionStorage.getItem('auf_rtabs')  || null;
   window.__AUF_RTOKEN = token || sessionStorage.getItem('auf_rtoken') || null;
@@ -2618,6 +2625,7 @@ async function cloudPull(){
 const stor = {
   get:(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}},
   set:(k,v)=>{
+    if(IS_RESTRICTED) return;
     const json=JSON.stringify(v);
     _pushUndo(k,localStorage.getItem(k));
     cloudPushDebounced(k,v);
