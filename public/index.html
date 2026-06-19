@@ -1726,7 +1726,7 @@ const CALENDAR_DAYS = [
    ]},
   {date:'2026-06-14',dow:'Dom',label:'14 jun',tipo:'md1', lugar:'Playa del Carmen 🇲🇽 → Miami 🇺🇸', rival:'Arabia Saudita', md:'MD-1',
    eventos:[
-     {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS · Playa del Carmen',oblig:true,esTrain:true},
+     {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS · Playa del Carmen',oblig:true,esTrain:true,chkId:'md1-train'},
      {h:'14:00 (MEX)',tipo:'viaje',txt:'✈️ Viaje Playa del Carmen → Miami, Florida',oblig:false,linkTo:2,durMin:170}, // 1:50h de vuelo + 1h de diferencia horaria (MEX → MIA)
      {h:'16:50 (MIA)',tipo:'viaje',txt:'🛬 Llegada Miami International Airport',oblig:false},
      {h:'18:30 (MIA)',tipo:'oblig',txt:'Conferencia de prensa — DT + 1 jugador · Hard Rock Stadium, Miami',oblig:true,hasDT:true,art:'TAM p.72',confMD1:true,chkId:'md1-conf'},
@@ -1833,7 +1833,7 @@ const CALENDAR_DAYS = [
    ]},
   {date:'2026-06-20',dow:'Sáb',label:'20 jun',tipo:'md1', lugar:'Riviera Maya 🇲🇽 → Miami 🇺🇸', rival:'Cabo Verde', md:'MD-1',
    eventos:[
-     {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS',esTrain:true},
+     {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS',esTrain:true,chkId:'md1-train'},
      {h:'~14:00',tipo:'viaje',txt:'✈️ Viaje a Miami, Florida'},
      {h:'18:45',tipo:'oblig',txt:'Conferencia de prensa + Stand-up — DT + 1 jugador · Estadio Miami (Hard Rock) · TV Uruguay (RH) + TV rival + equipo FIFA',hasDT:true,chkId:'md1-conf'},
    ]},
@@ -3665,7 +3665,7 @@ function syncChkToCalEv(matchId, checkId, players){
 }
 
 // Todos los checkId que pueden ser asignados por checkIdForEvent (vía calendario)
-const EVENT_DERIVED_CHECKIDS=['md2-crew','md1-stand','md-conf-post','md1-conf','md-flash','md-tunel','md-mix-est','md-ht','md-precal','md-llegada','md-vestuario','arr-ent','arr-media','md-mvp-attn'];
+const EVENT_DERIVED_CHECKIDS=['md2-crew','md1-stand','md-conf-post','md1-conf','md-flash','md-tunel','md-mix-est','md-ht','md-precal','md-llegada','md-vestuario','arr-ent','arr-media','md-mvp-attn','md1-train'];
 
 // ── Mapeo texto evento → checkId del partido ─────────
 function checkIdForEvent(txt){
@@ -3772,6 +3772,17 @@ function aggregateMatchActivities(){
     if(players.size || done) chkData[matchId][checkId].done = true;
     // Si está cancelado (✗) y no hay ninguna info positiva, marcarlo como no realizado
     else if(cancelled) chkData[matchId][checkId].done = false;
+    // Para ítems con sesiones (md1-conf, md2-crew): si el ítem está done, marcar todas las sesiones done
+    if(chkData[matchId][checkId].done){
+      const clItem=[...CL_MATCH,...CL_LLEGADA].find(i=>i.id===checkId);
+      if(clItem?.sessions){
+        if(!chkData[matchId][checkId].sessions) chkData[matchId][checkId].sessions={};
+        clItem.sessions.forEach(s=>{
+          if(!chkData[matchId][checkId].sessions[s.id]) chkData[matchId][checkId].sessions[s.id]={};
+          chkData[matchId][checkId].sessions[s.id].done=true;
+        });
+      }
+    }
   });
 
   // Limpiar mapeos viejos/incorrectos: si un checkId derivado de eventos ya no tiene
