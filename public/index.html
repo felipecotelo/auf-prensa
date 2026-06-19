@@ -531,7 +531,7 @@ textarea{resize:vertical;min-height:52px}
 .ev-st.st-sus.act{background:var(--gold);color:#fff;border-color:var(--gold)}
 .ev-st.st-no{border-color:var(--red);color:var(--red)}
 .ev-st.st-no.act{background:var(--red);color:#fff;border-color:var(--red)}
-.ev-txt-wrap{flex:1}
+.ev-txt-wrap{flex:1;min-width:0;overflow:hidden}
 .ev-main-txt{font-size:12px;line-height:1.4;display:flex;align-items:flex-start;gap:5px;flex-wrap:wrap}
 .ev-main-txt.ev-done{background:rgba(25,146,79,.07);border-radius:5px;padding:1px 5px}
 .ev-main-txt.ev-sus{opacity:.55;color:var(--gold)}
@@ -6856,6 +6856,72 @@ function dtChipsForMatch(dtId,matchId){
 let _dispFilters={preMundial:false,llegada:true,'uru-ksa':true,'uru-cpv':true,'uru-esp':true};
 function toggleDispFilter(key){_dispFilters[key]=!_dispFilters[key];renderDisponibilidad();}
 
+function getPlayerAtencionesList(p){
+  const chk=getChk(), evP=getEvParts(), items=[];
+  const matchLabels={llegada:'Llegada 10/6','uru-ksa':'vs KSA','uru-cpv':'vs CPV','uru-esp':'vs ESP'};
+
+  // preT llegada-mx
+  if(_dispFilters.llegada)(p.preT||[]).filter(a=>a.tipo==='ob'&&a.ctx==='llegada-mx').forEach(a=>{
+    const fecha=a.fecha||'10 jun.';
+    items.push({fase:'Llegada 10/6',txt:`${fecha} · ${a.label||'Atención obligatoria · llegada'}`});
+  });
+
+  // chk items por partido
+  Object.keys(MATCH_RANGES).forEach(mid=>{
+    if(!_dispFilters[mid])return;
+    if(TODAY<(MATCH_RANGES[mid]?.from||'9999'))return;
+    const mc=chk[mid]||{};
+    const items2=mid==='llegada'?CL_LLEGADA:CL_MATCH;
+    const matchDateStr=MATCH_RANGES[mid].to;
+    const matchDateFmt=new Date(matchDateStr+'T12:00:00').toLocaleDateString('es-UY',{day:'numeric',month:'short'});
+    Object.entries(mc).forEach(([actId,d])=>{
+      if(actId==='arr-ent')return;
+      if(d&&d.done&&d.players&&d.players.includes(p.n)){
+        const it=items2.find(x=>x.id===actId);
+        items.push({fase:matchLabels[mid],txt:`${matchDateFmt} · ${it?it.label:actId}`});
+      }
+    });
+    // Actividades del calendario en el rango (ZM, AUFtv, etc.)
+    const range=MATCH_RANGES[mid];
+    if(range) CALENDAR_DAYS.forEach(day=>{
+      if(day.date<range.from||day.date>range.to)return;
+      const allEvs=[...day.eventos,...(getDayActs()[day.date]||[])];
+      allEvs.forEach((e,idx)=>{
+        const parts=evP[evKey(day.date,idx)]||[];
+        if(!parts.includes('p_'+p.n))return;
+        if(day.date>='2026-06-10'&&e.tipo==='oblig'&&checkIdForEventEff(day.date,idx,e))return;
+        if(e.tipo==='viaje'||e.esTrain||e.noParts)return;
+        const txt=getEvTxt(day.date,idx,e.txt||'');
+        const dt=new Date(day.date+'T12:00:00').toLocaleDateString('es-UY',{day:'numeric',month:'short'});
+        items.push({fase:matchLabels[mid],txt:`${dt} · ${txt}`});
+      });
+    });
+  });
+  return items;
+}
+
+function showPlayerAtenciones(n, chipEl){
+  const p=PLAYERS.find(x=>x.n===n);
+  if(!p)return;
+  document.getElementById('player-att-popup')?.remove();
+  const list=getPlayerAtencionesList(p);
+  const popup=document.createElement('div');
+  popup.id='player-att-popup';
+  popup.style.cssText='position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.45)';
+  popup.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;min-width:260px;max-width:340px;font-family:inherit;box-shadow:0 4px 24px rgba(0,0,0,.15)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-weight:700;font-size:14px;color:var(--text)">#${p.n} ${p.name}</span>
+      <button onclick="document.getElementById('player-att-popup').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);line-height:1">✕</button>
+    </div>
+    ${list.length?list.map(it=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:0.5px solid var(--border)">
+      <span style="font-size:9.5px;font-weight:700;background:var(--cel-lt);color:var(--cel-dk);padding:2px 6px;border-radius:5px;white-space:nowrap;flex-shrink:0;margin-top:1px">${it.fase}</span>
+      <span style="font-size:12px;color:var(--text);line-height:1.4">${it.txt}</span>
+    </div>`).join(''):`<div style="color:var(--muted);font-size:12px">Sin atenciones con los filtros actuales</div>`}
+  </div>`;
+  popup.addEventListener('click',e=>{if(e.target===popup)popup.remove();});
+  document.body.appendChild(popup);
+}
+
 function countFWCPerMatch(num, playerObj){
   const chk=getChk(), res={llegada:0,'uru-ksa':0,'uru-cpv':0,'uru-esp':0};
   Object.keys(res).forEach(mid=>{
@@ -7110,7 +7176,7 @@ function renderDisponibilidad(){
       const t=playerFilteredTotal(p);
       const injColor=inj(p.n)==='red'?'#C0392B':inj(p.n)==='yellow'?'#F59E0B':'';
       const injDot=injColor?`<span style="width:6px;height:6px;border-radius:50%;background:${injColor};display:inline-block;flex-shrink:0"></span>`:'';
-      return`<span style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;background:${g.bg};color:${g.color};border:1px solid ${g.border};font-size:12px;font-weight:500;white-space:nowrap">${injDot}<span style="font-size:10px;opacity:.7">#${p.n}</span> ${pShort(p)} <span style="font-size:10px;font-weight:700;background:${g.countBg};color:${g.textColor};padding:1px 5px;border-radius:8px;margin-left:2px">${t}</span></span>`;
+      return`<span onclick="showPlayerAtenciones(${p.n},this)" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;background:${g.bg};color:${g.color};border:1px solid ${g.border};font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer">${injDot}<span style="font-size:10px;opacity:.7">#${p.n}</span> ${pShort(p)} <span style="font-size:10px;font-weight:700;background:${g.countBg};color:${g.textColor};padding:1px 5px;border-radius:8px;margin-left:2px">${t}</span></span>`;
     }).join('');
     return`<div style="margin-bottom:12px">
       <div style="font-size:10px;font-weight:700;color:${g.color};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${g.label} · ${members.length} jugadores</div>
