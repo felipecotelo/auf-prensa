@@ -1830,7 +1830,6 @@ const CALENDAR_DAYS = [
      {h:'17:30',tipo:'sched',txt:'Inicio parte específica',noParts:true},
      {h:'20:30',tipo:'sched',txt:'Cena',noParts:true},
      {h:'TBD',tipo:'oblig',txt:'Entrenamiento — primeros 15 min abiertos · MD-2 vs Cabo Verde',esTrain:true},
-     {h:'16:15',tipo:'oblig',txt:'Atención FIFA TV Crew — jugador',group:'fifa-tv-crew-cpv',art:'TAM p.70'},
    ]},
   {date:'2026-06-20',dow:'Sáb',label:'20 jun',tipo:'md1', lugar:'Riviera Maya 🇲🇽 → Miami 🇺🇸', rival:'Cabo Verde', md:'MD-1',
    eventos:[
@@ -2362,7 +2361,7 @@ const EVENT_GROUPS={
     {date:'2026-06-18',idx:10, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s1'}},
     {date:'2026-06-18',idx:11, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s2'}},
     {date:'2026-06-18',idx:12, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s3'}},
-    {date:'2026-06-19',idx:11, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s4'}},
+    {date:'2026-06-18',idx:13, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s4'}},
   ],
   'fifa-tv-crew-cpv-dt':[
     {date:'2026-06-18',idx:14, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s-dt'}},
@@ -9795,23 +9794,23 @@ function lgCopy(i,url){
     });
     localStorage.setItem(FLAG,'1');
   })();
-  // Migración: FIFA TV Crew CPV s4 movida de 2026-06-18_13 → 2026-06-19_11
+  // Migración: limpiar datos corruptos introducidos por migraciones anteriores en 2026-06-19_11
   (()=>{
-    const FLAG='auf4_mig_tvcrewcpv_s4_v2';
+    const FLAG='auf4_mig_tvcrewcpv_revert_v1';
     if(localStorage.getItem(FLAG))return;
-    const oldKey='2026-06-18_13', newKey='2026-06-19_11';
+    // Limpiar datos incorrectos en June 19 idx 11 (nunca debió tener datos de TV Crew)
+    const corruptKey='2026-06-19_11';
     [KEvP,KEvS,KEvN,KEvTxt].forEach(store=>{
       const d=stor.get(store,{});
-      if(d[oldKey]!==undefined){d[newKey]=d[oldKey];delete d[oldKey];stor.set(store,d);}
+      if(d[corruptKey]!==undefined){delete d[corruptKey];stor.set(store,d);}
     });
-    // Limpiar cualquier reagendado del evento original
+    // Limpiar todos los KEvResch relacionados con TV Crew sessions de Jun 18
     const resch=getEvResch();
-    if(resch[oldKey]){delete resch[oldKey];stor.set(KEvResch,resch);}
-    // También limpiar reagendados de otros intentos fallidos del usuario en jun 17/18
-    ['2026-06-17_10','2026-06-17_11','2026-06-17_12','2026-06-17_13'].forEach(k=>{
-      if(resch[k]){delete resch[k];}
+    let changed=false;
+    ['2026-06-18_10','2026-06-18_11','2026-06-18_12','2026-06-18_13','2026-06-18_14'].forEach(k=>{
+      if(resch[k]){delete resch[k];changed=true;}
     });
-    stor.set(KEvResch,resch);
+    if(changed) stor.set(KEvResch,resch);
     localStorage.setItem(FLAG,'1');
   })();
   // Migración puntual: limpiar md1-conf de CPV/ESP si el evento del calendario no está marcado ✓
