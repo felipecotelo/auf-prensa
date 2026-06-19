@@ -9862,12 +9862,20 @@ function lgCopy(i,url){
   // Orden: GitHub base → Supabase overlay (per-key más reciente gana sobre bulk de GitHub)
   await tryAutoLoad();
   await cloudPull();
-  // Limpieza post-cloudPull: TV Crew CPV nunca debe tener evResch (están en su posición definitiva)
+  // Limpieza post-cloudPull: elimina cualquier evResch de eventos TV Crew CPV (posición fija en calendario)
   (()=>{
     const resch=getEvResch();
     let changed=false;
-    ['2026-06-18_10','2026-06-18_11','2026-06-18_12','2026-06-18_13','2026-06-19_12'].forEach(k=>{
-      if(resch[k]){delete resch[k];changed=true;}
+    const customActs=getDayActs();
+    Object.keys(resch).forEach(k=>{
+      const [origDate,origIdxStr]=k.split('_');
+      const origDay=CALENDAR_DAYS.find(d=>d.date===origDate);
+      if(!origDay)return;
+      const allEvs=[...origDay.eventos,...(customActs[origDate]||[])];
+      const ev=allEvs[parseInt(origIdxStr)];
+      if(ev&&(ev.group==='fifa-tv-crew-cpv'||ev.group==='fifa-tv-crew-cpv-dt')){
+        delete resch[k];changed=true;
+      }
     });
     if(changed){localStorage.setItem(KEvResch,JSON.stringify(resch));cloudPush(KEvResch,resch);serverSave(true);}
   })();
