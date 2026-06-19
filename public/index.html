@@ -9797,13 +9797,21 @@ function lgCopy(i,url){
   })();
   // Migración: FIFA TV Crew CPV s4 movida de 2026-06-18_13 → 2026-06-19_11
   (()=>{
-    const FLAG='auf4_mig_tvcrewcpv_s4_v1';
+    const FLAG='auf4_mig_tvcrewcpv_s4_v2';
     if(localStorage.getItem(FLAG))return;
     const oldKey='2026-06-18_13', newKey='2026-06-19_11';
     [KEvP,KEvS,KEvN,KEvTxt].forEach(store=>{
       const d=stor.get(store,{});
       if(d[oldKey]!==undefined){d[newKey]=d[oldKey];delete d[oldKey];stor.set(store,d);}
     });
+    // Limpiar cualquier reagendado del evento original
+    const resch=getEvResch();
+    if(resch[oldKey]){delete resch[oldKey];stor.set(KEvResch,resch);}
+    // También limpiar reagendados de otros intentos fallidos del usuario en jun 17/18
+    ['2026-06-17_10','2026-06-17_11','2026-06-17_12','2026-06-17_13'].forEach(k=>{
+      if(resch[k]){delete resch[k];}
+    });
+    stor.set(KEvResch,resch);
     localStorage.setItem(FLAG,'1');
   })();
   // Migración puntual: limpiar md1-conf de CPV/ESP si el evento del calendario no está marcado ✓
