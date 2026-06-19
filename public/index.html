@@ -9633,7 +9633,6 @@ function lgCopy(i,url){
   // Limpieza: 'auf4_photos' es de una versión vieja (las fotos ahora viven en IndexedDB)
   // y puede ocupar varios MB de localStorage, provocando QuotaExceededError al guardar otros datos.
   if(localStorage.getItem('auf4_photos'))localStorage.removeItem('auf4_photos');
-  await tryAutoLoad();
   startAutoSync();
   // Auto-sync partidos ya jugados: carga XI, incidencias, ratings y actualiza stats/badges
   (async()=>{
@@ -9814,8 +9813,9 @@ function lgCopy(i,url){
     // Recalcular stats para todos los partidos que tienen eventos guardados
     Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
   })();
-  // Pull datos de la nube antes de renderizar
+  // GitHub es la fuente autoritativa — carga después de Supabase para que siempre gane
   await cloudPull();
+  await tryAutoLoad();
   if(IS_RESTRICTED){
     // Si hay token y no fue autenticado aún, mostrar modal de contraseña
     const _rToken=window.__AUF_RTOKEN||sessionStorage.getItem('auf_rtoken');
@@ -9862,6 +9862,7 @@ function lgCopy(i,url){
     showTab(RESTRICTED_TABS[0]||'estadisticas');
   } else {
     document.documentElement.classList.remove('auf-gate');
+    aggregateMatchActivities();
     renderInicio();
     renderCal();
     renderMatchSelBtns('uru-ksa');
