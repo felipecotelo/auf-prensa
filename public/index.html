@@ -1368,6 +1368,7 @@ function getPlayerMatchCounts(matchId){
     if(day.date<range.from||day.date>range.to)return;
     const customActs=getDayActs()[day.date]||[];
     [...day.eventos,...customActs].forEach((e,i)=>{
+      if(e.noParts||e.esTrain||e.tipo==='viaje'||e.tipo==='sched')return;
       const k=evKey(day.date,i);
       if(evStatus[k]!=='done')return;
       const parts=evParts[k]||[];
@@ -1610,7 +1611,7 @@ const CL_MATCH = [
      {id:'s1',  fecha:'Vie 12 jun', fechas:{'uru-ksa':'Vie 12 jun','uru-cpv':'Jue 18 jun','uru-esp':'Lun 22 jun'}, label:'Jugador 1', defaultPlayer:23},
      {id:'s2',  fecha:'Sáb 13 jun', fechas:{'uru-ksa':'Sáb 13 jun','uru-cpv':'Jue 18 jun','uru-esp':'Mar 23 jun'}, label:'Jugador 2', defaultPlayer:26},
      {id:'s3',  fecha:'Sáb 13 jun', fechas:{'uru-ksa':'Sáb 13 jun','uru-cpv':'Jue 18 jun','uru-esp':'Mar 23 jun'}, label:'Jugador 3'},
-     {id:'s4',  fecha:'TBD',        fechas:{'uru-ksa':'TBD',       'uru-cpv':'Jue 18 jun','uru-esp':'Mar 23 jun'}, label:'Jugador 4'},
+     {id:'s4',  fecha:'TBD',        fechas:{'uru-ksa':'TBD',       'uru-cpv':'Vie 19 jun','uru-esp':'Mar 23 jun'}, label:'Jugador 4'},
      {id:'s-dt',fecha:'Sáb 13 jun', fechas:{'uru-ksa':'Sáb 13 jun','uru-cpv':'Jue 18 jun','uru-esp':'Mar 23 jun'}, label:'Bielsa',    isDT:true, defaultDT:'bielsa'},
    ]},
 
@@ -4334,7 +4335,7 @@ function buildSessionsHtml(matchId,actId,sessions){
       <div class="chk-sess-hdr" id="csess-hdr-${matchId}-${actId}-${sess.id}">
         <div class="chk-sess-cb${s.done?' checked':''}" onclick="toggleSessionDone('${matchId}','${actId}','${sess.id}','${sessJson}')">${s.done?'✓':''}</div>
         <span class="chk-sess-lbl">${sess.label}${partName&&!s.done?` <span style="font-size:10.5px;font-weight:500;color:var(--muted)">· ${partName}</span>`:''}</span>
-        ${(()=>{const d=s.date||sess.fecha||'';return`<span class="chk-sess-date" style="cursor:pointer" title="Click para editar fecha" data-val="${d}" onclick="editSessionDate('${matchId}','${actId}','${sess.id}',this,'${sessJson}')"${!d?' style="opacity:.5;cursor:pointer"':''}>${d||'+ fecha'}</span>`;})()}
+        ${(()=>{const d=s.date||(sess.fechas&&sess.fechas[matchId])||sess.fecha||'';return`<span class="chk-sess-date" style="cursor:pointer" title="Click para editar fecha" data-val="${d}" onclick="editSessionDate('${matchId}','${actId}','${sess.id}',this,'${sessJson}')"${!d?' style="opacity:.5;cursor:pointer"':''}>${d||'+ fecha'}</span>`;})()}
         <button class="chk-sess-expand" onclick="toggleSessionExpand(this)">▸ Detalles</button>
       </div>
       <div class="chk-sess-body" style="display:none">
