@@ -9159,12 +9159,15 @@ async function syncLineupESPN(matchId){
 
     all[matchId].starters=st;
     setLineup(all);
-    // Sync participation too
-    PLAYERS.forEach(p=>setPartVal(p.n,matchId,'no jugó'));
+    // Sync participation — respeta 'no part' seteado manualmente
+    const espnNums=new Set();
     uru.roster.forEach(e=>{
       const name=e.athlete?.displayName||'';
       const num=nameMap[normName(name)]||nameMap[normName(name.split(' ').pop())];
-      if(num)setPartVal(num,matchId,e.starter?'titular':e.subbedIn?'entró':'no entró');
+      if(num){espnNums.add(num);setPartVal(num,matchId,e.starter?'titular':e.subbedIn?'entró':'no entró');}
+    });
+    PLAYERS.forEach(p=>{
+      if(!espnNums.has(p.n)&&getPartVal(p.n,matchId)!=='no part') setPartVal(p.n,matchId,'no part');
     });
     _luPhotos=null;
     renderLineup(matchId);
@@ -9316,12 +9319,15 @@ async function syncLineupSilent(matchId, eventId, data){
     all[matchId].starters=st;
     setLineup(all);
 
-    // Participación
-    PLAYERS.forEach(p=>setPartVal(p.n,matchId,'no jugó'));
+    // Participación — respeta 'no part' seteado manualmente
+    const espnNums2=new Set();
     uru.roster.forEach(e=>{
       const name=e.athlete?.displayName||'';
       const num=nameMap[normName(name)]||nameMap[normName(name.split(' ').pop())];
-      if(num) setPartVal(num,matchId,e.starter?'titular':e.subbedIn?'entró':'no entró');
+      if(num){espnNums2.add(num);setPartVal(num,matchId,e.starter?'titular':e.subbedIn?'entró':'no entró');}
+    });
+    PLAYERS.forEach(p=>{
+      if(!espnNums2.has(p.n)&&getPartVal(p.n,matchId)!=='no part') setPartVal(p.n,matchId,'no part');
     });
 
     // Re-render si el partido activo es este
