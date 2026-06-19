@@ -9862,23 +9862,6 @@ function lgCopy(i,url){
   // Orden: GitHub base → Supabase overlay (per-key más reciente gana sobre bulk de GitHub)
   await tryAutoLoad();
   await cloudPull();
-  // Limpieza post-cloudPull: elimina cualquier evResch de eventos TV Crew CPV (posición fija en calendario)
-  (()=>{
-    const resch=getEvResch();
-    let changed=false;
-    const customActs=getDayActs();
-    Object.keys(resch).forEach(k=>{
-      const [origDate,origIdxStr]=k.split('_');
-      const origDay=CALENDAR_DAYS.find(d=>d.date===origDate);
-      if(!origDay)return;
-      const allEvs=[...origDay.eventos,...(customActs[origDate]||[])];
-      const ev=allEvs[parseInt(origIdxStr)];
-      if(ev&&(ev.noResch||ev.group==='fifa-tv-crew-cpv'||ev.group==='fifa-tv-crew-cpv-dt')){
-        delete resch[k];changed=true;
-      }
-    });
-    if(changed){localStorage.setItem(KEvResch,JSON.stringify(resch));cloudPush(KEvResch,resch);serverSave(true);}
-  })();
   // Limpieza post-cloudPull: borra TODAS las custom activities de Jun 17 (ninguna corresponde a ese día)
   (()=>{
     const acts=getDayActs();
