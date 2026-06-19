@@ -2635,19 +2635,9 @@ async function cloudPull(){
     if(error)throw error;
     if(data&&data.length){
       data.forEach(row=>{
-        if(_SKIP_SYNC.has(row.key)||row.value==null) return;
-        try{
-          if(row.key===KEvS){
-            // Merge: nunca perder un 'done'/'no' ya cargado en localStorage
-            const cur=stor.get(KEvS,{});
-            const incoming=JSON.parse(row.value)||{};
-            const merged={...incoming};
-            Object.entries(cur).forEach(([ek,ev])=>{ if(ev==='done'||ev==='no') merged[ek]=ev; });
-            localStorage.setItem(row.key,JSON.stringify(merged));
-          } else {
-            localStorage.setItem(row.key,row.value);
-          }
-        }catch(e){}
+        if(!_SKIP_SYNC.has(row.key)&&row.value!=null){
+          try{localStorage.setItem(row.key,row.value);}catch(e){}
+        }
       });
     }
     _setSyncStatus('ok');
@@ -3797,12 +3787,14 @@ function aggregateMatchActivities(){
   });
 
   // Limpiar mapeos viejos/incorrectos: si un checkId derivado de eventos ya no tiene
-  // ninguna actividad de calendario asociada en esta pasada, se vacía (evita que
-  // queden "ticks" fantasma de un mapeo anterior, p.ej. zona mixta estación vs. lineal).
+  // ninguna actividad de calendario asociada en esta pasada, resetear done/players/dt.
+  // Excluir items con sessions (md1-conf, md2-crew): su done se computa desde sesiones.
+  const SESSION_CHECKIDS=new Set([...[...CL_MATCH,...CL_LLEGADA].filter(i=>i.sessions).map(i=>i.id)]);
   ['llegada','uru-ksa','uru-cpv','uru-esp'].forEach(matchId=>{
     EVENT_DERIVED_CHECKIDS.forEach(checkId=>{
+      if(SESSION_CHECKIDS.has(checkId)) return; // sessions-based: no tocar done
       const aggKey=`${matchId}__${checkId}`;
-      if(!agg[aggKey] && chkData[matchId]?.[checkId]?.players?.length){
+      if(!agg[aggKey] && chkData[matchId]?.[checkId]){
         chkData[matchId][checkId].players=[];
         chkData[matchId][checkId].done=false;
         delete chkData[matchId][checkId].dt;
@@ -9501,25 +9493,7 @@ async function tryAutoLoad(){
   try{
     const {data}=await ghLoad();
     if(!data) return;
-    if(data.localStorage){
-      // Merge evStatus: 'done'/'no' de cualquier fuente gana sobre vacío
-      const localEvS=stor.get(KEvS,{});
-      Object.entries(data.localStorage).forEach(([k,v])=>{
-        if(k===KEvS){
-          try{
-            const ghEvS=JSON.parse(v)||{};
-            const merged={...ghEvS};
-            // Si localStorage local tiene 'done' o 'no' para una clave, gana
-            Object.entries(localEvS).forEach(([ek,ev])=>{
-              if(ev==='done'||ev==='no') merged[ek]=ev;
-            });
-            localStorage.setItem(k,JSON.stringify(merged));
-          }catch{localStorage.setItem(k,v);}
-        } else {
-          localStorage.setItem(k,v);
-        }
-      });
-    }
+    if(data.localStorage) Object.entries(data.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
     if(data.photos){
       for(const [num,url] of Object.entries(data.photos)) await savePhotoIDB(parseInt(num),url);
       invalidatePhotoCache();
