@@ -9879,6 +9879,21 @@ function lgCopy(i,url){
     });
     if(changed){localStorage.setItem(KEvResch,JSON.stringify(resch));cloudPush(KEvResch,resch);serverSave(true);}
   })();
+  // Limpieza post-cloudPull: elimina custom activities TV Crew CPV que hayan quedado en Jun 17 (no corresponden a ese día)
+  (()=>{
+    const acts=getDayActs();
+    const key17='2026-06-17';
+    if(!acts[key17])return;
+    const before=acts[key17].length;
+    acts[key17]=acts[key17].filter(a=>
+      !(a.group==='fifa-tv-crew-cpv'||a.group==='fifa-tv-crew-cpv-dt'||
+        (typeof a.txt==='string'&&a.txt.includes('FIFA TV Crew')))
+    );
+    if(acts[key17].length!==before){
+      stor.set(KDayActs,acts);
+      cloudPush(KDayActs,acts);
+    }
+  })();
   if(IS_RESTRICTED){
     // Si hay token y no fue autenticado aún, mostrar modal de contraseña
     const _rToken=window.__AUF_RTOKEN||sessionStorage.getItem('auf_rtoken');
