@@ -9794,6 +9794,25 @@ function lgCopy(i,url){
     });
     localStorage.setItem(FLAG,'1');
   })();
+  // Migración puntual: limpiar md1-conf de CPV/ESP si el evento del calendario no está marcado ✓
+  (()=>{
+    const FLAG='auf4_mig_conf_reset_v1';
+    if(localStorage.getItem(FLAG))return;
+    const evS=getEvStatus();
+    const chk=getChk();
+    [['uru-cpv','2026-06-20'],['uru-esp','2026-06-25']].forEach(([mid,date])=>{
+      const day=CALENDAR_DAYS.find(d=>d.date===date);
+      if(!day)return;
+      const confIdx=day.eventos.findIndex(e=>e.chkId==='md1-conf');
+      if(confIdx<0)return;
+      const st=evS[evKey(date,confIdx)]||'';
+      if(st!=='done' && chk[mid]?.['md1-conf']){
+        delete chk[mid]['md1-conf'];
+        stor.set(KC,chk);
+      }
+    });
+    localStorage.setItem(FLAG,'1');
+  })();
   resyncAllEvToChk(); // sincroniza calendario → checklist al abrir
   // Sincronizar grupos vinculados (EVENT_GROUPS) al cargar
   (()=>{
