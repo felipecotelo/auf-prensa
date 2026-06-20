@@ -6931,29 +6931,61 @@ function resetTabOrder(){
   closeTabReorder();
 }
 
+const URU_MATCH_DATES=['2026-06-15','2026-06-21','2026-06-26'];
+const URU_MATCH_RIVAL={
+  'uru-ksa':{label:'Arabia Saudita',date:'2026-06-15'},
+  'uru-cpv':{label:'Cabo Verde',date:'2026-06-21'},
+  'uru-esp':{label:'España',date:'2026-06-26'},
+};
+
+function getLastCompletedUruMatch(){
+  const cache=stor.get(KWCCache,{});
+  // recorrer fechas de mayor a menor para encontrar el último jugado
+  for(const date of [...URU_MATCH_DATES].reverse()){
+    const games=cache[date]?.games||[];
+    const uruGame=games.find(g=>g.isUru&&g.completed&&g.score);
+    if(uruGame) return {...uruGame, isoDate:date};
+  }
+  return null;
+}
+
 function renderStatsUpdateBar(){
   const bar=document.getElementById('stats-update-bar');
   if(!bar)return;
-  const meta=stor.get(KStatsMeta,{});
-  const txt=meta.txt||'';
-  if(txt){
-    bar.innerHTML=`<div style="display:inline-flex;align-items:center;gap:8px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;padding:6px 12px;font-size:11.5px;color:#0369A1;cursor:pointer" onclick="editStatsMeta()" title="Editar">
-      <i class="ti ti-clock-check" style="font-size:13px;flex-shrink:0"></i>
-      <span>${txt}</span>
-      <i class="ti ti-pencil" style="font-size:11px;opacity:.5;flex-shrink:0"></i>
-    </div>`;
-  } else {
-    bar.innerHTML=`<button onclick="editStatsMeta()" style="font-size:11px;color:var(--hint);background:none;border:1px dashed var(--border);border-radius:8px;padding:5px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-plus"></i> Agregar nota de actualización</button>`;
-  }
-}
 
-function editStatsMeta(){
-  const meta=stor.get(KStatsMeta,{});
-  const cur=meta.txt||'';
-  const val=prompt('Nota de actualización (ej: "Actualizado luego del partido con Arabia Saudita · 15 jun · FWC26"):', cur);
-  if(val===null)return;
-  stor.set(KStatsMeta,{txt:val.trim()});
-  renderStatsUpdateBar();
+  const match=getLastCompletedUruMatch();
+  if(!match){
+    bar.innerHTML='';
+    return;
+  }
+
+  // Detectar rival (quién no es Uruguay)
+  const isHome=match.home==='Uruguay'||match.home==='URU';
+  const rival=isHome?match.away:match.home;
+  // Formatear marcador orientado a Uruguay
+  const [hs,as]=match.score.split('-').map(Number);
+  const uruScore=isHome?hs:as;
+  const rivScore=isHome?as:hs;
+  const scoreLabel=`URU ${uruScore}–${rivScore} ${rival}`;
+  const result=uruScore>rivScore?'Victoria':'Empate';
+
+  // Fecha legible
+  const d=new Date(match.isoDate+'T12:00:00');
+  const fechaLabel=d.toLocaleDateString('es-UY',{day:'numeric',month:'long'});
+
+  // Color por resultado
+  const bg=uruScore>rivScore?'#F0FDF4':uruScore===rivScore?'#FFFBEB':'#FFF1F2';
+  const border=uruScore>rivScore?'#BBF7D0':uruScore===rivScore?'#FDE68A':'#FECDD3';
+  const color=uruScore>rivScore?'#166534':uruScore===rivScore?'#92400E':'#9F1239';
+  const icon=uruScore>rivScore?'ti-trophy':'ti-equal';
+
+  bar.innerHTML=`<div style="display:flex;align-items:center;gap:10px;background:${bg};border:1px solid ${border};border-radius:10px;padding:8px 14px;font-size:12px;color:${color}">
+    <i class="ti ${icon}" style="font-size:14px;flex-shrink:0"></i>
+    <div style="flex:1;line-height:1.5">
+      <span style="font-weight:700">Estadísticas actualizadas</span> luego del partido con <strong>${rival}</strong> · ${fechaLabel} · Copa Mundial FIFA 2026
+      <span style="display:inline-block;margin-left:6px;font-weight:800;letter-spacing:.02em">${scoreLabel}</span>
+    </div>
+  </div>`;
 }
 
 function renderEstadisticas(){
