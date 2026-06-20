@@ -1109,13 +1109,9 @@ html.auf-gate body { display:none !important }
     </div>
   </div>
   <div class="grid4" id="stats-grid">
-    <div class="stat-card"><div class="stat-n" id="st-tot">0</div><div class="stat-l">Completadas total</div></div>
-    <div class="stat-card"><div class="stat-n g" id="st-pend">0</div><div class="stat-l">Pendientes</div></div>
     <div class="stat-card"><div class="stat-n gold">3</div><div class="stat-l">Partidos fase grupos</div></div>
     <div class="stat-card"><div class="stat-n" id="st-reg">0</div><div class="stat-l">Entradas en bitácora</div></div>
   </div>
-  <div class="phase">Progreso por momento</div>
-  <div id="inicio-prog"></div>
 </div>
 
 <!-- ═══════════ CALENDARIO ═══════════ -->
@@ -2514,74 +2510,8 @@ function countDone(matchId,items){
 }
 
 function renderInicio(){
-  let totDone=0,totAll=0;
-  MOMENTOS.forEach(m=>{const d=countDone(m.id,m.items);totDone+=d;totAll+=m.items.length});
-  const totPend=totAll-totDone;
-  document.getElementById('st-tot').textContent=totDone;
-  document.getElementById('st-pend').textContent=totPend;
   document.getElementById('st-reg').textContent=getLog().length;
 
-  const prog=document.getElementById('inicio-prog');
-
-  // Llegada — hito menor, estilo compacto
-  const llegada=MOMENTOS[0];
-  const dL=countDone(llegada.id,llegada.items), tL=llegada.items.length;
-  const pctL=Math.round(dL/tL*100);
-  const llegadaHtml=`
-    <div style="background:var(--white);border:0.5px solid var(--border);border-radius:9px;padding:9px 13px;margin-bottom:10px;display:flex;align-items:center;gap:10px;opacity:${dL===tL?'1':'0.85'}">
-      <div style="font-size:16px;flex-shrink:0">📍</div>
-      <div style="flex:1">
-        <div style="font-size:11.5px;font-weight:600;color:var(--muted)">
-          ${llegada.label}
-          <span style="font-weight:400;font-size:10.5px"> · ${llegada.sub}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
-          <div class="prog-bar" style="height:4px;flex:1"><div class="prog-fill" style="width:${pctL}%"></div></div>
-          <span style="font-size:10.5px;font-weight:700;color:${dL===tL?'var(--green)':'var(--hint)'};white-space:nowrap">${dL}/${tL}${dL===tL?' ✓':''}</span>
-        </div>
-      </div>
-      <button class="btn sm" onclick="goMatch('${llegada.id}')" style="flex-shrink:0;font-size:11px;padding:3px 9px">
-        <i class="ti ti-checklist" style="font-size:11px"></i> Ver
-      </button>
-    </div>`;
-
-  // Partidos — cards principales, más prominentes
-  const partidos=MOMENTOS.slice(1);
-  const partidosHtml=partidos.map(m=>{
-    const d=countDone(m.id,m.items), t=m.items.length;
-    const pct=Math.round(d/t*100);
-    const completo=d===t;
-    return `
-      <div class="match-prog-card" style="border:${completo?'1.5px solid var(--green)':'0.5px solid var(--border)'};padding:14px 16px;margin-bottom:8px">
-        <div style="flex-shrink:0;line-height:1;display:flex;align-items:center">${m.iso?flagImg(m.iso,28):'📍'}</div>
-        <div class="match-prog-info">
-          <div style="font-size:13.5px;font-weight:800;margin-bottom:1px">
-            ${m.label}
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:5px">${m.sub}</div>
-          <div class="prog-wrap" style="margin-bottom:0">
-            <div class="prog-label">
-              <span style="font-size:11px">${d}/${t} obligatorias</span>
-              <span style="font-size:11.5px;font-weight:800;color:${completo?'var(--green)':'var(--cel-dk)'}">${pct}%${completo?' ✓':''}</span>
-            </div>
-            <div class="prog-bar" style="height:7px"><div class="prog-fill${completo?'':' partial'}" style="width:${pct}%"></div></div>
-          </div>
-        </div>
-        <button class="btn sm primary" onclick="goMatch('${m.id}')" style="flex-shrink:0">
-          <i class="ti ti-checklist" style="font-size:12px"></i> Abrir
-        </button>
-      </div>`;
-  }).join('');
-
-  prog.innerHTML=`
-    <div style="font-size:9px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Hito de llegada</div>
-    ${llegadaHtml}
-    <div style="font-size:9px;font-weight:800;color:var(--cel-dk);text-transform:uppercase;letter-spacing:.1em;margin:4px 0 6px">⚽ Partidos — Fase de grupos</div>
-    ${partidosHtml}`;
-}
-
-function goMatch(id){
-  selMatch(id,null);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
