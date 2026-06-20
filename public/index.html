@@ -2521,6 +2521,23 @@ function setEvLinks(v){stor.set(KEvLink,v)}
 // Formato: { 'date_idx': { matchId, actId } }
 const KChkEvLink='auf4_chk_evlink';
 function getChkEvLinks(){return stor.get(KChkEvLink,{});}
+// Exclusiones de vínculos AUTO (el usuario los descartó manualmente)
+const KChkEvExclude='auf4_chk_evexclude';
+function getChkEvExcludes(){return stor.get(KChkEvExclude,{});}
+function addChkEvExclude(matchId,actId,date,idx){
+  if(IS_RESTRICTED)return;
+  const ex=getChkEvExcludes();
+  ex[`${matchId}__${actId}__${evKey(date,idx)}`]=true;
+  stor.set(KChkEvExclude,ex);
+  cloudPushDebounced(KChkEvExclude,ex);
+}
+function removeChkEvExclude(matchId,actId,date,idx){
+  if(IS_RESTRICTED)return;
+  const ex=getChkEvExcludes();
+  delete ex[`${matchId}__${actId}__${evKey(date,idx)}`];
+  stor.set(KChkEvExclude,ex);
+  cloudPushDebounced(KChkEvExclude,ex);
+}
 function saveChkEvLink(matchId,actId,date,idx){
   if(IS_RESTRICTED)return;
   const links=getChkEvLinks();
@@ -4003,17 +4020,26 @@ function getLinkedItemsForMatch(matchId){
   Object.values(EVENT_GROUPS).flat().forEach(({chk})=>{
     if(chk.matchId===matchId) linked.add(chk.actId);
   });
-  // 2. chkId explícito en eventos estáticos del calendario
+  // 2. chkId explícito en eventos estáticos del calendario (respetando exclusiones)
   const CL_LLEGADA_IDS=new Set(CL_LLEGADA.map(i=>i.id));
+  const excludes=getChkEvExcludes();
   if(matchId==='llegada'){
     CALENDAR_DAYS.filter(d=>d.date==='2026-06-10').forEach(day=>
-      day.eventos.forEach(ev=>{ if(ev.chkId&&CL_LLEGADA_IDS.has(ev.chkId)) linked.add(ev.chkId); })
+      day.eventos.forEach((ev,idx)=>{
+        if(!ev.chkId||!CL_LLEGADA_IDS.has(ev.chkId))return;
+        if(excludes[`${matchId}__${ev.chkId}__${evKey(day.date,idx)}`])return;
+        linked.add(ev.chkId);
+      })
     );
   } else {
     const range=MATCH_RANGES[matchId];
     if(range){
       CALENDAR_DAYS.filter(d=>d.date>=range.from&&d.date<=range.to).forEach(day=>
-        day.eventos.forEach(ev=>{ if(ev.chkId&&!CL_LLEGADA_IDS.has(ev.chkId)) linked.add(ev.chkId); })
+        day.eventos.forEach((ev,idx)=>{
+          if(!ev.chkId||CL_LLEGADA_IDS.has(ev.chkId))return;
+          if(excludes[`${matchId}__${ev.chkId}__${evKey(day.date,idx)}`])return;
+          linked.add(ev.chkId);
+        })
       );
     }
   }
@@ -4315,15 +4341,20 @@ function _rangeForMatch(matchId){
 }
 
 // Devuelve todos los eventos de calendario vinculados automáticamente (vía chkId) a un ítem
-function _autoLinkedEvs(matchId,actId){
+// excluye los que el usuario descartó explícitamente
+function _autoLinkedEvs(matchId,actId,includeExcluded=false){
   const range=_rangeForMatch(matchId);
   if(!range)return[];
+  const excludes=getChkEvExcludes();
   const result=[];
   CALENDAR_DAYS.filter(d=>d.date>=range.from&&d.date<=range.to).forEach(day=>{
     const customActs=getDayActs()[day.date]||[];
     const allEvs=[...(day.eventos||[]),...customActs];
     allEvs.forEach((ev,idx)=>{
-      if(ev.chkId===actId) result.push({date:day.date,idx,txt:getEvTxt(day.date,idx,ev.txt||''),h:ev.h,dayLabel:day.label||day.date,sessId:null});
+      if(ev.chkId!==actId)return;
+      const excluded=!!excludes[`${matchId}__${actId}__${evKey(day.date,idx)}`];
+      if(excluded&&!includeExcluded)return;
+      result.push({date:day.date,idx,txt:getEvTxt(day.date,idx,ev.txt||''),h:ev.h,dayLabel:day.label||day.date,sessId:null,excluded});
     });
   });
   return result;
@@ -4378,12 +4409,21 @@ function buildChkEvLinkHtml(matchId,actId){
     </div>`;
   }).join('');
 
-  const autoHtml=autoEvs.map(({date,idx,txt,h,dayLabel})=>{
+  const autoEvsFull=_autoLinkedEvs(matchId,actId,true);
+  const autoHtml=autoEvsFull.map(({date,idx,txt,h,dayLabel,excluded})=>{
     const evStatus=getEvStatus()[evKey(date,idx)]||'';
     const statusIcon=evStatus==='done'?'✓ ':evStatus==='no'?'✗ ':'⏳ ';
+    if(excluded){
+      return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:var(--surface);border-radius:6px;padding:4px 7px;margin-bottom:3px;opacity:.5;text-decoration:line-through">
+        <span style="font-size:9px;color:var(--muted);flex-shrink:0;text-decoration:none">AUTO</span>
+        <span style="flex:1">${dayLabel}${h&&h!=='TBD'?' '+h:''} · ${txt}</span>
+        <button onclick="removeChkEvExclude('${matchId}','${actId}','${date}',${idx});rerenderChkItem('${matchId}','${actId}')" style="background:none;border:none;cursor:pointer;color:var(--cel-dk);font-size:10px;padding:0 2px;text-decoration:none" title="Restaurar vínculo AUTO">↺</button>
+      </div>`;
+    }
     return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:var(--cel-lt);border-radius:6px;padding:4px 7px;margin-bottom:3px">
       <span style="font-size:9px;color:var(--muted);flex-shrink:0">AUTO</span>
       <span style="flex:1">${statusIcon}<b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
+      <button onclick="addChkEvExclude('${matchId}','${actId}','${date}',${idx});rerenderChkItem('${matchId}','${actId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px" title="Descartar este vínculo AUTO">✕</button>
     </div>`;
   }).join('');
 
@@ -9951,7 +9991,7 @@ function showMatchStatus(matchId, status, clock){
     }
   });
 }
-const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KChkEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KYellow,KEvOblig,KAeroUy,KEvHidden,KGrafica,KStatsOrder,KMvp,KCardTrack,KStatsDelta,KManualDelta,KMatchDelta,KCardSynced,KMatchEvents,KDelegacion,KInfoTexts,KLineup,KEvResch];
+const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KChkEvLink,KChkEvExclude,KEvFifa,KEvFifaOrig,KEvManualAt,KYellow,KEvOblig,KAeroUy,KEvHidden,KGrafica,KStatsOrder,KMvp,KCardTrack,KStatsDelta,KManualDelta,KMatchDelta,KCardSynced,KMatchEvents,KDelegacion,KInfoTexts,KLineup,KEvResch];
 
 async function serverSave(silent){
   if(IS_RESTRICTED) return;
