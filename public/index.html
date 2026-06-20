@@ -4269,12 +4269,37 @@ function rerenderChkItem(matchId,actId){
   el.replaceWith(newEl);
 }
 
+// Devuelve rango de fechas para un matchId (incluye 'llegada')
+function _rangeForMatch(matchId){
+  if(matchId==='llegada') return {from:'2026-06-10',to:'2026-06-10'};
+  return MATCH_RANGES[matchId]||null;
+}
+
+// Devuelve todos los eventos de calendario vinculados automáticamente (vía chkId) a un ítem
+function _autoLinkedEvs(matchId,actId){
+  const range=_rangeForMatch(matchId);
+  if(!range)return[];
+  const result=[];
+  CALENDAR_DAYS.filter(d=>d.date>=range.from&&d.date<=range.to).forEach(day=>{
+    const customActs=getDayActs()[day.date]||[];
+    const allEvs=[...(day.eventos||[]),...customActs];
+    allEvs.forEach((ev,idx)=>{
+      if(ev.chkId===actId) result.push({date:day.date,idx,txt:getEvTxt(day.date,idx,ev.txt||''),h:ev.h,dayLabel:day.label||day.date});
+    });
+  });
+  return result;
+}
+
 function buildChkEvLinkHtml(matchId,actId){
-  const links=getChkEvLinks();
-  const range=MATCH_RANGES[matchId];
+  const manualLinks=getChkEvLinks();
+  const range=_rangeForMatch(matchId);
   if(!range)return'';
-  // Buscar vínculos manuales existentes para este ítem
-  const linked=Object.entries(links)
+
+  // Vínculos automáticos (chkId en evento estático)
+  const autoEvs=_autoLinkedEvs(matchId,actId);
+
+  // Vínculos manuales (KChkEvLink) para este ítem
+  const manualEvs=Object.entries(manualLinks)
     .filter(([k,v])=>v.matchId===matchId&&v.actId===actId)
     .map(([k])=>{
       const [date,idxStr]=k.split('_');
@@ -4283,20 +4308,30 @@ function buildChkEvLinkHtml(matchId,actId){
       const customActs=getDayActs()[date]||[];
       const allEvs=[...(day?.eventos||[]),...customActs];
       const ev=allEvs[idx];
-      return ev?{date,idx,txt:getEvTxt(date,idx,ev.txt||ev.txt||''),h:ev.h}:null;
+      return ev?{date,idx,txt:getEvTxt(date,idx,ev.txt||''),h:ev.h,dayLabel:day?.label||date}:null;
     }).filter(Boolean);
 
-  const linkedHtml=linked.map(({date,idx,txt,h})=>`
+  const autoHtml=autoEvs.map(({date,idx,txt,h,dayLabel})=>`
     <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:var(--cel-lt);border-radius:6px;padding:4px 7px;margin-bottom:3px">
-      <span style="flex:1"><b>${h&&h!=='TBD'?h+' · ':''}</b>${txt}</span>
+      <span style="font-size:9px;color:var(--muted);flex-shrink:0">AUTO</span>
+      <span style="flex:1"><b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
+    </div>`).join('');
+
+  const manualHtml=manualEvs.map(({date,idx,txt,h,dayLabel})=>`
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:#EAF3DE;border-radius:6px;padding:4px 7px;margin-bottom:3px">
+      <span style="font-size:9px;color:#4a7c2f;flex-shrink:0">MANUAL</span>
+      <span style="flex:1"><b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
       <button onclick="removeChkEvLink('${date}',${idx});rerenderChkItem('${matchId}','${actId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px" title="Quitar vínculo">✕</button>
     </div>`).join('');
 
+  const noLinks=!autoEvs.length&&!manualEvs.length;
+
   return`<div style="margin-top:8px">
-    <label style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">🔗 Vinculado al calendario</label>
-    ${linked.length?linkedHtml:'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Sin vínculo manual</div>'}
-    <button onclick="toggleChkEvLinkPicker('${matchId}','${actId}',this)" style="font-size:11px;padding:4px 10px;border:1px dashed var(--cel);border-radius:6px;background:none;color:var(--cel-dk);cursor:pointer;font-family:inherit">＋ Vincular evento</button>
-    <div id="chk-evpicker-${matchId}-${actId}" style="display:none;margin-top:6px;max-height:200px;overflow-y:auto;border:0.5px solid var(--border);border-radius:8px;padding:4px"></div>
+    <label style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">🔗 Evento en calendario</label>
+    ${autoHtml}${manualHtml}
+    ${noLinks?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Sin vínculo de calendario</div>':''}
+    <button onclick="toggleChkEvLinkPicker('${matchId}','${actId}',this)" style="font-size:11px;padding:4px 10px;border:1px dashed var(--cel);border-radius:6px;background:none;color:var(--cel-dk);cursor:pointer;font-family:inherit">＋ Ajustar vínculo</button>
+    <div id="chk-evpicker-${matchId}-${actId}" style="display:none;margin-top:6px;max-height:220px;overflow-y:auto;border:0.5px solid var(--border);border-radius:8px;padding:4px"></div>
   </div>`;
 }
 
@@ -4304,35 +4339,40 @@ function toggleChkEvLinkPicker(matchId,actId,btn){
   const picker=document.getElementById(`chk-evpicker-${matchId}-${actId}`);
   if(!picker)return;
   const isOpen=picker.style.display!=='none';
-  if(isOpen){picker.style.display='none';btn.textContent='＋ Vincular evento';return;}
+  if(isOpen){picker.style.display='none';btn.textContent='＋ Ajustar vínculo';return;}
   btn.textContent='✕ Cerrar';
   picker.style.display='block';
-  // Construir lista de eventos del período del partido
-  const range=MATCH_RANGES[matchId];
-  if(!range){picker.innerHTML='<div style="padding:8px;font-size:11px;color:var(--muted)">Rango de fechas no encontrado</div>';return;}
+  picker.scrollIntoView({behavior:'smooth',block:'nearest'});
+  const range=_rangeForMatch(matchId);
+  if(!range){picker.innerHTML='<div style="padding:8px;font-size:11px;color:var(--muted)">Rango no encontrado</div>';return;}
   const days=CALENDAR_DAYS.filter(d=>d.date>=range.from&&d.date<=range.to);
   const existing=getChkEvLinks();
+  const autoEvSet=new Set(_autoLinkedEvs(matchId,actId).map(e=>evKey(e.date,e.idx)));
   let rows=[];
   days.forEach(day=>{
     const customActs=getDayActs()[day.date]||[];
     const allEvs=[...day.eventos,...customActs];
     allEvs.forEach((ev,idx)=>{
-      if(ev.tipo==='viaje'||ev.tipo==='sched'||ev.noParts)return; // omitir cronograma
+      if(ev.tipo==='viaje'||ev.tipo==='sched'||ev.noParts)return;
       const k=evKey(day.date,idx);
       const alreadyLinked=existing[k];
+      const isAutoHere=autoEvSet.has(k);
       const txt=getEvTxt(day.date,idx,ev.txt||'');
       const dayLabel=day.label||day.date;
-      rows.push({date:day.date,idx,txt,h:ev.h,dayLabel,alreadyLinked});
+      rows.push({date:day.date,idx,txt,h:ev.h,dayLabel,alreadyLinked,isAutoHere});
     });
   });
   if(!rows.length){picker.innerHTML='<div style="padding:8px;font-size:11px;color:var(--muted)">No hay eventos de prensa en este período</div>';return;}
   picker.innerHTML=rows.map(r=>{
-    const isLinkedHere=r.alreadyLinked&&r.alreadyLinked.matchId===matchId&&r.alreadyLinked.actId===actId;
-    const isLinkedElse=r.alreadyLinked&&!isLinkedHere;
-    return`<div onclick="${isLinkedElse?'':'saveChkEvLink(\''+matchId+'\',\''+actId+'\',\''+r.date+'\','+r.idx+');toggleChkEvLinkPicker(\''+matchId+'\',\''+actId+'\',this.closest(\'[id]\').previousSibling)'}" style="padding:6px 8px;border-radius:6px;font-size:11px;cursor:${isLinkedElse?'default':'pointer'};display:flex;align-items:center;gap:6px;opacity:${isLinkedElse?'.4':'1'}" class="${isLinkedElse?'':'chk-evpick-row'}">
+    const isManualHere=r.alreadyLinked&&r.alreadyLinked.matchId===matchId&&r.alreadyLinked.actId===actId;
+    const isLinkedElse=r.alreadyLinked&&!isManualHere;
+    const tag=r.isAutoHere?'<span style="font-size:9px;background:var(--cel-lt);color:var(--cel-dk);border-radius:4px;padding:1px 4px;flex-shrink:0">auto</span>':
+               isManualHere?'<span style="font-size:9px;background:#EAF3DE;color:#4a7c2f;border-radius:4px;padding:1px 4px;flex-shrink:0">✓ manual</span>':'';
+    const disabled=isLinkedElse&&!r.isAutoHere;
+    return`<div onclick="${disabled?'':'saveChkEvLink(\''+matchId+'\',\''+actId+'\',\''+r.date+'\','+r.idx+');toggleChkEvLinkPicker(\''+matchId+'\',\''+actId+'\',this.closest(\'[id]\').previousSibling)'}" style="padding:6px 8px;border-radius:6px;font-size:11px;cursor:${disabled?'default':'pointer'};display:flex;align-items:center;gap:6px;opacity:${disabled?'.4':'1'}" class="${disabled?'':'chk-evpick-row'}">
       <span style="color:var(--muted);flex-shrink:0;font-size:10px">${r.dayLabel}${r.h&&r.h!=='TBD'?' '+r.h:''}</span>
       <span style="flex:1">${r.txt}</span>
-      ${isLinkedHere?'<span style="color:var(--green);font-size:10px">✓ vinculado</span>':''}
+      ${tag}
     </div>`;
   }).join('');
 }
