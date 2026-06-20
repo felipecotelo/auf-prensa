@@ -2943,9 +2943,13 @@ function buildEventsHtml(day, startIdx=0){
   const dayClosed=getDayClosed()[day.date]||false;
   // Events where players make sense (exclude pure travel/info)
   const showPartsFor=(e)=>e.tipo!=='viaje'&&!e.noParts;
+  // Número de eventos estáticos originales para detectar custom acts por posición
+  const _origStaticLen=(CALENDAR_DAYS.find(d=>d.date===day.date)||{eventos:[]}).eventos.length;
   return day.eventos.map((e,ei)=>{
     const realIdx=e._origIdx!==undefined?e._origIdx:startIdx+ei;
     const dataDate=e._isResch?e._origDate:day.date;
+    // Custom si su índice supera los estáticos originales Y no es evento reagendado de otro día
+    const isCustom=!e._isResch&&realIdx>=_origStaticLen&&!e._wcMatch;
     const k=evKey(dataDate,realIdx);
     const t=e._isResch?e.h:getCalTime(dataDate,realIdx,e.h);
     const isFifaChange=getEvFifa()[k];
@@ -3070,7 +3074,7 @@ function buildEventsHtml(day, startIdx=0){
             ].join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
             ${e.group?getGroupPairBar(e.group):''}
           </div>
-          ${e._isCustom?`<button onclick="deleteDayAct('${dataDate}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
+          ${isCustom?`<button onclick="deleteDayAct('${dataDate}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
             :(e.tipo==='team'||e.tipo==='sched'||e.tipo==='viaje')?`<button onclick="hideEvent('${dataDate}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
             :''}
           ${e.tipo!=='partido'&&e.tipo!=='viaje'?`<button onclick="rescheduleEvent('${dataDate}',${realIdx},'${day.date}',event)" title="${e._isResch?'Reagendado — click para cambiar o deshacer':'Reagendar a otro día'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 3px;color:${e._isResch?'#c2410c':'var(--hint)'}">📅</button>`:''}
