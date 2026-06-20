@@ -583,6 +583,11 @@ textarea{resize:vertical;min-height:52px}
 .aap-back{margin-top:8px;font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
 .aap-input{padding:7px 9px;border:0.5px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;width:100%;box-sizing:border-box}
 .aap-input:focus{outline:2px solid var(--cel);border-color:var(--cel)}
+.aap-tz-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.aap-tz-chip{font-size:11px;font-family:inherit;padding:4px 9px;border:1px solid var(--border);border-radius:20px;background:var(--surface);cursor:pointer;color:var(--text);transition:all .1s}
+.aap-tz-chip.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.aap-tz-preview{font-size:11px;color:var(--cel-dk);font-weight:600;margin-top:3px;min-height:16px}
+.ev-tz-badge{font-size:9.5px;color:var(--muted);font-weight:600;margin-left:3px}
 .aap-suggest{margin-top:4px;display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto}
 .aap-sug-item{padding:6px 9px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;background:var(--surface);border:0.5px solid var(--border)}
 .aap-sug-item:hover{background:var(--cel-lt);border-color:var(--cel)}
@@ -2986,7 +2991,7 @@ function buildEventsHtml(day, startIdx=0){
             <button class="ev-st st-sus${s==='sus'?' act':''}" onclick="setEvSt('${dataDate}',${realIdx},'sus',this)" title="Suspendida">⏸</button>
             <button class="ev-st st-no${s==='no'?' act':''}" onclick="setEvSt('${dataDate}',${realIdx},'no',this)" title="No realizada">✗</button>`}
           </div>
-          <div class="cal-event-h editable-time${isDraftTime(t)?' draft-time':''}" style="margin-top:2px;min-width:50px" title="${isDraftTime(t)?'Horario a confirmar — click para editar':'Click para editar horario'}" onclick="editEventTime('${dataDate}',${realIdx},this)">${t}${isDraftTime(t)?'<span class="draft-tag">a confirmar</span>':''}</div>
+          <div class="cal-event-h editable-time${isDraftTime(t)?' draft-time':''}" style="margin-top:2px;min-width:50px" title="${isDraftTime(t)?'Horario a confirmar — click para editar':'Click para editar horario'}" onclick="editEventTime('${dataDate}',${realIdx},this)">${t}${isDraftTime(t)?'<span class="draft-tag">a confirmar</span>':''}${e.tz&&e.tz!=='UY'?`<span class="ev-tz-badge">${TZ_INFO[e.tz]?.short||e.tz}${e.hUY?' → '+e.hUY+' UY':''}</span>`:''}</div>
           <button onclick="toggleEvFifa('${dataDate}',${realIdx},event)" title="${isFifaChange?'Horario reprogramado por FIFA — click para quitar la marca':'Marcar como horario reprogramado por FIFA (no fue un cambio nuestro)'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 2px;margin-top:2px;line-height:1;opacity:${isFifaChange?'1':'.25'}">⛔️</button>
           <div class="cal-event-dot ${e.isDT?'ce-dt':'ce-'+e.tipo}" style="margin-top:5px;flex-shrink:0"></div>
           <div class="ev-txt-wrap">
@@ -3454,6 +3459,43 @@ function toggleDayClosed(date,btn){
   renderCal();
 }
 
+// ── Timezone helpers ────────────────────────────────────────────────────
+// June 2026 offsets from UTC: UY=-3, MIA(EDT)=-4, GDL(CDT)=-5
+const TZ_INFO={
+  UY: {label:'Uruguay', short:'UY',  offset:-3},
+  MIA:{label:'Miami',   short:'MIA', offset:-4},
+  GDL:{label:'Guadalajara',short:'GDL',offset:-5},
+};
+
+function tzToUY(hStr, fromTz){
+  if(!hStr||hStr==='TBD'||fromTz==='UY')return null;
+  const m=hStr.match(/^(\d{1,2}):(\d{2})$/);
+  if(!m)return null;
+  const diff=(TZ_INFO.UY.offset)-(TZ_INFO[fromTz]?.offset||TZ_INFO.UY.offset);
+  let h=parseInt(m[1])+diff, min=parseInt(m[2]);
+  if(h<0)h+=24; if(h>=24)h-=24;
+  return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+}
+
+function aapUpdateTzPreview(date){
+  const h=document.getElementById(`aap-h-${date}`)?.value.trim();
+  const tz=_aapState[date]?._tz||'UY';
+  const prev=document.getElementById(`aap-tz-prev-${date}`);
+  if(!prev)return;
+  if(tz==='UY'){prev.textContent='';return;}
+  const uy=tzToUY(h,tz);
+  prev.textContent=uy?`→ ${uy} Uruguay`:(h&&h!=='TBD'?'':'');
+}
+
+function aapSetTz(date, tz){
+  if(!_aapState[date])return;
+  _aapState[date]._tz=tz;
+  document.querySelectorAll(`#aap-${date} .aap-tz-chip`).forEach(el=>{
+    el.classList.toggle('active', el.dataset.tz===tz);
+  });
+  aapUpdateTzPreview(date);
+}
+
 const _aapState={};
 
 function toggleAddAct(date,btn){
@@ -3586,7 +3628,14 @@ function renderAapStep(date,step){
     html=`<p class="aap-q">Nombre y hora</p>
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
       <input class="aap-input" id="aap-txt-${date}" placeholder="${isCrono0?'Ej: Reunión técnica, Activación...':'Ej: Zona mixta — jugadores titulares'}" onkeydown="if(event.key==='Enter')document.getElementById('aap-h-${date}').focus()">
-      <input class="aap-input" id="aap-h-${date}" placeholder="Hora — ej: 11:30 o TBD" style="width:170px" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
+      <div>
+        <input class="aap-input" id="aap-h-${date}" placeholder="Hora — ej: 11:30 o TBD" style="width:170px" oninput="aapUpdateTzPreview('${date}')" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
+        <div class="aap-tz-chips" style="margin-top:5px">
+          <span style="font-size:10px;color:var(--muted);line-height:2;margin-right:2px">Huso:</span>
+          ${Object.entries(TZ_INFO).map(([k,v])=>`<button class="aap-tz-chip${k==='UY'?' active':''}" data-tz="${k}" onclick="aapSetTz('${date}','${k}')">${v.label}</button>`).join('')}
+        </div>
+        <div class="aap-tz-preview" id="aap-tz-prev-${date}"></div>
+      </div>
       <div style="display:flex;gap:6px;margin-top:2px">
         <button class="btn primary sm" onclick="submitAddAct(${d})">Agregar</button>
         <button class="aap-back" onclick="renderAapStep(${d},${isCrono0?0:st.prensa?2:0})">← Volver</button>
@@ -3606,9 +3655,15 @@ function submitAddAct(date){
   const h=document.getElementById(`aap-h-${date}`)?.value.trim()||'TBD';
   if(!txt){toast('⚠ Escribí el nombre de la actividad');return;}
   const state=_aapState[date]||{};
+  const tz=state._tz||'UY';
+  const hUY=tz!=='UY'?tzToUY(h,tz):null;
+  // Limpiamos _tz del state antes de guardar (es solo estado UI)
+  const {_tz,...cleanState}=state;
+  const entry={...cleanState,txt,h,tz:(tz!=='UY'?tz:undefined)};
+  if(hUY)entry.hUY=hUY;
   const acts=getDayActs();
   if(!acts[date])acts[date]=[];
-  acts[date].push({...state,txt,h});
+  acts[date].push(entry);
   stor.set(KDayActs,acts);
   cloudPushDebounced(KDayActs,acts);
   delete _aapState[date];
