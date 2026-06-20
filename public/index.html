@@ -6905,10 +6905,21 @@ function getPlayerAtencionesList(p){
     const matchDateFmt=new Date(matchDateStr+'T12:00:00').toLocaleDateString('es-UY',{day:'numeric',month:'short'});
     Object.entries(mc).forEach(([actId,d])=>{
       if(actId==='arr-ent')return;
+      const it=items2.find(x=>x.id===actId);
+      if(it&&it.hasPlayers===false)return; // ítem solo DT, no aplica a jugadores
+      // Jugador en d.players (ítems sin sessions)
       if(d&&d.done&&d.players&&d.players.includes(p.n)){
-        const it=items2.find(x=>x.id===actId);
-        if(it&&it.hasPlayers===false)return; // ítem solo DT, no aplica a jugadores
         items.push({fase:matchLabels[mid],txt:`${matchDateFmt} · ${it?it.label:actId}`});
+      }
+      // Jugador en sessions (ítems con sessions como conf o TV Crew)
+      if(d&&d.sessions){
+        Object.entries(d.sessions).forEach(([sid,sess])=>{
+          if(sess&&sess.players&&sess.players.includes(p.n)){
+            const sl=(it?.sessions||[]).find(s=>s.id===sid);
+            const lbl=sl?.label?`${it?it.label:actId} · ${sl.label}`:it?it.label:actId;
+            items.push({fase:matchLabels[mid],txt:`${matchDateFmt} · ${lbl}`});
+          }
+        });
       }
     });
     // Actividades del calendario en el rango (ZM, AUFtv, etc.)
@@ -6962,10 +6973,15 @@ function countFWCPerMatch(num, playerObj){
     const items2=mid==='llegada'?CL_LLEGADA:CL_MATCH;
     Object.entries(mc).forEach(([actId,d])=>{
       if(actId==='arr-ent')return;
-      if(d&&d.done&&d.players&&d.players.includes(num)){
-        const it=items2.find(x=>x.id===actId);
-        if(it&&it.hasPlayers===false)return; // ítem solo DT
-        res[mid]++;
+      const it=items2.find(x=>x.id===actId);
+      if(it&&it.hasPlayers===false)return; // ítem solo DT
+      // Jugador en d.players (ítems sin sessions)
+      if(d&&d.done&&d.players&&d.players.includes(num)) res[mid]++;
+      // Jugador en sessions (conferencia, TV Crew, etc.)
+      if(d&&d.sessions){
+        Object.values(d.sessions).forEach(sess=>{
+          if(sess&&sess.players&&sess.players.includes(num)) res[mid]++;
+        });
       }
     });
     // Actividades del calendario dentro del rango del partido (ZM AUF, notas AUFtv, etc.)
