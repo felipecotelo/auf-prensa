@@ -1898,7 +1898,7 @@ const CALENDAR_DAYS = [
    ]},
   {date:'2026-06-24',dow:'Mié',label:'24 jun',tipo:'md1', lugar:'Riviera Maya 🇲🇽 → Guadalajara 🇲🇽', rival:'España', md:'MD-1',
    eventos:[
-     {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS',esTrain:true},
+     {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS',esTrain:true,chkId:'md1-train'},
      {h:'~14:00',tipo:'viaje',txt:'✈️ Viaje a Guadalajara, Jalisco'},
      {h:'18:45',tipo:'oblig',txt:'Conferencia de prensa + Stand-up — DT + 1 jugador · Estadio Akron, Guadalajara · TV Uruguay (RH) + TV rival + equipo FIFA',hasDT:true,chkId:'md1-conf'},
    ]},
@@ -4118,17 +4118,8 @@ function aggregateMatchActivities(){
     if(players.size || done) chkData[matchId][checkId].done = true;
     // Si está cancelado (✗) y no hay ninguna info positiva, marcarlo como no realizado
     else if(cancelled) chkData[matchId][checkId].done = false;
-    // Para ítems con sesiones (md1-conf, md2-crew): si el ítem está done, marcar todas las sesiones done
-    if(chkData[matchId][checkId].done){
-      const clItem=[...CL_MATCH,...CL_LLEGADA].find(i=>i.id===checkId);
-      if(clItem?.sessions){
-        if(!chkData[matchId][checkId].sessions) chkData[matchId][checkId].sessions={};
-        clItem.sessions.forEach(s=>{
-          if(!chkData[matchId][checkId].sessions[s.id]) chkData[matchId][checkId].sessions[s.id]={};
-          chkData[matchId][checkId].sessions[s.id].done=true;
-        });
-      }
-    }
+    // Ítems con sesiones (md2-crew): sus sesiones las maneja syncEvToChkSession
+    // vía EVENT_GROUPS. NO marcar sesiones aquí para evitar contaminación entre partidos.
   });
 
   // Limpiar mapeos viejos/incorrectos: si un checkId derivado de eventos ya no tiene
