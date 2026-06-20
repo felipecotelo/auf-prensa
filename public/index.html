@@ -721,6 +721,8 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 .chk-cb.partial{background:linear-gradient(135deg,var(--cel),var(--cel-dk));border-color:var(--cel);color:#fff}
 .chk-cb.partial::after{content:'½';font-size:10px;font-weight:900}
 .chk-cb.auto{cursor:default;opacity:.85}
+.chk-cb.rival{background:#EAF3DE;border-color:#C0DD97;cursor:default}
+.chk-cb.rival::after{content:'—';font-size:11px;font-weight:700;color:#27500A}
 
 /* ── EV GROUP PAIR (cross-day linked obligations) ── */
 .ev-pair-bar{display:flex;align-items:center;gap:6px;margin-top:5px;padding:4px 8px;border-radius:7px;font-size:10.5px;font-weight:700;border:1.5px solid;transition:all .3s}
@@ -1677,7 +1679,7 @@ const CL_MATCH = [
   {id:'md-mvp-attn',  fase:'MD — Post-partido',
    label:'Atención del MVP — Player of the Match (FIFA)',
    sub:'Solo si el premiado es un jugador uruguayo · Entrevista breve + foto con el trofeo POTM · Designado por FIFA al término del partido · Coordinación directa con el FIFA Media Officer',
-   hasDT:false, hasPlayers:true, playerCount:1, cat:'flash', oblig:false},
+   hasDT:false, hasPlayers:true, playerCount:1, cat:'flash', oblig:true, canRival:true},
 ];
 
 // Lookup checkId → ¿es obligatoria FIFA? (default true salvo oblig:false explícito)
@@ -3344,7 +3346,7 @@ function renderCal(){
               {tipo:'oblig',oblig:true,  txt:'Entrenamiento con apertura de prensa',cerrado:false},
               {tipo:'oblig',oblig:false, txt:'Entrenamiento cerrado',cerrado:true},
               {tipo:'info', oblig:false, txt:'Zona mixta — ', auf:true},
-              {tipo:'info', oblig:false, txt:'Nota a jugador', auftv:true},
+              {tipo:'info', oblig:false, txt:'Nota a jugador', auftv:true, hasPlayers:true},
               {tipo:'oblig',oblig:true,  txt:'Atención FIFA TV Crew — 2 jugadores',cerrado:false},
               {tipo:'oblig',oblig:true,  txt:'Conferencia de prensa'},
               {tipo:'viaje', oblig:false, txt:'✈️ Viaje'},
@@ -3938,27 +3940,30 @@ function buildChkItem(matchId,item){
 
   // Items with sub-sessions: compute checkbox state from sessions
   let cbClass='chk-cb auto', doneClass='';
+  const rivalWon=!!(data.rivalWon);
   if(item.sessions){
     const cnt=getSessionsDoneCount(matchId,item.id,item.sessions);
     if(cnt===item.sessions.length){cbClass+=' checked';doneClass=' done';}
     else if(cnt>0){cbClass+=' partial';}
-    // override data.done to reflect real state
     data.done=(cnt===item.sessions.length);
   } else {
-    if(data.done){cbClass+=' checked';doneClass=' done';}
+    if(rivalWon){cbClass+=' rival';doneClass=' rival';}
+    else if(data.done){cbClass+=' checked';doneClass=' done';}
   }
 
   div.className='chk-item'+doneClass;
   div.id=`ci-${matchId}-${item.id}`;
 
   const summary=item.sessions?_buildSessionsSummary(matchId,item):buildSummary(data,item);
-  const cbClick=item.sessions?'':`event.stopPropagation();toggleDone('${matchId}','${item.id}')`;
+  const cbClick=item.sessions||rivalWon?'':`event.stopPropagation();toggleDone('${matchId}','${item.id}')`;
+
+  const rivalBtn=item.canRival?`<button onclick="event.stopPropagation();toggleRivalWon('${matchId}','${item.id}')" style="margin-top:8px;font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid ${rivalWon?'#C0DD97':'var(--border)'};background:${rivalWon?'#EAF3DE':'transparent'};color:${rivalWon?'#27500A':'var(--muted)'};cursor:pointer;font-family:inherit">${rivalWon?'✓ Lo ganó el rival — N/A':'🏆 Lo ganó el rival'}</button>`:'';
 
   div.innerHTML=`
     <div class="chk-item-hdr" onclick="toggleChkOpen('${matchId}','${item.id}')">
-      <div class="${cbClass}" onclick="${cbClick}" title="${item.sessions?'Se marca automáticamente al completar las sesiones':''}"></div>
+      <div class="${cbClass}" onclick="${cbClick}" title="${rivalWon?'El MVP fue del rival — no aplica':item.sessions?'Se marca automáticamente al completar las sesiones':''}"></div>
       <div class="chk-main">
-        <div class="chk-label">${item.art?artTagHtml(item.art):''}<span class="tag tag-oblig">Obligatorio</span>${item.label}</div>
+        <div class="chk-label">${item.art?artTagHtml(item.art):''}${rivalWon?'<span class="tag" style="background:#EAF3DE;color:#27500A;font-size:9px">Rival — N/A</span>':'<span class="tag tag-oblig">Obligatorio</span>'}${item.label}</div>
         <div class="chk-sub">${item.sub}</div>
         ${summary?`<div class="chk-summary">↳ ${summary}</div>`:''}
       </div>
@@ -3974,9 +3979,10 @@ function buildChkItem(matchId,item){
           </div>
           ${buildSessionsHtml(matchId,item.id,item.sessions)}
         </div>`:''}
-        ${!item.sessions&&item.hasDT?buildDTSection(matchId,item.id,data):''}
-        ${!item.sessions&&item.hasPlayers?buildPlayerSection(matchId,item.id,data,item.playerCount):''}
-        <div>
+        ${!item.sessions&&item.hasDT&&!rivalWon?buildDTSection(matchId,item.id,data):''}
+        ${!item.sessions&&item.hasPlayers&&!rivalWon?buildPlayerSection(matchId,item.id,data,item.playerCount):''}
+        ${rivalBtn}
+        <div${rivalWon?' style="margin-top:8px"':''}>
           <label style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">📝 Nota general</label>
           <textarea class="chk-note${data.note?' has-note':''}"
             placeholder="Observaciones, imprevistos..."
@@ -4054,21 +4060,38 @@ function toggleChkOpen(matchId,actId){
 
 function refreshChkProgress(matchId){
   const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  const done=items.filter(i=>getItemData(matchId,i.id).done).length;
-  const pct=Math.round(done/items.length*100);
+  // Ítems con rivalWon no cuentan como pendientes ni como completados
+  const activeItems=items.filter(i=>!getItemData(matchId,i.id).rivalWon);
+  const done=activeItems.filter(i=>getItemData(matchId,i.id).done).length;
+  const total=activeItems.length;
+  const pct=Math.round(done/total*100);
   const prog=document.getElementById('chk-progress');
-  if(prog) prog.innerHTML=`<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:13px 14px"><div class="prog-label" style="margin-bottom:6px"><span style="font-size:13px;font-weight:800">${done===items.length?'✅ Todas completadas':items.length-done+' pendientes'}</span><span style="font-size:13px;font-weight:800;color:${done===items.length?'var(--green)':'var(--cel-dk)'}">${done}/${items.length}</span></div><div class="prog-bar" style="height:7px"><div class="prog-fill${done===items.length?'':' partial'}" style="width:${pct}%"></div></div></div>`;
+  if(prog) prog.innerHTML=`<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:13px 14px"><div class="prog-label" style="margin-bottom:6px"><span style="font-size:13px;font-weight:800">${done===total?'✅ Todas completadas':total-done+' pendientes'}</span><span style="font-size:13px;font-weight:800;color:${done===total?'var(--green)':'var(--cel-dk)'}">${done}/${total}</span></div><div class="prog-bar" style="height:7px"><div class="prog-fill${done===total?'':' partial'}" style="width:${pct}%"></div></div></div>`;
   // Update phase done counts
   const phaseMap={};
   items.forEach(it=>{if(!phaseMap[it.fase])phaseMap[it.fase]=[];phaseMap[it.fase].push(it);});
   document.querySelectorAll('#chk-container .chk-phase').forEach(el=>{
     const name=el.querySelector('span:first-child')?.textContent;
     if(name&&phaseMap[name]){
-      const fd=phaseMap[name].filter(i=>getItemData(matchId,i.id).done).length;
+      const phaseActive=phaseMap[name].filter(i=>!getItemData(matchId,i.id).rivalWon);
+      const fd=phaseActive.filter(i=>getItemData(matchId,i.id).done).length;
       const ce=el.querySelector('.chk-phase-done');
-      if(ce)ce.textContent=`${fd}/${phaseMap[name].length}`;
+      if(ce)ce.textContent=`${fd}/${phaseActive.length}`;
     }
   });
+}
+
+function toggleRivalWon(matchId,actId){
+  const data=getItemData(matchId,actId);
+  data.rivalWon=!data.rivalWon;
+  if(data.rivalWon)data.done=false;
+  setItemData(matchId,actId,data);
+  const el=document.getElementById(`ci-${matchId}-${actId}`);
+  const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
+  const item=items.find(i=>i.id===actId);
+  if(el&&item){const newEl=buildChkItem(matchId,item);if(el.classList.contains('open'))newEl.classList.add('open');el.replaceWith(newEl);}
+  refreshChkProgress(matchId);
+  renderInicio();
 }
 
 function toggleDone(matchId,actId){
