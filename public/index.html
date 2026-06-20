@@ -2841,7 +2841,7 @@ function showTab(id){
   if(id==='inicio'){renderInicio()}
   if(id==='disponibilidad'){renderDisponibilidad()}
   if(id==='calendario'){renderCal()}
-  if(id==='partido'){renderChecklist(curMatch)}
+  if(id==='partido'){resyncAllEvToChk();renderChecklist(curMatch)}
   if(id==='fixture'){renderFixture();fetchFromESPN();}
   if(id==='partidos'){renderPartidos()}
   if(id==='plantel'){renderPlantel()}
@@ -9770,8 +9770,25 @@ async function syncLineupESPN(matchId){
   }catch(e){toast('⚠ Error conectando con ESPN');}
 }
 
-// No-op: el checklist ya no requiere re-agregación al iniciar.
-function resyncAllEvToChk(){}
+// Re-sincroniza todos los eventos de calendario ya marcados → checklist.
+// Se llama al abrir la tab de partido para ponerse al día con estados previos.
+function resyncAllEvToChk(){
+  const evStatus=getEvStatus();
+  // 1. EVENT_GROUPS (sesiones)
+  Object.values(EVENT_GROUPS).flat().forEach(({date,idx,chk})=>{
+    const st=evStatus[evKey(date,idx)]||'';
+    if(st) syncEvToChkSession(date,idx,st);
+  });
+  // 2. Eventos con chkId
+  CALENDAR_DAYS.forEach(day=>{
+    const customActs=getDayActs()[day.date]||[];
+    [...(day.eventos||[]),...customActs].forEach((ev,idx)=>{
+      if(!ev.chkId)return;
+      const st=evStatus[evKey(day.date,idx)]||'';
+      if(st) syncEvToChkSession(day.date,idx,st);
+    });
+  });
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SERVER SYNC
