@@ -1944,6 +1944,7 @@ const KL='auf4_log', KC='auf4_chk', KD='auf4_daynotes', KP='auf4_pnotes', KPart=
 // ── Acceso restringido por URL ───────────────────────────────────────────────
 // URL: ?tabs=plantel,estadisticas,grafica&k=CLAVE  (k es opcional)
 const KLinks='auf4_links'; // perfiles guardados en localStorage
+const KEvTz='auf4_evtz'; // huso horario base por evento (date:idx → tz key)
 const _rTabs=window.__AUF_RTABS||sessionStorage.getItem('auf_rtabs');
 const IS_RESTRICTED=!!_rTabs;
 const RESTRICTED_TABS=IS_RESTRICTED?_rTabs.split(','):[];
@@ -3081,7 +3082,7 @@ function buildEventsHtml(day, startIdx=0){
           <button class="ev-expand" onclick="toggleEvDetail('${dataDate}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
         <div class="cal-ev-detail" id="ced-${dataDate}-${realIdx}">
-          ${getEvTzLine(e,t)}
+          ${getEvTzLine(e,t,dataDate,realIdx)}
           ${isFifaChange&&getEvFifaOrig()[k]&&getEvFifaOrig()[k]!==t?`<div style="font-size:11px;color:var(--gold);margin-bottom:4px">* Horario original: ${getEvFifaOrig()[k]} — reprogramado por FIFA</div>`:''}
           ${isOblig&&!e.extra?(()=>{
             const manualAtParts=[
@@ -3505,20 +3506,47 @@ function uyToTz(hStr, toTz){
   return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
 }
 
-// Genera línea de huso horario para el panel expandido
-function getEvTzLine(e, t){
-  // Determinar hora en UY
-  let tUY=null;
-  if(e.tz&&e.tz!=='UY'&&e.hUY) tUY=e.hUY;
-  else if(/^\d{1,2}:\d{2}$/.test(t||'')) tUY=t;
-  if(!tUY)return '';
-  const tMIA=uyToTz(tUY,'MIA');
-  if(!tMIA)return '';
-  if(e.tz&&e.tz!=='UY'){
-    // Tiene hora en otro huso guardada
-    return `<div style="font-size:11px;color:var(--cel-dk);font-weight:600;margin-bottom:5px">🕐 ${e.h} ${TZ_INFO[e.tz]?.label||e.tz} · ${tMIA} Miami · ${tUY} Uruguay</div>`;
-  }
-  return `<div style="font-size:11px;color:var(--cel-dk);font-weight:600;margin-bottom:5px">🕐 ${tMIA} Miami · ${tUY} Uruguay</div>`;
+function getEvTz(){return stor.get(KEvTz,{});}
+
+function setEvTz(date, idx, tz){
+  if(IS_RESTRICTED)return;
+  const store=getEvTz();
+  const key=date+':'+idx;
+  if(tz==='UY') delete store[key]; else store[key]=tz;
+  stor.set(KEvTz,store);
+  rerenderDayEvents(date);
+}
+
+// Convierte tiempo de un huso a otro
+function convertTz(hStr, fromTz, toTz){
+  const m=hStr&&hStr.match(/^(\d{1,2}):(\d{2})$/);
+  if(!m)return null;
+  const diff=(TZ_INFO[toTz]?.offset||0)-(TZ_INFO[fromTz]?.offset||0);
+  let h=parseInt(m[1])+diff, min=parseInt(m[2]);
+  if(h<0)h+=24; if(h>=24)h-=24;
+  return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+}
+
+// Genera línea de huso horario + selector en el panel expandido
+function getEvTzLine(e, t, date, idx){
+  if(!t||!/^\d{1,2}:\d{2}$/.test(t))return'';
+  // Huso activo: override manual > guardado en evento > Uruguay
+  const override=getEvTz()[date+':'+idx];
+  const activeTz=override||(e.tz&&e.tz!=='UY'?e.tz:'UY');
+  // t está en activeTz; calcular UY y MIA
+  const tUY=activeTz==='UY'?t:convertTz(t,activeTz,'UY');
+  if(!tUY)return'';
+  const tMIA=convertTz(tUY,'UY','MIA');
+  if(!tMIA)return'';
+  // Chips de selección
+  const chips=['UY','MIA','GDL'].map(tz=>
+    `<button class="aap-tz-chip${activeTz===tz?' active':''}" onclick="setEvTz('${date}',${idx},'${tz}')" style="font-size:10px;padding:3px 7px">${TZ_INFO[tz].short}</button>`
+  ).join('');
+  // Línea de tiempos
+  const timeLine=activeTz==='UY'
+    ?`${tMIA} Miami · ${t} Uruguay`
+    :`${t} ${TZ_INFO[activeTz]?.short} · ${tMIA} Miami · ${tUY} Uruguay`;
+  return `<div style="font-size:11px;color:var(--cel-dk);font-weight:600;margin-bottom:3px">🕐 ${timeLine}</div><div style="display:flex;gap:4px;align-items:center;margin-bottom:5px"><span style="font-size:10px;color:var(--muted);margin-right:2px">Hora original:</span>${chips}</div>`;
 }
 
 function tzToUY(hStr, fromTz){
