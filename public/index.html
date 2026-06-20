@@ -9771,21 +9771,63 @@ async function syncLineupESPN(matchId){
 }
 
 // Re-sincroniza todos los eventos de calendario ya marcados → checklist.
-// Se llama al abrir la tab de partido para ponerse al día con estados previos.
+// Escribe directo a KC sin pasar por syncEvToChkSession (evita problemas de _syncLock).
 function resyncAllEvToChk(){
   const evStatus=getEvStatus();
-  // 1. EVENT_GROUPS (sesiones)
+  const evParts=getEvParts();
+  const allItems=[...CL_LLEGADA,...CL_MATCH];
+  const _llegadaIds=new Set(CL_LLEGADA.map(i=>i.id));
+
+  const _applySession=(matchId,actId,sessId,st,pts)=>{
+    const item=allItems.find(i=>i.id===actId);
+    if(!item?.sessions)return;
+    const sess=item.sessions.find(s=>s.id===sessId);
+    if(!sess)return;
+    const s=getSessionData(matchId,actId,sessId);
+    const newDone=(st==='done');
+    if(sess.isStep){
+      if(s.done===newDone)return;
+      s.done=newDone;
+    } else if(sess.isDT){
+      const dtParts=(pts||[]).filter(x=>x.startsWith('dt_')).map(x=>x.slice(3));
+      const newDt=dtParts[0]||s.dt||'';
+      if(s.done===newDone&&s.dt===newDt)return;
+      s.done=newDone;s.dt=newDt;
+    } else {
+      const pNums=(pts||[]).filter(x=>x.startsWith('p_')).map(x=>parseInt(x.slice(2)));
+      s.done=newDone;
+      if(pNums.length)s.players=pNums;
+    }
+    _saveSessionData(matchId,actId,sessId,s,item.sessions);
+  };
+
+  // 1. EVENT_GROUPS (sesiones: md2-crew)
   Object.values(EVENT_GROUPS).flat().forEach(({date,idx,chk})=>{
-    const st=evStatus[evKey(date,idx)]||'';
-    if(st) syncEvToChkSession(date,idx,st);
+    const k=evKey(date,idx);
+    const st=evStatus[k]||'';
+    if(!st)return;
+    _applySession(chk.matchId,chk.actId,chk.sessId,st,evParts[k]);
   });
-  // 2. Eventos con chkId
+
+  // 2. Eventos con chkId (md-vestuario, md-ht, md-flash, md1-conf, etc.)
   CALENDAR_DAYS.forEach(day=>{
     const customActs=getDayActs()[day.date]||[];
     [...(day.eventos||[]),...customActs].forEach((ev,idx)=>{
       if(!ev.chkId)return;
-      const st=evStatus[evKey(day.date,idx)]||'';
-      if(st) syncEvToChkSession(day.date,idx,st);
+      const k=evKey(day.date,idx);
+      const st=evStatus[k]||'';
+      if(!st)return;
+      const matchId=_llegadaIds.has(ev.chkId)?'llegada':getMatchIdForDate(day.date);
+      if(!matchId)return;
+      const newDone=(st==='done');
+      const item=allItems.find(i=>i.id===ev.chkId);
+      if(item?.sessions){
+        const pts=evParts[k]||[];
+        item.sessions.forEach(sess=>_applySession(matchId,ev.chkId,sess.id,st,pts));
+      } else {
+        const data=getItemData(matchId,ev.chkId);
+        if(data.done!==newDone){data.done=newDone;setItemData(matchId,ev.chkId,data);}
+      }
     });
   });
 }
