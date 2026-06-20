@@ -5404,9 +5404,20 @@ function rerenderDayEvents(date){
   const customActs=getDayActs()[date]||[];
   const evHidden=getEvHidden();
   const resch=getEvResch();
-  const allEvs=[...day.eventos,...customActs]
-    .map((e,i)=>({...e,_origIdx:i,_isCustom:i>=day.eventos.length}))
-    .filter(e=>!evHidden[evKey(date,e._origIdx)]&&!resch[evKey(date,e._origIdx)]);
+  // Incluir partidos FIFA World Cup del cache (igual que en renderCal)
+  const _wcCache=stor.get(KWCCache,{});
+  let _wcEvs=[];
+  if(_wcCache[date]?.games){
+    _wcEvs=_wcCache[date].games.map(g=>{
+      const groupPart=g.group?` | ${g.group}`:'';
+      const scorePart=g.score?`   ${g.score}`:'';
+      return{h:g.time,tipo:'partido-fifa',txt:`${g.home} vs. ${g.away}${groupPart}${scorePart}`,noParts:true,_wcMatch:true};
+    });
+  }
+  const _nStatic=day.eventos.length, _nCustom=customActs.length;
+  const allEvs=[...day.eventos,...customActs,..._wcEvs]
+    .map((e,i)=>({...e,_origIdx:i,_isCustom:i>=_nStatic&&i<_nStatic+_nCustom}))
+    .filter(e=>e._wcMatch||!evHidden[evKey(date,e._origIdx)]&&!resch[evKey(date,e._origIdx)]);
   // Inyectar eventos reagendados hacia este día desde otros días
   Object.entries(resch).forEach(([key,val])=>{
     if(val.toDate!==date)return;
