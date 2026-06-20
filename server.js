@@ -244,6 +244,85 @@ app.get('/api/calendar.ics', async (req, res) => {
   }
 });
 
+// ── Boletín oficial FIFA — parseo de PDF ──────────────────────────────────────
+(async () => {
+  let multer, pdfParse;
+  try {
+    multer = require('multer');
+    pdfParse = require('pdf-parse');
+  } catch(e) {
+    console.warn('multer/pdf-parse no disponible:', e.message);
+    return;
+  }
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+  function parseBoletinText(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const result = {
+      rawText: text,
+      homeTeam: '', awayTeam: '', homeScore: null, awayScore: null,
+      goals: [], yellowCards: [], redCards: [], subs: [],
+      venue: '', date: '', referee: '', attendance: '',
+    };
+
+    // Score pattern: "URUGUAY 1 - 1 SAUDI ARABIA" or "1-1" or "1 : 1"
+    const scoreLine = lines.find(l => /\d\s*[-:]\s*\d/.test(l) && /[A-Z]{3,}/.test(l));
+    if (scoreLine) {
+      const m = scoreLine.match(/([A-Z\s]+?)\s+(\d+)\s*[-:]\s*(\d+)\s+([A-Z\s]+)/);
+      if (m) {
+        result.homeTeam = m[1].trim();
+        result.homeScore = parseInt(m[2]);
+        result.awayScore = parseInt(m[3]);
+        result.awayTeam = m[4].trim();
+      }
+    }
+
+    // Goals: "45+2 PLAYER NAME (TEAM)" or "45' PLAYER NAME"
+    const goalPat = /^(\d+)(?:\+(\d+))?\s*['']?\s+([A-ZÁÉÍÓÚÑÜ][A-Za-záéíóúñü\s\-']+?)(?:\s+\(([A-Z]+)\))?(?:\s*(OG|own goal|autogol))?$/i;
+    lines.forEach(l => {
+      const m = l.match(goalPat);
+      if (m) {
+        const min = parseInt(m[1]) + (m[2] ? parseInt(m[2]) : 0);
+        result.goals.push({ min, player: m[3].trim(), team: m[4] || '', ownGoal: !!m[5] });
+      }
+    });
+
+    // Yellow cards: look for lines with minute + player near "yellow" or "YC" context
+    // Simple approach: collect structured data from common FIFA report patterns
+    const yellowPat = /^(\d+)(?:\+\d+)?\s*['']?\s+([A-ZÁÉÍÓÚÑÜ][A-Za-záéíóúñü\s\-']+?)\s*(?:YC|Yellow|🟨)/i;
+    const redPat    = /^(\d+)(?:\+\d+)?\s*['']?\s+([A-ZÁÉÍÓÚÑÜ][A-Za-záéíóúñü\s\-']+?)\s*(?:RC|Red|🟥)/i;
+    lines.forEach(l => {
+      let m = l.match(yellowPat);
+      if (m) result.yellowCards.push({ min: parseInt(m[1]), player: m[2].trim() });
+      m = l.match(redPat);
+      if (m) result.redCards.push({ min: parseInt(m[1]), player: m[2].trim() });
+    });
+
+    // Venue, date, referee, attendance
+    lines.forEach(l => {
+      if (/^Stadium|^Estadio|Arena|Field/i.test(l)) result.venue = result.venue || l;
+      if (/attendance|asistencia/i.test(l)) result.attendance = l.replace(/.*?:\s*/,'').trim();
+      if (/referee|árbitro/i.test(l)) result.referee = l.replace(/.*?:\s*/,'').trim();
+    });
+
+    return result;
+  }
+
+  app.post('/api/parse-boletin', upload.single('pdf'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió archivo PDF' });
+    try {
+      const data = await pdfParse(req.file.buffer);
+      const parsed = parseBoletinText(data.text);
+      res.json({ ok: true, parsed, pages: data.numpages });
+    } catch(e) {
+      console.error('Error parseando PDF:', e);
+      res.status(500).json({ error: 'No se pudo parsear el PDF: ' + e.message });
+    }
+  });
+
+  console.log('Endpoint /api/parse-boletin activo');
+})();
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));
 // trigger deploy Thu Jun 18 18:40:44 EST 2026

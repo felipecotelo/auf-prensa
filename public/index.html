@@ -1967,7 +1967,7 @@ function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y);
 // ═══════════════════════════════════════════════════════════════════════════
 // SEGUIMIENTO DE TARJETAS / SANCIONES Y ESTADÍSTICAS DEL TORNEO
 // ═══════════════════════════════════════════════════════════════════════════
-const KCardTrack='auf4_cardtrack', KStatsDelta='auf4_statsdelta', KCardSynced='auf4_cardsynced', KStatsMeta='auf4_statsmeta', KTabOrder='auf4_taborder';
+const KCardTrack='auf4_cardtrack', KStatsDelta='auf4_statsdelta', KCardSynced='auf4_cardsynced', KStatsMeta='auf4_statsmeta', KTabOrder='auf4_taborder', KBoletin='auf4_boletin';
 const KManualDelta='auf4_manual_delta';
 const KMatchDelta='auf4_match_delta'; // snapshot por partido para poder revertir en re-sync
 const getCardTrack=()=>stor.get(KCardTrack,{});
@@ -6146,14 +6146,24 @@ function wcMatchCardHtml(ev,showGroupTag){
   const venue=comp.venue?.fullName||'';
   const city=comp.venue?.address?.city||'';
   const country=comp.venue?.address?.country||'';
+  // Verificar si hay boletín oficial para este partido URU
+  const isUruInMatch=home?.team?.id===String(URU_ESPN_ID)||away?.team?.id===String(URU_ESPN_ID);
+  const isoDateStr=ev.date.slice(0,10).replace(/-/g,'');
+  const pizMidForBoletin=isUruInMatch?Object.keys(ESPN_MATCH_DATES).find(k=>ESPN_MATCH_DATES[k]===isoDateStr):null;
+  const boletin=pizMidForBoletin?getBoletin(pizMidForBoletin):null;
+
   let mid;
   if(completed||inProgress){
+    // Usar score del boletín oficial si existe, si no ESPN
+    const hScore=boletin&&boletin.homeScore!=null?(home.team.id===String(URU_ESPN_ID)?boletin.homeScore:boletin.awayScore):home.score;
+    const aScore=boletin&&boletin.awayScore!=null?(home.team.id===String(URU_ESPN_ID)?boletin.awayScore:boletin.homeScore):away.score;
+    const oficialBadge=boletin?`<div style="font-size:7.5px;font-weight:800;color:#166534;text-align:center;margin-top:1px">✓ OFICIAL</div>`:'';
     mid=`<div style="display:flex;align-items:center;gap:7px;justify-content:center">
-      <span style="font-size:17px;font-weight:900;min-width:16px;text-align:right">${home.score}</span>
+      <span style="font-size:17px;font-weight:900;min-width:16px;text-align:right">${hScore}</span>
       <span style="font-size:13px;color:var(--hint);font-weight:300">–</span>
-      <span style="font-size:17px;font-weight:900;min-width:16px">${away.score}</span>
+      <span style="font-size:17px;font-weight:900;min-width:16px">${aScore}</span>
     </div>
-    ${inProgress?`<div style="font-size:8.5px;font-weight:800;color:var(--cel-dk);text-align:center;margin-top:1px">${comp.status.type.shortDetail||'EN VIVO'}</div>`:''}`;
+    ${inProgress?`<div style="font-size:8.5px;font-weight:800;color:var(--cel-dk);text-align:center;margin-top:1px">${comp.status.type.shortDetail||'EN VIVO'}</div>`:oficialBadge}`;
   }else{
     const uyt=dt.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Montevideo'});
     mid=`<div style="text-align:center;line-height:1.25">
@@ -6162,20 +6172,34 @@ function wcMatchCardHtml(ev,showGroupTag){
     </div>`;
   }
   const fecha=dt.toLocaleDateString('es-UY',{day:'2-digit',month:'short',timeZone:'America/Montevideo'});
-  // Goleadores desde eventos guardados (solo para partidos URU ya jugados)
-  const isUruInMatch=home?.team?.id===String(URU_ESPN_ID)||away?.team?.id===String(URU_ESPN_ID);
+  // Goleadores: boletín oficial tiene prioridad sobre Pizarra/ESPN
   let goalRowHtml='';
   if(completed&&isUruInMatch){
-    const isoDate=ev.date.slice(0,10).replace(/-/g,'');
-    const pizMid=Object.keys(ESPN_MATCH_DATES).find(k=>ESPN_MATCH_DATES[k]===isoDate);
-    if(pizMid){
-      const evs=(getMatchEvents()[pizMid]||[]).filter(e=>e.type==='goal').sort((a,b)=>a.min-b.min);
-      const homeIsUru=home.team.id===String(URU_ESPN_ID);
+    const homeIsUru=home.team.id===String(URU_ESPN_ID);
+    const fmt=g=>{const last=(g.player||'').split(' ').pop();return`<span style="font-size:9px;color:var(--text);font-weight:600">${g.min}' ${last}${g.ownGoal?' (AG)':''}</span>`;};
+    if(boletin&&boletin.goals){
+      // Fuente: boletín oficial — todos los goles están ahí sin distinción de lado
+      // Separar por equipo buscando URU players en PLAYERS
+      const uruNames=new Set(PLAYERS.map(p=>p.name.split(' ').pop().toLowerCase()));
+      const hGoalsList=boletin.goals.filter(g=>homeIsUru?uruNames.has(g.player.split(' ').pop().toLowerCase()):!uruNames.has(g.player.split(' ').pop().toLowerCase()));
+      const aGoalsList=boletin.goals.filter(g=>homeIsUru?!uruNames.has(g.player.split(' ').pop().toLowerCase()):uruNames.has(g.player.split(' ').pop().toLowerCase()));
+      const hGoals=hGoalsList.sort((a,b)=>a.min-b.min).map(fmt).join('<br>');
+      const aGoals=aGoalsList.sort((a,b)=>a.min-b.min).map(fmt).join('<br>');
+      if(hGoals||aGoals){
+        goalRowHtml=`<div style="display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr);gap:6px;margin-top:6px">
+          <div style="text-align:right;line-height:1.7">${hGoals}</div>
+          <div></div>
+          <div style="line-height:1.7">${aGoals}</div>
+        </div>`;
+      }
+    } else if(pizMidForBoletin) {
+      // Fallback: eventos de Pizarra
+      const evs=(getMatchEvents()[pizMidForBoletin]||[]).filter(e=>e.type==='goal').sort((a,b)=>a.min-b.min);
       const uruGoals=evs.filter(e=>e.side==='uru');
       const rivalGoals=evs.filter(e=>e.side==='rival');
-      const fmt=g=>{const last=g.player.split(' ').pop();return`<span style="font-size:9px;color:var(--text);font-weight:600">${g.min}' ${last}</span>`;};
-      const hGoals=(homeIsUru?uruGoals:rivalGoals).map(fmt).join('<br>');
-      const aGoals=(homeIsUru?rivalGoals:uruGoals).map(fmt).join('<br>');
+      const fmtP=g=>{const last=g.player.split(' ').pop();return`<span style="font-size:9px;color:var(--text);font-weight:600">${g.min}' ${last}</span>`;};
+      const hGoals=(homeIsUru?uruGoals:rivalGoals).map(fmtP).join('<br>');
+      const aGoals=(homeIsUru?rivalGoals:uruGoals).map(fmtP).join('<br>');
       if(hGoals||aGoals){
         goalRowHtml=`<div style="display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr);gap:6px;margin-top:6px">
           <div style="text-align:right;line-height:1.7">${hGoals}</div>
@@ -7038,6 +7062,189 @@ function getLastCompletedUruMatch(){
     if(uruGame) return {...uruGame, isoDate:date};
   }
   return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BOLETÍN OFICIAL FIFA
+// ═══════════════════════════════════════════════════════════════════════════
+function getBoletin(matchId){ return stor.get(KBoletin,{})[matchId]||null; }
+function setBoletin(matchId, data){
+  const all=stor.get(KBoletin,{});
+  all[matchId]=data;
+  stor.set(KBoletin,all);
+}
+function clearBoletin(matchId){
+  const all=stor.get(KBoletin,{});
+  delete all[matchId];
+  stor.set(KBoletin,all);
+}
+
+// Sección boletín para la columna izquierda de Pizarra
+function boletinSectionHtml(matchId){
+  const b=getBoletin(matchId);
+  if(b){
+    const score=b.homeScore!=null?`${b.homeScore}–${b.awayScore}`:'?';
+    const goalsHtml=b.goals.length
+      ?b.goals.map(g=>`<div style="font-size:10.5px;color:var(--text)">${g.min}' ${g.player}${g.ownGoal?' (AG)':''}</div>`).join('')
+      :'<div style="font-size:10px;color:var(--hint)">Sin goles</div>';
+    const cardsHtml=[
+      ...b.yellowCards.map(c=>`<div style="font-size:10.5px">🟡 ${c.min}' ${c.player}</div>`),
+      ...b.redCards.map(c=>`<div style="font-size:10.5px">🔴 ${c.min}' ${c.player}</div>`),
+    ].join('')||'<div style="font-size:10px;color:var(--hint)">Sin tarjetas</div>';
+    return`<div style="margin-top:10px;background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:10px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:9.5px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:5px">
+          <i class="ti ti-circle-check-filled" style="font-size:13px"></i> Boletín oficial FIFA
+        </div>
+        <button onclick="clearBoletin('${matchId}');renderPizarra('${matchId}')" style="font-size:9px;color:#DC2626;background:none;border:none;cursor:pointer;padding:0" title="Eliminar boletín">✕ Quitar</button>
+      </div>
+      <div style="font-size:13px;font-weight:900;color:#166534;text-align:center;margin-bottom:8px;letter-spacing:.05em">${b.homeTeam||'URU'} ${score} ${b.awayTeam||''}</div>
+      <div style="font-size:9px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Goles</div>
+      ${goalsHtml}
+      <div style="font-size:9px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.07em;margin:6px 0 3px">Tarjetas</div>
+      ${cardsHtml}
+      ${b.venue?`<div style="font-size:9.5px;color:#166534;margin-top:6px;opacity:.7">🏟 ${b.venue}</div>`:''}
+    </div>`;
+  }
+  return`<div style="margin-top:10px">
+    <label style="display:block;font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">
+      <i class="ti ti-file-type-pdf" style="font-size:12px;vertical-align:middle;margin-right:3px"></i> Boletín oficial FIFA
+    </label>
+    <div id="boletin-upload-area-${matchId}" style="border:1.5px dashed var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;transition:border-color .15s"
+      ondragover="event.preventDefault();this.style.borderColor='var(--cel)'"
+      ondragleave="this.style.borderColor='var(--border)'"
+      ondrop="handleBoletinDrop(event,'${matchId}')"
+      onclick="document.getElementById('boletin-file-${matchId}').click()">
+      <i class="ti ti-upload" style="font-size:18px;color:var(--hint);display:block;margin-bottom:4px"></i>
+      <div style="font-size:11px;color:var(--muted);font-weight:600">Subir PDF del boletín</div>
+      <div style="font-size:9.5px;color:var(--hint);margin-top:2px">Arrastrar o hacer clic</div>
+    </div>
+    <input type="file" id="boletin-file-${matchId}" accept=".pdf" style="display:none" onchange="handleBoletinFile(this.files[0],'${matchId}')">
+    <div id="boletin-status-${matchId}" style="font-size:10.5px;color:var(--hint);margin-top:5px;min-height:16px"></div>
+  </div>`;
+}
+
+async function handleBoletinFile(file, matchId){
+  if(!file) return;
+  const status=document.getElementById('boletin-status-'+matchId);
+  if(status) status.textContent='Procesando PDF…';
+  try{
+    const fd=new FormData();
+    fd.append('pdf', file);
+    const res=await fetch('/api/parse-boletin',{method:'POST',body:fd});
+    const json=await res.json();
+    if(!json.ok) throw new Error(json.error||'Error desconocido');
+    showBoletinConfirm(matchId, json.parsed, json.pages);
+    if(status) status.textContent='';
+  }catch(e){
+    if(status) status.textContent='Error: '+e.message;
+  }
+}
+
+function handleBoletinDrop(event, matchId){
+  event.preventDefault();
+  const file=event.dataTransfer.files[0];
+  if(file&&file.type==='application/pdf') handleBoletinFile(file, matchId);
+  const area=document.getElementById('boletin-upload-area-'+matchId);
+  if(area) area.style.borderColor='var(--border)';
+}
+
+function showBoletinConfirm(matchId, parsed, pages){
+  const existingModal=document.getElementById('boletin-confirm-modal');
+  if(existingModal) existingModal.remove();
+
+  const goalsHtml=parsed.goals.map((g,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <input type="number" value="${g.min}" min="1" max="120" style="width:44px;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:inherit" id="bc-gmin-${i}">
+      <input type="text" value="${g.player}" style="flex:1;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:inherit" id="bc-gplayer-${i}">
+      <label style="font-size:10px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="bc-gog-${i}" ${g.ownGoal?'checked':''}> AG</label>
+    </div>`).join('');
+
+  const yellowHtml=parsed.yellowCards.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      🟡 <input type="number" value="${c.min}" min="1" max="120" style="width:44px;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:inherit" id="bc-ymin-${i}">
+      <input type="text" value="${c.player}" style="flex:1;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:inherit" id="bc-yplayer-${i}">
+    </div>`).join('');
+
+  const modal=document.createElement('div');
+  modal.id='boletin-confirm-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`
+    <div style="background:var(--white);border-radius:16px;width:100%;max-width:440px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:14px;font-weight:800;color:var(--text)">Boletín oficial FIFA</div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:1px">Verificá y corregí los datos antes de confirmar · ${pages} página${pages!==1?'s':''}</div>
+        </div>
+        <button onclick="this.closest('#boletin-confirm-modal').remove()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:20px;line-height:1">✕</button>
+      </div>
+      <div style="padding:14px 20px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">Resultado</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="text" id="bc-home" value="${parsed.homeTeam||''}" placeholder="Local" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;font-weight:700">
+            <input type="number" id="bc-hscore" value="${parsed.homeScore!=null?parsed.homeScore:''}" min="0" max="20" style="width:44px;padding:5px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;font-weight:900;text-align:center">
+            <span style="font-size:14px;font-weight:900;color:var(--muted)">–</span>
+            <input type="number" id="bc-ascore" value="${parsed.awayScore!=null?parsed.awayScore:''}" min="0" max="20" style="width:44px;padding:5px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;font-weight:900;text-align:center">
+            <input type="text" id="bc-away" value="${parsed.awayTeam||''}" placeholder="Visitante" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;font-weight:700">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">⚽ Goles (${parsed.goals.length})</div>
+          <div id="bc-goals-list">${goalsHtml||'<div style="font-size:10.5px;color:var(--hint)">Sin goles detectados — podés agregarlos manualmente</div>'}</div>
+          <button onclick="addBoletinGoalRow()" style="font-size:10px;color:var(--cel);background:none;border:1px dashed var(--cel);border-radius:6px;padding:3px 9px;cursor:pointer;margin-top:4px">+ Agregar gol</button>
+        </div>
+        ${parsed.yellowCards.length||parsed.redCards.length?`<div>
+          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">Tarjetas</div>
+          ${yellowHtml}
+        </div>`:''}
+        ${parsed.venue?`<div style="font-size:10px;color:var(--muted)">🏟 ${parsed.venue}</div>`:''}
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px">
+        <button onclick="this.closest('#boletin-confirm-modal').remove()" style="flex:1;padding:9px;border:1px solid var(--border);border-radius:8px;background:none;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit">Cancelar</button>
+        <button onclick="confirmBoletin('${matchId}')" style="flex:2;padding:9px;border:none;border-radius:8px;background:#16A34A;color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">✓ Confirmar como oficial</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Guardar referencia a los datos originales para confirmación
+  window._boletinParsed={goals:[...parsed.goals], yellowCards:[...parsed.yellowCards], redCards:[...parsed.redCards]};
+}
+
+let _boletinGoalCount=0;
+function addBoletinGoalRow(){
+  const list=document.getElementById('bc-goals-list');
+  if(!list) return;
+  const i='new'+(_boletinGoalCount++);
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px';
+  div.innerHTML=`<input type="number" value="" min="1" max="120" placeholder="min" style="width:44px;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:inherit" id="bc-gmin-${i}">
+    <input type="text" value="" placeholder="Apellido jugador" style="flex:1;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:inherit" id="bc-gplayer-${i}">
+    <label style="font-size:10px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="bc-gog-${i}"> AG</label>`;
+  list.appendChild(div);
+  window._boletinParsed.goals.push({min:0,player:'',ownGoal:false,_id:i});
+}
+
+function confirmBoletin(matchId){
+  const homeTeam=document.getElementById('bc-home')?.value||'';
+  const awayTeam=document.getElementById('bc-away')?.value||'';
+  const homeScore=parseInt(document.getElementById('bc-hscore')?.value||'');
+  const awayScore=parseInt(document.getElementById('bc-ascore')?.value||'');
+  const goals=(window._boletinParsed?.goals||[]).map((g,i)=>{
+    const id=g._id!=null?g._id:i;
+    return{
+      min:parseInt(document.getElementById('bc-gmin-'+id)?.value||g.min||0),
+      player:document.getElementById('bc-gplayer-'+id)?.value||g.player||'',
+      ownGoal:document.getElementById('bc-gog-'+id)?.checked||false,
+    };
+  }).filter(g=>g.player);
+  const yellowCards=(window._boletinParsed?.yellowCards||[]).map((c,i)=>({
+    min:parseInt(document.getElementById('bc-ymin-'+i)?.value||c.min||0),
+    player:document.getElementById('bc-yplayer-'+i)?.value||c.player||'',
+  })).filter(c=>c.player);
+  setBoletin(matchId,{homeTeam,awayTeam,homeScore,awayScore,goals,yellowCards,redCards:[],confirmedAt:new Date().toISOString()});
+  document.getElementById('boletin-confirm-modal')?.remove();
+  renderPizarra(matchId);
 }
 
 function renderStatsUpdateBar(){
@@ -8173,6 +8380,7 @@ async function renderPizarra(matchId){
         </div>
 
         ${matchSummaryHtml}
+        ${boletinSectionHtml(matchId)}
 
       </div>
 
