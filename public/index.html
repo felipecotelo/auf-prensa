@@ -6906,7 +6906,8 @@ function getPlayerAtencionesList(p){
     Object.entries(mc).forEach(([actId,d])=>{
       if(actId==='arr-ent')return;
       const it=items2.find(x=>x.id===actId);
-      if(it&&it.hasPlayers===false)return; // ítem solo DT, no aplica a jugadores
+      const hasSessions=it?.sessions?.length>0||!!(d&&d.sessions);
+      if(it&&it.hasPlayers===false&&!hasSessions)return; // ítem solo DT sin sessions
       // Jugador en d.players (ítems sin sessions)
       if(d&&d.done&&d.players&&d.players.includes(p.n)){
         items.push({fase:matchLabels[mid],txt:`${matchDateFmt} · ${it?it.label:actId}`});
@@ -6974,7 +6975,9 @@ function countFWCPerMatch(num, playerObj){
     Object.entries(mc).forEach(([actId,d])=>{
       if(actId==='arr-ent')return;
       const it=items2.find(x=>x.id===actId);
-      if(it&&it.hasPlayers===false)return; // ítem solo DT
+      const hasSessions=it?.sessions?.length>0||!!(d&&d.sessions);
+      // Solo saltar si es DT-only Y no tiene sessions con jugadores
+      if(it&&it.hasPlayers===false&&!hasSessions)return;
       // Jugador en d.players (ítems sin sessions)
       if(d&&d.done&&d.players&&d.players.includes(num)) res[mid]++;
       // Jugador en sessions (conferencia, TV Crew, etc.)
