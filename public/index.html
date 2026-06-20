@@ -1199,6 +1199,7 @@ html.auf-gate body { display:none !important }
       <div class="sec-desc">Caps, goles y mundiales · Hitos y datos de color</div>
     </div>
   </div>
+  <div id="stats-update-bar" style="margin:0 0 12px;padding:0 2px"></div>
   <div id="stats-container"></div>
 </div>
 
@@ -1950,7 +1951,7 @@ function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y);
 // ═══════════════════════════════════════════════════════════════════════════
 // SEGUIMIENTO DE TARJETAS / SANCIONES Y ESTADÍSTICAS DEL TORNEO
 // ═══════════════════════════════════════════════════════════════════════════
-const KCardTrack='auf4_cardtrack', KStatsDelta='auf4_statsdelta', KCardSynced='auf4_cardsynced';
+const KCardTrack='auf4_cardtrack', KStatsDelta='auf4_statsdelta', KCardSynced='auf4_cardsynced', KStatsMeta='auf4_statsmeta';
 const KManualDelta='auf4_manual_delta';
 const KMatchDelta='auf4_match_delta'; // snapshot por partido para poder revertir en re-sync
 const getCardTrack=()=>stor.get(KCardTrack,{});
@@ -6848,9 +6849,35 @@ const AUF_HIST_WC=[
   {n:'Maximiliano Pereira',c:9},{n:'Martín Cáceres',c:12},{n:'Álvaro González',c:6},
 ];
 
+function renderStatsUpdateBar(){
+  const bar=document.getElementById('stats-update-bar');
+  if(!bar)return;
+  const meta=stor.get(KStatsMeta,{});
+  const txt=meta.txt||'';
+  if(txt){
+    bar.innerHTML=`<div style="display:inline-flex;align-items:center;gap:8px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;padding:6px 12px;font-size:11.5px;color:#0369A1;cursor:pointer" onclick="editStatsMeta()" title="Editar">
+      <i class="ti ti-clock-check" style="font-size:13px;flex-shrink:0"></i>
+      <span>${txt}</span>
+      <i class="ti ti-pencil" style="font-size:11px;opacity:.5;flex-shrink:0"></i>
+    </div>`;
+  } else {
+    bar.innerHTML=`<button onclick="editStatsMeta()" style="font-size:11px;color:var(--hint);background:none;border:1px dashed var(--border);border-radius:8px;padding:5px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px"><i class="ti ti-plus"></i> Agregar nota de actualización</button>`;
+  }
+}
+
+function editStatsMeta(){
+  const meta=stor.get(KStatsMeta,{});
+  const cur=meta.txt||'';
+  const val=prompt('Nota de actualización (ej: "Actualizado luego del partido con Arabia Saudita · 15 jun · FWC26"):', cur);
+  if(val===null)return;
+  stor.set(KStatsMeta,{txt:val.trim()});
+  renderStatsUpdateBar();
+}
+
 function renderEstadisticas(){
   const con=document.getElementById('stats-container');
   if(!con) return;
+  renderStatsUpdateBar();
 
   const INJ={red:'🔴',yellow:'🟡',green:'🟢'};
 
