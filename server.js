@@ -308,13 +308,12 @@ app.get('/api/calendar.ics', async (req, res) => {
     return result;
   }
 
-  // Convierte link de Dropbox (dl=0 o scl) a URL de descarga directa
+  // Convierte link de Dropbox a URL de descarga directa (mantiene rlkey)
   function toDropboxDirect(url) {
-    return url
-      .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
-      .replace(/[?&]dl=0/, '')
-      .replace(/[?&]rlkey=[^&]+/, '')
-      .replace(/\?$/, '');
+    let u = url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    if (u.includes('dl=0')) u = u.replace('dl=0', 'dl=1');
+    else if (!u.includes('dl=1')) u += (u.includes('?') ? '&' : '?') + 'dl=1';
+    return u;
   }
 
   // POST con archivo subido
