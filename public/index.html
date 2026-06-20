@@ -6108,8 +6108,9 @@ function wcMatchCardHtml(ev,showGroupTag){
   }
   const fecha=dt.toLocaleDateString('es-UY',{day:'2-digit',month:'short',timeZone:'America/Montevideo'});
   // Goleadores desde eventos guardados (solo para partidos URU ya jugados)
+  const isUruInMatch=home?.team?.id===String(URU_ESPN_ID)||away?.team?.id===String(URU_ESPN_ID);
   let goalRowHtml='';
-  if(completed){
+  if(completed&&isUruInMatch){
     const isoDate=ev.date.slice(0,10).replace(/-/g,'');
     const pizMid=Object.keys(ESPN_MATCH_DATES).find(k=>ESPN_MATCH_DATES[k]===isoDate);
     if(pizMid){
@@ -6152,20 +6153,34 @@ function wcMatchCardHtml(ev,showGroupTag){
   </div>`;
 }
 
-// Agrupa y renderiza los partidos del Mundial por día
+// Agrupa y renderiza los partidos del Mundial por día (días pasados colapsados, hoy expandido)
 function renderWCMatchesByDay(events){
   if(!events.length)return'<div style="font-size:11px;color:var(--hint);text-align:center;padding:10px 0">No se encontraron partidos.</div>';
   const byDay={};
   events.forEach(ev=>{
-    const key=new Date(ev.date).toLocaleDateString('es-UY',{timeZone:'America/Montevideo'});
-    (byDay[key]=byDay[key]||[]).push(ev);
+    const isoDay=new Date(ev.date).toLocaleDateString('en-CA',{timeZone:'America/Montevideo'}); // YYYY-MM-DD
+    (byDay[isoDay]=byDay[isoDay]||[]).push(ev);
   });
-  return Object.entries(byDay).map(([key,evs])=>{
-    const d=new Date(evs[0].date);
-    const label=d.toLocaleDateString('es-UY',{weekday:'long',day:'2-digit',month:'long',timeZone:'America/Montevideo'});
-    return`<div>
-      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${label}</div>
-      <div style="display:flex;flex-direction:column;gap:6px">${evs.map(ev=>wcMatchCardHtml(ev,true)).join('')}</div>
+  const todayIso=TODAY;
+  let dayIdx=0;
+  return Object.entries(byDay).sort(([a],[b])=>a<b?-1:1).map(([isoDay,evs])=>{
+    const isPast=isoDay<todayIso;
+    const isToday=isoDay===todayIso;
+    const isFuture=isoDay>todayIso;
+    const open=isToday||isFuture; // pasados colapsados, hoy y futuros abiertos
+    const d=new Date(isoDay+'T12:00:00');
+    const label=d.toLocaleDateString('es-UY',{weekday:'long',day:'2-digit',month:'long'}).toUpperCase();
+    const id=`wcday-${dayIdx++}`;
+    const hasUru=evs.some(ev=>ev.competitions?.[0]?.competitors?.some(c=>c.team?.id===String(URU_ESPN_ID)));
+    const completedCount=evs.filter(ev=>ev.competitions?.[0]?.status?.type?.completed).length;
+    const badge=isPast?`<span style="font-size:9px;color:var(--hint);font-weight:600;margin-left:6px">${completedCount}/${evs.length} partidos</span>`:'';
+    const uruBadge=hasUru?`<span style="font-size:9px;font-weight:800;background:var(--cel-lt);color:var(--cel-dk);padding:1px 6px;border-radius:5px;margin-left:6px">URU</span>`:'';
+    return`<div style="border:0.5px solid ${isToday?'var(--cel)':'var(--border)'};border-radius:10px;overflow:hidden;${isToday?'box-shadow:0 2px 8px rgba(0,157,216,.1)':''}">
+      <div onclick="(function(el){const b=el.nextElementSibling;const open=b.style.display!=='none';b.style.display=open?'none':'flex';el.querySelector('.wcday-chev').style.transform=open?'rotate(-90deg)':'rotate(0deg)'})(this)" style="display:flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;background:${isToday?'var(--cel-lt)':'var(--surface)'}">
+        <span style="font-size:9.5px;font-weight:800;color:${isToday?'var(--cel-dk)':'var(--muted)'};text-transform:uppercase;letter-spacing:.06em;flex:1">${label}${uruBadge}${badge}</span>
+        <span class="wcday-chev" style="font-size:11px;color:var(--hint);transition:transform .2s;transform:${open?'rotate(0deg)':'rotate(-90deg)'}">${open?'⌄':'⌄'}</span>
+      </div>
+      <div style="display:${open?'flex':'none'};flex-direction:column;gap:6px;padding:8px 8px">${evs.map(ev=>wcMatchCardHtml(ev,true)).join('')}</div>
     </div>`;
   }).join('');
 }
