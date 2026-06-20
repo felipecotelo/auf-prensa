@@ -3659,10 +3659,8 @@ function renderAapSuggestions(date, query){
 
 function aapPickTemplate(date,idx,rawQ){
   const box=document.getElementById(`aap-suggest-${date}`);
-  const q=decodeURIComponent(rawQ);
-  const all=getAapTemplates();
-  const matches=q?all.filter(t=>t.txt.toLowerCase().includes(q.toLowerCase())):all.slice(0,8);
-  const tpl=matches[idx];
+  // Usa los matches que ya fueron renderizados (evita desincronización de índices)
+  const tpl=box?._matches?.[idx];
   if(!tpl)return;
   // Copia el formato del template y va directo al paso final
   _aapState[date]={...tpl};
@@ -3734,7 +3732,10 @@ function renderAapStep(date,step){
   picker.innerHTML=html;
   picker.classList.add('open');
   const focusId=step===0?`aap-search-${date}`:`aap-txt-${date}`;
-  setTimeout(()=>document.getElementById(focusId)?.focus(),50);
+  setTimeout(()=>{
+    document.getElementById(focusId)?.focus();
+    if(step!==0) picker.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },50);
   if(step===0) renderAapSuggestions(date,'');
 }
 
