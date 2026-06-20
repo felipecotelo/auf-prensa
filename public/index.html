@@ -576,13 +576,19 @@ textarea{resize:vertical;min-height:52px}
 .add-act-btn:hover{background:var(--cel-lt)}
 .add-act-picker{display:none;margin-top:7px;background:var(--white);border:0.5px solid var(--border);border-radius:9px;padding:10px 12px}
 .add-act-picker.open{display:block}
-.aap-q{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.aap-q{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
 .aap-opts{display:flex;flex-direction:column;gap:4px}
 .aap-opt{text-align:left;font-size:12.5px;font-family:inherit;padding:7px 10px;border:0.5px solid var(--border);border-radius:7px;background:var(--surface);cursor:pointer;color:var(--text);transition:background .1s}
 .aap-opt:hover{background:var(--cel-lt);border-color:var(--cel)}
 .aap-back{margin-top:8px;font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
-.aap-input{padding:7px 9px;border:0.5px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;width:100%}
+.aap-input{padding:7px 9px;border:0.5px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;width:100%;box-sizing:border-box}
 .aap-input:focus{outline:2px solid var(--cel);border-color:var(--cel)}
+.aap-suggest{margin-top:4px;display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto}
+.aap-sug-item{padding:6px 9px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;background:var(--surface);border:0.5px solid var(--border)}
+.aap-sug-item:hover{background:var(--cel-lt);border-color:var(--cel)}
+.aap-sug-label{flex:1;font-weight:500}
+.aap-sug-sub{font-size:10.5px;color:var(--muted)}
+.aap-divider{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:8px 0 4px;opacity:.7}
 
 /* ── PLANTEL preT LIST ───────────────────────────── */
 .pret-list{margin-top:5px;display:flex;flex-direction:column;gap:2px}
@@ -3465,16 +3471,96 @@ function toggleAddAct(date,btn){
   }
 }
 
+// Templates base + histórico de dayActs para sugerencias
+const AAP_BASE_TEMPLATES=[
+  {txt:'Desayuno',          tipo:'team', oblig:false, noParts:true},
+  {txt:'Almuerzo',          tipo:'team', oblig:false, noParts:true},
+  {txt:'Cena',              tipo:'team', oblig:false, noParts:true},
+  {txt:'Merienda',          tipo:'team', oblig:false, noParts:true},
+  {txt:'Viaje',             tipo:'viaje',oblig:false},
+  {txt:'Vuelo',             tipo:'viaje',oblig:false},
+  {txt:'Llegada al hotel',  tipo:'team', oblig:false, noParts:true},
+  {txt:'Traslado',          tipo:'viaje',oblig:false},
+  {txt:'Reunión técnica',   tipo:'team', oblig:false, noParts:true},
+  {txt:'Charla técnica',    tipo:'team', oblig:false, noParts:true},
+  {txt:'Activación en hotel',tipo:'team',oblig:false, noParts:true},
+  {txt:'Partido',           tipo:'team', oblig:false, noParts:true},
+  {txt:'Descanso / libre',  tipo:'team', oblig:false, noParts:true},
+];
+
+function getAapTemplates(){
+  // Combina base + todas las actividades custom ya cargadas (deduplicado por txt)
+  const seen=new Set();
+  const templates=[...AAP_BASE_TEMPLATES];
+  templates.forEach(t=>seen.add(t.txt.toLowerCase()));
+  const acts=getDayActs();
+  Object.values(acts).forEach(list=>(list||[]).forEach(a=>{
+    if(!a.txt)return;
+    const key=a.txt.toLowerCase();
+    if(!seen.has(key)){seen.add(key);templates.push({...a});}
+  }));
+  return templates;
+}
+
+function aapTagHtml(tpl){
+  if(tpl.oblig)return'<span class="tag tag-oblig" style="font-size:9px">FIFA</span>';
+  if(tpl.auf)  return'<span class="tag tag-auf"   style="font-size:9px">AUF</span>';
+  if(tpl.auftv)return'<span class="tag tag-auftv" style="font-size:9px">AUFtv</span>';
+  if(tpl.tipo==='viaje') return'<span class="tag" style="font-size:9px;background:#FEF3C7;color:#92400E">Viaje</span>';
+  if(tpl.tipo==='sched') return'<span class="tag" style="font-size:9px;background:#FEF3C7;color:#92400E">Cronograma</span>';
+  return'';
+}
+
+function renderAapSuggestions(date, query){
+  const box=document.getElementById(`aap-suggest-${date}`);
+  if(!box)return;
+  const q=(query||'').toLowerCase().trim();
+  const all=getAapTemplates();
+  const matches=q?all.filter(t=>t.txt.toLowerCase().includes(q)):all.slice(0,8);
+  if(!matches.length){box.innerHTML='<div class="aap-sug-sub" style="padding:6px 2px">Sin resultados — usá las opciones de abajo</div>';return;}
+  box.innerHTML=matches.map((t,i)=>`
+    <div class="aap-sug-item" onclick="aapPickTemplate('${date}',${i},'${encodeURIComponent(query||'')}')">
+      <span class="aap-sug-label">${t.txt}</span>
+      ${aapTagHtml(t)}
+    </div>`).join('');
+  // Guardamos los matches filtrados para acceso por índice
+  box._matches=matches;
+}
+
+function aapPickTemplate(date,idx,rawQ){
+  const box=document.getElementById(`aap-suggest-${date}`);
+  const q=decodeURIComponent(rawQ);
+  const all=getAapTemplates();
+  const matches=q?all.filter(t=>t.txt.toLowerCase().includes(q.toLowerCase())):all.slice(0,8);
+  const tpl=matches[idx];
+  if(!tpl)return;
+  // Copia el formato del template y va directo al paso final
+  _aapState[date]={...tpl};
+  renderAapStep(date,'final');
+  // Pre-rellena el txt con el nombre del template
+  setTimeout(()=>{
+    const inp=document.getElementById(`aap-txt-${date}`);
+    if(inp){inp.value=tpl.txt;inp.select();}
+    document.getElementById(`aap-h-${date}`)?.focus();
+  },60);
+}
+
 function renderAapStep(date,step){
   const picker=document.getElementById(`aap-${date}`);
   if(!picker)return;
   const d=`'${date}'`;
   let html='';
   if(step===0){
-    html=`<p class="aap-q">¿Qué querés agregar?</p>
+    html=`
+    <p class="aap-q">¿Qué querés agregar?</p>
+    <input class="aap-input" id="aap-search-${date}" placeholder="Buscá: desayuno, viaje, zona mixta..."
+      oninput="renderAapSuggestions('${date}',this.value)"
+      onkeydown="if(event.key==='Enter'){const b=document.getElementById('aap-suggest-${date}');if(b&&b._matches&&b._matches.length===1)aapPickTemplate('${date}',0,this.value);}">
+    <div class="aap-suggest" id="aap-suggest-${date}"></div>
+    <div class="aap-divider">O elegí el tipo</div>
     <div class="aap-opts">
-      <button class="aap-opt" onclick="_aapState[${d}]={prensa:true};renderAapStep(${d},1)">📋 Actividad de prensa</button>
-      <button class="aap-opt" onclick="_aapState[${d}]={tipo:'sched',oblig:false,noParts:true};renderAapStep(${d},'final')">📅 Solo cronograma (no cuenta para prensa)</button>
+      <button class="aap-opt" onclick="_aapState[${d}]={prensa:true};renderAapStep(${d},1)">📋 Nueva actividad de prensa</button>
+      <button class="aap-opt" onclick="_aapState[${d}]={tipo:'sched',oblig:false,noParts:true};renderAapStep(${d},'final')">📅 Solo cronograma</button>
     </div>`;
   } else if(step===1){
     html=`<p class="aap-q">¿Quién participa?</p>
@@ -3494,20 +3580,24 @@ function renderAapStep(date,step){
     </div>
     <button class="aap-back" onclick="renderAapStep(${d},1)">← Volver</button>`;
   } else if(step==='final'){
-    const isCrono=(_aapState[date]||{}).tipo==='sched';
-    html=`<p class="aap-q">${isCrono?'Actividad de cronograma':'Nombre y hora'}</p>
+    const st=_aapState[date]||{};
+    const isCrono=st.tipo==='sched';
+    const isCrono0=isCrono&&!st.prensa;
+    html=`<p class="aap-q">Nombre y hora</p>
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-      <input class="aap-input" id="aap-txt-${date}" placeholder="${isCrono?'Ej: Reunión técnica, Activación en hotel...':'Ej: Zona mixta — jugadores titulares'}" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
+      <input class="aap-input" id="aap-txt-${date}" placeholder="${isCrono0?'Ej: Reunión técnica, Activación...':'Ej: Zona mixta — jugadores titulares'}" onkeydown="if(event.key==='Enter')document.getElementById('aap-h-${date}').focus()">
       <input class="aap-input" id="aap-h-${date}" placeholder="Hora — ej: 11:30 o TBD" style="width:170px" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
       <div style="display:flex;gap:6px;margin-top:2px">
         <button class="btn primary sm" onclick="submitAddAct(${d})">Agregar</button>
-        <button class="aap-back" onclick="renderAapStep(${d},${isCrono?0:2})">← Volver</button>
+        <button class="aap-back" onclick="renderAapStep(${d},${isCrono0?0:st.prensa?2:0})">← Volver</button>
       </div>
     </div>`;
   }
   picker.innerHTML=html;
   picker.classList.add('open');
-  setTimeout(()=>document.getElementById(`aap-txt-${date}`)?.focus(),50);
+  const focusId=step===0?`aap-search-${date}`:`aap-txt-${date}`;
+  setTimeout(()=>document.getElementById(focusId)?.focus(),50);
+  if(step===0) renderAapSuggestions(date,'');
 }
 
 function submitAddAct(date){
