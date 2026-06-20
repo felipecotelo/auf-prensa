@@ -6128,11 +6128,8 @@ function countCalParts(num, fromDate, toDate){
     allEvs.forEach((e,idx)=>{
       const parts=evP[evKey(day.date,idx)]||[];
       if(!parts.includes('p_'+num)) return;
-      // A partir del 10/6, las actividades mapeadas al checklist FIFA ya las cuenta
-      // countFWC — no duplicar. Solo se cuentan aquí las que NO están en el checklist
-      // (p.ej. "Zona mixta (AUF)", organizada por AUF y no obligatoria FIFA).
-      if(day.date>='2026-06-10'&&e.tipo==='oblig'&&checkIdForEventEff(day.date,idx,e)) return;
-      if(e.tipo==='viaje'||e.esTrain||e.noParts) return;
+      if(e.tipo==='viaje'||e.esTrain||e.noParts||e.tipo==='sched'||e.tipo==='team') return;
+      if(!isPresaActivity(e)&&e.oblig!==true&&!e.auf&&!e.auftv) return;
       if(getEffectiveOblig(day.date,idx,e)) ob++;
       else noOb++;
     });
@@ -6141,24 +6138,8 @@ function countCalParts(num, fromDate, toDate){
 }
 
 // Devuelve {ob, noOb} con actividades del checklist FIFA por partido
-function countFWC(num){
-  const chk=getChk();
-  let ob=0, noOb=0;
-  // Solo cuentan partidos que ya arrancaron (las actividades van partido a partido).
-  // 'arr-ent' (entrevistas al aterrizar en Cancún) ya está cubierto por preT (ctx:'llegada-mx') — no duplicar.
-  Object.keys(MATCH_RANGES).forEach(mid=>{
-    if(TODAY<MATCH_RANGES[mid].from)return;
-    const mc=chk[mid]||{};
-    Object.entries(mc).forEach(([actId,d])=>{
-      if(actId==='arr-ent')return;
-      if(d&&d.done&&d.players&&d.players.includes(num)){
-        if(CHK_ITEM_OBLIG[actId]!==false)ob++;
-        else noOb++;
-      }
-    });
-  });
-  return {ob, noOb};
-}
+// countFWC ya no lee de KC — usa solo el calendario a partir del 10/6
+function countFWC(num){ return {ob:0,noOb:0}; }
 
 // Count DT appearances in checklist
 function countDTApps(dtId){
@@ -6173,13 +6154,11 @@ function countDTApps(dtId){
 
 // FWC chips for a player in a specific match
 function fwcChipsForMatch(num,matchId){
-  const chk=getChk();
-  const mc=chk[matchId]||{};
-  const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  return items.filter(it=>{
-    const d=mc[it.id];
-    return d&&d.players&&d.players.includes(num);
-  }).map(it=>`<span class="att-chip att-cf" title="${it.label}">✓</span>`).join('');
+  const range=MATCH_RANGES[matchId];
+  if(!range)return'';
+  const cp=countCalParts(num,range.from,range.to);
+  const total=cp.ob+cp.noOb;
+  return total?`<span class="att-chip att-cf">${total}×</span>`:'';
 }
 
 function dtChipsForMatch(dtId,matchId){
@@ -6256,34 +6235,13 @@ function showPlayerAtenciones(n, chipEl){
 }
 
 function countFWCPerMatch(num, playerObj){
-  const chk=getChk(), res={llegada:0,'uru-ksa':0,'uru-cpv':0,'uru-esp':0};
-  // Atención obligatoria de llegada registrada en preT (fuera del guard de MATCH_RANGES)
+  const res={llegada:0,'uru-ksa':0,'uru-cpv':0,'uru-esp':0};
   if(playerObj) res['llegada']+=(playerObj.preT||[]).filter(a=>a.tipo==='ob'&&a.ctx==='llegada-mx').length;
   Object.keys(res).forEach(mid=>{
+    if(mid==='llegada')return;
     if(TODAY<(MATCH_RANGES[mid]?.from||'9999'))return;
-    const mc=chk[mid]||{};
-    const items2=mid==='llegada'?CL_LLEGADA:CL_MATCH;
-    Object.entries(mc).forEach(([actId,d])=>{
-      if(actId==='arr-ent')return;
-      const it=items2.find(x=>x.id===actId);
-      const hasSessions=it?.sessions?.length>0||!!(d&&d.sessions);
-      // Solo saltar si es DT-only Y no tiene sessions con jugadores
-      if(it&&it.hasPlayers===false&&!hasSessions)return;
-      // Jugador en d.players (ítems sin sessions)
-      if(d&&d.done&&d.players&&d.players.includes(num)) res[mid]++;
-      // Jugador en sessions (conferencia, TV Crew, etc.)
-      if(d&&d.sessions){
-        Object.values(d.sessions).forEach(sess=>{
-          if(sess&&sess.players&&sess.players.includes(num)) res[mid]++;
-        });
-      }
-    });
-    // Actividades del calendario dentro del rango del partido (ZM AUF, notas AUFtv, etc.)
     const range=MATCH_RANGES[mid];
-    if(range){
-      const cp=countCalParts(num,range.from,range.to);
-      res[mid]+=cp.ob+cp.noOb;
-    }
+    if(range){const cp=countCalParts(num,range.from,range.to);res[mid]+=cp.ob+cp.noOb;}
   });
   return res;
 }
@@ -6309,26 +6267,21 @@ function renderDisponibilidad(){
     </span>`;
   }
 
-  // Helper: FWC chips per match
+  // Helper: FWC chips per match — solo calendario
   function fwcChip(p,matchId){
-    const num=p.n;
-    const mc=chk[matchId]||{};
-    const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-    const done=items.filter(it=>{const d=mc[it.id];return d&&d.players&&d.players.includes(num)});
-    // Atención obligatoria FIFA al llegar a México (Cancún), registrada en preT
-    const llegadaOb=matchId==='llegada'?(p.preT||[]).filter(a=>a.tipo==='ob'&&a.ctx==='llegada-mx'):[];
-    // Zona mixta (AUF, no obligatoria) hecha dentro de la ventana de este partido
+    if(matchId==='llegada'){
+      const ob=(p.preT||[]).filter(a=>a.tipo==='ob'&&a.ctx==='llegada-mx').length;
+      if(!ob)return'<span class="att-none">—</span>';
+      return`<span class="att-chip" style="font-size:10px;font-weight:800;background:#FDECEB;color:#C0392B;border:0.5px solid #F0C0BB">🔴 ${ob}</span>`;
+    }
     const range=MATCH_RANGES[matchId];
-    const zmExtra=range?getCalZMEntries(num).filter(z=>z.date>=range.from&&z.date<=range.to):[];
-    const total=done.length+zmExtra.length+llegadaOb.length;
+    if(!range)return'<span class="att-none">—</span>';
+    const cp=countCalParts(p.n,range.from,range.to);
+    const total=cp.ob+cp.noOb;
     if(!total)return'<span class="att-none">—</span>';
-    const hasOblig=done.some(it=>it.oblig!==false)||llegadaOb.length>0;
-    const tooltip=[...done.map(it=>`${it.oblig===false?'○ (no oblig.)':'● (oblig.)'} ${it.label}`),
-                   ...llegadaOb.map(a=>`● (oblig.) ${a.label}`),
-                   ...zmExtra.map(z=>`○ (no oblig.) ${z.txt}`)].join('\n');
-    return hasOblig
-      ?`<span class="att-chip" title="${tooltip}" style="font-size:10px;font-weight:800;background:#FDECEB;color:#C0392B;border:0.5px solid #F0C0BB">🔴 ${total}</span>`
-      :`<span class="att-chip" title="${tooltip}" style="font-size:10px;font-weight:800;background:var(--cel-lt);color:var(--cel-dk)">🔵 ${total}</span>`;
+    return cp.ob>0
+      ?`<span class="att-chip" style="font-size:10px;font-weight:800;background:#FDECEB;color:#C0392B;border:0.5px solid #F0C0BB">🔴 ${total}</span>`
+      :`<span class="att-chip" style="font-size:10px;font-weight:800;background:var(--cel-lt);color:var(--cel-dk)">🔵 ${total}</span>`;
   }
 
   // Helper: DT chips per match
