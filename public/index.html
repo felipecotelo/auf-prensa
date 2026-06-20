@@ -6216,13 +6216,21 @@ function getPlayerAtencionesList(p){
         if(!parts.includes('p_'+p.n))return;
         if(day.date>='2026-06-10'&&e.tipo==='oblig'&&checkIdForEventEff(day.date,idx,e))return;
         if(e.tipo==='viaje'||e.esTrain||e.noParts||e.tipo==='sched'||e.tipo==='team'||(!isPresaActivity(e)&&e.oblig!==true&&!e.auf&&!e.auftv))return;
-        const txt=getEvTxt(day.date,idx,e.txt||'');
+        const rawTxt=getEvTxt(day.date,idx,e.txt||'');
+        if(!rawTxt||rawTxt.length<4)return; // skip eventos sin texto real
         const dt=new Date(day.date+'T12:00:00').toLocaleDateString('es-UY',{day:'numeric',month:'short'});
-        items.push({fase:matchLabels[mid],txt:`${dt} · ${txt}`});
+        items.push({fase:matchLabels[mid],txt:`${dt} · ${rawTxt}`,_key:`${day.date}|${rawTxt}`});
       });
     });
   });
-  return items;
+  // Deduplicar por fecha+texto (misma actividad desde distintas fuentes)
+  const seen=new Set();
+  return items.filter(it=>{
+    const k=it._key||it.txt;
+    if(seen.has(k))return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 function showPlayerAtenciones(n, chipEl){
