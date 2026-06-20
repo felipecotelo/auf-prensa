@@ -8794,10 +8794,11 @@ let _lgEdit=null; // id del perfil en edición
 function getLinkProfiles(){ return stor.get(KLinks,[]); }
 function saveLinkProfiles(arr){ stor.set(KLinks,arr); }
 
-function renderLinkGen(){
+function renderLinkGen(){try{
   const profiles=getLinkProfiles();
   const base=location.protocol==='file:'?'https://auf-prensa-production.up.railway.app/':(location.origin+location.pathname);
   const el=document.getElementById('linkgen-body');
+  if(!el){console.error('linkgen-body not found');return;}
 
   const profilesHtml=profiles.length?profiles.map((p,i)=>{
     const rBase='https://auf-prensa-production.up.railway.app';
@@ -8867,7 +8868,11 @@ function renderLinkGen(){
         ${editing?`<button onclick="lgCancelEdit()" style="padding:10px 16px;border-radius:10px;border:1px solid var(--border);background:var(--white);font-size:12px;font-weight:700;cursor:pointer;color:var(--muted)">Cancelar</button>`:''}
       </div>
     </div>`;
-}
+}catch(err){
+  const el2=document.getElementById('linkgen-body');
+  if(el2)el2.innerHTML=`<div style="color:red;padding:16px;font-size:12px">Error: ${err.message}</div>`;
+  console.error('renderLinkGen error:',err);
+}}
 
 function lgUpdateTabCheck(){
   LINK_TABS_DEF.forEach(t=>{
