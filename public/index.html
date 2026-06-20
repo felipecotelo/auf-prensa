@@ -3897,11 +3897,38 @@ function confirmReschedule(modalId,evTxt){
   toast(`📅 Reagendado para el ${day?.label||targetDate}`);
 }
 
+const _evDetailTimers={};
+
+function _evDetailClose(date,idx){
+  const det=document.getElementById(`ced-${date}-${idx}`);
+  const btn=det?.closest('.cal-ev')?.querySelector('.ev-expand');
+  if(!det||!det.classList.contains('open'))return;
+  det.classList.remove('open');
+  if(btn)btn.classList.remove('open');
+}
+
+function _evDetailResetTimer(date,idx){
+  clearTimeout(_evDetailTimers[date+':'+idx]);
+  _evDetailTimers[date+':'+idx]=setTimeout(()=>_evDetailClose(date,idx),5000);
+}
+
 function toggleEvDetail(date,idx,btn){
   const det=document.getElementById(`ced-${date}-${idx}`);
   if(!det)return;
   const open=det.classList.toggle('open');
   btn.classList.toggle('open',open);
+  const key=date+':'+idx;
+  if(open){
+    // Cierre automático: 10s desde apertura, o 5s sin interacción
+    clearTimeout(_evDetailTimers[key]);
+    _evDetailTimers[key]=setTimeout(()=>_evDetailClose(date,idx),10000);
+    // Reiniciar timer en cualquier interacción dentro del detalle
+    det.onmousedown=det.ontouchstart=()=>_evDetailResetTimer(date,idx);
+    det.oninput=()=>_evDetailResetTimer(date,idx);
+  } else {
+    clearTimeout(_evDetailTimers[key]);
+    det.onmousedown=det.ontouchstart=det.oninput=null;
+  }
 }
 
 function saveEvNote(date,idx,ta){
