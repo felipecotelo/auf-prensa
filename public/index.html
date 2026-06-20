@@ -3081,7 +3081,7 @@ function buildEventsHtml(day, startIdx=0){
           <button class="ev-expand" onclick="toggleEvDetail('${dataDate}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
         <div class="cal-ev-detail" id="ced-${dataDate}-${realIdx}">
-          ${e.tz&&e.tz!=='UY'?`<div style="font-size:11px;color:var(--cel-dk);font-weight:600;margin-bottom:4px">🕐 ${t} ${TZ_INFO[e.tz]?.label||e.tz}${e.hUY?' → '+e.hUY+' Uruguay':''}</div>`:''}
+          ${getEvTzLine(e,t)}
           ${isFifaChange&&getEvFifaOrig()[k]&&getEvFifaOrig()[k]!==t?`<div style="font-size:11px;color:var(--gold);margin-bottom:4px">* Horario original: ${getEvFifaOrig()[k]} — reprogramado por FIFA</div>`:''}
           ${isOblig&&!e.extra?(()=>{
             const manualAtParts=[
@@ -3494,6 +3494,32 @@ const TZ_INFO={
   GDL:{label:'Cancún / México',short:'MX',  offset:-5},
 };
 const TZ_DEFAULT='GDL';
+
+// Convierte tiempo UY → otro huso
+function uyToTz(hStr, toTz){
+  const m=hStr&&hStr.match(/^(\d{1,2}):(\d{2})$/);
+  if(!m)return null;
+  const diff=(TZ_INFO[toTz]?.offset||TZ_INFO.UY.offset)-TZ_INFO.UY.offset;
+  let h=parseInt(m[1])+diff, min=parseInt(m[2]);
+  if(h<0)h+=24; if(h>=24)h-=24;
+  return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+}
+
+// Genera línea de huso horario para el panel expandido
+function getEvTzLine(e, t){
+  // Determinar hora en UY
+  let tUY=null;
+  if(e.tz&&e.tz!=='UY'&&e.hUY) tUY=e.hUY;
+  else if(/^\d{1,2}:\d{2}$/.test(t||'')) tUY=t;
+  if(!tUY)return '';
+  const tMIA=uyToTz(tUY,'MIA');
+  if(!tMIA)return '';
+  if(e.tz&&e.tz!=='UY'){
+    // Tiene hora en otro huso guardada
+    return `<div style="font-size:11px;color:var(--cel-dk);font-weight:600;margin-bottom:5px">🕐 ${e.h} ${TZ_INFO[e.tz]?.label||e.tz} · ${tMIA} Miami · ${tUY} Uruguay</div>`;
+  }
+  return `<div style="font-size:11px;color:var(--cel-dk);font-weight:600;margin-bottom:5px">🕐 ${tMIA} Miami · ${tUY} Uruguay</div>`;
+}
 
 function tzToUY(hStr, fromTz){
   if(!hStr||hStr==='TBD'||fromTz==='UY')return null;
