@@ -6194,7 +6194,7 @@ let _dispFilters={preMundial:false,llegada:true,'uru-ksa':true,'uru-cpv':true,'u
 function toggleDispFilter(key){_dispFilters[key]=!_dispFilters[key];renderDisponibilidad();}
 
 function getPlayerAtencionesList(p){
-  const chk=getChk(), evP=getEvParts(), items=[];
+  const evP=getEvParts(), items=[];
   const matchLabels={llegada:'Llegada 10/6','uru-ksa':'vs KSA','uru-cpv':'vs CPV','uru-esp':'vs ESP'};
 
   // preT llegada-mx
@@ -6203,35 +6203,10 @@ function getPlayerAtencionesList(p){
     items.push({fase:'Llegada 10/6',txt:`${fecha} · ${a.label||'Atención obligatoria · llegada'}`});
   });
 
-  // chk items por partido
+  // Actividades del calendario por partido
   Object.keys(MATCH_RANGES).forEach(mid=>{
     if(!_dispFilters[mid])return;
     if(TODAY<(MATCH_RANGES[mid]?.from||'9999'))return;
-    const mc=chk[mid]||{};
-    const items2=mid==='llegada'?CL_LLEGADA:CL_MATCH;
-    const matchDateStr=MATCH_RANGES[mid].to;
-    const matchDateFmt=new Date(matchDateStr+'T12:00:00').toLocaleDateString('es-UY',{day:'numeric',month:'short'});
-    Object.entries(mc).forEach(([actId,d])=>{
-      if(actId==='arr-ent')return;
-      const it=items2.find(x=>x.id===actId);
-      const hasSessions=it?.sessions?.length>0||!!(d&&d.sessions);
-      if(it&&it.hasPlayers===false&&!hasSessions)return; // ítem solo DT sin sessions
-      // Jugador en d.players (solo ítems sin sessions — si tiene sessions se usa el bloque de abajo)
-      if(!hasSessions&&d&&d.done&&d.players&&d.players.includes(p.n)){
-        items.push({fase:matchLabels[mid],txt:`${matchDateFmt} · ${it?it.label:actId}`});
-      }
-      // Jugador en sessions (ítems con sessions como conf o TV Crew)
-      if(d&&d.sessions){
-        Object.entries(d.sessions).forEach(([sid,sess])=>{
-          if(sess&&sess.players&&sess.players.includes(p.n)){
-            const sl=(it?.sessions||[]).find(s=>s.id===sid);
-            const lbl=sl?.label?`${it?it.label:actId} · ${sl.label}`:it?it.label:actId;
-            items.push({fase:matchLabels[mid],txt:`${matchDateFmt} · ${lbl}`});
-          }
-        });
-      }
-    });
-    // Actividades del calendario en el rango (ZM, AUFtv, etc.)
     const range=MATCH_RANGES[mid];
     if(range) CALENDAR_DAYS.forEach(day=>{
       if(day.date<range.from||day.date>range.to)return;
