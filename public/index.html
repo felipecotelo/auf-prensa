@@ -1726,10 +1726,10 @@ const CALENDAR_DAYS = [
    ]},
   {date:'2026-06-10',dow:'Mié',label:'10 jun',tipo:'llegada', lugar:'Cancún → Riviera Maya 🇲🇽',
    eventos:[
-     {h:'06:15',tipo:'oblig',txt:'Entrevistas al aterrizar — DT + 1 jugador · 3 puestos · Pista Cancún'},
+     {h:'06:15',tipo:'oblig',txt:'Entrevistas al aterrizar — DT + 1 jugador · 3 puestos · Pista Cancún',chkId:'arr-ent'},
      {h:'17:30',tipo:'oblig',txt:'Entrenamiento — primeros 15 min abiertos · MD-5 · Prensa accedió ✓'},
      {h:'17:45',tipo:'oblig',txt:'Meet & Greet comunidad FIFA ✓ — al terminar el entreno'},
-     {h:'19:30',tipo:'oblig',txt:'Mediaday FIFA — perfiles · Fotos + video + escaneo 3D · 2h · Mayakoba'},
+     {h:'19:30',tipo:'oblig',txt:'Mediaday FIFA — perfiles · Fotos + video + escaneo 3D · 2h · Mayakoba',chkId:'arr-media'},
    ]},
   {date:'2026-06-11',dow:'Jue',label:'11 jun',tipo:'entreno', lugar:'Riviera Maya, Playa del Carmen 🇲🇽', md:'MD-4 vs KSA',
    eventos:[
@@ -2438,7 +2438,9 @@ function syncEvToChkSession(date,idx,evStatus){
   // Direct chkId sync: event has chkId property
   const ev=getDayEventByIdx(date,idx);
   if(!ev?.chkId)return;
-  const matchId=getMatchIdForDate(date);
+  // CL_LLEGADA items (arr-ent, arr-media) se almacenan bajo 'llegada', no bajo el partido del día
+  const _llegadaIds=new Set(CL_LLEGADA.map(i=>i.id));
+  const matchId=_llegadaIds.has(ev.chkId)?'llegada':getMatchIdForDate(date);
   if(!matchId)return;
   const newDone=(evStatus==='done');
   const data=getItemData(matchId,ev.chkId);
@@ -2509,16 +2511,16 @@ function saveChkEvLink(matchId,actId,date,idx){
   links[evKey(date,idx)]={matchId,actId};
   stor.set(KChkEvLink,links);
   cloudPushDebounced(KChkEvLink,links);
-  aggregateMatchActivities();
   rerenderChkItem(matchId,actId);
 }
 function removeChkEvLink(date,idx){
   if(IS_RESTRICTED)return;
   const links=getChkEvLinks();
+  const removed=links[evKey(date,idx)];
   delete links[evKey(date,idx)];
   stor.set(KChkEvLink,links);
   cloudPushDebounced(KChkEvLink,links);
-  aggregateMatchActivities();
+  if(removed) rerenderChkItem(removed.matchId,removed.actId);
 }
 function saveEvLink(date,idx,input){
   const l=getEvLinks();
@@ -2782,7 +2784,7 @@ function showTab(id){
   if(id==='inicio'){renderInicio()}
   if(id==='disponibilidad'){renderDisponibilidad()}
   if(id==='calendario'){renderCal()}
-  if(id==='partido'){aggregateMatchActivities();renderChecklist(curMatch)}
+  if(id==='partido'){renderChecklist(curMatch)}
   if(id==='fixture'){renderFixture();fetchFromESPN();}
   if(id==='partidos'){renderPartidos()}
   if(id==='plantel'){renderPlantel()}
@@ -3976,6 +3978,35 @@ function matchForDate(date){
   return null;
 }
 
+// Devuelve el Set de actIds que tienen al menos un vínculo explícito de calendario
+// para el matchId dado. Solo estos ítems son visibles en el checklist.
+function getLinkedItemsForMatch(matchId){
+  const linked=new Set();
+  // 1. EVENT_GROUPS (sesiones de md2-crew, etc.)
+  Object.values(EVENT_GROUPS).flat().forEach(({chk})=>{
+    if(chk.matchId===matchId) linked.add(chk.actId);
+  });
+  // 2. chkId explícito en eventos estáticos del calendario
+  const CL_LLEGADA_IDS=new Set(CL_LLEGADA.map(i=>i.id));
+  if(matchId==='llegada'){
+    CALENDAR_DAYS.filter(d=>d.date==='2026-06-10').forEach(day=>
+      day.eventos.forEach(ev=>{ if(ev.chkId&&CL_LLEGADA_IDS.has(ev.chkId)) linked.add(ev.chkId); })
+    );
+  } else {
+    const range=MATCH_RANGES[matchId];
+    if(range){
+      CALENDAR_DAYS.filter(d=>d.date>=range.from&&d.date<=range.to).forEach(day=>
+        day.eventos.forEach(ev=>{ if(ev.chkId&&!CL_LLEGADA_IDS.has(ev.chkId)) linked.add(ev.chkId); })
+      );
+    }
+  }
+  // 3. Links manuales (KChkEvLink)
+  Object.values(getChkEvLinks()).forEach(link=>{
+    if(link.matchId===matchId) linked.add(link.actId);
+  });
+  return linked;
+}
+
 // Encuentra todos los eventos de calendario que corresponden a un checkId+matchId
 // Devuelve array de {date, idx}
 function calEventsForCheckId(matchId, checkId){
@@ -4006,147 +4037,20 @@ function syncChkToCalEv(matchId, checkId, players){
   stor.set(KEvP,evp);
 }
 
-// Todos los checkId que pueden ser asignados por checkIdForEvent (vía calendario)
-const EVENT_DERIVED_CHECKIDS=['md2-crew','md1-stand','md-conf-post','md1-conf','md-flash','md-tunel','md-mix-est','md-ht','md-precal','md-llegada','md-vestuario','arr-ent','arr-media','md-mvp-attn','md1-train'];
-
-// ── Mapeo texto evento → checkId del partido ─────────
-function checkIdForEvent(txt){
-  const t=(txt||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-  // FIFA Crew — puede ser MD-2, MD-3 o MD-4, el nombre varía
-  if(t.includes('tv crew')||t.includes('crew fifa')||(t.includes('atencion')&&t.includes('fifa'))) return'md2-crew';
-  if(t.includes('stand-up')||t.includes('primera atencion')) return'md1-stand';
-  if(t.includes('conferencia')&&(t.includes('post')||t.includes('+15'))) return'md-conf-post';
-  if(t.includes('conferencia'))                      return'md1-conf';
-  if(t.includes('atencion')&&t.includes('mvp'))     return'md-mvp-attn';
-  if(t.includes('multi-flash')||t.includes('pitchside')) return'md-flash';
-  if(t.includes('uni-flash')||t.includes('tunel'))   return'md-tunel';
-  // "Zona mixta (AUF) — ..." es una actividad organizada por AUF (no obligatoria),
-  // no corresponde a la zona mixta reglamentaria de FIFA → no entra al checklist FIFA
-  if(t.includes('zona mixta')&&t.includes('(auf)'))  return null;
-  // "Zona mixta — estación (2 titulares) + paso lineal" → la estación (TAM p.74, obligatoria
-  // para los titulares elegidos) manda sobre el paso lineal (plantel completo, no obligatoria)
-  if(t.includes('zona mixta')&&(t.includes('estacion')||t.includes('titulares'))) return'md-mix-est';
-  if(t.includes('zona mixta')&&t.includes('lineal')) return'md-mix-est';
-  if(t.includes('zona mixta'))                       return'md-mix-est';
-  if(t.includes('entretiempo'))                      return'md-ht';
-  if(t.includes('pre-calentamiento')||t.includes('precalentamiento')||t.includes('ko-75')) return'md-precal';
-  if(t.includes('llegada estadio')||t.includes('llegada al estadio')) return'md-llegada';
-  if(t.includes('vestuario'))                        return'md-vestuario';
-  if(t.includes('aterrizar')||t.includes('al aterrizar')) return'arr-ent';
-  if(t.includes('mediaday'))                         return'arr-media';
+// Devuelve el checkId para un evento de calendario, solo por vínculos explícitos.
+// Prioridad: link manual > chkId en evento estático.
+// Ya no se usa inferencia por texto.
+function checkIdForEventEff(date,idx,e){
+  const manualLink=getChkEvLinks()[evKey(date,idx)];
+  if(manualLink) return manualLink.actId;
+  if(e.chkId) return e.chkId;
   return null;
 }
 
-// checkIdForEvent + override manual de obligatoriedad: si una "zona mixta" fue
-// marcada como NO obligatoria (✎), nunca mapea a un ítem obligatorio del checklist FIFA
-// (independientemente del texto que tenga, p.ej. "Zona mixta en hotel")
-function checkIdForEventEff(date,idx,e){
-  // 1. Vínculo manual tiene prioridad máxima
-  const manualLink=getChkEvLinks()[evKey(date,idx)];
-  if(manualLink) return manualLink.actId;
-  // 2. chkId explícito en el evento estático
-  if(e.chkId){
-    const t=(e.txt||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-    if(t.includes('zona mixta')&&!getEffectiveOblig(date,idx,e)) return null;
-    return e.chkId;
-  }
-  // 3. Detección por texto
-  const txt=getEvTxt(date,idx,e.txt||'');
-  const t=txt.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-  if(t.includes('zona mixta')&&!getEffectiveOblig(date,idx,e)) return null;
-  return checkIdForEvent(txt);
-}
-
-// ── Motor de agregación: recorre TODOS los eventos del período del partido
-//    y consolida participantes por tipo de actividad (checkId).
-//    Un jugador en múltiples sesiones del mismo tipo = cuenta 1 sola vez.
-function aggregateMatchActivities(){
-  const evParts = getEvParts();
-  const chkData = getChk();
-  // {matchId_checkId: {matchId, checkId, players:Set, dts:Set, hasParts:bool}}
-  const agg = {};
-
-  CALENDAR_DAYS.forEach(day=>{
-    const matchId = matchForDate(day.date);
-    if(!matchId) return;
-
-    // Eventos base del día
-    const baseEvs = day.eventos||[];
-    // Eventos dinámicos agregados por el usuario
-    const dynEvs  = (getDayActs()[day.date]||[]);
-    const allEvs  = [...baseEvs, ...dynEvs];
-
-    const evStatus = getEvStatus();
-    allEvs.forEach((ev, realIdx)=>{
-      // Solo actividades de prensa (tipo='oblig' y no viaje/info/cerrado), considerando
-      // el override manual de obligatoriedad (✎) si lo hay
-      const obligState = getEvObligState(day.date, realIdx);
-      const effObligTrue = obligState.state==='oblig' ? true
-        : obligState.state==='nooblig' ? false
-        : ev.oblig!==false;
-      const isPress = ev.tipo==='oblig' && effObligTrue && !ev.cerrado;
-      if(!isPress) return;
-
-      // Usar el texto editado (si lo hay) y respetar override de obligatoriedad
-      const checkId = checkIdForEventEff(day.date, realIdx, ev);
-      if(!checkId) return;
-
-      const k   = evKey(day.date, realIdx);
-      const pts = evParts[k]||[];
-      const st  = evStatus[k]||'';
-
-      // Si no hay participantes ni estado relevante, ignorar
-      if(!pts.length && st!=='done' && st!=='no') return;
-
-      const aggKey = `${matchId}__${checkId}`;
-      if(!agg[aggKey]) agg[aggKey]={matchId,checkId,players:new Set(),dts:new Set(),done:false,cancelled:false};
-
-      pts.filter(x=>x.startsWith('p_')).forEach(x=>agg[aggKey].players.add(parseInt(x.slice(2))));
-      pts.filter(x=>x.startsWith('dt_')).forEach(x=>agg[aggKey].dts.add(x.slice(3)));
-      if(st==='done') agg[aggKey].done=true;
-      if(st==='no')   agg[aggKey].cancelled=true;
-    });
-  });
-
-  // Volcar al checklist
-  Object.values(agg).forEach(({matchId,checkId,players,dts,done,cancelled})=>{
-    if(!chkData[matchId]) chkData[matchId]={};
-    if(!chkData[matchId][checkId]) chkData[matchId][checkId]={};
-    chkData[matchId][checkId].players = [...players];
-    if(dts.size) chkData[matchId][checkId].dt = [...dts][0];
-    // Marcar done si: hay jugadores asignados, o el evento está marcado ✓ en calendario
-    if(players.size || done) chkData[matchId][checkId].done = true;
-    // Si está cancelado (✗) y no hay ninguna info positiva, marcarlo como no realizado
-    else if(cancelled) chkData[matchId][checkId].done = false;
-    // Ítems con sesiones (md2-crew): sus sesiones las maneja syncEvToChkSession
-    // vía EVENT_GROUPS. NO marcar sesiones aquí para evitar contaminación entre partidos.
-  });
-
-  // Limpiar mapeos viejos/incorrectos: si un checkId derivado de eventos ya no tiene
-  // ninguna actividad de calendario asociada en esta pasada, resetear done/players/dt.
-  // Excluir items con sessions (md1-conf, md2-crew): su done se computa desde sesiones.
-  const SESSION_CHECKIDS=new Set([...[...CL_MATCH,...CL_LLEGADA].filter(i=>i.sessions).map(i=>i.id)]);
-  ['llegada','uru-ksa','uru-cpv','uru-esp'].forEach(matchId=>{
-    EVENT_DERIVED_CHECKIDS.forEach(checkId=>{
-      if(SESSION_CHECKIDS.has(checkId)) return; // sessions-based: no tocar done
-      const aggKey=`${matchId}__${checkId}`;
-      if(!agg[aggKey] && chkData[matchId]?.[checkId]){
-        chkData[matchId][checkId].players=[];
-        chkData[matchId][checkId].done=false;
-        delete chkData[matchId][checkId].dt;
-      }
-    });
-  });
-
-  stor.set(KC, chkData);
-  return chkData;
-}
-
-// syncEvToChk: después de cada cambio re-agrega todo (modelo correcto)
-function syncEvToChk(date, idx, evParts){
-  aggregateMatchActivities();
-  if(document.getElementById('disponibilidad')?.classList.contains('active')) renderDisponibilidad();
-}
+// Eliminado: aggregateMatchActivities — reemplazado por vínculos explícitos.
+// El estado del checklist deriva solo de syncEvToChkSession (vía chkId/EVENT_GROUPS/KChkEvLink).
+function aggregateMatchActivities(){}
+function syncEvToChk(){}
 
 function toggleEvPart(date,idx,partKey,chip){
   const p=getEvParts();
@@ -4230,18 +4134,36 @@ function selMatch(id,btn){
   renderLineup(id);
 }
 
+function clearMatchData(matchId){
+  if(!confirm('¿Reiniciar todos los datos del checklist de este partido? No se puede deshacer.')) return;
+  const c=getChk();
+  delete c[matchId];
+  stor.set(KC,c);
+  renderChecklist(matchId);
+}
+
 function renderChecklist(matchId){
-  const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  const done=items.filter(i=>getItemData(matchId,i.id).done).length;
-  const pct=Math.round(done/items.length*100);
+  const allItems=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
+  // Solo mostrar ítems con al menos un vínculo explícito de calendario
+  const linked=getLinkedItemsForMatch(matchId);
+  const items=allItems.filter(i=>linked.has(i.id));
+
+  const done=items.filter(i=>{
+    if(i.sessions){const c=getSessionsDoneCount(matchId,i.id,i.sessions);return c===i.sessions.length;}
+    return getItemData(matchId,i.id).done;
+  }).length;
+  const pct=items.length?Math.round(done/items.length*100):0;
 
   document.getElementById('chk-progress').innerHTML=`
     <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:13px 14px">
       <div class="prog-label" style="margin-bottom:6px">
-        <span style="font-size:13px;font-weight:800">${done===items.length?'✅ Todas completadas':items.length-done+' pendientes'}</span>
-        <span style="font-size:13px;font-weight:800;color:${done===items.length?'var(--green)':'var(--cel-dk)'}">${done}/${items.length}</span>
+        <span style="font-size:13px;font-weight:800">${done===items.length&&items.length?'✅ Todas completadas':items.length-done+' pendientes'}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;font-weight:800;color:${done===items.length&&items.length?'var(--green)':'var(--cel-dk)'}">${done}/${items.length}</span>
+          <button onclick="clearMatchData('${matchId}')" style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit" title="Reiniciar datos de este partido">↺ Reset</button>
+        </div>
       </div>
-      <div class="prog-bar" style="height:7px"><div class="prog-fill${done===items.length?'':' partial'}" style="width:${pct}%"></div></div>
+      <div class="prog-bar" style="height:7px"><div class="prog-fill${done===items.length&&items.length?'':' partial'}" style="width:${pct}%"></div></div>
     </div>`;
 
   // group by fase
@@ -4253,9 +4175,16 @@ function renderChecklist(matchId){
 
   const con=document.getElementById('chk-container');
   con.innerHTML='';
+  if(!items.length){
+    con.innerHTML='<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center">Sin ítems vinculados al calendario</div>';
+    return;
+  }
   phases.forEach(fase=>{
     const fi=phaseMap[fase];
-    const fd=fi.filter(i=>getItemData(matchId,i.id).done).length;
+    const fd=fi.filter(i=>{
+      if(i.sessions){const c=getSessionsDoneCount(matchId,i.id,i.sessions);return c===i.sessions.length;}
+      return getItemData(matchId,i.id).done;
+    }).length;
     const sec=document.createElement('div');
     sec.style.marginBottom='1rem';
     sec.innerHTML=`<div class="chk-phase"><span>${fase}</span><span class="chk-phase-done">${fd}/${fi.length}</span></div>`;
@@ -4472,14 +4401,19 @@ function toggleChkOpen(matchId,actId){
 }
 
 function refreshChkProgress(matchId){
-  const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
+  const allItems=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
+  const linked=getLinkedItemsForMatch(matchId);
+  const items=allItems.filter(i=>linked.has(i.id));
   // Ítems con rivalWon no cuentan como pendientes ni como completados
   const activeItems=items.filter(i=>!getItemData(matchId,i.id).rivalWon);
-  const done=activeItems.filter(i=>getItemData(matchId,i.id).done).length;
+  const done=activeItems.filter(i=>{
+    if(i.sessions){const c=getSessionsDoneCount(matchId,i.id,i.sessions);return c===i.sessions.length;}
+    return getItemData(matchId,i.id).done;
+  }).length;
   const total=activeItems.length;
-  const pct=Math.round(done/total*100);
+  const pct=total?Math.round(done/total*100):0;
   const prog=document.getElementById('chk-progress');
-  if(prog) prog.innerHTML=`<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:13px 14px"><div class="prog-label" style="margin-bottom:6px"><span style="font-size:13px;font-weight:800">${done===total?'✅ Todas completadas':total-done+' pendientes'}</span><span style="font-size:13px;font-weight:800;color:${done===total?'var(--green)':'var(--cel-dk)'}">${done}/${total}</span></div><div class="prog-bar" style="height:7px"><div class="prog-fill${done===total?'':' partial'}" style="width:${pct}%"></div></div></div>`;
+  if(prog) prog.innerHTML=`<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:13px 14px"><div class="prog-label" style="margin-bottom:6px"><span style="font-size:13px;font-weight:800">${done===total&&total?'✅ Todas completadas':total-done+' pendientes'}</span><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:800;color:${done===total&&total?'var(--green)':'var(--cel-dk)'}">${done}/${total}</span><button onclick="clearMatchData('${matchId}')" style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit" title="Reiniciar datos">↺ Reset</button></div></div><div class="prog-bar" style="height:7px"><div class="prog-fill${done===total&&total?'':' partial'}" style="width:${pct}%"></div></div></div>`;
   // Update phase done counts
   const phaseMap={};
   items.forEach(it=>{if(!phaseMap[it.fase])phaseMap[it.fase]=[];phaseMap[it.fase].push(it);});
@@ -4487,7 +4421,10 @@ function refreshChkProgress(matchId){
     const name=el.querySelector('span:first-child')?.textContent;
     if(name&&phaseMap[name]){
       const phaseActive=phaseMap[name].filter(i=>!getItemData(matchId,i.id).rivalWon);
-      const fd=phaseActive.filter(i=>getItemData(matchId,i.id).done).length;
+      const fd=phaseActive.filter(i=>{
+        if(i.sessions){const c=getSessionsDoneCount(matchId,i.id,i.sessions);return c===i.sessions.length;}
+        return getItemData(matchId,i.id).done;
+      }).length;
       const ce=el.querySelector('.chk-phase-done');
       if(ce)ce.textContent=`${fd}/${phaseActive.length}`;
     }
@@ -9650,11 +9587,8 @@ async function syncLineupESPN(matchId){
   }catch(e){toast('⚠ Error conectando con ESPN');}
 }
 
-// Re-sincroniza todos los evParts ya guardados → chk (se llama al iniciar)
-function resyncAllEvToChk(){
-  // Re-agrega todo desde cero — modelo por tipo de actividad
-  aggregateMatchActivities();
-}
+// No-op: el checklist ya no requiere re-agregación al iniciar.
+function resyncAllEvToChk(){}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SERVER SYNC
