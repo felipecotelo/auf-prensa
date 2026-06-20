@@ -1075,7 +1075,6 @@ html.auf-gate body { display:none !important }
   <button class="tab active" onclick="showTab('inicio')"><i class="ti ti-layout-grid"></i>Inicio</button>
   <button class="tab" onclick="showTab('disponibilidad')"><i class="ti ti-list-check"></i>Disponibilidad</button>
   <button class="tab" onclick="showTab('calendario')"><i class="ti ti-calendar"></i>Calendario</button>
-  <button class="tab" onclick="showTab('partido')"><i class="ti ti-checklist"></i>Checklist</button>
   <button class="tab" onclick="showTab('pizarra')"><i class="ti ti-ball-football"></i>Pizarra</button>
   <button class="tab" onclick="showTab('fixture')"><i class="ti ti-tournament"></i>Fixture</button>
   <button class="tab" onclick="showTab('partidos')"><i class="ti ti-world"></i>Partidos</button>
@@ -1131,25 +1130,6 @@ html.auf-gate body { display:none !important }
   </div>
   <div id="cal-pending-alerts"></div>
   <div class="cal-timeline" id="cal-timeline"></div>
-</div>
-
-<!-- ═══════════ PARTIDO ═══════════ -->
-<div id="partido" class="section">
-  <div class="sec-hdr">
-    <div class="sec-icon gold"><i class="ti ti-checklist"></i></div>
-    <div>
-      <div class="sec-title">Partidos — Fase de Grupos · Grupo H</div>
-      <div class="sec-desc">Checklist de obligatorias · Seleccioná quién participó · Notas en caliente</div>
-    </div>
-  </div>
-  <div class="match-sel" id="match-sel">
-    <div id="match-sel-btns"></div>
-    <button class="ms-btn" id="btn-sync-espn" onclick="syncESPN()" style="margin-left:auto;border-color:var(--cel);color:var(--cel-dk);display:flex;align-items:center;gap:5px">
-      <i class="ti ti-refresh" style="font-size:13px"></i> Sync ESPN
-    </button>
-  </div>
-  <div id="chk-progress" style="margin-bottom:1rem"></div>
-  <div id="chk-container"></div>
 </div>
 
 <!-- ═══════════ PLANTEL ═══════════ -->
@@ -1373,63 +1353,6 @@ html.auf-gate body { display:none !important }
 // Fecha local (no UTC) — toISOString() corría un día adelantado para zonas horarias negativas (ej. UYT)
 const TODAY = (()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`})(); // se actualiza automático
 
-// Rango de fechas de cada partido (valores por defecto — editables desde la web)
-const MATCH_RANGES={
-  'uru-ksa':{from:'2026-06-10',to:'2026-06-15'},
-  'uru-cpv':{from:'2026-06-16',to:'2026-06-21'},
-  'uru-esp':{from:'2026-06-22',to:'2026-06-26'},
-};
-const KMatchRanges='auf4_match_ranges';
-function getMatchRanges(){
-  const saved=stor.get(KMatchRanges,{});
-  const result={};
-  ['uru-ksa','uru-cpv','uru-esp'].forEach(id=>{
-    result[id]=saved[id]||MATCH_RANGES[id];
-  });
-  return result;
-}
-function setMatchRange(matchId,from,to){
-  if(IS_RESTRICTED)return;
-  const saved=stor.get(KMatchRanges,{});
-  saved[matchId]={from,to};
-  stor.set(KMatchRanges,saved);
-  cloudPushDebounced(KMatchRanges,saved);
-}
-
-// Devuelve {playerNum: count} con actividades HECHAS por jugador en un partido
-function getPlayerMatchCounts(matchId){
-  const range=MATCH_RANGES[matchId];
-  if(!range)return{};
-  const evStatus=getEvStatus(), evParts=getEvParts();
-  const counts={};
-  PLAYERS.forEach(p=>counts[p.n]=0);
-  CALENDAR_DAYS.forEach(day=>{
-    if(day.date<range.from||day.date>range.to)return;
-    const customActs=getDayActs()[day.date]||[];
-    [...day.eventos,...customActs].forEach((e,i)=>{
-      if(e.noParts||e.esTrain||e.tipo==='viaje'||e.tipo==='sched'||e.tipo==='team'||(!isPresaActivity(e)&&e.oblig!==true))return;
-      const k=evKey(day.date,i);
-      if(evStatus[k]!=='done')return;
-      const parts=evParts[k]||[];
-      parts.forEach(pk=>{
-        if(pk.startsWith('p_')){const n=parseInt(pk.slice(2));if(counts[n]!==undefined)counts[n]++;}
-      });
-    });
-  });
-  // también contar sesiones del checklist
-  const items=CL_MATCH;
-  items.forEach(item=>{
-    if(!item.sessions)return;
-    item.sessions.forEach(sess=>{
-      if(sess.isDT)return;
-      const s=getSessionData(matchId,item.id,sess.id);
-      if(!s.done)return;
-      const sel=s.players&&s.players.length?s.players:(sess.defaultPlayer?[sess.defaultPlayer]:[]);
-      sel.forEach(n=>{if(counts[n]!==undefined)counts[n]++;});
-    });
-  });
-  return counts;
-}
 
 // ── PDF oficial Uruguay — Team Arrival Meeting (fuente verificada de las actividades de prensa) ──
 const TAM_URL = 'file:///Users/felipecotelo/Library/CloudStorage/Dropbox/1.%20AI/1.%20Selecci%C3%B3n%20%7C%20Felipe/3.%20Documentos/Copa%20Mundial%202026/Documentos%20oficiales/URU_FWC26_Team%20Arrival%20Meeting_URUGUAY.pdf';
@@ -1628,100 +1551,6 @@ const PART_OPTIONS = [
   {val:'no part', label:'No participó',             cls:'part-no-part',desc:'No estuvo ni en el banco'},
 ];
 
-// Checklist de llegada (June 10)
-const CL_LLEGADA = [
-  {id:'arr-ent',    fase:'🛬 Aeropuerto — 06:15h Cancún',
-   label:'Entrevista llegada — DT + Capitán',
-   sub:'DT + Capitán · Entrevista breve (FIFA/MP nacional) en pista o saliendo de la terminal · Foto-oportunidad para agencias de noticias',
-   hasDT:true, hasPlayers:true, playerCount:1, cat:'entrevista', art:'TAM p.73'},
-  {id:'arr-media',  fase:'🏨 Mediaday FIFA — 19:30h Mayakoba',
-   label:'Mediaday FIFA — perfiles',
-   sub:'Fotos + video + escaneo 3D · Plantel completo + cuerpo técnico · 2 horas · Uniforme con botines',
-   hasDT:false, hasPlayers:false, playerCount:0, cat:'mediaday'},
-];
-
-// Checklist por partido (igual estructura para KSA, CPV, ESP)
-const CL_MATCH = [
-  {id:'md2-crew',    fase:'Previo al partido (hotel)',
-   label:'Entrevistas sit-down FIFA TV Crew — 4 jugadores + DT (MD-1)',
-   sub:'Mín. 5 min c/u · Sit-down en hotel · Crew FIFA (productor + camarógrafo) · Filmación con 4 jugadores antes de MD-1, repartida en varios días (no todo en MD-2) · DT puede sumarse en MD-1 · Entrevistas tradicionales + contenido social',
-   hasDT:false, hasPlayers:false, playerCount:0, cat:'entrevista', art:'TAM p.70',
-   sessions:[
-     {id:'s1',  fecha:'Vie 12 jun', fechas:{'uru-ksa':'Vie 12 jun','uru-cpv':'Jue 18 jun','uru-esp':'Lun 22 jun'}, label:'Jugador 1', defaultPlayer:23},
-     {id:'s2',  fecha:'Sáb 13 jun', fechas:{'uru-ksa':'Sáb 13 jun','uru-cpv':'Jue 18 jun','uru-esp':'Mar 23 jun'}, label:'Jugador 2', defaultPlayer:26},
-     {id:'s3',  fecha:'Sáb 13 jun', fechas:{'uru-ksa':'Sáb 13 jun','uru-cpv':'Jue 18 jun','uru-esp':'Mar 23 jun'}, label:'Jugador 3'},
-     {id:'s4',  fecha:'TBD',        fechas:{'uru-ksa':'TBD',       'uru-cpv':'Vie 19 jun','uru-esp':'Mar 23 jun'}, label:'Jugador 4'},
-     {id:'s-dt',fecha:'Sáb 13 jun', fechas:{'uru-ksa':'Sáb 13 jun','uru-cpv':'Jue 18 jun','uru-esp':'Mar 23 jun'}, label:'Bielsa',    isDT:true, defaultDT:'bielsa'},
-   ]},
-
-  {id:'md1-train',   fase:'MD-1 (estadio/VSTS)',
-   label:'Entrenamiento oficial — 15 min abierto',
-   sub:'Primeros 15 min abiertos · Solo acreditación FWC26 · ⚠️ Team Media Pass NO válido hoy',
-   hasDT:false, hasPlayers:false, playerCount:0, cat:'training', art:'TAM p.72'},
-
-  {id:'md1-conf',    fase:'MD-1 (estadio)',
-   label:'Conferencia de prensa',
-   sub:'DT y jugador por separado (Base Camp, sin opción de combinar) · Mín. 15 min c/u (obligatorio) · Traducción simultánea app FIFA Interpreting',
-   hasDT:false, hasPlayers:false, playerCount:0, cat:'conferencia', art:'TAM p.72',
-   sessions:[
-     {id:'conf-dt',    label:'DT · 15 min',              isDT:true,  defaultDT:'bielsa'},
-     {id:'conf-jug',   label:'Jugador · 15 min',          isDT:false, defaultPlayer:null},
-     {id:'standups',   label:'Atenciones 3 min — medios', isStep:true,
-      sub:'TV Uruguay (RH) · TV rival · Equipo FIFA · 3 min c/u · Mismos DT y jugador de las conferencias', art:'TAM p.72'},
-   ]},
-
-  {id:'md-vestuario',fase:'MD — Previa (llegada al estadio)',
-   label:'Grabación vestuario — llegada del plantel',
-   sub:'HB graba vestuario preparado antes de la llegada (15 min, pre-arrival) · Cámara fija FIFA graba ingreso del plantel · Consentimiento delegación',
-   hasDT:false, hasPlayers:false, playerCount:0, cat:'vestuario', art:'TAM p.73'},
-
-  {id:'md-llegada',  fase:'MD — Previa (llegada al estadio)',
-   label:'Entrevista llegada al estadio — 1 jugador',
-   sub:'Al bajar del autobús · 1 jugador seleccionado · Máx. 90 seg · Uni-flash area · Para MP del país (RH)',
-   hasDT:false, hasPlayers:true, playerCount:1, cat:'entrevista', art:'TAM p.73'},
-
-  {id:'md-precal',   fase:'MD — Previa (KO-75\' a KO-45\')',
-   label:'Entrevista pre-calentamiento — DT',
-   sub:'Tras anunciar alineación, entre KO-75\' y KO-45\' · Máx. 90 seg · Uni-flash area · Solo DT (no AT) · A DIRECTV (Majo Paiva)',
-   hasDT:true, hasPlayers:false, playerCount:0, cat:'entrevista', art:'TAM p.73'},
-
-  {id:'md-ht',       fase:'MD — Entretiempo',
-   label:'Entrevista entretiempo',
-   sub:'Al inicio del descanso, camino al vestuario · Máx. 60 seg · Cuerpo técnico o jugador · A Canal 5',
-   hasDT:true, hasPlayers:true, playerCount:1, cat:'entrevista', art:'TAM p.73'},
-
-  {id:'md-flash',    fase:'MD — Post-partido (1-5 min tras pitido)',
-   label:'Multi-flash en cancha (pitchside)',
-   sub:'Borde del campo cerca del túnel · DT + 1 jugador · Máx. 90 seg c/u · Para RH · A DIRECTV (Majo Paiva) · Primero se atiende y después se va',
-   hasDT:true, hasPlayers:true, playerCount:1, cat:'flash', art:'TAM p.73'},
-
-  {id:'md-tunel',    fase:'MD — Post-partido (inmediatamente)',
-   label:'Uni-flash túnel — DT y jugadores',
-   sub:'Área del túnel · DT (mín. 4 estaciones) y jugadores seleccionados · Entrevistas unilaterales para distintos RH · Máx. 90 seg c/u · Medios: ESPN Argentina, Canal 5, MEDIAPRO España, FIFAtv, BEIN Catar (sin DIRECTV) · Margen de 15 min post-partido (se puede pasar antes por el vestuario, 1 min de ida y vuelta)',
-   hasDT:true, hasPlayers:true, playerCount:2, cat:'flash', art:'TAM p.74'},
-
-  {id:'md-mix-est',  fase:'MD — Zona mixta',
-   label:'Zona mixta',
-   sub:'Estación: GF/R32 2 titulares · R16+ 3 titulares · POTM si es uruguayo · 5-7 min c/u · AV disponible | Paso lineal: todo el plantel · No obligados a hablar pero se recomienda · Máx. 60 min post-partido',
-   hasDT:false, hasPlayers:true, playerCount:2, cat:'mixta', art:'TAM p.74'},
-
-  {id:'md-conf-post',fase:'MD — Post-partido (15-30 min)',
-   label:'Conferencia de prensa post-partido',
-   sub:'DT obligatorio · Arranca 15-20 min tras el pitido · Duración 20-25 min · Sala de prensa',
-   hasDT:true, hasPlayers:false, playerCount:0, cat:'conferencia', art:'TAM p.74',
-   sessions:[
-     {id:'conf-dt', label:'DT', isDT:true, defaultDT:'bielsa'},
-   ]},
-
-  {id:'md-mvp-attn',  fase:'MD — Post-partido',
-   label:'Atención del MVP — Player of the Match (FIFA)',
-   sub:'Solo si el premiado es un jugador uruguayo · Entrevista breve + foto con el trofeo POTM · Designado por FIFA al término del partido · Coordinación directa con el FIFA Media Officer',
-   hasDT:false, hasPlayers:true, playerCount:1, cat:'flash', oblig:true, canRival:true},
-];
-
-// Lookup checkId → ¿es obligatoria FIFA? (default true salvo oblig:false explícito)
-const CHK_ITEM_OBLIG={};
-[...CL_LLEGADA,...CL_MATCH].forEach(it=>{CHK_ITEM_OBLIG[it.id]=it.oblig!==false;});
 
 const CAT_STYLE = {
   entrevista:{label:'Entrevista', cls:''},
@@ -2388,152 +2217,6 @@ function evSortKey(date,e){
 // tentativo (a confirmar), pero igual se ordena según ese horario.
 function isDraftTime(h){return /[~?]/.test(h||'')}
 
-// Cross-day event groups: {groupId: [{date, idx},...]}
-const EVENT_GROUPS={
-  'fifa-tv-crew':[
-    {date:'2026-06-12',idx:1, chk:{matchId:'uru-ksa',actId:'md2-crew',sessId:'s1'}},
-    {date:'2026-06-13',idx:1, chk:{matchId:'uru-ksa',actId:'md2-crew',sessId:'s2'}},
-    {date:'2026-06-13',idx:2, chk:{matchId:'uru-ksa',actId:'md2-crew',sessId:'s3'}},
-    {date:'2026-06-13',idx:3, chk:{matchId:'uru-ksa',actId:'md2-crew',sessId:'s4'}},
-  ],
-  'fifa-tv-crew-dt':[
-    {date:'2026-06-13',idx:4, chk:{matchId:'uru-ksa',actId:'md2-crew',sessId:'s-dt'}},
-  ],
-  'fifa-tv-crew-cpv':[
-    {date:'2026-06-18',idx:10, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s1'}},
-    {date:'2026-06-18',idx:11, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s2'}},
-    {date:'2026-06-18',idx:12, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s3'}},
-    {date:'2026-06-19',idx:12, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s4'}},
-  ],
-  'fifa-tv-crew-cpv-dt':[
-    {date:'2026-06-18',idx:13, chk:{matchId:'uru-cpv',actId:'md2-crew',sessId:'s-dt'}},
-  ],
-  'fifa-tv-crew-esp':[
-    {date:'2026-06-22',idx:2, chk:{matchId:'uru-esp',actId:'md2-crew',sessId:'s1'}},
-    {date:'2026-06-23',idx:1, chk:{matchId:'uru-esp',actId:'md2-crew',sessId:'s2'}},
-    {date:'2026-06-23',idx:2, chk:{matchId:'uru-esp',actId:'md2-crew',sessId:'s3'}},
-    {date:'2026-06-23',idx:3, chk:{matchId:'uru-esp',actId:'md2-crew',sessId:'s4'}},
-  ],
-  'fifa-tv-crew-esp-dt':[
-    {date:'2026-06-23',idx:4, chk:{matchId:'uru-esp',actId:'md2-crew',sessId:'s-dt'}},
-  ],
-};
-// Devuelve la posición cronológica (1-based) de (date,idx) dentro de su EVENT_GROUPS,
-// ordenando por fecha y horario real (incluye overrides de hora). null si el grupo
-// tiene 1 solo miembro (no aplica numeración) o no se encuentra.
-function getGroupSessionRank(date,idx,groupId){
-  const members=EVENT_GROUPS[groupId];
-  if(!members||members.length<=1)return null;
-  const withTimes=members.map(m=>{
-    const h=getDayEventByIdx(m.date,m.idx)?.h;
-    return{m,date:m.date,mins:parseEvTime(getCalTime(m.date,m.idx,h))};
-  });
-  const sorted=[...withTimes].sort((a,b)=>a.date===b.date?a.mins-b.mins:(a.date<b.date?-1:1));
-  const rank=sorted.findIndex(x=>x.m.date===date&&x.m.idx===idx);
-  return rank===-1?null:rank+1;
-}
-
-// Sincronización calendario ↔ checklist para grupos vinculados
-let _syncLock=false;
-function syncEvToChkSession(date,idx,evStatus){
-  if(_syncLock)return;
-  // Session-based sync via EVENT_GROUPS
-  const members=Object.values(EVENT_GROUPS).flat();
-  const m=members.find(x=>x.date===date&&x.idx===idx);
-  if(m?.chk){
-    const {matchId,actId,sessId}=m.chk;
-    const items=[...CL_LLEGADA,...CL_MATCH];
-    const item=items.find(i=>i.id===actId);
-    if(item?.sessions){
-      const s=getSessionData(matchId,actId,sessId);
-      const newDone=(evStatus==='done');
-      if(s.done!==newDone){s.done=newDone;_syncLock=true;_saveSessionData(matchId,actId,sessId,s,item.sessions);_syncLock=false;}
-    }
-    return;
-  }
-  // Direct chkId sync: event has chkId property
-  const ev=getDayEventByIdx(date,idx);
-  if(!ev?.chkId)return;
-  // CL_LLEGADA items (arr-ent, arr-media) se almacenan bajo 'llegada', no bajo el partido del día
-  const _llegadaIds=new Set(CL_LLEGADA.map(i=>i.id));
-  const matchId=_llegadaIds.has(ev.chkId)?'llegada':getMatchIdForDate(date);
-  if(!matchId)return;
-  const newDone=(evStatus==='done');
-  const allItems=[...CL_LLEGADA,...CL_MATCH];
-  const item=allItems.find(i=>i.id===ev.chkId);
-  _syncLock=true;
-  if(item?.sessions){
-    // Distribuir participantes del evento a las sesiones del ítem
-    const pts=getEvParts()[evKey(date,idx)]||[];
-    const dtParts=pts.filter(x=>x.startsWith('dt_')).map(x=>x.slice(3));
-    const pNums=pts.filter(x=>x.startsWith('p_')).map(x=>parseInt(x.slice(2)));
-    item.sessions.forEach(sess=>{
-      const s=getSessionData(matchId,ev.chkId,sess.id);
-      if(sess.isStep){
-        // Sesiones de paso (stand-ups) — se marcan done junto con el evento
-        if(s.done!==newDone){s.done=newDone;_saveSessionData(matchId,ev.chkId,sess.id,s,item.sessions);}
-      } else if(sess.isDT){
-        // Sesión del DT
-        const newDt=dtParts[0]||s.dt||'';
-        if(s.done!==newDone||s.dt!==newDt){s.done=newDone;s.dt=newDt;_saveSessionData(matchId,ev.chkId,sess.id,s,item.sessions);}
-      } else {
-        // Sesión de jugador
-        const newPlayers=pNums.length?pNums:(s.players||[]);
-        if(s.done!==newDone||JSON.stringify(s.players)!==JSON.stringify(newPlayers)){
-          s.done=newDone;s.players=newPlayers;_saveSessionData(matchId,ev.chkId,sess.id,s,item.sessions);
-        }
-      }
-    });
-  } else {
-    const data=getItemData(matchId,ev.chkId);
-    if(data.done!==newDone){data.done=newDone;setItemData(matchId,ev.chkId,data);}
-  }
-  _syncLock=false;
-  // Re-render checklist item if visible
-  const el=document.getElementById(`ci-${matchId}-${ev.chkId}`);
-  if(el&&item){const newEl=buildChkItem(matchId,item);if(el.classList.contains('open'))newEl.classList.add('open');el.replaceWith(newEl);}
-  refreshChkProgress(matchId);
-}
-function syncChkSessionToEv(matchId,actId,sessId,done){
-  if(_syncLock)return;
-  const members=Object.values(EVENT_GROUPS).flat();
-  const m=members.find(x=>x.chk?.matchId===matchId&&x.chk?.actId===actId&&x.chk?.sessId===sessId);
-  if(!m)return;
-  const ev=getEvStatus();
-  const k=evKey(m.date,m.idx);
-  const cur=ev[k]||'';
-  const target=done?'done':'';
-  if(cur===target)return;
-  if(target)ev[k]=target; else delete ev[k];
-  _syncLock=true;
-  setEvStatus_store(ev);
-  // re-render el evento en el calendario si está visible
-  const day=CALENDAR_DAYS.find(d=>d.date===m.date);
-  if(day){
-    const wrap=document.getElementById(`cev-${m.date}-${m.idx}`);
-    if(wrap){
-      const html=buildEventsHtml({...day,eventos:[getDayEventByIdx(m.date,m.idx)]},m.idx);
-      const tmp=document.createElement('div');tmp.innerHTML=html;
-      const el=tmp.firstElementChild;if(el)wrap.replaceWith(el);
-    }
-  }
-  _syncLock=false;
-}
-
-function getGroupPairBar(groupId){
-  const members=EVENT_GROUPS[groupId]||[];
-  const n=members.length;
-  const ev=getEvStatus();
-  const doneCount=members.filter(m=>ev[evKey(m.date,m.idx)]==='done').length;
-  const id=`epb-${groupId}-${members.map(m=>m.date+m.idx).join('-')}`;
-  if(doneCount===n){
-    return`<div class="ev-pair-bar done" id="${id}"><span class="ev-pair-dot done-both"></span>📺 FIFA TV Crew · ${n}/${n} sesiones · <b>Obligación reglamentaria cumplida ✓</b></div>`;
-  } else if(doneCount>0){
-    return`<div class="ev-pair-bar partial" id="${id}"><span class="ev-pair-dot done-one"></span>📺 FIFA TV Crew · ${doneCount}/${n} sesiones · falta ${n-doneCount}</div>`;
-  } else {
-    return`<div class="ev-pair-bar pending" id="${id}"><span class="ev-pair-dot pending"></span>📺 FIFA TV Crew · ${n} sesiones reglamentarias · pendiente</div>`;
-  }
-}
 function getEvNotes(){return stor.get(KEvN,{})}
 function setEvNotes(v){stor.set(KEvN,v)}
 
@@ -2541,44 +2224,6 @@ const KEvLink='auf4_evlink';
 function getEvLinks(){return stor.get(KEvLink,{})}
 function setEvLinks(v){stor.set(KEvLink,v)}
 
-// Vínculos manuales checklist ↔ evento del calendario
-// Formato: { 'date_idx': { matchId, actId } }
-const KChkEvLink='auf4_chk_evlink';
-function getChkEvLinks(){return stor.get(KChkEvLink,{});}
-// Exclusiones de vínculos AUTO (el usuario los descartó manualmente)
-const KChkEvExclude='auf4_chk_evexclude';
-function getChkEvExcludes(){return stor.get(KChkEvExclude,{});}
-function addChkEvExclude(matchId,actId,date,idx){
-  if(IS_RESTRICTED)return;
-  const ex=getChkEvExcludes();
-  ex[`${matchId}__${actId}__${evKey(date,idx)}`]=true;
-  stor.set(KChkEvExclude,ex);
-  cloudPushDebounced(KChkEvExclude,ex);
-}
-function removeChkEvExclude(matchId,actId,date,idx){
-  if(IS_RESTRICTED)return;
-  const ex=getChkEvExcludes();
-  delete ex[`${matchId}__${actId}__${evKey(date,idx)}`];
-  stor.set(KChkEvExclude,ex);
-  cloudPushDebounced(KChkEvExclude,ex);
-}
-function saveChkEvLink(matchId,actId,date,idx){
-  if(IS_RESTRICTED)return;
-  const links=getChkEvLinks();
-  links[evKey(date,idx)]={matchId,actId};
-  stor.set(KChkEvLink,links);
-  cloudPushDebounced(KChkEvLink,links);
-  rerenderChkItem(matchId,actId);
-}
-function removeChkEvLink(date,idx){
-  if(IS_RESTRICTED)return;
-  const links=getChkEvLinks();
-  const removed=links[evKey(date,idx)];
-  delete links[evKey(date,idx)];
-  stor.set(KChkEvLink,links);
-  cloudPushDebounced(KChkEvLink,links);
-  if(removed) rerenderChkItem(removed.matchId,removed.actId);
-}
 function saveEvLink(date,idx,input){
   const l=getEvLinks();
   const k=evKey(date,idx);
@@ -2799,16 +2444,6 @@ function getPlayerPhoto(num,def){const ph=getPhotos();return ph[num]||def||''}
 function getPartVal(num,matchId){const p=getPart();return(p[num]&&p[num][matchId])||''}
 function setPartVal(num,matchId,val){const p=getPart();if(!p[num])p[num]={};p[num][matchId]=val;setPart(p)}
 
-function getItemData(matchId,actId){
-  const c=getChk();
-  return (c[matchId]&&c[matchId][actId])||{done:false,dt:'',players:[],note:''};
-}
-function setItemData(matchId,actId,data){
-  const c=getChk();
-  if(!c[matchId])c[matchId]={};
-  c[matchId][actId]=data;
-  setChk(c);
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TOAST
@@ -2841,7 +2476,6 @@ function showTab(id){
   if(id==='inicio'){renderInicio()}
   if(id==='disponibilidad'){renderDisponibilidad()}
   if(id==='calendario'){renderCal()}
-  if(id==='partido'){resyncAllEvToChk();renderChecklist(curMatch)}
   if(id==='fixture'){renderFixture();fetchFromESPN();}
   if(id==='partidos'){renderPartidos()}
   if(id==='plantel'){renderPlantel()}
@@ -2856,6 +2490,17 @@ function showTab(id){
 // ═══════════════════════════════════════════════════════════════════════════
 // INICIO
 // ═══════════════════════════════════════════════════════════════════════════
+// Checklist eliminado — arrays vacíos para compatibilidad con Stats/Disponibilidad
+const CL_LLEGADA = [];
+const CL_MATCH = [];
+const MATCH_RANGES = {
+  'uru-ksa':{from:'2026-06-10',to:'2026-06-15'},
+  'uru-cpv':{from:'2026-06-16',to:'2026-06-21'},
+  'uru-esp':{from:'2026-06-22',to:'2026-06-26'},
+};
+const CHK_ITEM_OBLIG = {};
+function getMatchRanges(){ return MATCH_RANGES; }
+
 const MOMENTOS = [
   {id:'llegada', label:'Llegada',          sub:'10 jun · Cancún / Mayakoba',  iso:null,  items:CL_LLEGADA},
   {id:'uru-ksa', label:'vs. Arabia Saudita',sub:'15 jun · Miami',             iso:'sa',  items:CL_MATCH},
@@ -2937,7 +2582,6 @@ function renderInicio(){
 
 function goMatch(id){
   selMatch(id,null);
-  showTab('partido');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2998,8 +2642,9 @@ function pShort(p){
   return parts[parts.length-1];
 }
 
+function getPlayerMatchCounts(){ return {}; }
 function buildPlayerChipsHtml(selNums, matchId, onclickFn){
-  const counts=matchId?getPlayerMatchCounts(matchId):{};
+  const counts={};
   const sorted=[...PLAYERS].sort((a,b)=>(counts[a.n]||0)-(counts[b.n]||0));
   return sorted.map(p=>{
     const sel=selNums.includes(p.n);
@@ -3072,11 +2717,6 @@ function buildEventsHtml(day, startIdx=0){
       ?e.txt.replace(/—\s*abierto[^·]*/i,'— ').replace(/primeros 15 min abiertos\s*·?\s*/i,'').trim()
       :e.txt;
     let displayTxt=getEvTxt(dataDate,realIdx,baseTxt);
-    // Renumerar "sesión N/M" dinámicamente según el orden cronológico real del grupo
-    if(e.group&&/sesión\s+\d+\/(\d+)/i.test(displayTxt)){
-      const rank=getGroupSessionRank(dataDate,realIdx,e.group);
-      if(rank!=null) displayTxt=displayTxt.replace(/sesión\s+\d+\/(\d+)/i,`sesión ${rank}/$1`);
-    }
     const statusClass=s==='done'?'ev-done':s==='sus'?'ev-sus':s==='no'?'ev-no':'';
     const doneIcon=s==='done'?'<span class="ev-done-icon">✓</span>':s==='sus'?'<span style="font-size:11px;color:var(--gold);font-weight:800">⏸</span>':s==='no'?'<span style="font-size:11px;color:var(--red);font-weight:800">✗</span>':'';
 
@@ -3106,7 +2746,7 @@ function buildEventsHtml(day, startIdx=0){
           <div class="ev-txt-wrap">
             <div class="ev-main-txt ${statusClass}">
               ${partidoMatchId
-                ?`<span class="ev-editable-txt" title="Ver información del partido" onclick="goToPartido('${partidoMatchId}')" style="cursor:pointer;font-weight:700">${displayTxt} <span style="font-size:9.5px;color:var(--cel);font-weight:600">→ ver partido</span></span>`
+                ?`<span class="ev-editable-txt" style="font-weight:700">${displayTxt}</span>`
                 :`<span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${dataDate}',${realIdx},this)">${displayTxt}</span>`
               }
               ${(()=>{
@@ -3160,7 +2800,6 @@ function buildEventsHtml(day, startIdx=0){
               ...dtNames.map(n=>`<span style="color:var(--navy);background:rgba(15,29,46,.08);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`),
               ...(!e.isDT?playerNames:[]).map(n=>`<span style="color:var(--cel-dk);background:var(--cel-lt);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`)
             ].join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
-            ${e.group?getGroupPairBar(e.group):''}
           </div>
           ${isCustom?`<button onclick="deleteDayAct('${dataDate}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
             :(e.tipo==='team'||e.tipo==='sched'||e.tipo==='viaje')?`<button onclick="hideEvent('${dataDate}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
@@ -3897,8 +3536,6 @@ function setEvSt(date,idx,val,btn){
   const k=evKey(date,idx);
   ev[k]=(ev[k]===val)?'':val; // toggle off if same
   setEvStatus_store(ev);
-  try{ syncEvToChkSession(date,idx,ev[k]||''); }catch(err){ console.error('syncEvToChkSession failed',err); }
-  try{ aggregateMatchActivities(); }catch(err){ console.error('aggregateMatchActivities failed',err); }
   // rebuild this event row (y sus pares de grupo); si algo falla, refrescar todo el calendario como respaldo
   try{
     const day=CALENDAR_DAYS.find(d=>d.date===date);
@@ -3916,22 +3553,6 @@ function setEvSt(date,idx,val,btn){
         }
         wrap.replaceWith(newEl||wrap);
       }
-    }
-    // Re-render peer events in the same group
-    const changedEv=getDayEventByIdx(date,idx);
-    if(changedEv?.group){
-      (EVENT_GROUPS[changedEv.group]||[]).forEach(m=>{
-        if(m.date===date&&m.idx===idx)return; // skip self
-        const peerDay=CALENDAR_DAYS.find(d=>d.date===m.date);
-        if(!peerDay)return;
-        const peerWrap=document.getElementById(`cev-${m.date}-${m.idx}`);
-        if(peerWrap){
-          const peerHtml=buildEventsHtml({...peerDay,eventos:[getDayEventByIdx(m.date,m.idx)]},m.idx);
-          const tmp=document.createElement('div');tmp.innerHTML=peerHtml;
-          const newEl=tmp.firstElementChild;
-          if(newEl)peerWrap.replaceWith(newEl);
-        }
-      });
     }
   }catch(err){
     console.error('setEvSt: fallo al refrescar la fila, se refresca todo el calendario',err);
@@ -4037,89 +3658,6 @@ function matchForDate(date){
   return null;
 }
 
-// Devuelve el Set de actIds que tienen al menos un vínculo explícito de calendario
-// para el matchId dado. Solo estos ítems son visibles en el checklist.
-function getLinkedItemsForMatch(matchId){
-  const linked=new Set();
-  // 1. EVENT_GROUPS (sesiones de md2-crew, etc.)
-  Object.values(EVENT_GROUPS).flat().forEach(({chk})=>{
-    if(chk.matchId===matchId) linked.add(chk.actId);
-  });
-  // 2. chkId explícito en eventos estáticos del calendario (respetando exclusiones)
-  const CL_LLEGADA_IDS=new Set(CL_LLEGADA.map(i=>i.id));
-  const excludes=getChkEvExcludes();
-  if(matchId==='llegada'){
-    CALENDAR_DAYS.filter(d=>d.date==='2026-06-10').forEach(day=>
-      day.eventos.forEach((ev,idx)=>{
-        if(!ev.chkId||!CL_LLEGADA_IDS.has(ev.chkId))return;
-        if(excludes[`${matchId}__${ev.chkId}__${evKey(day.date,idx)}`])return;
-        linked.add(ev.chkId);
-      })
-    );
-  } else {
-    const range=MATCH_RANGES[matchId];
-    if(range){
-      CALENDAR_DAYS.filter(d=>d.date>=range.from&&d.date<=range.to).forEach(day=>
-        day.eventos.forEach((ev,idx)=>{
-          if(!ev.chkId||CL_LLEGADA_IDS.has(ev.chkId))return;
-          if(excludes[`${matchId}__${ev.chkId}__${evKey(day.date,idx)}`])return;
-          linked.add(ev.chkId);
-        })
-      );
-    }
-  }
-  // 3. Links manuales (KChkEvLink)
-  Object.values(getChkEvLinks()).forEach(link=>{
-    if(link.matchId===matchId) linked.add(link.actId);
-  });
-  return linked;
-}
-
-// Encuentra todos los eventos de calendario que corresponden a un checkId+matchId
-// Devuelve array de {date, idx}
-function calEventsForCheckId(matchId, checkId){
-  const evParts=getEvParts();
-  const results=[];
-  CALENDAR_DAYS.forEach(day=>{
-    if(matchForDate(day.date)!==matchId) return;
-    const allEvs=[...(day.eventos||[]),...(getDayActs()[day.date]||[])];
-    allEvs.forEach((ev,realIdx)=>{
-      if(checkIdForEventEff(day.date,realIdx,ev)===checkId) results.push({date:day.date,idx:realIdx});
-    });
-  });
-  return results;
-}
-
-// Sync jugadores del checklist → eventos de calendario correspondientes
-function syncChkToCalEv(matchId, checkId, players){
-  const targets=calEventsForCheckId(matchId,checkId);
-  if(!targets.length) return;
-  const evp=getEvParts();
-  targets.forEach(({date,idx})=>{
-    const k=evKey(date,idx);
-    const cur=evp[k]||[];
-    // Preservar chips de DT; reemplazar solo los de jugador
-    const dtChips=cur.filter(x=>x.startsWith('dt_'));
-    evp[k]=[...dtChips,...players.map(n=>`p_${n}`)];
-  });
-  stor.set(KEvP,evp);
-}
-
-// Devuelve el checkId para un evento de calendario, solo por vínculos explícitos.
-// Prioridad: link manual > chkId en evento estático.
-// Ya no se usa inferencia por texto.
-function checkIdForEventEff(date,idx,e){
-  const manualLink=getChkEvLinks()[evKey(date,idx)];
-  if(manualLink) return manualLink.actId;
-  if(e.chkId) return e.chkId;
-  return null;
-}
-
-// Eliminado: aggregateMatchActivities — reemplazado por vínculos explícitos.
-// El estado del checklist deriva solo de syncEvToChkSession (vía chkId/EVENT_GROUPS/KChkEvLink).
-function aggregateMatchActivities(){}
-function syncEvToChk(){}
-
 function toggleEvPart(date,idx,partKey,chip){
   const p=getEvParts();
   const k=evKey(date,idx);
@@ -4131,7 +3669,6 @@ function toggleEvPart(date,idx,partKey,chip){
     chip.classList.add(partKey.startsWith('dt_')?'sel-bielsa':'sel');
   }
   setEvParts(p);
-  try{ syncEvToChk(date,idx,p); }catch(err){ console.error('syncEvToChk failed',err); }
   // Si es el evento MVP, sincronizar con KMvp para que Stats/Inicio lo reflejen
   try{
     const _day=CALENDAR_DAYS.find(d=>d.date===date);
@@ -4170,738 +3707,17 @@ function toggleEvPart(date,idx,partKey,chip){
   toast(!already?`Agregado: ${partKey.startsWith('dt_')?DT_STAFF.find(s=>s.id===partKey.slice(3))?.name:((_pl=PLAYERS.find(pl=>pl.n===parseInt(partKey.slice(2))))=>_pl?pShort(_pl):partKey)()}`:'Quitado');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CHECKLIST
-// ═══════════════════════════════════════════════════════════════════════════
 let curMatch=(()=>{const matches=[{id:'uru-ksa',date:'2026-06-15'},{id:'uru-cpv',date:'2026-06-21'},{id:'uru-esp',date:'2026-06-26'}];const next=matches.find(m=>m.date>=TODAY);return next?next.id:matches[matches.length-1].id;})();
-
-function renderMatchSelBtns(activeId){
-  const cont=document.getElementById('match-sel-btns');
-  if(!cont)return;
-  cont.innerHTML=MOMENTOS.filter(m=>m.id!=='llegada').map(m=>`
-    <button class="ms-btn${m.id===activeId?' active':''}"
-      onclick="selMatch('${m.id}',this)"
-      style="display:inline-flex;align-items:center;gap:6px">
-      ${m.iso?flagImg(m.iso,16):''}
-      ${m.label} · ${m.sub}
-    </button>`).join('');
-}
-
-function goToPartido(matchId){
-  showTab('partido');
-  selMatch(matchId,null);
-  setTimeout(()=>document.getElementById('tab-partido')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
-}
-
 function selMatch(id,btn){
   curMatch=id;
   document.querySelectorAll('#match-sel-btns .ms-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  else renderMatchSelBtns(id);
-  renderChecklist(id);
   renderLineup(id);
 }
 
-function clearMatchData(matchId){
-  if(!confirm('¿Reiniciar todos los datos del checklist de este partido? No se puede deshacer.')) return;
-  const c=getChk();
-  delete c[matchId];
-  stor.set(KC,c);
-  renderChecklist(matchId);
-}
-
-function resetMatchRange(matchId){
-  const saved=stor.get(KMatchRanges,{});
-  delete saved[matchId];
-  stor.set(KMatchRanges,saved);
-  cloudPushDebounced(KMatchRanges,saved);
-  renderChecklist(matchId);
-}
-
-function renderChecklist(matchId){
-  const allItems=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  // Solo mostrar ítems con al menos un vínculo explícito de calendario
-  const linked=getLinkedItemsForMatch(matchId);
-  const items=allItems.filter(i=>linked.has(i.id));
-
-  const done=items.filter(i=>{
-    if(i.sessions){const c=getSessionsDoneCount(matchId,i.id,i.sessions);return c===i.sessions.length;}
-    return getItemData(matchId,i.id).done;
-  }).length;
-  const pct=items.length?Math.round(done/items.length*100):0;
-
-  const range=_rangeForMatch(matchId)||{from:'',to:''};
-  const fmtD=d=>d?d.slice(8)+'/'+d.slice(5,7):'';
-  document.getElementById('chk-progress').innerHTML=`
-    <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:13px 14px">
-      <div class="prog-label" style="margin-bottom:6px">
-        <span style="font-size:13px;font-weight:800">${done===items.length&&items.length?'✅ Todas completadas':items.length-done+' pendientes'}</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:13px;font-weight:800;color:${done===items.length&&items.length?'var(--green)':'var(--cel-dk)'}">${done}/${items.length}</span>
-          <button onclick="clearMatchData('${matchId}')" style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit" title="Reiniciar datos de este partido">↺ Reset</button>
-        </div>
-      </div>
-      <div class="prog-bar" style="height:7px;margin-bottom:10px"><div class="prog-fill${done===items.length&&items.length?'':' partial'}" style="width:${pct}%"></div></div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">📅 Período</span>
-        <input type="date" id="chk-range-from-${matchId}" value="${range.from}"
-          onchange="setMatchRange('${matchId}',this.value,document.getElementById('chk-range-to-${matchId}').value);renderChecklist('${matchId}')"
-          style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;color:var(--fg);background:var(--white)">
-        <span style="font-size:11px;color:var(--muted)">→</span>
-        <input type="date" id="chk-range-to-${matchId}" value="${range.to}"
-          onchange="setMatchRange('${matchId}',document.getElementById('chk-range-from-${matchId}').value,this.value);renderChecklist('${matchId}')"
-          style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;color:var(--fg);background:var(--white)">
-        ${range.from!==MATCH_RANGES[matchId]?.from||range.to!==MATCH_RANGES[matchId]?.to
-          ?`<button onclick="resetMatchRange('${matchId}')" style="font-size:10px;padding:2px 7px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit" title="Restaurar fechas por defecto">↺ defecto</button>`:''}
-      </div>
-    </div>`;
-
-  // group by fase
-  const phases=[],phaseMap={};
-  items.forEach(it=>{
-    if(!phaseMap[it.fase]){phaseMap[it.fase]=[];phases.push(it.fase)}
-    phaseMap[it.fase].push(it);
-  });
-
-  const con=document.getElementById('chk-container');
-  con.innerHTML='';
-  if(!items.length){
-    con.innerHTML='<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center">Sin ítems vinculados al calendario</div>';
-    return;
-  }
-  phases.forEach(fase=>{
-    const fi=phaseMap[fase];
-    const fd=fi.filter(i=>{
-      if(i.sessions){const c=getSessionsDoneCount(matchId,i.id,i.sessions);return c===i.sessions.length;}
-      return getItemData(matchId,i.id).done;
-    }).length;
-    const sec=document.createElement('div');
-    sec.style.marginBottom='1rem';
-    sec.innerHTML=`<div class="chk-phase"><span>${fase}</span><span class="chk-phase-done">${fd}/${fi.length}</span></div>`;
-    fi.forEach(item=>{
-      sec.appendChild(buildChkItem(matchId,item));
-    });
-    con.appendChild(sec);
-  });
-}
-
-function buildChkItem(matchId,item){
-  const data=getItemData(matchId,item.id);
-  const div=document.createElement('div');
-
-  // Items with sub-sessions: compute checkbox state from sessions
-  let cbClass='chk-cb auto', doneClass='';
-  const rivalWon=!!(data.rivalWon);
-  if(item.sessions){
-    const cnt=getSessionsDoneCount(matchId,item.id,item.sessions);
-    if(cnt===item.sessions.length){cbClass+=' checked';doneClass=' done';}
-    else if(cnt>0){cbClass+=' partial';}
-    data.done=(cnt===item.sessions.length);
-  } else {
-    if(rivalWon){cbClass+=' rival';doneClass=' rival';}
-    else if(data.done){cbClass+=' checked';doneClass=' done';}
-  }
-
-  div.className='chk-item'+doneClass;
-  div.id=`ci-${matchId}-${item.id}`;
-
-  const summary=item.sessions?_buildSessionsSummary(matchId,item):buildSummary(data,item);
-  const cbClick=item.sessions||rivalWon?'':`event.stopPropagation();toggleDone('${matchId}','${item.id}')`;
-
-  const rivalBtn=item.canRival?`<button onclick="event.stopPropagation();toggleRivalWon('${matchId}','${item.id}')" style="margin-top:8px;font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid ${rivalWon?'#C0DD97':'var(--border)'};background:${rivalWon?'#EAF3DE':'transparent'};color:${rivalWon?'#27500A':'var(--muted)'};cursor:pointer;font-family:inherit">${rivalWon?'✓ Lo ganó el rival — N/A':'🏆 Lo ganó el rival'}</button>`:'';
-
-  div.innerHTML=`
-    <div class="chk-item-hdr" onclick="toggleChkOpen('${matchId}','${item.id}')">
-      <div class="${cbClass}" onclick="${cbClick}" title="${rivalWon?'El MVP fue del rival — no aplica':item.sessions?'Se marca automáticamente al completar las sesiones':''}"></div>
-      <div class="chk-main">
-        <div class="chk-label">${item.art?artTagHtml(item.art):''}${rivalWon?'<span class="tag" style="background:#EAF3DE;color:#27500A;font-size:9px">Rival — N/A</span>':'<span class="tag tag-oblig">Obligatorio</span>'}${item.label}</div>
-        <div class="chk-sub">${item.sub}</div>
-        ${summary?`<div class="chk-summary">↳ ${summary}</div>`:''}
-      </div>
-      <i class="ti ti-chevron-down chk-chevron"></i>
-    </div>
-    <div class="chk-body">
-      <div class="chk-body-inner">
-        ${item.sessions?`
-        <div>
-          <div class="chk-sessions-hdr">
-            <span>Sesiones</span>
-            <span class="chk-sessions-prog${getSessionsDoneCount(matchId,item.id,item.sessions)===item.sessions.length?' done':''}">${getSessionsDoneCount(matchId,item.id,item.sessions)}/${item.sessions.length} completadas</span>
-          </div>
-          ${buildSessionsHtml(matchId,item.id,item.sessions)}
-        </div>`:''}
-        ${!item.sessions&&item.hasDT&&!rivalWon?buildDTSection(matchId,item.id,data):''}
-        ${!item.sessions&&item.hasPlayers&&!rivalWon?buildPlayerSection(matchId,item.id,data,item.playerCount):''}
-        ${rivalBtn}
-        <div${rivalWon?' style="margin-top:8px"':''}>
-          <label style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">📝 Nota general</label>
-          <textarea class="chk-note${data.note?' has-note':''}"
-            placeholder="Observaciones, imprevistos..."
-            rows="2"
-            oninput="saveChkNote('${matchId}','${item.id}',this)"
-          >${data.note||''}</textarea>
-        </div>
-        <div id="chk-evlink-${matchId}-${item.id}">
-          ${buildChkEvLinkHtml(matchId,item.id)}
-        </div>
-      </div>
-    </div>`;
-  return div;
-}
-
-function rerenderChkItem(matchId,actId){
-  const item=[...CL_LLEGADA,...CL_MATCH].find(i=>i.id===actId);
-  const el=document.getElementById(`ci-${matchId}-${actId}`);
-  if(!el||!item)return;
-  const wasOpen=el.classList.contains('open');
-  const newEl=buildChkItem(matchId,item);
-  if(wasOpen)newEl.classList.add('open');
-  el.replaceWith(newEl);
-}
-
-// Devuelve rango de fechas para un matchId (incluye 'llegada'), usando rangos editables
-function _rangeForMatch(matchId){
-  if(matchId==='llegada') return {from:'2026-06-10',to:'2026-06-10'};
-  return getMatchRanges()[matchId]||null;
-}
-
-// Devuelve todos los eventos de calendario vinculados automáticamente (vía chkId) a un ítem
-// excluye los que el usuario descartó explícitamente
-function _autoLinkedEvs(matchId,actId,includeExcluded=false){
-  const range=_rangeForMatch(matchId);
-  if(!range)return[];
-  const excludes=getChkEvExcludes();
-  const result=[];
-  CALENDAR_DAYS.filter(d=>d.date>=range.from&&d.date<=range.to).forEach(day=>{
-    const customActs=getDayActs()[day.date]||[];
-    const allEvs=[...(day.eventos||[]),...customActs];
-    allEvs.forEach((ev,idx)=>{
-      if(ev.chkId!==actId)return;
-      const excluded=!!excludes[`${matchId}__${actId}__${evKey(day.date,idx)}`];
-      if(excluded&&!includeExcluded)return;
-      result.push({date:day.date,idx,txt:getEvTxt(day.date,idx,ev.txt||''),h:ev.h,dayLabel:day.label||day.date,sessId:null,excluded});
-    });
-  });
-  return result;
-}
-
-// Devuelve los eventos de calendario vinculados vía EVENT_GROUPS a un ítem (sesiones)
-function _sessionLinkedEvs(matchId,actId){
-  const result=[];
-  Object.values(EVENT_GROUPS).flat().forEach(entry=>{
-    if(entry.chk?.matchId!==matchId||entry.chk?.actId!==actId)return;
-    const day=CALENDAR_DAYS.find(d=>d.date===entry.date);
-    const customActs=getDayActs()[entry.date]||[];
-    const allEvs=[...(day?.eventos||[]),...customActs];
-    const ev=allEvs[entry.idx];
-    if(!ev)return;
-    result.push({date:entry.date,idx:entry.idx,txt:getEvTxt(entry.date,entry.idx,ev.txt||''),h:ev.h,dayLabel:day?.label||entry.date,sessId:entry.chk.sessId});
-  });
-  return result;
-}
-
-function buildChkEvLinkHtml(matchId,actId){
-  const manualLinks=getChkEvLinks();
-  const range=_rangeForMatch(matchId);
-  if(!range)return'';
-
-  // Vínculos automáticos vía chkId en evento estático
-  const autoEvs=_autoLinkedEvs(matchId,actId);
-
-  // Vínculos vía EVENT_GROUPS (sesiones: md2-crew, md1-conf con sessId)
-  const sessEvs=_sessionLinkedEvs(matchId,actId);
-
-  // Vínculos manuales (KChkEvLink)
-  const manualEvs=Object.entries(manualLinks)
-    .filter(([k,v])=>v.matchId===matchId&&v.actId===actId)
-    .map(([k])=>{
-      const [date,idxStr]=k.split('_');
-      const idx=parseInt(idxStr);
-      const day=CALENDAR_DAYS.find(d=>d.date===date);
-      const customActs=getDayActs()[date]||[];
-      const allEvs=[...(day?.eventos||[]),...customActs];
-      const ev=allEvs[idx];
-      return ev?{date,idx,txt:getEvTxt(date,idx,ev.txt||''),h:ev.h,dayLabel:day?.label||date}:null;
-    }).filter(Boolean);
-
-  const sessHtml=sessEvs.map(({date,idx,txt,h,dayLabel,sessId})=>{
-    const sessLabel=sessId?` · ${sessId}`:'';
-    const evStatus=getEvStatus()[evKey(date,idx)]||'';
-    const statusIcon=evStatus==='done'?'✓ ':evStatus==='no'?'✗ ':'⏳ ';
-    return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:var(--cel-lt);border-radius:6px;padding:4px 7px;margin-bottom:3px">
-      <span style="font-size:9px;color:var(--cel-dk);flex-shrink:0;opacity:.7">SESIÓN${sessLabel}</span>
-      <span style="flex:1">${statusIcon}<b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
-    </div>`;
-  }).join('');
-
-  const autoEvsFull=_autoLinkedEvs(matchId,actId,true);
-  const autoHtml=autoEvsFull.map(({date,idx,txt,h,dayLabel,excluded})=>{
-    const evStatus=getEvStatus()[evKey(date,idx)]||'';
-    const statusIcon=evStatus==='done'?'✓ ':evStatus==='no'?'✗ ':'⏳ ';
-    if(excluded){
-      return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:var(--surface);border-radius:6px;padding:4px 7px;margin-bottom:3px;opacity:.5;text-decoration:line-through">
-        <span style="font-size:9px;color:var(--muted);flex-shrink:0;text-decoration:none">AUTO</span>
-        <span style="flex:1">${dayLabel}${h&&h!=='TBD'?' '+h:''} · ${txt}</span>
-        <button onclick="removeChkEvExclude('${matchId}','${actId}','${date}',${idx});rerenderChkItem('${matchId}','${actId}')" style="background:none;border:none;cursor:pointer;color:var(--cel-dk);font-size:10px;padding:0 2px;text-decoration:none" title="Restaurar vínculo AUTO">↺</button>
-      </div>`;
-    }
-    return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:var(--cel-lt);border-radius:6px;padding:4px 7px;margin-bottom:3px">
-      <span style="font-size:9px;color:var(--muted);flex-shrink:0">AUTO</span>
-      <span style="flex:1">${statusIcon}<b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
-      <button onclick="addChkEvExclude('${matchId}','${actId}','${date}',${idx});rerenderChkItem('${matchId}','${actId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px" title="Descartar este vínculo AUTO">✕</button>
-    </div>`;
-  }).join('');
-
-  const manualHtml=manualEvs.map(({date,idx,txt,h,dayLabel})=>{
-    const evStatus=getEvStatus()[evKey(date,idx)]||'';
-    const statusIcon=evStatus==='done'?'✓ ':evStatus==='no'?'✗ ':'⏳ ';
-    return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:#EAF3DE;border-radius:6px;padding:4px 7px;margin-bottom:3px">
-      <span style="font-size:9px;color:#4a7c2f;flex-shrink:0">MANUAL</span>
-      <span style="flex:1">${statusIcon}<b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
-      <button onclick="removeChkEvLink('${date}',${idx});rerenderChkItem('${matchId}','${actId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px" title="Quitar vínculo">✕</button>
-    </div>`;
-  }).join('');
-
-  const noLinks=!autoEvs.length&&!sessEvs.length&&!manualEvs.length;
-
-  return`<div style="margin-top:8px">
-    <label style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">🔗 Evento en calendario</label>
-    ${sessHtml}${autoHtml}${manualHtml}
-    ${noLinks?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Sin vínculo de calendario</div>':''}
-    <button onclick="toggleChkEvLinkPicker('${matchId}','${actId}',this)" style="font-size:11px;padding:4px 10px;border:1px dashed var(--cel);border-radius:6px;background:none;color:var(--cel-dk);cursor:pointer;font-family:inherit">＋ Ajustar vínculo</button>
-    <div id="chk-evpicker-${matchId}-${actId}" style="display:none;margin-top:6px;max-height:220px;overflow-y:auto;border:0.5px solid var(--border);border-radius:8px;padding:4px"></div>
-  </div>`;
-}
-
-function toggleChkEvLinkPicker(matchId,actId,btn){
-  const picker=document.getElementById(`chk-evpicker-${matchId}-${actId}`);
-  if(!picker)return;
-  const isOpen=picker.style.display!=='none';
-  if(isOpen){picker.style.display='none';btn.textContent='＋ Ajustar vínculo';return;}
-  btn.textContent='✕ Cerrar';
-  picker.style.display='block';
-  picker.scrollIntoView({behavior:'smooth',block:'nearest'});
-  const range=_rangeForMatch(matchId);
-  if(!range){picker.innerHTML='<div style="padding:8px;font-size:11px;color:var(--muted)">Rango no encontrado</div>';return;}
-  const days=CALENDAR_DAYS.filter(d=>d.date>=range.from&&d.date<=range.to);
-  const existing=getChkEvLinks();
-  const autoEvSet=new Set(_autoLinkedEvs(matchId,actId).map(e=>evKey(e.date,e.idx)));
-  let rows=[];
-  days.forEach(day=>{
-    const customActs=getDayActs()[day.date]||[];
-    const allEvs=[...day.eventos,...customActs];
-    allEvs.forEach((ev,idx)=>{
-      if(ev.tipo==='viaje'||ev.tipo==='sched'||ev.noParts)return;
-      const k=evKey(day.date,idx);
-      const alreadyLinked=existing[k];
-      const isAutoHere=autoEvSet.has(k);
-      const txt=getEvTxt(day.date,idx,ev.txt||'');
-      const dayLabel=day.label||day.date;
-      rows.push({date:day.date,idx,txt,h:ev.h,dayLabel,alreadyLinked,isAutoHere});
-    });
-  });
-  if(!rows.length){picker.innerHTML='<div style="padding:8px;font-size:11px;color:var(--muted)">No hay eventos de prensa en este período</div>';return;}
-  picker.innerHTML=rows.map(r=>{
-    const isManualHere=r.alreadyLinked&&r.alreadyLinked.matchId===matchId&&r.alreadyLinked.actId===actId;
-    const isLinkedElse=r.alreadyLinked&&!isManualHere;
-    const tag=r.isAutoHere?'<span style="font-size:9px;background:var(--cel-lt);color:var(--cel-dk);border-radius:4px;padding:1px 4px;flex-shrink:0">auto</span>':
-               isManualHere?'<span style="font-size:9px;background:#EAF3DE;color:#4a7c2f;border-radius:4px;padding:1px 4px;flex-shrink:0">✓ manual</span>':'';
-    const disabled=isLinkedElse&&!r.isAutoHere;
-    return`<div onclick="${disabled?'':'saveChkEvLink(\''+matchId+'\',\''+actId+'\',\''+r.date+'\','+r.idx+');toggleChkEvLinkPicker(\''+matchId+'\',\''+actId+'\',this.closest(\'[id]\').previousSibling)'}" style="padding:6px 8px;border-radius:6px;font-size:11px;cursor:${disabled?'default':'pointer'};display:flex;align-items:center;gap:6px;opacity:${disabled?'.4':'1'}" class="${disabled?'':'chk-evpick-row'}">
-      <span style="color:var(--muted);flex-shrink:0;font-size:10px">${r.dayLabel}${r.h&&r.h!=='TBD'?' '+r.h:''}</span>
-      <span style="flex:1">${r.txt}</span>
-      ${tag}
-    </div>`;
-  }).join('');
-}
-
-function _buildSessionsSummary(matchId,item){
-  const parts=item.sessions.map(sess=>{
-    const s=getSessionData(matchId,item.id,sess.id);
-    const done=s.done?'✓':'⏳';
-    let name='';
-    if(sess.isDT){
-      const dtId=s.dt||(sess.defaultDT||'');
-      const dt=DT_STAFF.find(d=>d.id===dtId);
-      name=dt?dt.name:sess.label;
-    } else {
-      const sel=(s.players&&s.players.length)?s.players:(sess.defaultPlayer?[sess.defaultPlayer]:[]);
-      name=sel.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?pShort(p):n}).filter(Boolean).join(', ')||sess.label;
-    }
-    const fecha=(sess.fechas&&sess.fechas[matchId])||sess.fecha||'';
-    return`${done}${fecha?' '+fecha+' ·':''} ${name}`;
-  });
-  return parts.join(' | ');
-}
-
-function buildSummary(data,item){
-  const parts=[];
-  if(item.hasDT&&data.dt){const s=DT_STAFF.find(d=>d.id===data.dt);if(s)parts.push(s.full);}
-  if(data.players&&data.players.length){
-    const names=data.players.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?pShort(p):n}).join(', ');
-    parts.push(names);
-  }
-  if(data.note)parts.push('📝');
-  return parts.join(' · ');
-}
-
-function buildDTSection(matchId,actId,data){
-  return `<div class="dt-section">
-    <label>DT / Cuerpo técnico</label>
-    <div class="dt-btns">
-      ${DT_STAFF.map(s=>`
-        <button class="dt-btn${data.dt===s.id?' sel '+s.cls:''}" onclick="selDT('${matchId}','${actId}','${s.id}',this)">
-          ${data.dt===s.id?'✓ ':''}<strong>${s.name}</strong> <span style="font-weight:400;font-size:10.5px;opacity:.75">${s.role}</span>
-        </button>`).join('')}
-      <button class="dt-btn${data.dt===''?' sel':''}" onclick="selDT('${matchId}','${actId}','',this)">—</button>
-    </div>
-  </div>`;
-}
-
-function buildPlayerSection(matchId,actId,data,count){
-  const sel=data.players||[];
-  const countTxt=count===0?'todos':count===1?'1 jugador':`${count} jugadores`;
-  return `<div class="player-section">
-    <label>👤 Jugadores participantes <span style="font-weight:400;opacity:.7">(esperados: ${countTxt})</span></label>
-    <div class="player-chips" id="pchips-${matchId}-${actId}">
-      ${PLAYERS.map(p=>{
-        const isSel=sel.includes(p.n);
-        const surn=pShort(p);
-        return `<div class="p-chip${isSel?' sel':''}" onclick="togglePlayer('${matchId}','${actId}',${p.n},this)">#${p.n} ${surn}</div>`;
-      }).join('')}
-    </div>
-  </div>`;
-}
-
-function toggleChkOpen(matchId,actId){
-  const el=document.getElementById(`ci-${matchId}-${actId}`);
-  if(el)el.classList.toggle('open');
-}
-
-function refreshChkProgress(matchId){
-  const allItems=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  const linked=getLinkedItemsForMatch(matchId);
-  const items=allItems.filter(i=>linked.has(i.id));
-  // Ítems con rivalWon no cuentan como pendientes ni como completados
-  const activeItems=items.filter(i=>!getItemData(matchId,i.id).rivalWon);
-  const done=activeItems.filter(i=>{
-    if(i.sessions){const c=getSessionsDoneCount(matchId,i.id,i.sessions);return c===i.sessions.length;}
-    return getItemData(matchId,i.id).done;
-  }).length;
-  const total=activeItems.length;
-  const pct=total?Math.round(done/total*100):0;
-  const prog=document.getElementById('chk-progress');
-  if(prog) prog.innerHTML=`<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:13px 14px"><div class="prog-label" style="margin-bottom:6px"><span style="font-size:13px;font-weight:800">${done===total&&total?'✅ Todas completadas':total-done+' pendientes'}</span><div style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:800;color:${done===total&&total?'var(--green)':'var(--cel-dk)'}">${done}/${total}</span><button onclick="clearMatchData('${matchId}')" style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit" title="Reiniciar datos">↺ Reset</button></div></div><div class="prog-bar" style="height:7px"><div class="prog-fill${done===total&&total?'':' partial'}" style="width:${pct}%"></div></div></div>`;
-  // Update phase done counts
-  const phaseMap={};
-  items.forEach(it=>{if(!phaseMap[it.fase])phaseMap[it.fase]=[];phaseMap[it.fase].push(it);});
-  document.querySelectorAll('#chk-container .chk-phase').forEach(el=>{
-    const name=el.querySelector('span:first-child')?.textContent;
-    if(name&&phaseMap[name]){
-      const phaseActive=phaseMap[name].filter(i=>!getItemData(matchId,i.id).rivalWon);
-      const fd=phaseActive.filter(i=>{
-        if(i.sessions){const c=getSessionsDoneCount(matchId,i.id,i.sessions);return c===i.sessions.length;}
-        return getItemData(matchId,i.id).done;
-      }).length;
-      const ce=el.querySelector('.chk-phase-done');
-      if(ce)ce.textContent=`${fd}/${phaseActive.length}`;
-    }
-  });
-}
-
-function toggleRivalWon(matchId,actId){
-  const data=getItemData(matchId,actId);
-  data.rivalWon=!data.rivalWon;
-  if(data.rivalWon)data.done=false;
-  setItemData(matchId,actId,data);
-  const el=document.getElementById(`ci-${matchId}-${actId}`);
-  const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  const item=items.find(i=>i.id===actId);
-  if(el&&item){const newEl=buildChkItem(matchId,item);if(el.classList.contains('open'))newEl.classList.add('open');el.replaceWith(newEl);}
-  refreshChkProgress(matchId);
-  renderInicio();
-}
-
-function toggleDone(matchId,actId){
-  const data=getItemData(matchId,actId);
-  data.done=!data.done;
-  setItemData(matchId,actId,data);
-  const el=document.getElementById(`ci-${matchId}-${actId}`);
-  const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  const item=items.find(i=>i.id===actId);
-  if(el&&item){const newEl=buildChkItem(matchId,item);if(el.classList.contains('open'))newEl.classList.add('open');el.replaceWith(newEl);}
-  refreshChkProgress(matchId);
-  renderInicio();
-  // Sync back to calendar event with matching chkId (busca en todos los días del rango del partido)
-  if(!_syncLock){
-    const matchDays=CALENDAR_DAYS.filter(d=>getMatchIdForDate(d.date)===matchId);
-    matchDays.forEach(calDay=>{
-      calDay.eventos.forEach((e,idx)=>{
-        if(e.chkId!==actId)return;
-        const ev=getEvStatus();
-        const k=evKey(calDay.date,idx);
-        const cur=ev[k]||'';
-        const target=data.done?'done':'';
-        if(cur===target)return;
-        if(target)ev[k]=target; else delete ev[k];
-        _syncLock=true;
-        setEvStatus_store(ev);
-        _syncLock=false;
-        // Re-render calendar row if visible
-        const wrap=document.getElementById(`cev-${calDay.date}-${idx}`);
-        if(wrap){const newHtml=buildEventsHtml({...calDay,eventos:[getDayEventByIdx(calDay.date,idx)]},idx);const tmp=document.createElement('div');tmp.innerHTML=newHtml;const newEl=tmp.firstElementChild;if(newEl)wrap.replaceWith(newEl);}
-      });
-    });
-  }
-  toast(data.done?'✓ Completada':'Marcada como pendiente');
-}
-
-function selDT(matchId,actId,dtId,btn){
-  const data=getItemData(matchId,actId);
-  data.dt=data.dt===dtId?'':dtId;
-  setItemData(matchId,actId,data);
-  // re-render just this item
-  const el=document.getElementById(`ci-${matchId}-${actId}`);
-  const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  const item=items.find(i=>i.id===actId);
-  if(el&&item){
-    const newEl=buildChkItem(matchId,item);
-    newEl.classList.add('open');
-    el.replaceWith(newEl);
-  }
-  toast(data.dt?DT_STAFF.find(d=>d.id===data.dt)?.full+' seleccionado':'DT quitado');
-}
-
-function togglePlayer(matchId,actId,num,chip){
-  const data=getItemData(matchId,actId);
-  if(!data.players)data.players=[];
-  if(data.players.includes(num)){data.players=data.players.filter(n=>n!==num);chip.classList.remove('sel')}
-  else{data.players.push(num);chip.classList.add('sel')}
-  setItemData(matchId,actId,data);
-  // update summary
-  const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-  const item=items.find(i=>i.id===actId);
-  const el=document.getElementById(`ci-${matchId}-${actId}`);
-  if(el&&item){
-    const sumEl=el.querySelector('.chk-summary');
-    const sum=buildSummary(data,item);
-    if(sumEl)sumEl.textContent='↳ '+sum;
-    else if(sum){
-      const subEl=el.querySelector('.chk-sub');
-      if(subEl){const d=document.createElement('div');d.className='chk-summary';d.textContent='↳ '+sum;subEl.after(d)}
-    }
-  }
-  const p=PLAYERS.find(x=>x.n===num);
-  toast(p?`${pShort(p)} ${data.players.includes(num)?'agregado':'quitado'}`:'');
-  syncChkToDisp();
-  try{ syncChkToCalEv(matchId,actId,data.players||[]); }catch(err){ console.error('syncChkToCalEv failed',err); }
-}
-
-// Refresca Disponibilidad cada vez que cambia el checklist
-function syncChkToDisp(){
-  if(document.getElementById('disponibilidad')?.classList.contains('active')) renderDisponibilidad();
-}
-
-function toggleAllPlayers(date,idx,currentlyAll){
-  const evP=getEvParts(), k=evKey(date,idx);
-  if(!evP[k])evP[k]=[];
-  if(currentlyAll){
-    // Quitar todos los jugadores (mantener DT si están)
-    evP[k]=evP[k].filter(x=>x.startsWith('dt_'));
-  } else {
-    // Agregar todos los jugadores
-    const dtParts=evP[k].filter(x=>x.startsWith('dt_'));
-    evP[k]=[...dtParts,...PLAYERS.map(p=>'p_'+p.n)];
-  }
-  stor.set(KEvP,evP);
-  // Rebuild the day to re-render chips
-  const day=CALENDAR_DAYS.find(d=>d.date===date);
-  if(!day)return;
-  const customActs=getDayActs()[date]||[];
-  const allEvs=[...day.eventos,...customActs];
-  const evIdx=idx; // static index
-  const wrap=document.getElementById(`cev-${date}-${idx}`);
-  if(wrap){
-    // Re-render just the player chips
-    const selP=evP[k]||[];
-    const pChipsEl=document.getElementById(`pchips-${date}-${idx}`);
-    if(pChipsEl){
-      const allSel=PLAYERS.every(p=>selP.includes('p_'+p.n));
-      const todoBtnHtml=`<span class="ev-p-chip${allSel?' sel':''}" style="font-weight:800;background:${allSel?'var(--navy)':'var(--surface)'};color:${allSel?'#fff':'var(--text)'};border-color:${allSel?'var(--navy)':'var(--border)'}" onclick="toggleAllPlayers('${date}',${idx},${allSel})">👥 ${allSel?'Quitar todos':'Todos'}</span>`;
-      const pChipsHtml=PLAYERS.map(p=>`<span class="ev-p-chip${selP.includes('p_'+p.n)?' sel':''}" onclick="toggleEvPart('${date}',${idx},'p_${p.n}',this)">#${p.n} ${pShort(p)}</span>`).join('');
-      pChipsEl.innerHTML=todoBtnHtml+pChipsHtml;
-    }
-  }
-  toast(currentlyAll?'Jugadores quitados':'👥 26 jugadores seleccionados');
-}
-
-function saveChkNote(matchId,actId,ta){
-  const data=getItemData(matchId,actId);
-  data.note=ta.value;
-  setItemData(matchId,actId,data);
-  ta.classList.toggle('has-note',!!ta.value);
-}
-
-// ── Sub-sesiones ──────────────────────────────────
-function getSessionData(matchId,actId,sId){
-  const d=getItemData(matchId,actId);
-  return (d.sessions&&d.sessions[sId])||{done:false,players:[],note:''};
-}
-function _saveSessionData(matchId,actId,sId,sData,sessions){
-  const d=getItemData(matchId,actId);
-  if(!d.sessions)d.sessions={};
-  d.sessions[sId]=sData;
-  // auto-compute parent done — solo sesiones principales (no isStep)
-  const mainSessions=sessions.filter(s=>!s.isStep);
-  d.done=mainSessions.length?mainSessions.every(s=>(d.sessions[s.id]||{}).done):sessions.every(s=>(d.sessions[s.id]||{}).done);
-  setItemData(matchId,actId,d);
-}
-function getSessionsDoneCount(matchId,actId,sessions){
-  const d=getItemData(matchId,actId);
-  const sd=d.sessions||{};
-  return sessions.filter(s=>(sd[s.id]||{}).done).length;
-}
-function toggleSessionDone(matchId,actId,sId,sessionsJson){
-  const sessions=JSON.parse(sessionsJson);
-  const s=getSessionData(matchId,actId,sId);
-  s.done=!s.done;
-  _saveSessionData(matchId,actId,sId,s,sessions);
-  try{ syncChkSessionToEv(matchId,actId,sId,s.done); }catch(err){ console.error('syncChkSessionToEv failed',err); }
-  try{
-    const el=document.getElementById(`ci-${matchId}-${actId}`);
-    const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-    const item=items.find(i=>i.id===actId);
-    if(el&&item){const newEl=buildChkItem(matchId,item);newEl.classList.add('open');el.replaceWith(newEl);}
-    refreshChkProgress(matchId);
-    renderInicio();
-  }catch(err){ console.error('toggleSessionDone: fallo al refrescar UI',err); }
-  toast(s.done?'✓ Sesión completada':'Sesión marcada como pendiente');
-}
-function toggleSessionPlayer(matchId,actId,sId,num,chip,sessionsJson){
-  const sessions=JSON.parse(sessionsJson);
-  const s=getSessionData(matchId,actId,sId);
-  if(!s.players)s.players=[];
-  if(s.players.includes(num)){s.players=s.players.filter(n=>n!==num);chip.classList.remove('sel')}
-  else{s.players.push(num);chip.classList.add('sel')}
-  _saveSessionData(matchId,actId,sId,s,sessions);
-  const p=PLAYERS.find(x=>x.n===num);
-  toast(p?`${pShort(p)} ${s.players.includes(num)?'agregado':'quitado'}`:'');
-}
-function toggleSessionDT(matchId,actId,sId,dtId,chip,sessionsJson){
-  const sessions=JSON.parse(sessionsJson);
-  const s=getSessionData(matchId,actId,sId);
-  s.dt=(s.dt===dtId)?'':dtId; // toggle off if same
-  _saveSessionData(matchId,actId,sId,s,sessions);
-  // update chips visually
-  const hdr=document.getElementById(`csess-${matchId}-${actId}-${sId}`);
-  if(hdr) hdr.querySelectorAll('.ev-p-chip').forEach(c=>{
-    c.classList.toggle('sel',c===chip&&s.dt!=='');
-    c.classList.toggle('sel-bielsa',c===chip&&s.dt!=='');
-  });
-  const dt=DT_STAFF.find(d=>d.id===s.dt);
-  toast(dt?`${dt.full} seleccionado`:'DT quitado');
-}
-
-function saveSessionNote(matchId,actId,sId,ta,sessionsJson){
-  const sessions=JSON.parse(sessionsJson);
-  const s=getSessionData(matchId,actId,sId);
-  s.note=ta.value;
-  ta.classList.toggle('has-note',!!ta.value);
-  _saveSessionData(matchId,actId,sId,s,sessions);
-}
-function editSessionDate(matchId,actId,sId,el,sessionsJson){
-  const sessions=JSON.parse(sessionsJson);
-  const cur=el.dataset.val||'';
-  const inp=document.createElement('input');
-  inp.type='text'; inp.value=cur; inp.placeholder='ej: Sáb 13 jun';
-  inp.style.cssText='width:88px;font-size:10.5px;font-weight:700;border:1.5px solid var(--cel);border-radius:5px;padding:1px 5px;font-family:inherit;background:#fff;color:var(--text)';
-  el.replaceWith(inp); inp.focus(); inp.select();
-  let done=false;
-  function commit(){
-    if(done)return; done=true;
-    const val=inp.value.trim();
-    const s=getSessionData(matchId,actId,sId);
-    s.date=val||null;
-    _saveSessionData(matchId,actId,sId,s,sessions);
-    const span=document.createElement('span');
-    span.className='chk-sess-date'; span.style.cursor='pointer';
-    span.title='Click para editar fecha'; span.dataset.val=val;
-    span.textContent=val||'+ fecha';
-    if(!val){span.style.opacity='.5';}
-    span.onclick=()=>editSessionDate(matchId,actId,sId,span,sessionsJson);
-    inp.replaceWith(span);
-  }
-  inp.addEventListener('blur',commit);
-  inp.addEventListener('keydown',e=>{if(e.key==='Enter')commit();if(e.key==='Escape'){done=true;const s=document.createElement('span');s.className='chk-sess-date';s.style.cursor='pointer';s.title='Click para editar fecha';s.dataset.val=cur;s.textContent=cur||'+ fecha';if(!cur)s.style.opacity='.5';s.onclick=()=>editSessionDate(matchId,actId,sId,s,sessionsJson);inp.replaceWith(s);}});
-}
-function toggleSessionExpand(el){
-  const body=el.closest('.chk-session').querySelector('.chk-sess-body');
-  const hdr=el.closest('.chk-sess-hdr');
-  const open=body.style.display==='block';
-  body.style.display=open?'none':'block';
-  hdr.classList.toggle('expanded',!open);
-  el.textContent=open?'▸ Detalles':'▴ Ocultar';
-}
-function buildSessionsHtml(matchId,actId,sessions){
-  const sessJson=JSON.stringify(sessions).replace(/"/g,'&quot;');
-  return sessions.map(sess=>{
-    const s=getSessionData(matchId,actId,sess.id);
-
-    // ── isStep: sub-paso sin selector de participantes ───────────
-    if(sess.isStep){
-      return`
-      <div class="chk-session${s.done?' done':''}" id="csess-${matchId}-${actId}-${sess.id}"
-           style="background:${s.done?'#F0FCF7':'#F8FAFC'};border-style:dashed;border-color:${s.done?'#7DCDB0':'var(--border)'}">
-        <div class="chk-sess-hdr">
-          <div class="chk-sess-cb${s.done?' checked':''}" onclick="toggleSessionDone('${matchId}','${actId}','${sess.id}','${sessJson}')" style="width:18px;height:18px;border-radius:5px;font-size:10px">${s.done?'✓':''}</div>
-          <div style="flex:1">
-            <span class="chk-sess-lbl" style="font-size:11.5px">${sess.label}</span>
-            ${sess.sub?`<div style="font-size:10.5px;color:var(--muted);margin-top:2px;line-height:1.4">${sess.sub}</div>`:''}
-          </div>
-          ${sess.art?`<span style="flex-shrink:0">${artTagHtml(sess.art)}</span>`:''}
-        </div>
-      </div>`;
-    }
-
-    let selectorHtml='', partName='';
-
-    if(sess.isDT){
-      // DT selector
-      const selDTId=s.dt||(sess.defaultDT||'');
-      const dtChips=DT_STAFF.map(d=>`<span class="ev-p-chip${selDTId===d.id?' sel sel-bielsa':''}" onclick="toggleSessionDT('${matchId}','${actId}','${sess.id}','${d.id}',this,'${sessJson}')">${d.name}</span>`).join('');
-      selectorHtml=`<div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">DT / Cuerpo técnico</div><div class="player-chips">${dtChips}</div></div>`;
-      const dtObj=DT_STAFF.find(d=>d.id===selDTId);
-      partName=dtObj?dtObj.full:'';
-    } else {
-      // Player selector
-      const selP=s.players||[];
-      const effectiveSel=selP.length?selP:(sess.defaultPlayer?[sess.defaultPlayer]:[]);
-      const pChips=buildPlayerChipsHtml(effectiveSel,matchId,p=>`toggleSessionPlayer('${matchId}','${actId}','${sess.id}',${p.n},this,'${sessJson}')`);
-      selectorHtml=`<div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Jugador</div><div class="player-chips">${pChips}</div></div>`;
-      partName=effectiveSel.map(n=>{const p=PLAYERS.find(x=>x.n===n);return p?pShort(p):n}).filter(Boolean).join(', ');
-    }
-
-    return`
-    <div class="chk-session${s.done?' done':''}" id="csess-${matchId}-${actId}-${sess.id}">
-      <div class="chk-sess-hdr" id="csess-hdr-${matchId}-${actId}-${sess.id}">
-        <div class="chk-sess-cb${s.done?' checked':''}" onclick="toggleSessionDone('${matchId}','${actId}','${sess.id}','${sessJson}')">${s.done?'✓':''}</div>
-        <span class="chk-sess-lbl">${sess.label}${partName&&!s.done?` <span style="font-size:10.5px;font-weight:500;color:var(--muted)">· ${partName}</span>`:''}</span>
-        ${(()=>{const d=s.date||(sess.fechas&&sess.fechas[matchId])||sess.fecha||'';return`<span class="chk-sess-date" style="cursor:pointer" title="Click para editar fecha" data-val="${d}" onclick="editSessionDate('${matchId}','${actId}','${sess.id}',this,'${sessJson}')"${!d?' style="opacity:.5;cursor:pointer"':''}>${d||'+ fecha'}</span>`;})()}
-        <button class="chk-sess-expand" onclick="toggleSessionExpand(this)">▸ Detalles</button>
-      </div>
-      <div class="chk-sess-body" style="display:none">
-        ${selectorHtml}
-        <div>
-          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">📝 Nota</div>
-          <textarea class="chk-note${s.note?' has-note':''}" rows="2"
-            placeholder="Observación, horario, lugar..."
-            oninput="saveSessionNote('${matchId}','${actId}','${sess.id}',this,'${sessJson}')"
-          >${s.note||''}</textarea>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
+function renderChecklist(){}
+// Devuelve el chkId de un evento (solo por chkId explícito en el evento estático)
+function checkIdForEventEff(date,idx,e){ return e?.chkId||null; }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HITOS HISTÓRICOS
@@ -5483,7 +4299,7 @@ async function handleImport(e){
         toast('📷 Fotos restauradas...');
       }
 
-      renderInicio();renderLog(curLog);await renderPlantel();renderCal();renderChecklist(curMatch);
+      renderInicio();renderLog(curLog);await renderPlantel();renderCal();
 
       // Auto-guardar en servidor si estamos online
       const saved=await ghSave({localStorage:d.localStorage||{},photos:d.photos||{}});
@@ -5495,7 +4311,7 @@ async function handleImport(e){
 function clearAll(){
   if(!confirm('¿Borrar TODOS los datos? No se puede deshacer.'))return;
   [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KEvResch].forEach(k=>localStorage.removeItem(k));
-  renderInicio();renderLog('all');renderPlantel();renderChecklist(curMatch);
+  renderInicio();renderLog('all');renderPlantel();
   toast('Datos eliminados');
 }
 
@@ -9771,67 +8587,6 @@ async function syncLineupESPN(matchId){
   }catch(e){toast('⚠ Error conectando con ESPN');}
 }
 
-// Re-sincroniza todos los eventos de calendario ya marcados → checklist.
-// Escribe directo a KC sin pasar por syncEvToChkSession (evita problemas de _syncLock).
-function resyncAllEvToChk(){
-  const evStatus=getEvStatus();
-  const evParts=getEvParts();
-  const allItems=[...CL_LLEGADA,...CL_MATCH];
-  const _llegadaIds=new Set(CL_LLEGADA.map(i=>i.id));
-
-  const _applySession=(matchId,actId,sessId,st,pts)=>{
-    const item=allItems.find(i=>i.id===actId);
-    if(!item?.sessions)return;
-    const sess=item.sessions.find(s=>s.id===sessId);
-    if(!sess)return;
-    const s=getSessionData(matchId,actId,sessId);
-    const newDone=(st==='done');
-    if(sess.isStep){
-      if(s.done===newDone)return;
-      s.done=newDone;
-    } else if(sess.isDT){
-      const dtParts=(pts||[]).filter(x=>x.startsWith('dt_')).map(x=>x.slice(3));
-      const newDt=dtParts[0]||s.dt||'';
-      if(s.done===newDone&&s.dt===newDt)return;
-      s.done=newDone;s.dt=newDt;
-    } else {
-      const pNums=(pts||[]).filter(x=>x.startsWith('p_')).map(x=>parseInt(x.slice(2)));
-      s.done=newDone;
-      if(pNums.length)s.players=pNums;
-    }
-    _saveSessionData(matchId,actId,sessId,s,item.sessions);
-  };
-
-  // 1. EVENT_GROUPS (sesiones: md2-crew)
-  Object.values(EVENT_GROUPS).flat().forEach(({date,idx,chk})=>{
-    const k=evKey(date,idx);
-    const st=evStatus[k]||'';
-    if(!st)return;
-    _applySession(chk.matchId,chk.actId,chk.sessId,st,evParts[k]);
-  });
-
-  // 2. Eventos con chkId (md-vestuario, md-ht, md-flash, md1-conf, etc.)
-  CALENDAR_DAYS.forEach(day=>{
-    const customActs=getDayActs()[day.date]||[];
-    [...(day.eventos||[]),...customActs].forEach((ev,idx)=>{
-      if(!ev.chkId)return;
-      const k=evKey(day.date,idx);
-      const st=evStatus[k]||'';
-      if(!st)return;
-      const matchId=_llegadaIds.has(ev.chkId)?'llegada':getMatchIdForDate(day.date);
-      if(!matchId)return;
-      const newDone=(st==='done');
-      const item=allItems.find(i=>i.id===ev.chkId);
-      if(item?.sessions){
-        const pts=evParts[k]||[];
-        item.sessions.forEach(sess=>_applySession(matchId,ev.chkId,sess.id,st,pts));
-      } else {
-        const data=getItemData(matchId,ev.chkId);
-        if(data.done!==newDone){data.done=newDone;setItemData(matchId,ev.chkId,data);}
-      }
-    });
-  });
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SERVER SYNC
@@ -10075,7 +8830,7 @@ function showMatchStatus(matchId, status, clock){
     }
   });
 }
-const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KChkEvLink,KChkEvExclude,KEvFifa,KEvFifaOrig,KEvManualAt,KYellow,KEvOblig,KAeroUy,KEvHidden,KGrafica,KStatsOrder,KMvp,KCardTrack,KStatsDelta,KManualDelta,KMatchDelta,KCardSynced,KMatchEvents,KDelegacion,KInfoTexts,KLineup,KEvResch];
+const LS_KEYS = [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt,KYellow,KEvOblig,KAeroUy,KEvHidden,KGrafica,KStatsOrder,KMvp,KCardTrack,KStatsDelta,KManualDelta,KMatchDelta,KCardSynced,KMatchEvents,KDelegacion,KInfoTexts,KLineup,KEvResch];
 
 async function serverSave(silent){
   if(IS_RESTRICTED) return;
@@ -10124,7 +8879,7 @@ async function serverLoad(){
       for(const [num,url] of Object.entries(data.photos)) await savePhotoIDB(parseInt(num),url);
       invalidatePhotoCache();
     }
-    aggregateMatchActivities(); renderInicio(); await renderPlantel(); renderLog('all'); renderCal(); renderChecklist(curMatch);
+    renderInicio(); await renderPlantel(); renderLog('all'); renderCal();
     btn.className='nav-btn sync-ok';
     btn.innerHTML='<i class="ti ti-cloud-check" style="font-size:12px"></i> <span class="nav-sync-lbl">Cargado</span>';
     toast('☁️ Datos actualizados');
@@ -10462,14 +9217,6 @@ function lgCopy(i,url){
     });
     localStorage.setItem(FLAG,'1');
   })();
-  resyncAllEvToChk(); // sincroniza calendario → checklist al abrir
-  // Sincronizar grupos vinculados (EVENT_GROUPS) al cargar
-  (()=>{
-    const ev=getEvStatus();
-    Object.values(EVENT_GROUPS).flat().forEach(m=>{
-      if(m.chk) syncEvToChkSession(m.date,m.idx,ev[evKey(m.date,m.idx)]||'');
-    });
-  })();
   // Al cargar: aplicar participación oficial AUF para partidos cerrados
   (()=>{
     Object.entries(AUF_OFFICIAL_PART).forEach(([mid,data])=>{
@@ -10568,11 +9315,8 @@ function lgCopy(i,url){
     showTab(RESTRICTED_TABS[0]||'estadisticas');
   } else {
     document.documentElement.classList.remove('auf-gate');
-    aggregateMatchActivities();
     renderInicio();
     renderCal();
-    renderMatchSelBtns('uru-ksa');
-    renderChecklist('uru-ksa');
     renderLineup('uru-ksa');
     await renderPlantel();
     renderLog('all');
