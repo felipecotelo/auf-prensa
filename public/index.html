@@ -3362,7 +3362,8 @@ function getGroupStandings(letter){
 async function fetchWCDay(isoDate){
   const cache=stor.get(KWCCache,{});
   const ts=cache[isoDate]?.ts||0;
-  const allCompleted=cache[isoDate]?.games?.length>0&&cache[isoDate].games.every(g=>g.completed);
+  // "allCompleted" solo si todos tienen resultado con score — si hay completed sin score, re-fetch igual
+  const allCompleted=cache[isoDate]?.games?.length>0&&cache[isoDate].games.every(g=>g.completed&&g.score);
   const isPast=isoDate<new Date().toISOString().slice(0,10);
   // Para fechas pasadas con partidos sin completar, refetch cada 15 min. Para el resto, cache 1h.
   const ttl=(isPast&&!allCompleted)?900000:3600000;
