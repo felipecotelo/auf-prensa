@@ -3460,12 +3460,13 @@ function toggleDayClosed(date,btn){
 }
 
 // ── Timezone helpers ────────────────────────────────────────────────────
-// June 2026 offsets from UTC: UY=-3, MIA(EDT)=-4, GDL(CDT)=-5
+// June 2026 offsets from UTC: UY=-3, MIA(EDT)=-4, GDL/CUN(CDT)=-5
 const TZ_INFO={
-  UY: {label:'Uruguay', short:'UY',  offset:-3},
-  MIA:{label:'Miami',   short:'MIA', offset:-4},
-  GDL:{label:'Guadalajara',short:'GDL',offset:-5},
+  UY: {label:'Uruguay',        short:'UY',  offset:-3},
+  MIA:{label:'Miami',          short:'MIA', offset:-4},
+  GDL:{label:'Cancún / México',short:'MX',  offset:-5},
 };
+const TZ_DEFAULT='GDL';
 
 function tzToUY(hStr, fromTz){
   if(!hStr||hStr==='TBD'||fromTz==='UY')return null;
@@ -3622,6 +3623,7 @@ function renderAapStep(date,step){
     </div>
     <button class="aap-back" onclick="renderAapStep(${d},1)">← Volver</button>`;
   } else if(step==='final'){
+    if(_aapState[date]&&!_aapState[date]._tz)_aapState[date]._tz=TZ_DEFAULT;
     const st=_aapState[date]||{};
     const isCrono=st.tipo==='sched';
     const isCrono0=isCrono&&!st.prensa;
@@ -3632,7 +3634,7 @@ function renderAapStep(date,step){
         <input class="aap-input" id="aap-h-${date}" placeholder="Hora — ej: 11:30 o TBD" style="width:170px" oninput="aapUpdateTzPreview('${date}')" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
         <div class="aap-tz-chips" style="margin-top:5px">
           <span style="font-size:10px;color:var(--muted);line-height:2;margin-right:2px">Huso:</span>
-          ${Object.entries(TZ_INFO).map(([k,v])=>`<button class="aap-tz-chip${k==='UY'?' active':''}" data-tz="${k}" onclick="aapSetTz('${date}','${k}')">${v.label}</button>`).join('')}
+          ${Object.entries(TZ_INFO).map(([k,v])=>`<button class="aap-tz-chip${k===TZ_DEFAULT?' active':''}" data-tz="${k}" onclick="aapSetTz('${date}','${k}')">${v.label}</button>`).join('')}
         </div>
         <div class="aap-tz-preview" id="aap-tz-prev-${date}"></div>
       </div>
