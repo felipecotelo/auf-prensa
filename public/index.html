@@ -588,6 +588,14 @@ textarea{resize:vertical;min-height:52px}
 .aap-tz-chip.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 .aap-tz-preview{font-size:11px;color:var(--cel-dk);font-weight:600;margin-top:3px;min-height:16px}
 .ev-tz-badge{font-size:9.5px;color:var(--muted);font-weight:600;margin-left:3px}
+/* ── Categorías de color de eventos ──────────────────── */
+.cal-ev.cat-fifa   {border-left:3px solid #DC2626;background:#FEF7F7;border-radius:6px;padding:2px 4px}
+.cal-ev.cat-auf    {border-left:3px solid #16A34A;background:#F0FDF4;border-radius:6px;padding:2px 4px}
+.cal-ev.cat-auftv  {border-left:3px solid #7C3AED;background:#F5F3FF;border-radius:6px;padding:2px 4px}
+.cal-ev.cat-dt     {border-left:3px solid #0891B2;background:#ECFEFF;border-radius:6px;padding:2px 4px}
+.cal-ev.cat-partido{border-left:3px solid #1E3A5F;background:#EEF2FF;border-radius:6px;padding:5px 6px}
+.cal-ev.cat-viaje  {border-left:3px solid #D97706;background:#FEFCE8;border-radius:6px;padding:2px 4px}
+.cal-ev.cat-crono  {border-left:3px solid #94A3B8;background:#F8FAFC;border-radius:6px;padding:2px 4px}
 .aap-suggest{margin-top:4px;display:flex;flex-direction:column;gap:2px;max-height:180px;overflow-y:auto}
 .aap-sug-item{padding:6px 9px;border-radius:6px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;background:var(--surface);border:0.5px solid var(--border)}
 .aap-sug-item:hover{background:var(--cel-lt);border-color:var(--cel)}
@@ -2918,6 +2926,18 @@ function buildPlayerChipsHtml(selNums, matchId, onclickFn){
   }).join('');
 }
 
+function getEvCat(e){
+  if(e.tipo==='partido')return'cat-partido';
+  if(e.tipo==='viaje')return'cat-viaje';
+  if(e.tipo==='sched'||(e.tipo==='team'&&e.noParts))return'cat-crono';
+  if(e.auftv)return'cat-auftv';
+  if(e.auf)return'cat-auf';
+  // Prensa solo DT: isDT flag, o hasDT:true con hasPlayers explícitamente false
+  if(e.isDT||(e.hasDT&&e.hasPlayers===false))return'cat-dt';
+  if(e.oblig||e.tipo==='oblig')return'cat-fifa';
+  return'cat-crono';
+}
+
 function buildEventsHtml(day, startIdx=0){
   const evNotes=getEvNotes(), evStatus=getEvStatus(), evParts=getEvParts();
   const dayClosed=getDayClosed()[day.date]||false;
@@ -2982,8 +3002,9 @@ function buildEventsHtml(day, startIdx=0){
     }
     const partidoMatchId=e.tipo==='partido'&&e.fixId?fixIdToMatch[e.fixId]:null;
 
+    const evCat=e.tipo==='partido-fifa'?'':getEvCat(e);
     return`
-      <div class="cal-ev" id="cev-${dataDate}-${realIdx}" style="${matchResult?'background:var(--cel-lt);border-radius:8px;padding:5px 6px':e.isDT?'background:#F5F3FF;border-radius:6px':e.tipo==='partido-fifa'?'background:#F3F4F6;border-radius:6px':e.tipo==='sched'?'background:#FFFBEB;border-radius:6px;padding:3px 4px':''}">
+      <div class="cal-ev ${evCat}" id="cev-${dataDate}-${realIdx}" style="${e.tipo==='partido-fifa'?'background:#F3F4F6;border-radius:6px':''}">
         <div class="cal-ev-row">
           <div class="ev-sts${(e.tipo==='partido'||e.tipo==='partido-fifa'||e.tipo==='sched'||e.tipo==='viaje'||(e.tipo==='team'&&e.noParts))?' ev-sts-bar':''}">
             ${e.tipo==='partido'?'<span class="ev-sts-ph-uru"></span>':e.tipo==='partido-fifa'?'<span class="ev-sts-ph-wc"></span>':(e.tipo==='sched'||e.tipo==='viaje'||(e.tipo==='team'&&e.noParts)||(e.esTrain&&!/abierto|primeros 15/i.test(e.txt)))?'<span class="ev-sts-ph"></span>':`
