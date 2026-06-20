@@ -574,14 +574,15 @@ textarea{resize:vertical;min-height:52px}
 .add-act-wrap{margin-top:7px;border-top:0.5px dashed var(--border);padding-top:7px}
 .add-act-btn{font-size:11.5px;font-weight:700;color:var(--cel-dk);background:none;border:1.5px dashed var(--cel);border-radius:8px;padding:5px 12px;cursor:pointer;width:100%;text-align:center;transition:all .15s}
 .add-act-btn:hover{background:var(--cel-lt)}
-.add-act-picker{display:none;margin-top:7px;background:var(--white);border:0.5px solid var(--border);border-radius:9px;overflow:hidden}
+.add-act-picker{display:none;margin-top:7px;background:var(--white);border:0.5px solid var(--border);border-radius:9px;padding:10px 12px}
 .add-act-picker.open{display:block}
-.add-act-opt{padding:8px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:0.5px solid var(--border)}
-.add-act-opt:last-child{border-bottom:none}
-.add-act-opt:hover{background:var(--cel-lt)}
-.add-act-custom{padding:8px 10px;display:flex;gap:6px}
-.add-act-custom input{flex:1;padding:6px 9px;border:0.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit}
-.add-act-custom input:focus{outline:2px solid var(--cel);border-color:var(--cel)}
+.aap-q{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.aap-opts{display:flex;flex-direction:column;gap:4px}
+.aap-opt{text-align:left;font-size:12.5px;font-family:inherit;padding:7px 10px;border:0.5px solid var(--border);border-radius:7px;background:var(--surface);cursor:pointer;color:var(--text);transition:background .1s}
+.aap-opt:hover{background:var(--cel-lt);border-color:var(--cel)}
+.aap-back{margin-top:8px;font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
+.aap-input{padding:7px 9px;border:0.5px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;width:100%}
+.aap-input:focus{outline:2px solid var(--cel);border-color:var(--cel)}
 
 /* ── PLANTEL preT LIST ───────────────────────────── */
 .pret-list{margin-top:5px;display:flex;flex-direction:column;gap:2px}
@@ -3341,31 +3342,7 @@ function renderCal(){
         </div>
         <div class="add-act-wrap">
           <button class="add-act-btn" onclick="toggleAddAct('${day.date}',this)">＋ Agregar actividad</button>
-          <div class="add-act-picker" id="aap-${day.date}">
-            ${[
-              {tipo:'oblig',oblig:true,  txt:'Entrenamiento con apertura de prensa',cerrado:false},
-              {tipo:'oblig',oblig:false, txt:'Entrenamiento cerrado',cerrado:true},
-              {tipo:'info', oblig:false, txt:'Zona mixta — ', auf:true},
-              {tipo:'info', oblig:false, txt:'Nota a jugador', auftv:true, hasPlayers:true},
-              {tipo:'oblig',oblig:true,  txt:'Atención FIFA TV Crew — 2 jugadores',cerrado:false},
-              {tipo:'oblig',oblig:true,  txt:'Conferencia de prensa'},
-              {tipo:'viaje', oblig:false, txt:'✈️ Viaje'},
-              {tipo:'team',  oblig:false, noParts:true, txt:'⚡ Activación en hotel'},
-              {tipo:'team',  oblig:false, noParts:true, txt:'📋 Actividad — '},
-              {tipo:'sched', oblig:false, noParts:true, txt:'📅 Cronograma — '},
-            ].map((opt,oi)=>`<div class="add-act-opt" onclick="addDayAct('${day.date}','${encodeURIComponent(JSON.stringify(opt))}')">
-              <span class="cal-event-dot ce-${opt.tipo}" style="width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:0"></span>
-              ${opt.txt}
-              ${opt.oblig?'<span class="tag tag-oblig" style="font-size:9px">Obligatorio</span>':''}
-              ${opt.auftv?'<span class="tag tag-auftv" style="font-size:9px">AUFtv</span>':''}
-              ${opt.auf?'<span class="tag tag-auf" style="font-size:9px">AUF</span>':''}
-              ${opt.tipo==='sched'?'<span class="tag" style="font-size:9px;background:#FEF3C7;color:#92400E">Cronograma</span>':''}
-            </div>`).join('')}
-            <div class="add-act-custom">
-              <input type="text" id="custom-act-${day.date}" placeholder="Actividad personalizada..." onkeydown="if(event.key==='Enter')addCustomAct('${day.date}',this)">
-              <button class="btn primary sm" onclick="addCustomAct('${day.date}',document.getElementById('custom-act-${day.date}'))">Agregar</button>
-            </div>
-          </div>
+          <div class="add-act-picker" id="aap-${day.date}"></div>
         </div>
         <div style="margin-top:7px">
           <div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">📝 Nota del día</div>
@@ -3471,13 +3448,88 @@ function toggleDayClosed(date,btn){
   renderCal();
 }
 
+const _aapState={};
+
 function toggleAddAct(date,btn){
   const picker=document.getElementById(`aap-${date}`);
-  if(picker){picker.classList.toggle('open');btn.textContent=picker.classList.contains('open')?'✕ Cerrar':'＋ Agregar actividad';}
+  if(!picker)return;
+  const isOpen=picker.classList.contains('open');
+  if(isOpen){
+    picker.classList.remove('open');
+    btn.textContent='＋ Agregar actividad';
+    delete _aapState[date];
+  } else {
+    btn.textContent='✕ Cerrar';
+    _aapState[date]={};
+    renderAapStep(date,0);
+  }
+}
+
+function renderAapStep(date,step){
+  const picker=document.getElementById(`aap-${date}`);
+  if(!picker)return;
+  const d=`'${date}'`;
+  let html='';
+  if(step===0){
+    html=`<p class="aap-q">¿Qué querés agregar?</p>
+    <div class="aap-opts">
+      <button class="aap-opt" onclick="_aapState[${d}]={prensa:true};renderAapStep(${d},1)">📋 Actividad de prensa</button>
+      <button class="aap-opt" onclick="_aapState[${d}]={tipo:'sched',oblig:false,noParts:true};renderAapStep(${d},'final')">📅 Solo cronograma (no cuenta para prensa)</button>
+    </div>`;
+  } else if(step===1){
+    html=`<p class="aap-q">¿Quién participa?</p>
+    <div class="aap-opts">
+      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=true;_aapState[${d}].hasDT=false;renderAapStep(${d},2)">Solo jugadores</button>
+      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=false;_aapState[${d}].hasDT=true;renderAapStep(${d},2)">Solo DT / cuerpo técnico</button>
+      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=true;_aapState[${d}].hasDT=true;renderAapStep(${d},2)">Jugadores y DT</button>
+    </div>
+    <button class="aap-back" onclick="renderAapStep(${d},0)">← Volver</button>`;
+  } else if(step===2){
+    html=`<p class="aap-q">¿Obligatoria o interna?</p>
+    <div class="aap-opts">
+      <button class="aap-opt" onclick="_aapState[${d}].tipo='oblig';_aapState[${d}].oblig=true;renderAapStep(${d},'final')"><span class="tag tag-oblig" style="font-size:9px">FIFA</span> Obligatoria FIFA</button>
+      <button class="aap-opt" onclick="_aapState[${d}].tipo='info';_aapState[${d}].oblig=false;_aapState[${d}].auf=true;renderAapStep(${d},'final')"><span class="tag tag-auf" style="font-size:9px">AUF</span> Zona mixta / prensa AUF</button>
+      <button class="aap-opt" onclick="_aapState[${d}].tipo='info';_aapState[${d}].oblig=false;_aapState[${d}].auftv=true;renderAapStep(${d},'final')"><span class="tag tag-auftv" style="font-size:9px">AUFtv</span> Nota para AUFtv</button>
+      <button class="aap-opt" onclick="_aapState[${d}].tipo='info';_aapState[${d}].oblig=false;renderAapStep(${d},'final')">Interna / no obligatoria</button>
+    </div>
+    <button class="aap-back" onclick="renderAapStep(${d},1)">← Volver</button>`;
+  } else if(step==='final'){
+    const isCrono=(_aapState[date]||{}).tipo==='sched';
+    html=`<p class="aap-q">${isCrono?'Actividad de cronograma':'Nombre y hora'}</p>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+      <input class="aap-input" id="aap-txt-${date}" placeholder="${isCrono?'Ej: Reunión técnica, Activación en hotel...':'Ej: Zona mixta — jugadores titulares'}" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
+      <input class="aap-input" id="aap-h-${date}" placeholder="Hora — ej: 11:30 o TBD" style="width:170px" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
+      <div style="display:flex;gap:6px;margin-top:2px">
+        <button class="btn primary sm" onclick="submitAddAct(${d})">Agregar</button>
+        <button class="aap-back" onclick="renderAapStep(${d},${isCrono?0:2})">← Volver</button>
+      </div>
+    </div>`;
+  }
+  picker.innerHTML=html;
+  picker.classList.add('open');
+  setTimeout(()=>document.getElementById(`aap-txt-${date}`)?.focus(),50);
+}
+
+function submitAddAct(date){
+  if(IS_RESTRICTED)return;
+  const txt=document.getElementById(`aap-txt-${date}`)?.value.trim();
+  const h=document.getElementById(`aap-h-${date}`)?.value.trim()||'TBD';
+  if(!txt){toast('⚠ Escribí el nombre de la actividad');return;}
+  const state=_aapState[date]||{};
+  const acts=getDayActs();
+  if(!acts[date])acts[date]=[];
+  acts[date].push({...state,txt,h});
+  stor.set(KDayActs,acts);
+  cloudPushDebounced(KDayActs,acts);
+  delete _aapState[date];
+  const btn=document.querySelector(`[onclick*="toggleAddAct('${date}'"]`);
+  if(btn)btn.textContent='＋ Agregar actividad';
+  rerenderDayEvents(date);
+  toast('Actividad agregada ✓');
 }
 
 function addDayAct(date,optJson){
-  if(IS_RESTRICTED) return;
+  if(IS_RESTRICTED)return;
   const opt=JSON.parse(decodeURIComponent(optJson));
   const acts=getDayActs();
   if(!acts[date])acts[date]=[];
