@@ -308,6 +308,16 @@ app.get('/api/calendar.ics', async (req, res) => {
     return result;
   }
 
+  // Convierte link de Dropbox (dl=0 o scl) a URL de descarga directa
+  function toDropboxDirect(url) {
+    return url
+      .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+      .replace(/[?&]dl=0/, '')
+      .replace(/[?&]rlkey=[^&]+/, '')
+      .replace(/\?$/, '');
+  }
+
+  // POST con archivo subido
   app.post('/api/parse-boletin', upload.single('pdf'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo PDF' });
     try {
@@ -315,12 +325,46 @@ app.get('/api/calendar.ics', async (req, res) => {
       const parsed = parseBoletinText(data.text);
       res.json({ ok: true, parsed, pages: data.numpages });
     } catch(e) {
-      console.error('Error parseando PDF:', e);
+      console.error('Error parseando PDF (upload):', e);
       res.status(500).json({ error: 'No se pudo parsear el PDF: ' + e.message });
     }
   });
 
-  console.log('Endpoint /api/parse-boletin activo');
+  // GET con link de Dropbox
+  app.get('/api/parse-boletin', async (req, res) => {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: 'Falta parámetro url' });
+    try {
+      const directUrl = toDropboxDirect(decodeURIComponent(url));
+      const buf = await new Promise((resolve, reject) => {
+        const mod = directUrl.startsWith('https') ? require('https') : require('http');
+        mod.get(directUrl, { headers: { 'User-Agent': 'auf-prensa/1.0' } }, r => {
+          if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
+            // Seguir redirect
+            mod.get(r.headers.location, { headers: { 'User-Agent': 'auf-prensa/1.0' } }, r2 => {
+              const chunks = [];
+              r2.on('data', d => chunks.push(d));
+              r2.on('end', () => resolve(Buffer.concat(chunks)));
+              r2.on('error', reject);
+            }).on('error', reject);
+            return;
+          }
+          const chunks = [];
+          r.on('data', d => chunks.push(d));
+          r.on('end', () => resolve(Buffer.concat(chunks)));
+          r.on('error', reject);
+        }).on('error', reject);
+      });
+      const data = await pdfParse(buf);
+      const parsed = parseBoletinText(data.text);
+      res.json({ ok: true, parsed, pages: data.numpages });
+    } catch(e) {
+      console.error('Error parseando PDF (url):', e);
+      res.status(500).json({ error: 'No se pudo descargar/parsear el PDF: ' + e.message });
+    }
+  });
+
+  console.log('Endpoint /api/parse-boletin activo (upload + Dropbox URL)');
 })();
 
 const PORT = process.env.PORT || 3000;

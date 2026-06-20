@@ -7107,21 +7107,32 @@ function boletinSectionHtml(matchId){
     </div>`;
   }
   return`<div style="margin-top:10px">
-    <label style="display:block;font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">
       <i class="ti ti-file-type-pdf" style="font-size:12px;vertical-align:middle;margin-right:3px"></i> Boletín oficial FIFA
-    </label>
-    <div id="boletin-upload-area-${matchId}" style="border:1.5px dashed var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;transition:border-color .15s"
-      ondragover="event.preventDefault();this.style.borderColor='var(--cel)'"
-      ondragleave="this.style.borderColor='var(--border)'"
-      ondrop="handleBoletinDrop(event,'${matchId}')"
-      onclick="document.getElementById('boletin-file-${matchId}').click()">
-      <i class="ti ti-upload" style="font-size:18px;color:var(--hint);display:block;margin-bottom:4px"></i>
-      <div style="font-size:11px;color:var(--muted);font-weight:600">Subir PDF del boletín</div>
-      <div style="font-size:9.5px;color:var(--hint);margin-top:2px">Arrastrar o hacer clic</div>
     </div>
-    <input type="file" id="boletin-file-${matchId}" accept=".pdf" style="display:none" onchange="handleBoletinFile(this.files[0],'${matchId}')">
+    <div style="display:flex;gap:5px">
+      <input type="text" id="boletin-url-${matchId}" placeholder="Link de Dropbox del PDF…" style="flex:1;padding:6px 9px;border:1px solid var(--border);border-radius:8px;font-size:11px;font-family:inherit;color:var(--text);min-width:0">
+      <button onclick="loadBoletinFromUrl('${matchId}')" style="padding:6px 11px;border:none;border-radius:8px;background:var(--cel);color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">Cargar</button>
+    </div>
     <div id="boletin-status-${matchId}" style="font-size:10.5px;color:var(--hint);margin-top:5px;min-height:16px"></div>
   </div>`;
+}
+
+async function loadBoletinFromUrl(matchId){
+  const input=document.getElementById('boletin-url-'+matchId);
+  const status=document.getElementById('boletin-status-'+matchId);
+  const url=(input?.value||'').trim();
+  if(!url){if(status)status.textContent='Pegá el link de Dropbox primero.';return;}
+  if(status){status.style.color='var(--hint)';status.textContent='Descargando y parseando PDF…';}
+  try{
+    const res=await fetch('/api/parse-boletin?url='+encodeURIComponent(url));
+    const json=await res.json();
+    if(!json.ok) throw new Error(json.error||'Error desconocido');
+    if(status) status.textContent='';
+    showBoletinConfirm(matchId, json.parsed, json.pages);
+  }catch(e){
+    if(status){status.style.color='#DC2626';status.textContent='Error: '+e.message;}
+  }
 }
 
 async function handleBoletinFile(file, matchId){
