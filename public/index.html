@@ -2977,8 +2977,56 @@ const ESPN_ES={
   'Côte d\'Ivoire':'Costa de Marfil','Burkina Faso':'Burkina Faso',
 };
 const _wcFetching={};
-const KWCStandings='auf4_wc_standings';
+const KWCStandings='auf4_wc_standings2'; // v2: incluye I-L calculados desde scoreboard
 let _standFetching=false;
+
+// Calcula standings de grupos I-L desde el scoreboard (ESPN standings API solo devuelve A-H)
+function computeStandingsFromEvents(events){
+  // Solo grupos I-L (A-H los trae el standings API)
+  const missingGroups=new Set(['I','J','K','L']);
+  const teamStats={}; // key: groupLetter+teamName
+  events.forEach(ev=>{
+    const comp=ev.competitions?.[0];
+    if(!comp) return;
+    const home=comp.competitors?.find(c=>c.homeAway==='home');
+    const away=comp.competitors?.find(c=>c.homeAway==='away');
+    if(!home||!away) return;
+    const grp=findGroupForESPNName(home.team?.displayName||'');
+    if(!grp||!missingGroups.has(grp)) return;
+    const completed=comp.status?.type?.completed;
+    if(!completed) return;
+    const hs=parseInt(home.score||'0'), as=parseInt(away.score||'0');
+    const addTeam=(teamName, gf, gc)=>{
+      const key=grp+'|'+teamName;
+      if(!teamStats[key]) teamStats[key]={grp, name:teamName, pj:0, w:0, d:0, l:0, gf:0, gc:0};
+      const t=teamStats[key];
+      t.pj++; t.gf+=gf; t.gc+=gc;
+      if(gf>gc) t.w++; else if(gf===gc) t.d++; else t.l++;
+    };
+    addTeam(home.team.displayName, hs, as);
+    addTeam(away.team.displayName, as, hs);
+  });
+  const computed={};
+  Object.values(teamStats).forEach(t=>{
+    const pts=t.w*3+t.d;
+    const dg=t.gf-t.gc;
+    const iso=findIsoForESPNName(t.name)||'';
+    const esName=ESPN_NAME_ES[normTeamName(t.name)]||t.name;
+    (computed[t.grp]=computed[t.grp]||[]).push({name:esName, iso, pts, pj:t.pj, gf:t.gf, gc:t.gc, dg});
+  });
+  // Ordenar cada grupo: pts desc, dg desc, gf desc
+  Object.keys(computed).forEach(g=>{
+    computed[g].sort((a,b)=>b.pts-a.pts||b.dg-a.dg||b.gf-a.gf);
+    // Rellenar equipos que aún no jugaron con 0s
+    const allTeams=WC_GROUPS[g]||[];
+    allTeams.forEach(t=>{
+      if(!computed[g].some(r=>r.name===t.n||normTeamName(r.name)===normTeamName(t.n)))
+        computed[g].push({name:t.n, iso:t.iso, pts:0, pj:0, gf:0, gc:0, dg:0});
+    });
+  });
+  return computed;
+}
+
 async function fetchGroupStandings(){
   const cache=stor.get(KWCStandings,{});
   const ts=cache.ts||0;
@@ -2986,9 +3034,14 @@ async function fetchGroupStandings(){
   if(_standFetching) return;
   _standFetching=true;
   try{
-    const data=await fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings').then(r=>r.json());
+    // Fetch standings API (A-H) + scoreboard para I-L en paralelo
+    const [standData, allEvents]=await Promise.all([
+      fetch('https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings').then(r=>r.json()).catch(()=>({})),
+      fetchAllWCMatches().catch(()=>[]),
+    ]);
     const groups={};
-    (data.children||[]).forEach(grp=>{
+    // Parsear A-H desde standings API
+    (standData.children||[]).forEach(grp=>{
       const letter=(grp.abbreviation||grp.name||'').replace(/^Grupo\s*/i,'').replace(/^Group\s*/i,'').trim().toUpperCase();
       if(!letter||letter.length!==1) return;
       const rows=(grp.standings?.entries||[]).map(e=>{
@@ -2996,7 +3049,7 @@ async function fetchGroupStandings(){
         const get=(n)=>stats.find(s=>s.abbreviation===n||s.name===n)?.value??0;
         return{
           name:e.team?.displayName||'',
-          iso:(e.team?.abbreviation||'').toLowerCase(),
+          iso:findIsoForESPNName(e.team?.displayName||'')||(e.team?.abbreviation||'').toLowerCase(),
           pts:get('pts')||get('PTS')||0,
           pj:get('gp')||get('GP')||get('PJ')||0,
           gf:get('pf')||get('GF')||0,
@@ -3006,10 +3059,12 @@ async function fetchGroupStandings(){
       }).sort((a,b)=>b.pts-a.pts||b.dg-a.dg||b.gf-a.gf);
       if(rows.length) groups[letter]=rows;
     });
+    // Calcular I-L desde scoreboard
+    const computed=computeStandingsFromEvents(allEvents);
+    Object.assign(groups, computed);
     stor.set(KWCStandings,{ts:Date.now(),groups});
     // re-render si hay cruces visibles
-    const con=document.getElementById('disp-container');
-    if(con) renderDisponibilidad();
+    if(document.getElementById('partidos-container')) renderPartidos();
   }catch(e){console.warn('Standings fetch error',e);}
   finally{_standFetching=false;}
 }
