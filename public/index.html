@@ -1373,12 +1373,28 @@ html.auf-gate body { display:none !important }
 // Fecha local (no UTC) — toISOString() corría un día adelantado para zonas horarias negativas (ej. UYT)
 const TODAY = (()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`})(); // se actualiza automático
 
-// Rango de fechas de cada partido (para calcular actividades por jugador)
+// Rango de fechas de cada partido (valores por defecto — editables desde la web)
 const MATCH_RANGES={
   'uru-ksa':{from:'2026-06-10',to:'2026-06-15'},
   'uru-cpv':{from:'2026-06-16',to:'2026-06-21'},
   'uru-esp':{from:'2026-06-22',to:'2026-06-26'},
 };
+const KMatchRanges='auf4_match_ranges';
+function getMatchRanges(){
+  const saved=stor.get(KMatchRanges,{});
+  const result={};
+  ['uru-ksa','uru-cpv','uru-esp'].forEach(id=>{
+    result[id]=saved[id]||MATCH_RANGES[id];
+  });
+  return result;
+}
+function setMatchRange(matchId,from,to){
+  if(IS_RESTRICTED)return;
+  const saved=stor.get(KMatchRanges,{});
+  saved[matchId]={from,to};
+  stor.set(KMatchRanges,saved);
+  cloudPushDebounced(KMatchRanges,saved);
+}
 
 // Devuelve {playerNum: count} con actividades HECHAS por jugador en un partido
 function getPlayerMatchCounts(matchId){
@@ -2925,7 +2941,8 @@ function setEvObligState(date,idx,state,art){
 }
 
 function getMatchIdForDate(date){
-  return Object.keys(MATCH_RANGES).find(id=>date>=MATCH_RANGES[id].from&&date<=MATCH_RANGES[id].to)||null;
+  const ranges=getMatchRanges();
+  return Object.keys(ranges).find(id=>date>=ranges[id].from&&date<=ranges[id].to)||null;
 }
 
 // Chips de jugadores ordenados: sin actividad primero, con badge de conteo
@@ -4142,6 +4159,14 @@ function clearMatchData(matchId){
   renderChecklist(matchId);
 }
 
+function resetMatchRange(matchId){
+  const saved=stor.get(KMatchRanges,{});
+  delete saved[matchId];
+  stor.set(KMatchRanges,saved);
+  cloudPushDebounced(KMatchRanges,saved);
+  renderChecklist(matchId);
+}
+
 function renderChecklist(matchId){
   const allItems=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
   // Solo mostrar ítems con al menos un vínculo explícito de calendario
@@ -4154,6 +4179,8 @@ function renderChecklist(matchId){
   }).length;
   const pct=items.length?Math.round(done/items.length*100):0;
 
+  const range=_rangeForMatch(matchId)||{from:'',to:''};
+  const fmtD=d=>d?d.slice(8)+'/'+d.slice(5,7):'';
   document.getElementById('chk-progress').innerHTML=`
     <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:13px 14px">
       <div class="prog-label" style="margin-bottom:6px">
@@ -4163,7 +4190,19 @@ function renderChecklist(matchId){
           <button onclick="clearMatchData('${matchId}')" style="font-size:10px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit" title="Reiniciar datos de este partido">↺ Reset</button>
         </div>
       </div>
-      <div class="prog-bar" style="height:7px"><div class="prog-fill${done===items.length&&items.length?'':' partial'}" style="width:${pct}%"></div></div>
+      <div class="prog-bar" style="height:7px;margin-bottom:10px"><div class="prog-fill${done===items.length&&items.length?'':' partial'}" style="width:${pct}%"></div></div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">📅 Período</span>
+        <input type="date" id="chk-range-from-${matchId}" value="${range.from}"
+          onchange="setMatchRange('${matchId}',this.value,document.getElementById('chk-range-to-${matchId}').value);renderChecklist('${matchId}')"
+          style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;color:var(--fg);background:var(--white)">
+        <span style="font-size:11px;color:var(--muted)">→</span>
+        <input type="date" id="chk-range-to-${matchId}" value="${range.to}"
+          onchange="setMatchRange('${matchId}',document.getElementById('chk-range-from-${matchId}').value,this.value);renderChecklist('${matchId}')"
+          style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;color:var(--fg);background:var(--white)">
+        ${range.from!==MATCH_RANGES[matchId]?.from||range.to!==MATCH_RANGES[matchId]?.to
+          ?`<button onclick="resetMatchRange('${matchId}')" style="font-size:10px;padding:2px 7px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit" title="Restaurar fechas por defecto">↺ defecto</button>`:''}
+      </div>
     </div>`;
 
   // group by fase
@@ -4269,10 +4308,10 @@ function rerenderChkItem(matchId,actId){
   el.replaceWith(newEl);
 }
 
-// Devuelve rango de fechas para un matchId (incluye 'llegada')
+// Devuelve rango de fechas para un matchId (incluye 'llegada'), usando rangos editables
 function _rangeForMatch(matchId){
   if(matchId==='llegada') return {from:'2026-06-10',to:'2026-06-10'};
-  return MATCH_RANGES[matchId]||null;
+  return getMatchRanges()[matchId]||null;
 }
 
 // Devuelve todos los eventos de calendario vinculados automáticamente (vía chkId) a un ítem
