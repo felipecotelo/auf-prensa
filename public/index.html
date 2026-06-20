@@ -4284,8 +4284,23 @@ function _autoLinkedEvs(matchId,actId){
     const customActs=getDayActs()[day.date]||[];
     const allEvs=[...(day.eventos||[]),...customActs];
     allEvs.forEach((ev,idx)=>{
-      if(ev.chkId===actId) result.push({date:day.date,idx,txt:getEvTxt(day.date,idx,ev.txt||''),h:ev.h,dayLabel:day.label||day.date});
+      if(ev.chkId===actId) result.push({date:day.date,idx,txt:getEvTxt(day.date,idx,ev.txt||''),h:ev.h,dayLabel:day.label||day.date,sessId:null});
     });
+  });
+  return result;
+}
+
+// Devuelve los eventos de calendario vinculados vía EVENT_GROUPS a un ítem (sesiones)
+function _sessionLinkedEvs(matchId,actId){
+  const result=[];
+  Object.values(EVENT_GROUPS).flat().forEach(entry=>{
+    if(entry.chk?.matchId!==matchId||entry.chk?.actId!==actId)return;
+    const day=CALENDAR_DAYS.find(d=>d.date===entry.date);
+    const customActs=getDayActs()[entry.date]||[];
+    const allEvs=[...(day?.eventos||[]),...customActs];
+    const ev=allEvs[entry.idx];
+    if(!ev)return;
+    result.push({date:entry.date,idx:entry.idx,txt:getEvTxt(entry.date,entry.idx,ev.txt||''),h:ev.h,dayLabel:day?.label||entry.date,sessId:entry.chk.sessId});
   });
   return result;
 }
@@ -4295,10 +4310,13 @@ function buildChkEvLinkHtml(matchId,actId){
   const range=_rangeForMatch(matchId);
   if(!range)return'';
 
-  // Vínculos automáticos (chkId en evento estático)
+  // Vínculos automáticos vía chkId en evento estático
   const autoEvs=_autoLinkedEvs(matchId,actId);
 
-  // Vínculos manuales (KChkEvLink) para este ítem
+  // Vínculos vía EVENT_GROUPS (sesiones: md2-crew, md1-conf con sessId)
+  const sessEvs=_sessionLinkedEvs(matchId,actId);
+
+  // Vínculos manuales (KChkEvLink)
   const manualEvs=Object.entries(manualLinks)
     .filter(([k,v])=>v.matchId===matchId&&v.actId===actId)
     .map(([k])=>{
@@ -4311,24 +4329,40 @@ function buildChkEvLinkHtml(matchId,actId){
       return ev?{date,idx,txt:getEvTxt(date,idx,ev.txt||''),h:ev.h,dayLabel:day?.label||date}:null;
     }).filter(Boolean);
 
-  const autoHtml=autoEvs.map(({date,idx,txt,h,dayLabel})=>`
-    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:var(--cel-lt);border-radius:6px;padding:4px 7px;margin-bottom:3px">
+  const sessHtml=sessEvs.map(({date,idx,txt,h,dayLabel,sessId})=>{
+    const sessLabel=sessId?` · ${sessId}`:'';
+    const evStatus=getEvStatus()[evKey(date,idx)]||'';
+    const statusIcon=evStatus==='done'?'✓ ':evStatus==='no'?'✗ ':'⏳ ';
+    return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:var(--cel-lt);border-radius:6px;padding:4px 7px;margin-bottom:3px">
+      <span style="font-size:9px;color:var(--cel-dk);flex-shrink:0;opacity:.7">SESIÓN${sessLabel}</span>
+      <span style="flex:1">${statusIcon}<b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
+    </div>`;
+  }).join('');
+
+  const autoHtml=autoEvs.map(({date,idx,txt,h,dayLabel})=>{
+    const evStatus=getEvStatus()[evKey(date,idx)]||'';
+    const statusIcon=evStatus==='done'?'✓ ':evStatus==='no'?'✗ ':'⏳ ';
+    return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:var(--cel-lt);border-radius:6px;padding:4px 7px;margin-bottom:3px">
       <span style="font-size:9px;color:var(--muted);flex-shrink:0">AUTO</span>
-      <span style="flex:1"><b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
-    </div>`).join('');
+      <span style="flex:1">${statusIcon}<b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
+    </div>`;
+  }).join('');
 
-  const manualHtml=manualEvs.map(({date,idx,txt,h,dayLabel})=>`
-    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:#EAF3DE;border-radius:6px;padding:4px 7px;margin-bottom:3px">
+  const manualHtml=manualEvs.map(({date,idx,txt,h,dayLabel})=>{
+    const evStatus=getEvStatus()[evKey(date,idx)]||'';
+    const statusIcon=evStatus==='done'?'✓ ':evStatus==='no'?'✗ ':'⏳ ';
+    return`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--cel-dk);background:#EAF3DE;border-radius:6px;padding:4px 7px;margin-bottom:3px">
       <span style="font-size:9px;color:#4a7c2f;flex-shrink:0">MANUAL</span>
-      <span style="flex:1"><b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
+      <span style="flex:1">${statusIcon}<b>${dayLabel}${h&&h!=='TBD'?' '+h:''} · </b>${txt}</span>
       <button onclick="removeChkEvLink('${date}',${idx});rerenderChkItem('${matchId}','${actId}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px" title="Quitar vínculo">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
-  const noLinks=!autoEvs.length&&!manualEvs.length;
+  const noLinks=!autoEvs.length&&!sessEvs.length&&!manualEvs.length;
 
   return`<div style="margin-top:8px">
     <label style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">🔗 Evento en calendario</label>
-    ${autoHtml}${manualHtml}
+    ${sessHtml}${autoHtml}${manualHtml}
     ${noLinks?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Sin vínculo de calendario</div>':''}
     <button onclick="toggleChkEvLinkPicker('${matchId}','${actId}',this)" style="font-size:11px;padding:4px 10px;border:1px dashed var(--cel);border-radius:6px;background:none;color:var(--cel-dk);cursor:pointer;font-family:inherit">＋ Ajustar vínculo</button>
     <div id="chk-evpicker-${matchId}-${actId}" style="display:none;margin-top:6px;max-height:220px;overflow-y:auto;border:0.5px solid var(--border);border-radius:8px;padding:4px"></div>
