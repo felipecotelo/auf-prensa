@@ -2459,15 +2459,39 @@ function syncEvToChkSession(date,idx,evStatus){
   const matchId=_llegadaIds.has(ev.chkId)?'llegada':getMatchIdForDate(date);
   if(!matchId)return;
   const newDone=(evStatus==='done');
-  const data=getItemData(matchId,ev.chkId);
-  if(data.done===newDone)return;
-  data.done=newDone;
+  const allItems=[...CL_LLEGADA,...CL_MATCH];
+  const item=allItems.find(i=>i.id===ev.chkId);
   _syncLock=true;
-  setItemData(matchId,ev.chkId,data);
+  if(item?.sessions){
+    // Distribuir participantes del evento a las sesiones del ítem
+    const pts=getEvParts()[evKey(date,idx)]||[];
+    const dtParts=pts.filter(x=>x.startsWith('dt_')).map(x=>x.slice(3));
+    const pNums=pts.filter(x=>x.startsWith('p_')).map(x=>parseInt(x.slice(2)));
+    item.sessions.forEach(sess=>{
+      const s=getSessionData(matchId,ev.chkId,sess.id);
+      if(sess.isStep){
+        // Sesiones de paso (stand-ups) — se marcan done junto con el evento
+        if(s.done!==newDone){s.done=newDone;_saveSessionData(matchId,ev.chkId,sess.id,s,item.sessions);}
+      } else if(sess.isDT){
+        // Sesión del DT
+        const newDt=dtParts[0]||s.dt||'';
+        if(s.done!==newDone||s.dt!==newDt){s.done=newDone;s.dt=newDt;_saveSessionData(matchId,ev.chkId,sess.id,s,item.sessions);}
+      } else {
+        // Sesión de jugador
+        const newPlayers=pNums.length?pNums:(s.players||[]);
+        if(s.done!==newDone||JSON.stringify(s.players)!==JSON.stringify(newPlayers)){
+          s.done=newDone;s.players=newPlayers;_saveSessionData(matchId,ev.chkId,sess.id,s,item.sessions);
+        }
+      }
+    });
+  } else {
+    const data=getItemData(matchId,ev.chkId);
+    if(data.done!==newDone){data.done=newDone;setItemData(matchId,ev.chkId,data);}
+  }
   _syncLock=false;
   // Re-render checklist item if visible
   const el=document.getElementById(`ci-${matchId}-${ev.chkId}`);
-  if(el){const item=CL_MATCH.find(i=>i.id===ev.chkId);if(item){const newEl=buildChkItem(matchId,item);if(el.classList.contains('open'))newEl.classList.add('open');el.replaceWith(newEl);}}
+  if(el&&item){const newEl=buildChkItem(matchId,item);if(el.classList.contains('open'))newEl.classList.add('open');el.replaceWith(newEl);}
   refreshChkProgress(matchId);
 }
 function syncChkSessionToEv(matchId,actId,sessId,done){
