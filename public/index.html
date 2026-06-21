@@ -2101,8 +2101,10 @@ function applyPostMatchUpdates(pizMatchId, evs){
   const matchNum=name=>nameMap[normName(name)]||nameMap[normName(name.split(' ').pop())];
 
   // Quiénes jugaron: titulares del borrador/oficial + entraron desde el banco
+  // Solo contar titulares si hay eventos reales (el partido efectivamente comenzó)
   const lineup=getLineup()[pizMatchId]||{};
-  const played=new Set(Object.values(lineup.starters||{}).filter(Boolean));
+  const hasRealEvents=evs.some(e=>e.type==='sub'||e.type==='goal'||e.type==='card');
+  const played=new Set(hasRealEvents?Object.values(lineup.starters||{}).filter(Boolean):[]);
   evs.forEach(e=>{
     if(e.type==='sub' && e.side==='uru' && e.extra){
       const inNum=matchNum(e.extra);
