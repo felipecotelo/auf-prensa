@@ -2331,6 +2331,21 @@ function getEvNotes(){return stor.get(KEvN,{})}
 function setEvNotes(v){stor.set(KEvN,v)}
 
 const KEvLink='auf4_evlink';
+const KExcluded='auf4_excl'; // {matchId: [{n, reason:'lesion'|'sancion'}]}
+function getExcluded(){return stor.get(KExcluded,{})}
+function setExcluded(v){stor.set(KExcluded,v)}
+function getExcludedForMatch(matchId){return getExcluded()[matchId]||[]}
+function toggleExcluded(num,matchId,reason){
+  const ex=getExcluded();
+  const list=ex[matchId]||[];
+  const existing=list.findIndex(e=>e.n===num);
+  if(existing!==-1){
+    if(list[existing].reason===reason){list.splice(existing,1);}
+    else{list[existing].reason=reason;}
+  } else {list.push({n:num,reason});}
+  ex[matchId]=list;
+  setExcluded(ex);
+}
 const KEvPos='auf4_evpos2';
 function getDayEvPos(date){return stor.get(KEvPos,{})[date]||{}}
 function setDayEvPos(date,map){const s=stor.get(KEvPos,{});s[date]=map;stor.set(KEvPos,s)}
@@ -5092,9 +5107,14 @@ async function renderBenchPanel(pizMatchId, container){
   });
   const suspendedNums=new Set(PLAYERS.filter(p=>yellows[p.n]>=2).map(p=>p.n));
 
+  const excludedList=getExcludedForMatch(pizMatchId);
+  const excludedNums=new Set(excludedList.map(e=>e.n));
+  const benchActive=bench.filter(p=>!excludedNums.has(p.n));
+  const benchExcl=bench.filter(p=>excludedNums.has(p.n));
+
   const POS_ORDER=['POR','DEF','MED','DEL'];
   const POS_LABELS={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
-  const benchByPos=POS_ORDER.map(pos=>({pos,label:POS_LABELS[pos],players:bench.filter(p=>p.pos===pos)})).filter(g=>g.players.length);
+  const benchByPos=POS_ORDER.map(pos=>({pos,label:POS_LABELS[pos],players:benchActive.filter(p=>p.pos===pos)})).filter(g=>g.players.length);
 
   function chipHtml(p){
     const ph=photos[p.n]||p.photo||'';
@@ -5121,16 +5141,63 @@ async function renderBenchPanel(pizMatchId, container){
         <div class="piz-chip-top">${injDot}<span class="piz-chip-num">#${p.n}</span><span class="piz-chip-name">${sn}</span>${subBadge}${isSusp?'<span style="font-size:7px;font-weight:900;background:#DC2626;color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">SUSP</span>':''}${p.captain===1?'<span style="font-size:7px;font-weight:900;background:var(--gold);color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">C</span>':''}</div>
         ${evBadges?`<div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap">${evBadges}</div>`:''}
       </div>
+      <button onclick="event.stopPropagation();showExclMenu(${p.n},'${pizMatchId}',this)" title="Fuera del banco" style="margin-left:auto;flex-shrink:0;background:none;border:none;cursor:pointer;font-size:11px;padding:2px 4px;color:var(--hint);line-height:1;border-radius:4px" tabindex="-1">🚫</button>
     </div>`;
   }
 
+  const exclSectionHtml=benchExcl.length?`
+    <div style="margin-top:10px;border-top:1px dashed #FECACA;padding-top:8px">
+      <div style="font-size:9.5px;font-weight:800;color:#DC2626;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Fuera del banco</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${benchExcl.map(p=>{
+          const reason=excludedList.find(e=>e.n===p.n)?.reason;
+          const pts=p.name.trim().split(' ');
+          const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+          const ph=photos[p.n]||p.photo||'';
+          return`<div style="display:flex;align-items:center;gap:8px;background:#FEF2F2;border:0.5px solid #FECACA;border-radius:8px;padding:5px 8px">
+            <div class="piz-chip-av" style="width:24px;height:24px;min-width:24px;font-size:9px">${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
+              <span class="piz-chip-av-num" style="${ph?'display:none':''}">${p.n}</span></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;font-weight:700;color:var(--text)">${sn}</div>
+              <div style="display:flex;gap:4px;margin-top:2px">
+                <button onclick="toggleExcluded(${p.n},'${pizMatchId}','lesion');renderBenchPanel('${pizMatchId}')" style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;border:1px solid ${reason==='lesion'?'#DC2626':'var(--border)'};background:${reason==='lesion'?'#DC2626':'transparent'};color:${reason==='lesion'?'#fff':'var(--muted)'};cursor:pointer">🤕 Lesión</button>
+                <button onclick="toggleExcluded(${p.n},'${pizMatchId}','sancion');renderBenchPanel('${pizMatchId}')" style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;border:1px solid ${reason==='sancion'?'#DC2626':'var(--border)'};background:${reason==='sancion'?'#DC2626':'transparent'};color:${reason==='sancion'?'#fff':'var(--muted)'};cursor:pointer">🟥 Sanción</button>
+              </div>
+            </div>
+            <button onclick="toggleExcluded(${p.n},'${pizMatchId}',getExcludedForMatch('${pizMatchId}').find(e=>e.n===${p.n})?.reason);renderBenchPanel('${pizMatchId}')" title="Volver al banco" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--hint);padding:2px 4px">✕</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`:''
+
   container.innerHTML=`
-    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Banco — ${bench.length} jugadores</div>
+    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Banco — ${benchActive.length} jugadores</div>
     ${benchByPos.map(g=>`
       <div style="font-size:8.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;padding:5px 0 3px;border-bottom:0.5px solid var(--border);margin-bottom:4px">${g.label}</div>
       <div class="piz-bench-chips" style="display:flex;flex-direction:column;gap:3px;margin-bottom:4px">${g.players.map(chipHtml).join('')}</div>
     `).join('')}
+    ${exclSectionHtml}
   `;
+}
+
+function showExclMenu(num,matchId,btn){
+  const existing=getExcludedForMatch(matchId).find(e=>e.n===num);
+  if(existing){toggleExcluded(num,matchId,existing.reason);renderBenchPanel(matchId);return;}
+  // Show inline picker anchored to button
+  const old=document.getElementById('excl-picker');if(old)old.remove();
+  const picker=document.createElement('div');
+  picker.id='excl-picker';
+  picker.style.cssText='position:fixed;z-index:9999;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:140px';
+  const rect=btn.getBoundingClientRect();
+  picker.style.top=(rect.bottom+4)+'px';
+  picker.style.left=Math.min(rect.left,window.innerWidth-160)+'px';
+  picker.innerHTML=`
+    <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:4px;border-bottom:0.5px solid var(--border)">Fuera del banco por…</div>
+    <button onclick="toggleExcluded(${num},'${matchId}','lesion');renderBenchPanel('${matchId}');document.getElementById('excl-picker')?.remove()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);padding:4px 2px;border-radius:6px;text-align:left">🤕 <span>Lesión</span></button>
+    <button onclick="toggleExcluded(${num},'${matchId}','sancion');renderBenchPanel('${matchId}');document.getElementById('excl-picker')?.remove()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);padding:4px 2px;border-radius:6px;text-align:left">🟥 <span>Sanción</span></button>
+  `;
+  document.body.appendChild(picker);
+  setTimeout(()=>document.addEventListener('click',function h(){picker.remove();document.removeEventListener('click',h)},{once:true}),10);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -8387,7 +8454,11 @@ async function renderPizarra(matchId){
   const benchDefaultNums=benchSorted.map(p=>p.n);
   const benchOrder=getOrderedNums(benchKey,benchDefaultNums);
   benchSorted=benchOrder.map(n=>benchSorted.find(p=>p.n===n)).filter(Boolean);
-  const benchRows=benchSorted.filter(p=>p).map(p=>{
+  const excludedListPiz=getExcludedForMatch(matchId);
+  const excludedNumsPiz=new Set(excludedListPiz.map(e=>e.n));
+  const benchForStats=benchSorted.filter(p=>!excludedNumsPiz.has(p.n));
+  const benchExclPiz=benchSorted.filter(p=>excludedNumsPiz.has(p.n));
+  const filteredBenchRows=benchForStats.map(p=>{
     const inj=getPlayerInjury(p.n);
     const injBadge=inj==='red'?'<span style="width:8px;height:8px;border-radius:50%;background:#C0392B;display:inline-block;margin-left:5px;vertical-align:middle" title="Lesionado"></span>':inj==='yellow'?'<span style="width:8px;height:8px;border-radius:50%;background:#F97316;display:inline-block;margin-left:5px;vertical-align:middle" title="Duda"></span>':'';
     const pts=p.name.trim().split(' ');
@@ -8404,6 +8475,19 @@ async function renderPizarra(matchId){
       <td style="padding:5px 6px;text-align:center;font-weight:800;color:var(--gold)"><div style="display:flex;align-items:center;justify-content:flex-end;gap:3px"><span style="min-width:32px;text-align:right;display:inline-block">${effectiveStats(p).wcGoals}</span>${statDeltaBadge(p.n,'wcGoals')}</div></td>
     </tr>`;
   }).join('');
+  const exclRowsHtml=benchExclPiz.map(p=>{
+    const pts=p.name.trim().split(' ');
+    const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+    const reason=excludedListPiz.find(e=>e.n===p.n)?.reason;
+    const badge=reason==='lesion'?'<span style="font-size:8px;font-weight:800;background:#FEE2E2;color:#DC2626;border-radius:3px;padding:0 4px;margin-left:5px">🤕 Lesión</span>':reason==='sancion'?'<span style="font-size:8px;font-weight:800;background:#FEE2E2;color:#DC2626;border-radius:3px;padding:0 4px;margin-left:5px">🟥 Sanción</span>':'';
+    return`<tr style="border-bottom:0.5px solid #FECACA;background:#FEF9F9;opacity:.7">
+      <td style="padding:5px 10px;font-weight:500"><span style="font-size:10px;color:var(--muted);margin-right:4px">${p.pos}</span>${sn}${badge}</td>
+      <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--cel-dk)">${effectiveStats(p).caps}</td>
+      <td style="padding:5px 8px;text-align:center;font-weight:800;color:var(--green)">${effectiveStats(p).goals}</td>
+      <td style="padding:5px 6px;text-align:center;font-weight:800;color:var(--gold)">${effectiveStats(p).wcCaps}</td>
+      <td style="padding:5px 6px;text-align:center;font-weight:800;color:var(--gold)">${effectiveStats(p).wcGoals}</td>
+    </tr>`;
+  }).join('');
   const benchStatsHtml=bench.length?`
     <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
       <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px 6px;border-bottom:0.5px solid var(--border)">
@@ -8417,7 +8501,7 @@ async function renderPizarra(matchId){
           <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Partidos en Mundial 2026">🏆PJ</th>
           <th style="padding:5px 6px;text-align:center;font-size:9px;color:var(--gold);font-weight:700" title="Goles en Mundial 2026">🏆G</th>
         </tr></thead>
-        <tbody>${benchRows}</tbody>
+        <tbody>${filteredBenchRows}${exclRowsHtml?`<tr style="background:#FEF2F2"><td colspan="5" style="padding:4px 10px;font-size:9px;font-weight:800;color:#DC2626;text-transform:uppercase;letter-spacing:.06em">Fuera del banco</td></tr>${exclRowsHtml}`:''}</tbody>
       </table></div>
     </div>` : '';
 
