@@ -5257,6 +5257,16 @@ async function renderFixMiniPizarra(pizMatchId, containerEl){
   const st=ml.starters||{};
   const usedNums=new Set(Object.values(st).filter(Boolean));
   const captainNum=usedNums.has(2)?2:usedNums.has(8)?8:null;
+  // goleadores del partido para los badges ⚽ en la mini-cancha
+  const _miniNm=buildNameMap();
+  const _miniMn=name=>_miniNm[normName(name)]||_miniNm[normName(name.split(' ').pop())];
+  const _miniGoalsByNum={};
+  (getMatchEvents()[pizMatchId]||[]).forEach(e=>{
+    if(e.type==='goal'&&e.side==='uru'){
+      const n=_miniMn(e.player);
+      if(n)(_miniGoalsByNum[n]=_miniGoalsByNum[n]||[]).push({min:e.min});
+    }
+  });
   const miniSlotHtml=(slot)=>{
     const pNum=st[slot.id];
     const p=pNum?PLAYERS.find(x=>x.n===pNum):null;
@@ -5264,6 +5274,7 @@ async function renderFixMiniPizarra(pizMatchId, containerEl){
     const parts=p?p.name.trim().split(' '):[];
     const lbl=p?`${parts[0][0]}. ${parts[parts.length-1]}`:'';
     const isCap=p&&p.n===captainNum;
+    const goals=p?(_miniGoalsByNum[p.n]||[]):[];
     const ms=p?computeMilestones(p):[];
     const topMsItem=ms.length?ms[0]:null;
     const topMs=topMsItem?topMsItem.txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
@@ -5278,6 +5289,7 @@ async function renderFixMiniPizarra(pizMatchId, containerEl){
         </div>
         ${p?`<div class="p-slot-num">${p.n}</div>`:''}
         ${isCap?`<div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);color:#fff;font-size:7px;font-weight:900;padding:1px 4px;border-radius:4px;z-index:10;white-space:nowrap;border:1px solid rgba(255,255,255,.5)">(C)</div>`:''}
+        ${goals.map((g,i)=>`<div style="position:absolute;bottom:-1px;right:${-1+i*14}px;width:14px;height:14px;border-radius:50%;background:#fff;border:1.5px solid rgba(0,0,0,.15);z-index:10;display:flex;align-items:center;justify-content:center;font-size:9px" title="Gol ${g.min}'">⚽</div>`).join('')}
       </div>
       <div class="p-slot-lbl">${p?`#${p.n} ${lbl}`:slot.pos}</div>
       ${topMs&&p?`<div style="font-size:7px;${topMsStyle};padding:1px 3px;border-radius:2px;margin-top:1px;max-width:70px;text-align:center;line-height:1.3;text-shadow:none">${topMs}</div>`:''}
@@ -5395,15 +5407,9 @@ function renderFixture(){
         const center=hasScore
           ?`<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
               <div style="display:flex;align-items:center;gap:14px">
-                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
-                  <input class="fix-score${m.home==='uru'?' uru':''}" value="${r.h}" oninput="saveScore('${m.id}','h',this.value);updateScoreBalls('${m.id}','h',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.home==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.home==='uru'?'var(--cel-lt)':'var(--surface)'}">
-                  <div id="score-balls-${m.id}-h" style="min-height:13px;text-align:center">${ballsHtml(r.h)}</div>
-                </div>
+                <input class="fix-score${m.home==='uru'?' uru':''}" value="${r.h}" oninput="saveScore('${m.id}','h',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.home==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.home==='uru'?'var(--cel-lt)':'var(--surface)'}">
                 <span style="font-size:18px;color:var(--hint);font-weight:300">—</span>
-                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
-                  <input class="fix-score${m.away==='uru'?' uru':''}" value="${r.a}" oninput="saveScore('${m.id}','a',this.value);updateScoreBalls('${m.id}','a',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.away==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.away==='uru'?'var(--cel-lt)':'var(--surface)'}">
-                  <div id="score-balls-${m.id}-a" style="min-height:13px;text-align:center">${ballsHtml(r.a)}</div>
-                </div>
+                <input class="fix-score${m.away==='uru'?' uru':''}" value="${r.a}" oninput="saveScore('${m.id}','a',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.away==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.away==='uru'?'var(--cel-lt)':'var(--surface)'}">
               </div>
             </div>`
           :`<div style="text-align:center;min-width:90px">
