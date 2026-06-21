@@ -2286,18 +2286,34 @@ function moveEvInDay(date,idx,dir,ev){
       elB.style.transform=`translateY(${deltaB}px)`;
       setTimeout(()=>{
         [elA,elB].forEach(e=>{e.style.transition='';e.style.transform='';e.style.zIndex='';e.style.position='';});
-        // Compute new sort key by slotting between visual neighbors
-        const customActs=getDayActs()[date]||[];
-        let allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i}));
-        allEvs.sort((a,b)=>evSortKey(date,a)-evSortKey(date,b));
-        const pos=allEvs.findIndex(e=>e._origIdx===idx);
-        if(pos===-1){rerenderDayEvents(date);return;}
-        const swapPos=pos+dir;
-        if(swapPos<0||swapPos>=allEvs.length){rerenderDayEvents(date);return;}
-        const neighborKey=evSortKey(date,allEvs[swapPos]);
-        const farPos=swapPos+dir;
-        const farKey=farPos>=0&&farPos<allEvs.length?evSortKey(date,allEvs[farPos]):(neighborKey+(dir<0?-200:200));
-        const newKey=(neighborKey+farKey)/2;
+        // Read DOM order directly — includes WC games, reagendados, everything
+        const evEls=[...container.querySelectorAll(':scope > .cal-ev')];
+        // After swap elB would be at posA, elA at posB — simulate new order
+        const newOrder=[...evEls];
+        newOrder.splice(posA,1);
+        newOrder.splice(posB,0,elA);
+        // Get sort key for a DOM element by its idx
+        const keyOf=el=>{
+          const elIdx=parseInt(el.id.split('-').pop());
+          // Build minimal event object to call evSortKey
+          const _wcCache=stor.get(KWCCache,{});
+          const wcEvs=(_wcCache[date]?.games||[]).map(g=>({h:g.time,tipo:'partido-fifa',_wcMatch:true}));
+          const customActs=getDayActs()[date]||[];
+          const allSrc=[...day.eventos,...customActs,...wcEvs];
+          const srcEv=allSrc[elIdx];
+          if(!srcEv) return elIdx*100;
+          return evSortKey(date,{...srcEv,_origIdx:elIdx});
+        };
+        // elA goes between newOrder[posB-1] and newOrder[posB+1]
+        const prevEl=posB>0?newOrder[posB-1]:null;
+        const nextEl=posB<newOrder.length-1?newOrder[posB+1]:null;
+        const prevKey=prevEl?keyOf(prevEl):null;
+        const nextKey=nextEl?keyOf(nextEl):null;
+        let newKey;
+        if(prevKey!==null&&nextKey!==null) newKey=(prevKey+nextKey)/2;
+        else if(prevKey!==null) newKey=prevKey+50;
+        else if(nextKey!==null) newKey=nextKey-50;
+        else newKey=8800;
         const posMap=getDayEvPos(date);
         posMap[String(idx)]=newKey;
         setDayEvPos(date,posMap);
