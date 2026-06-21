@@ -5162,11 +5162,11 @@ async function renderBenchPanel(pizMatchId, container){
             <div style="flex:1;min-width:0">
               <div style="font-size:11px;font-weight:700;color:var(--text)">${sn}</div>
               <div style="display:flex;gap:4px;margin-top:2px">
-                <button onclick="toggleExcluded(${p.n},'${pizMatchId}','lesion');renderBenchPanel('${pizMatchId}')" style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;border:1px solid ${reason==='lesion'?'#DC2626':'var(--border)'};background:${reason==='lesion'?'#DC2626':'transparent'};color:${reason==='lesion'?'#fff':'var(--muted)'};cursor:pointer">🤕 Lesión</button>
-                <button onclick="toggleExcluded(${p.n},'${pizMatchId}','sancion');renderBenchPanel('${pizMatchId}')" style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;border:1px solid ${reason==='sancion'?'#DC2626':'var(--border)'};background:${reason==='sancion'?'#DC2626':'transparent'};color:${reason==='sancion'?'#fff':'var(--muted)'};cursor:pointer">🟥 Sanción</button>
+                <button onclick="_doExcl(${p.n},'${pizMatchId}','lesion')" style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;border:1px solid ${reason==='lesion'?'#DC2626':'var(--border)'};background:${reason==='lesion'?'#DC2626':'transparent'};color:${reason==='lesion'?'#fff':'var(--muted)'};cursor:pointer">🤕 Lesión</button>
+                <button onclick="_doExcl(${p.n},'${pizMatchId}','sancion')" style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:4px;border:1px solid ${reason==='sancion'?'#DC2626':'var(--border)'};background:${reason==='sancion'?'#DC2626':'transparent'};color:${reason==='sancion'?'#fff':'var(--muted)'};cursor:pointer">🟥 Sanción</button>
               </div>
             </div>
-            <button onclick="toggleExcluded(${p.n},'${pizMatchId}',getExcludedForMatch('${pizMatchId}').find(e=>e.n===${p.n})?.reason);renderBenchPanel('${pizMatchId}')" title="Volver al banco" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--hint);padding:2px 4px">✕</button>
+            <button onclick="_doExcl(${p.n},'${pizMatchId}','${reason}')" title="Volver al banco" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--hint);padding:2px 4px">✕</button>
           </div>`;
         }).join('')}
       </div>
@@ -5182,10 +5182,16 @@ async function renderBenchPanel(pizMatchId, container){
   `;
 }
 
+async function _doExcl(num,matchId,reason){
+  toggleExcluded(num,matchId,reason);
+  document.getElementById('excl-picker')?.remove();
+  await renderBenchPanel(matchId);
+  if(_pizMatch===matchId) renderPizarra(matchId);
+}
+
 function showExclMenu(num,matchId,btn){
   const existing=getExcludedForMatch(matchId).find(e=>e.n===num);
-  if(existing){toggleExcluded(num,matchId,existing.reason);renderBenchPanel(matchId);return;}
-  // Show inline picker anchored to button
+  if(existing){_doExcl(num,matchId,existing.reason);return;}
   const old=document.getElementById('excl-picker');if(old)old.remove();
   const picker=document.createElement('div');
   picker.id='excl-picker';
@@ -5195,8 +5201,8 @@ function showExclMenu(num,matchId,btn){
   picker.style.left=Math.min(rect.left,window.innerWidth-160)+'px';
   picker.innerHTML=`
     <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:4px;border-bottom:0.5px solid var(--border)">Fuera del banco por…</div>
-    <button onclick="toggleExcluded(${num},'${matchId}','lesion');renderBenchPanel('${matchId}');document.getElementById('excl-picker')?.remove()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);padding:4px 2px;border-radius:6px;text-align:left">🤕 <span>Lesión</span></button>
-    <button onclick="toggleExcluded(${num},'${matchId}','sancion');renderBenchPanel('${matchId}');document.getElementById('excl-picker')?.remove()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);padding:4px 2px;border-radius:6px;text-align:left">🟥 <span>Sanción</span></button>
+    <button onclick="_doExcl(${num},'${matchId}','lesion')" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);padding:4px 2px;border-radius:6px;text-align:left">🤕 <span>Lesión</span></button>
+    <button onclick="_doExcl(${num},'${matchId}','sancion')" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);padding:4px 2px;border-radius:6px;text-align:left">🟥 <span>Sanción</span></button>
   `;
   document.body.appendChild(picker);
   setTimeout(()=>document.addEventListener('click',function h(){picker.remove();document.removeEventListener('click',h)},{once:true}),10);
