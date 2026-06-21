@@ -5395,9 +5395,15 @@ function renderFixture(){
         const center=hasScore
           ?`<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
               <div style="display:flex;align-items:center;gap:14px">
-                <input class="fix-score${m.home==='uru'?' uru':''}" value="${r.h}" oninput="saveScore('${m.id}','h',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.home==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.home==='uru'?'var(--cel-lt)':'var(--surface)'}">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                  <input class="fix-score${m.home==='uru'?' uru':''}" value="${r.h}" oninput="saveScore('${m.id}','h',this.value);updateScoreBalls('${m.id}','h',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.home==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.home==='uru'?'var(--cel-lt)':'var(--surface)'}">
+                  <div id="score-balls-${m.id}-h" style="min-height:13px;text-align:center">${ballsHtml(r.h)}</div>
+                </div>
                 <span style="font-size:18px;color:var(--hint);font-weight:300">—</span>
-                <input class="fix-score${m.away==='uru'?' uru':''}" value="${r.a}" oninput="saveScore('${m.id}','a',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.away==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.away==='uru'?'var(--cel-lt)':'var(--surface)'}">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                  <input class="fix-score${m.away==='uru'?' uru':''}" value="${r.a}" oninput="saveScore('${m.id}','a',this.value);updateScoreBalls('${m.id}','a',this.value)" style="width:44px;height:44px;padding:0;border:2px solid ${m.away==='uru'?'var(--cel)':'var(--border)'};border-radius:10px;font-size:22px;font-weight:900;text-align:center;font-family:inherit;background:${m.away==='uru'?'var(--cel-lt)':'var(--surface)'}">
+                  <div id="score-balls-${m.id}-a" style="min-height:13px;text-align:center">${ballsHtml(r.a)}</div>
+                </div>
               </div>
             </div>`
           :`<div style="text-align:center;min-width:90px">
@@ -8424,7 +8430,13 @@ async function renderPizarra(matchId){
           <button onclick="openDeltaEditor('${matchId}')" style="font-size:9.5px;font-weight:700;padding:4px 10px;border:0.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap;flex:1">✏️ Corregir</button>
         </div>
       </div>
-      ${fixRes?`<div style="background:var(--navy);color:#fff;border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:8px;font-size:13px;font-weight:800">Uruguay ${fixRes.uru} – ${fixRes.rival} ${rival?.abbr||''}</div>`:''}
+      ${fixRes?`<div style="background:var(--navy);color:#fff;border-radius:8px;padding:8px 12px;text-align:center;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:800">Uruguay ${fixRes.uru} – ${fixRes.rival} ${rival?.abbr||''}</div>
+        <div style="display:flex;justify-content:space-between;padding:0 12px;margin-top:3px;font-size:9px;min-height:12px">
+          <span>${ballsHtml(fixRes.uru)}</span>
+          <span>${ballsHtml(fixRes.rival)}</span>
+        </div>
+      </div>`:''}
       <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px">
         <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Incidencias</div>
         ${incidenciasHtml}
@@ -9007,6 +9019,16 @@ function filterSP(q){
   });
 }
 function closeSP(){document.getElementById('sp-modal').classList.remove('open');_pizSwap=null;document.querySelectorAll('.p-slot--sel').forEach(e=>e.classList.remove('p-slot--sel'));}
+function ballsHtml(n){
+  const count=Math.min(Math.max(parseInt(n)||0,0),10);
+  if(!count) return '';
+  return `<span style="font-size:9px;letter-spacing:1px;line-height:1">${'⚽'.repeat(count)}</span>`;
+}
+function updateScoreBalls(matchId,side,val){
+  const el=document.getElementById(`score-balls-${matchId}-${side}`);
+  if(el) el.innerHTML=ballsHtml(val);
+}
+
 function toggleCross(btn){
   const card=btn.closest('[data-cross]');
   const detail=card.querySelector('.cross-detail');
