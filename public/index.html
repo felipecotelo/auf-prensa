@@ -2331,6 +2331,30 @@ function getEvNotes(){return stor.get(KEvN,{})}
 function setEvNotes(v){stor.set(KEvN,v)}
 
 const KEvLink='auf4_evlink';
+function _editConfLink(c){
+  const key=`conf_${c.n}${c.fwc?'_fwc':''}`;
+  const cur=c.url||(stor.get('auf4_conflinks',{})[key]||'');
+  const v=prompt('URL de YouTube (vacío para quitar):',cur);
+  if(v===null) return;
+  const url=v.trim();
+  const s=stor.get('auf4_conflinks',{});
+  if(url) s[key]=url; else delete s[key];
+  stor.set('auf4_conflinks',s);
+  // Update just the row in-place
+  const el=document.getElementById(`conf-row-${key}`);
+  if(!el) return;
+  const updatedC={...c,url:url||undefined};
+  const tmp=document.createElement('div');
+  // Re-use the same render logic inline
+  const fwcColor=c.fwc?'var(--gold)':'var(--text)';
+  const titleHtml=url?`<a href="${url}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt;
+  el.querySelector('div[style*="font-weight:700"]').innerHTML=titleHtml;
+  const btn=el.querySelector('button');
+  btn.textContent=url?'🔗':'＋';
+  btn.style.color=url?'var(--cel-dk)':'var(--hint)';
+  btn.title=url?'Editar link':'Agregar link';
+  btn.setAttribute('onclick',`_editConfLink(${JSON.stringify(updatedC)})`);
+}
 const KExcluded='auf4_excl'; // {matchId: [{n, reason:'lesion'|'sancion'}]}
 function getExcluded(){return stor.get(KExcluded,{})}
 function setExcluded(v){stor.set(KExcluded,v)}
@@ -8178,17 +8202,23 @@ function renderEstadisticas(){
         ];
         const _confLinks=stor.get('auf4_conflinks',{});
         const _saveConfLink=(key,url)=>{const s=stor.get('auf4_conflinks',{});if(url)s[key]=url;else delete s[key];stor.set('auf4_conflinks',s);};
-        const row=c=>{
+        const _renderConfRow=(c,url)=>{
           const key=`conf_${c.n}${c.fwc?'_fwc':''}`;
-          const url=c.url||_confLinks[key]||'';
-          return`<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:var(--surface);margin-bottom:2px">
+          const escapedTxt=c.txt.replace(/'/g,"\\'");
+          const escapedKey=key;
+          return`<div id="conf-row-${key}" style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:var(--surface);margin-bottom:2px">
           <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
           <div style="flex:1">
             <div style="font-size:10.5px;font-weight:700;color:${c.fwc?'var(--gold)':'var(--text)'}">${url?`<a href="${url}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}</div>
             <div style="font-size:9px;color:var(--muted)">${c.fecha} · ${c.lugar}</div>
           </div>
-          <button onclick="(()=>{const cur='${url}';const v=prompt('URL de YouTube (vacío para quitar):',cur);if(v===null)return;_saveConfLink('${key}',v.trim());showTab('estadisticas');})()" title="${url?'Editar link':'Agregar link'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${url?'var(--cel-dk)':'var(--hint)'};flex-shrink:0;line-height:1;margin-top:2px">${url?'🔗':'＋'}</button>
+          <button onclick="_editConfLink(${JSON.stringify(c)})" title="${url?'Editar link':'Agregar link'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${url?'var(--cel-dk)':'var(--hint)'};flex-shrink:0;line-height:1;margin-top:2px;transition:color .15s">${url?'🔗':'＋'}</button>
         </div>`;
+        };
+        const row=c=>{
+          const key=`conf_${c.n}${c.fwc?'_fwc':''}`;
+          const url=c.url||_confLinks[key]||'';
+          return _renderConfRow(c,url);
         };
         const yr=(label,list,color)=>`<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:${color};margin:6px 0 4px;padding:0 2px">${label}</div>${list.map(row).join('')}</div>`;
         return yr('2023 · 12 conferencias',conf2023,'#64748B')
