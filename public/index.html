@@ -8176,13 +8176,20 @@ function renderEstadisticas(){
           {n:2,txt:'Copa Mundial Post vs. Arabia Saudita (1-1)',fecha:'15/6/26',lugar:'Hard Rock Stadium (Miami)',fwc:true,url:'https://www.youtube.com/watch?v=0vVZ6SHcpC8'},
           {n:3,txt:'Copa Mundial MD-1 vs. Cabo Verde',fecha:'21/6/26',lugar:'Miami',fwc:true,url:'https://www.youtube.com/watch?v=EFpnUjRPasA'},
         ];
-        const row=c=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:var(--surface);margin-bottom:2px">
+        const _confLinks=stor.get('auf4_conflinks',{});
+        const _saveConfLink=(key,url)=>{const s=stor.get('auf4_conflinks',{});if(url)s[key]=url;else delete s[key];stor.set('auf4_conflinks',s);};
+        const row=c=>{
+          const key=`conf_${c.n}${c.fwc?'_fwc':''}`;
+          const url=c.url||_confLinks[key]||'';
+          return`<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:var(--surface);margin-bottom:2px">
           <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
           <div style="flex:1">
-            <div style="font-size:10.5px;font-weight:700;color:${c.fwc?'var(--gold)':'var(--text)'}">${c.url?`<a href="${c.url}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}</div>
+            <div style="font-size:10.5px;font-weight:700;color:${c.fwc?'var(--gold)':'var(--text)'}">${url?`<a href="${url}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}</div>
             <div style="font-size:9px;color:var(--muted)">${c.fecha} · ${c.lugar}</div>
           </div>
+          <button onclick="(()=>{const cur='${url}';const v=prompt('URL de YouTube (vacío para quitar):',cur);if(v===null)return;_saveConfLink('${key}',v.trim());showTab('estadisticas');})()" title="${url?'Editar link':'Agregar link'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${url?'var(--cel-dk)':'var(--hint)'};flex-shrink:0;line-height:1;margin-top:2px">${url?'🔗':'＋'}</button>
         </div>`;
+        };
         const yr=(label,list,color)=>`<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:${color};margin:6px 0 4px;padding:0 2px">${label}</div>${list.map(row).join('')}</div>`;
         return yr('2023 · 12 conferencias',conf2023,'#64748B')
           +yr('2024 · 23 conferencias',conf2024,'#4F46E5')
