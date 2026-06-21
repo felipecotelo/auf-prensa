@@ -2250,7 +2250,32 @@ function parseEvTime(h){
 // (ej. 18:00) pero debe ubicarse entre KO-75' (8810) y HT (8820), no por su hora real.
 function evSortKey(date,e){
   if(e.tipo==='partido') return 8815;
+  const manual=getDayManualOrder(date);
+  if(manual){
+    const pos=manual.indexOf(e._origIdx);
+    if(pos!==-1) return pos*100;
+  }
   return parseEvTime(getCalTime(date,e._origIdx,e.h));
+}
+
+function moveEvInDay(date,idx,dir,ev){
+  ev&&ev.stopPropagation();
+  if(IS_RESTRICTED) return;
+  const day=CALENDAR_DAYS.find(d=>d.date===date);
+  if(!day) return;
+  // Build current sorted order if no manual order yet
+  const customActs=getDayActs()[date]||[];
+  let allEvs=[...day.eventos,...customActs];
+  allEvs=allEvs.map((e,i)=>({...e,_origIdx:e._origIdx??i}));
+  allEvs.sort((a,b)=>evSortKey(date,a)-evSortKey(date,b));
+  const order=allEvs.map(e=>e._origIdx);
+  const pos=order.indexOf(idx);
+  if(pos===-1) return;
+  const swapPos=pos+dir;
+  if(swapPos<0||swapPos>=order.length) return;
+  [order[pos],order[swapPos]]=[order[swapPos],order[pos]];
+  setDayManualOrder(date,order);
+  rerenderDayEvents(date);
 }
 
 // Horario "borrador": el usuario antepone ~ o agrega ? para marcar un horario
@@ -2261,6 +2286,9 @@ function getEvNotes(){return stor.get(KEvN,{})}
 function setEvNotes(v){stor.set(KEvN,v)}
 
 const KEvLink='auf4_evlink';
+const KEvPos='auf4_evpos';
+function getDayManualOrder(date){return(stor.get(KEvPos,{})[date])||null}
+function setDayManualOrder(date,arr){const s=stor.get(KEvPos,{});if(arr===null)delete s[date];else s[date]=arr;stor.set(KEvPos,s)}
 function getEvLinks(){return stor.get(KEvLink,{})}
 function setEvLinks(v){stor.set(KEvLink,v)}
 
@@ -2850,6 +2878,10 @@ function buildEventsHtml(day, startIdx=0){
             :(e.tipo==='team'||e.tipo==='sched'||e.tipo==='viaje')?`<button onclick="hideEvent('${dataDate}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
             :''}
           ${e.tipo!=='partido'&&e.tipo!=='viaje'?`<button onclick="rescheduleEvent('${dataDate}',${realIdx},'${day.date}',event)" title="${e._isResch?'Reagendado — click para cambiar o deshacer':'Reagendar a otro día'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 3px;color:${e._isResch?'#c2410c':'var(--hint)'}">📅</button>`:''}
+          <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+            <button onclick="moveEvInDay('${dataDate}',${realIdx},-1,event)" title="Mover arriba" style="background:none;border:none;cursor:pointer;font-size:9px;padding:0 2px;color:var(--hint);line-height:1">▲</button>
+            <button onclick="moveEvInDay('${dataDate}',${realIdx},1,event)" title="Mover abajo" style="background:none;border:none;cursor:pointer;font-size:9px;padding:0 2px;color:var(--hint);line-height:1">▼</button>
+          </div>
           <button class="ev-expand" onclick="toggleEvDetail('${dataDate}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
         <div class="cal-ev-detail" id="ced-${dataDate}-${realIdx}">
@@ -4637,9 +4669,12 @@ function rerenderDayEvents(date){
     allEvs.push({...origEv,_origIdx:origIdx,_isResch:true,_origDate:origDate,h:val.toTime});
   });
   allEvs.sort((a,b)=>{
-    const tA=parseEvTime(a._isResch?a.h:getCalTime(date,a._origIdx,a.h));
-    const tB=parseEvTime(b._isResch?b.h:getCalTime(date,b._origIdx,b.h));
-    return tA-tB;
+    if(a._isResch||b._isResch){
+      const tA=parseEvTime(a._isResch?a.h:getCalTime(date,a._origIdx,a.h));
+      const tB=parseEvTime(b._isResch?b.h:getCalTime(date,b._origIdx,b.h));
+      return tA-tB;
+    }
+    return evSortKey(date,a)-evSortKey(date,b);
   });
   evsCont.innerHTML=buildEventsHtml({...day,eventos:allEvs});
   openIds.forEach(id=>{
