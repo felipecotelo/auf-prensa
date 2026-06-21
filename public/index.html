@@ -2263,19 +2263,46 @@ function moveEvInDay(date,idx,dir,ev){
   if(IS_RESTRICTED) return;
   const day=CALENDAR_DAYS.find(d=>d.date===date);
   if(!day) return;
-  // Build current sorted order if no manual order yet
-  const customActs=getDayActs()[date]||[];
-  let allEvs=[...day.eventos,...customActs];
-  allEvs=allEvs.map((e,i)=>({...e,_origIdx:e._origIdx??i}));
-  allEvs.sort((a,b)=>evSortKey(date,a)-evSortKey(date,b));
-  const order=allEvs.map(e=>e._origIdx);
-  const pos=order.indexOf(idx);
-  if(pos===-1) return;
-  const swapPos=pos+dir;
-  if(swapPos<0||swapPos>=order.length) return;
-  [order[pos],order[swapPos]]=[order[swapPos],order[pos]];
-  setDayManualOrder(date,order);
-  rerenderDayEvents(date);
+
+  // Find DOM elements to animate
+  const elA=document.getElementById(`cev-${date}-${idx}`);
+  const container=elA?.closest('.cal-events');
+  if(!elA||!container) return;
+  const allEvEls=[...container.querySelectorAll(':scope > .cal-ev')];
+  const posA=allEvEls.indexOf(elA);
+  const posB=posA+dir;
+  if(posB<0||posB>=allEvEls.length) return;
+  const elB=allEvEls[posB];
+
+  // Animate swap
+  const rectA=elA.getBoundingClientRect();
+  const rectB=elB.getBoundingClientRect();
+  const deltaA=rectB.top-rectA.top;
+  const deltaB=rectA.top-rectB.top;
+  [elA,elB].forEach(e=>{e.style.transition='none';e.style.transform='translateY(0)';e.style.zIndex='1';e.style.position='relative';});
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      elA.style.transition='transform .18s cubic-bezier(.4,0,.2,1)';
+      elB.style.transition='transform .18s cubic-bezier(.4,0,.2,1)';
+      elA.style.transform=`translateY(${deltaA}px)`;
+      elB.style.transform=`translateY(${deltaB}px)`;
+      setTimeout(()=>{
+        [elA,elB].forEach(e=>{e.style.transition='';e.style.transform='';e.style.zIndex='';e.style.position='';});
+        // Update stored order and re-render
+        const customActs=getDayActs()[date]||[];
+        let allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i}));
+        allEvs.sort((a,b)=>evSortKey(date,a)-evSortKey(date,b));
+        const order=allEvs.map(e=>e._origIdx);
+        const pos=order.indexOf(idx);
+        if(pos===-1){rerenderDayEvents(date);return;}
+        const swapPos=pos+dir;
+        if(swapPos<0||swapPos>=order.length){rerenderDayEvents(date);return;}
+        [order[pos],order[swapPos]]=[order[swapPos],order[pos]];
+        setDayManualOrder(date,order);
+        rerenderDayEvents(date);
+      },190);
+    });
+  });
 }
 
 // Horario "borrador": el usuario antepone ~ o agrega ? para marcar un horario
