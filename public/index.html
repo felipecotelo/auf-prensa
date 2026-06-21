@@ -10053,11 +10053,13 @@ function lgCopy(i,url){
       });
     });
     setMatchEvents(all);
-    // Si KMatchDelta está vacío (primera vez con este sistema), resetear KStatsDelta
-    // para que applyPostMatchUpdates calcule desde cero sin duplicar lo anterior
-    const allMatchDeltas=stor.get(KMatchDelta,{});
-    const isFirstRun=Object.keys(allMatchDeltas).length===0;
-    if(isFirstRun) setStatsDelta({});
+    // Migración v2: forzar recálculo limpio para corregir caps pre-partido mal aplicados
+    const _statsMigV='auf4_statsmigv';
+    if(stor.get(_statsMigV,'')!=='v2'){
+      stor.set(KMatchDelta,{});
+      setStatsDelta({});
+      stor.set(_statsMigV,'v2');
+    }
     // Recalcular stats para todos los partidos que tienen eventos guardados
     Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
   })();
