@@ -575,15 +575,24 @@ textarea{resize:vertical;min-height:52px}
 .add-act-wrap{margin-top:7px;border-top:0.5px dashed var(--border);padding-top:7px}
 .add-act-btn{font-size:11.5px;font-weight:700;color:var(--cel-dk);background:none;border:1.5px dashed var(--cel);border-radius:8px;padding:5px 12px;cursor:pointer;width:100%;text-align:center;transition:all .15s}
 .add-act-btn:hover{background:var(--cel-lt)}
-.add-act-picker{display:none;margin-top:7px;background:var(--white);border:0.5px solid var(--border);border-radius:9px;padding:10px 12px}
+.add-act-picker{display:none;margin-top:7px;background:var(--white);border:0.5px solid var(--border);border-radius:9px;padding:12px 12px}
 .add-act-picker.open{display:block}
 .aap-q{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
 .aap-opts{display:flex;flex-direction:column;gap:4px}
-.aap-opt{text-align:left;font-size:12.5px;font-family:inherit;padding:7px 10px;border:0.5px solid var(--border);border-radius:7px;background:var(--surface);cursor:pointer;color:var(--text);transition:background .1s}
+.aap-opt{text-align:left;font-size:12.5px;font-family:inherit;padding:8px 12px;border:0.5px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;color:var(--text);transition:background .1s;display:flex;align-items:center;gap:8px}
 .aap-opt:hover{background:var(--cel-lt);border-color:var(--cel)}
 .aap-back{margin-top:8px;font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
 .aap-input{padding:7px 9px;border:0.5px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;width:100%;box-sizing:border-box}
 .aap-input:focus{outline:2px solid var(--cel);border-color:var(--cel)}
+.aap-type-btns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.aap-type-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:13px 8px;border:none;border-radius:12px;cursor:pointer;font-family:inherit;transition:transform .1s,opacity .1s;text-align:center}
+.aap-type-btn:active{transform:scale(.97);opacity:.88}
+.aap-type-btn.prensa{background:var(--navy);color:#fff}
+.aap-type-btn.crono{background:var(--surface);color:var(--text);border:1.5px solid var(--border)}
+.aap-day-ev{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:4px;transition:background .15s}
+.aap-day-ev.done{background:#F0FDF4;border-color:#86EFAC}
+.aap-done-quick-btn{flex-shrink:0;border:1px solid var(--border);background:var(--white);color:var(--muted);font-size:10px;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.aap-done-quick-btn.done{border-color:var(--green);background:var(--green-lt);color:var(--green-dk)}
 .aap-tz-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
 .aap-tz-chip{font-size:11px;font-family:inherit;padding:4px 9px;border:1px solid var(--border);border-radius:20px;background:var(--surface);cursor:pointer;color:var(--text);transition:all .1s}
 .aap-tz-chip.active{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -3490,35 +3499,90 @@ function renderAapStep(date,step){
   if(!picker)return;
   const d=`'${date}'`;
   let html='';
+
   if(step===0){
+    // Actividades ya cargadas para el día
+    const day=CALENDAR_DAYS.find(x=>x.date===date);
+    const staticEvs=day?.eventos||[];
+    const customActs=getDayActs()[date]||[];
+    const allEvs=[...staticEvs,...customActs];
+    const evStatus=getEvStatus();
+    const devHtml=allEvs.length?`
+      <div style="margin-bottom:12px">
+        <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Actividades del día</div>
+        ${allEvs.map((e,i)=>{
+          const st=evStatus[evKey(date,i)]||'';
+          const isDone=st==='done';
+          const t=getCalTime(date,i,e.h||'');
+          const label=e.txt||e.name||'—';
+          return`<div class="aap-day-ev${isDone?' done':''}">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:600;color:${isDone?'var(--green-dk)':'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${isDone?'✓ ':''}${label}</div>
+              ${t?`<div style="font-size:10px;color:var(--muted)">${t}</div>`:''}
+            </div>
+            <button class="aap-done-quick-btn${isDone?' done':''}" onclick="aapMarkDoneToggle('${date}',${i})">
+              ${isDone?'✓ Hecha':'✓ Marcar'}
+            </button>
+          </div>`;
+        }).join('')}
+      </div>` : '';
     html=`
-    <p class="aap-q">¿Qué querés agregar?</p>
-    <input class="aap-input" id="aap-search-${date}" placeholder="Buscá: desayuno, viaje, zona mixta..."
-      oninput="renderAapSuggestions('${date}',this.value)"
-      onkeydown="if(event.key==='Enter'){const b=document.getElementById('aap-suggest-${date}');if(b&&b._matches&&b._matches.length===1)aapPickTemplate('${date}',0,this.value);}">
-    <div class="aap-suggest" id="aap-suggest-${date}"></div>
-    <div class="aap-divider">O elegí el tipo</div>
-    <div class="aap-opts">
-      <button class="aap-opt" onclick="_aapState[${d}]={prensa:true};renderAapStep(${d},1)">📋 Nueva actividad de prensa</button>
-      <button class="aap-opt" onclick="_aapState[${d}]={tipo:'sched',oblig:false,noParts:true};renderAapStep(${d},'final')">📅 Solo cronograma</button>
-    </div>`;
+      ${devHtml}
+      <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">+ Nueva actividad</div>
+      <div class="aap-type-btns">
+        <button class="aap-type-btn prensa" onclick="_aapState[${d}]={prensa:true};renderAapStep(${d},1)">
+          <span style="font-size:20px">📋</span>
+          <span style="font-size:13px;font-weight:800">Prensa</span>
+          <span style="font-size:10px;opacity:.75">Zona mixta, TV Crew…</span>
+        </button>
+        <button class="aap-type-btn crono" onclick="_aapState[${d}]={tipo:'sched',oblig:false,noParts:true};renderAapStep(${d},'final')">
+          <span style="font-size:20px">📅</span>
+          <span style="font-size:13px;font-weight:800">Cronograma</span>
+          <span style="font-size:10px;opacity:.6">Reunión, viaje, libre…</span>
+        </button>
+      </div>
+      <button onclick="aapToggleSearch('${date}')" style="width:100%;font-size:11px;color:var(--hint);background:none;border:none;cursor:pointer;padding:3px 0;font-family:inherit;text-align:center">🔍 Buscar plantilla rápida</button>
+      <div id="aap-qsearch-${date}" style="display:none;margin-top:6px">
+        <input class="aap-input" id="aap-search-${date}" placeholder="Buscar: desayuno, zona mixta…"
+          oninput="renderAapSuggestions('${date}',this.value)"
+          onkeydown="if(event.key==='Enter'){const b=document.getElementById('aap-suggest-${date}');if(b&&b._matches&&b._matches.length===1)aapPickTemplate('${date}',0,this.value);}">
+        <div class="aap-suggest" id="aap-suggest-${date}"></div>
+      </div>`;
+
+  } else if(step==='mark-done'){
+    const st=_aapState[date]||{};
+    html=`
+      <p class="aap-q" style="margin-bottom:5px">✓ ${st._markLabel||'actividad'}</p>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">¿A qué hora fue?</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input class="aap-input" id="aap-done-h-${date}" placeholder="ej: 11:30" style="width:140px"
+          onkeydown="if(event.key==='Enter')aapSaveDone('${date}',${st._markIdx??-1})">
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn primary sm" onclick="aapSaveDone('${date}',${st._markIdx??-1})">✓ Guardar</button>
+          <button style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:inherit" onclick="aapSaveDone('${date}',${st._markIdx??-1},true)">Sin hora</button>
+          <button class="aap-back" style="margin-top:0" onclick="renderAapStep(${d},0)">✗ Cancelar</button>
+        </div>
+      </div>`;
+
   } else if(step===1){
     html=`<p class="aap-q">¿Quién participa?</p>
     <div class="aap-opts">
-      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=true;_aapState[${d}].hasDT=false;renderAapStep(${d},2)">Solo jugadores</button>
-      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=false;_aapState[${d}].hasDT=true;renderAapStep(${d},2)">Solo DT / cuerpo técnico</button>
-      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=true;_aapState[${d}].hasDT=true;renderAapStep(${d},2)">Jugadores y DT</button>
+      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=true;_aapState[${d}].hasDT=false;renderAapStep(${d},2)">🙋 Solo jugadores</button>
+      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=false;_aapState[${d}].hasDT=true;renderAapStep(${d},2)">👔 Solo DT / cuerpo técnico</button>
+      <button class="aap-opt" onclick="_aapState[${d}].hasPlayers=true;_aapState[${d}].hasDT=true;renderAapStep(${d},2)">👥 Jugadores y DT</button>
     </div>
     <button class="aap-back" onclick="renderAapStep(${d},0)">← Volver</button>`;
+
   } else if(step===2){
-    html=`<p class="aap-q">¿Obligatoria o interna?</p>
+    html=`<p class="aap-q">¿Qué tipo de actividad?</p>
     <div class="aap-opts">
       <button class="aap-opt" onclick="_aapState[${d}].tipo='oblig';_aapState[${d}].oblig=true;renderAapStep(${d},'final')"><span class="tag tag-oblig" style="font-size:9px">FIFA</span> Obligatoria FIFA</button>
       <button class="aap-opt" onclick="_aapState[${d}].tipo='info';_aapState[${d}].oblig=false;_aapState[${d}].auf=true;renderAapStep(${d},'final')"><span class="tag tag-auf" style="font-size:9px">AUF</span> Zona mixta / prensa AUF</button>
       <button class="aap-opt" onclick="_aapState[${d}].tipo='info';_aapState[${d}].oblig=false;_aapState[${d}].auftv=true;renderAapStep(${d},'final')"><span class="tag tag-auftv" style="font-size:9px">AUFtv</span> Nota para AUFtv</button>
-      <button class="aap-opt" onclick="_aapState[${d}].tipo='info';_aapState[${d}].oblig=false;renderAapStep(${d},'final')">Interna / no obligatoria</button>
+      <button class="aap-opt" onclick="_aapState[${d}].tipo='info';_aapState[${d}].oblig=false;renderAapStep(${d},'final')">🔒 Interna / no obligatoria</button>
     </div>
     <button class="aap-back" onclick="renderAapStep(${d},1)">← Volver</button>`;
+
   } else if(step==='final'){
     if(_aapState[date]&&!_aapState[date]._tz)_aapState[date]._tz=TZ_DEFAULT;
     const st=_aapState[date]||{};
@@ -3526,7 +3590,7 @@ function renderAapStep(date,step){
     const isCrono0=isCrono&&!st.prensa;
     html=`<p class="aap-q">Nombre y hora</p>
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-      <input class="aap-input" id="aap-txt-${date}" placeholder="${isCrono0?'Ej: Reunión técnica, Activación...':'Ej: Zona mixta — jugadores titulares'}" onkeydown="if(event.key==='Enter')document.getElementById('aap-h-${date}').focus()">
+      <input class="aap-input" id="aap-txt-${date}" placeholder="${isCrono0?'Ej: Reunión técnica, Activación…':'Ej: Zona mixta — jugadores titulares'}" onkeydown="if(event.key==='Enter')document.getElementById('aap-h-${date}').focus()">
       <div>
         <input class="aap-input" id="aap-h-${date}" placeholder="Hora — ej: 11:30 o TBD" style="width:170px" oninput="aapUpdateTzPreview('${date}')" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
         <div class="aap-tz-chips" style="margin-top:5px">
@@ -3541,14 +3605,56 @@ function renderAapStep(date,step){
       </div>
     </div>`;
   }
+
   picker.innerHTML=html;
   picker.classList.add('open');
-  const focusId=step===0?`aap-search-${date}`:`aap-txt-${date}`;
   setTimeout(()=>{
-    document.getElementById(focusId)?.focus();
-    if(step!==0) picker.scrollIntoView({behavior:'smooth',block:'nearest'});
+    const focusEl=step==='final'?document.getElementById(`aap-txt-${date}`)
+                 :step==='mark-done'?document.getElementById(`aap-done-h-${date}`)
+                 :null;
+    focusEl?.focus();
+    if(step!=='0') picker.scrollIntoView({behavior:'smooth',block:'nearest'});
   },50);
-  if(step===0) renderAapSuggestions(date,'');
+}
+
+function aapToggleSearch(date){
+  const el=document.getElementById(`aap-qsearch-${date}`);
+  if(!el)return;
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(open){document.getElementById(`aap-search-${date}`)?.focus();renderAapSuggestions(date,'');}
+}
+
+function aapMarkDoneToggle(date,idx){
+  if(IS_RESTRICTED)return;
+  const st=getEvStatus()[evKey(date,idx)]||'';
+  if(st==='done'){
+    // toggle off
+    const ev=getEvStatus();ev[evKey(date,idx)]='';setEvStatus_store(ev);
+    rerenderDayEvents(date);
+    renderAapStep(date,0);
+    return;
+  }
+  // Preparar el form de hora
+  const day=CALENDAR_DAYS.find(x=>x.date===date);
+  const allEvs=[...(day?.eventos||[]),...(getDayActs()[date]||[])];
+  const e=allEvs[idx];
+  _aapState[date]=_aapState[date]||{};
+  _aapState[date]._markIdx=idx;
+  _aapState[date]._markLabel=e?.txt||e?.name||'actividad';
+  renderAapStep(date,'mark-done');
+}
+
+function aapSaveDone(date,idx,noTime){
+  if(IS_RESTRICTED)return;
+  const h=noTime?null:document.getElementById(`aap-done-h-${date}`)?.value.trim();
+  const ev=getEvStatus();
+  ev[evKey(date,idx)]='done';
+  setEvStatus_store(ev);
+  if(h)saveCalTime(date,idx,h);
+  rerenderDayEvents(date);
+  renderAapStep(date,0);
+  toast('✓ Marcada como hecha'+(h?` · ${h}`:''));
 }
 
 function submitAddAct(date){
