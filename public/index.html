@@ -2250,11 +2250,9 @@ function parseEvTime(h){
 // (ej. 18:00) pero debe ubicarse entre KO-75' (8810) y HT (8820), no por su hora real.
 function evSortKey(date,e){
   if(e.tipo==='partido') return 8815;
-  const manual=getDayManualOrder(date);
-  if(manual){
-    const pos=manual.indexOf(e._origIdx);
-    if(pos!==-1) return pos*100;
-  }
+  const posMap=getDayEvPos(date);
+  const override=posMap[String(e._origIdx)];
+  if(override!==undefined) return override;
   return parseEvTime(getCalTime(date,e._origIdx,e.h));
 }
 
@@ -2288,17 +2286,21 @@ function moveEvInDay(date,idx,dir,ev){
       elB.style.transform=`translateY(${deltaB}px)`;
       setTimeout(()=>{
         [elA,elB].forEach(e=>{e.style.transition='';e.style.transform='';e.style.zIndex='';e.style.position='';});
-        // Update stored order and re-render
+        // Compute new sort key by slotting between visual neighbors
         const customActs=getDayActs()[date]||[];
         let allEvs=[...day.eventos,...customActs].map((e,i)=>({...e,_origIdx:i}));
         allEvs.sort((a,b)=>evSortKey(date,a)-evSortKey(date,b));
-        const order=allEvs.map(e=>e._origIdx);
-        const pos=order.indexOf(idx);
+        const pos=allEvs.findIndex(e=>e._origIdx===idx);
         if(pos===-1){rerenderDayEvents(date);return;}
         const swapPos=pos+dir;
-        if(swapPos<0||swapPos>=order.length){rerenderDayEvents(date);return;}
-        [order[pos],order[swapPos]]=[order[swapPos],order[pos]];
-        setDayManualOrder(date,order);
+        if(swapPos<0||swapPos>=allEvs.length){rerenderDayEvents(date);return;}
+        const neighborKey=evSortKey(date,allEvs[swapPos]);
+        const farPos=swapPos+dir;
+        const farKey=farPos>=0&&farPos<allEvs.length?evSortKey(date,allEvs[farPos]):(neighborKey+(dir<0?-200:200));
+        const newKey=(neighborKey+farKey)/2;
+        const posMap=getDayEvPos(date);
+        posMap[String(idx)]=newKey;
+        setDayEvPos(date,posMap);
         rerenderDayEvents(date);
       },190);
     });
@@ -2313,9 +2315,9 @@ function getEvNotes(){return stor.get(KEvN,{})}
 function setEvNotes(v){stor.set(KEvN,v)}
 
 const KEvLink='auf4_evlink';
-const KEvPos='auf4_evpos';
-function getDayManualOrder(date){return(stor.get(KEvPos,{})[date])||null}
-function setDayManualOrder(date,arr){const s=stor.get(KEvPos,{});if(arr===null)delete s[date];else s[date]=arr;stor.set(KEvPos,s)}
+const KEvPos='auf4_evpos2';
+function getDayEvPos(date){return stor.get(KEvPos,{})[date]||{}}
+function setDayEvPos(date,map){const s=stor.get(KEvPos,{});s[date]=map;stor.set(KEvPos,s)}
 function getEvLinks(){return stor.get(KEvLink,{})}
 function setEvLinks(v){stor.set(KEvLink,v)}
 
