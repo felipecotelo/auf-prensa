@@ -3530,7 +3530,7 @@ function renderAapStep(date,step){
       ${devHtml}
       <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">+ Nueva actividad</div>
       <div class="aap-type-btns">
-        <button class="aap-type-btn prensa" onclick="_aapState[${d}]={prensa:true};renderAapStep(${d},1)">
+        <button class="aap-type-btn prensa" onclick="_aapState[${d}]={prensa:true,tipo:'info',hasPlayers:true,hasDT:false};renderAapStep(${d},'final')">
           <span style="font-size:20px">📋</span>
           <span style="font-size:13px;font-weight:800">Prensa</span>
           <span style="font-size:10px;opacity:.75">Zona mixta, TV Crew…</span>
@@ -3587,21 +3587,26 @@ function renderAapStep(date,step){
     if(_aapState[date]&&!_aapState[date]._tz)_aapState[date]._tz=TZ_DEFAULT;
     const st=_aapState[date]||{};
     const isCrono=st.tipo==='sched';
-    const isCrono0=isCrono&&!st.prensa;
-    html=`<p class="aap-q">Nombre y hora</p>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-      <input class="aap-input" id="aap-txt-${date}" placeholder="${isCrono0?'Ej: Reunión técnica, Activación…':'Ej: Zona mixta — jugadores titulares'}" onkeydown="if(event.key==='Enter')document.getElementById('aap-h-${date}').focus()">
+    html=`
+    <div style="display:flex;flex-direction:column;gap:8px">
       <div>
-        <input class="aap-input" id="aap-h-${date}" placeholder="Hora — ej: 11:30 o TBD" style="width:170px" oninput="aapUpdateTzPreview('${date}')" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
+        <input class="aap-input" id="aap-txt-${date}" placeholder="${isCrono?'Ej: Reunión técnica, Activación…':'Ej: Zona mixta, FIFA TV Crew…'}"
+          oninput="renderAapSuggestions('${date}',this.value)"
+          onkeydown="if(event.key==='Enter'){const b=document.getElementById('aap-suggest-${date}');if(b&&b._matches&&b._matches.length===1){aapPickTemplate('${date}',0,this.value);}else{document.getElementById('aap-h-${date}').focus();}}">
+        <div class="aap-suggest" id="aap-suggest-${date}" style="margin-top:4px"></div>
+      </div>
+      <div>
+        <input class="aap-input" id="aap-h-${date}" placeholder="Hora — ej: 11:30 o TBD" style="width:160px"
+          oninput="aapUpdateTzPreview('${date}')" onkeydown="if(event.key==='Enter')submitAddAct(${d})">
         <div class="aap-tz-chips" style="margin-top:5px">
           <span style="font-size:10px;color:var(--muted);line-height:2;margin-right:2px">Huso:</span>
           ${Object.entries(TZ_INFO).map(([k,v])=>`<button class="aap-tz-chip${k===TZ_DEFAULT?' active':''}" data-tz="${k}" onclick="aapSetTz('${date}','${k}')">${v.label}</button>`).join('')}
         </div>
         <div class="aap-tz-preview" id="aap-tz-prev-${date}"></div>
       </div>
-      <div style="display:flex;gap:6px;margin-top:2px">
+      <div style="display:flex;gap:6px">
         <button class="btn primary sm" onclick="submitAddAct(${d})">Agregar</button>
-        <button class="aap-back" onclick="renderAapStep(${d},${isCrono0?0:st.prensa?2:0})">← Volver</button>
+        <button class="aap-back" onclick="renderAapStep(${d},0)">← Volver</button>
       </div>
     </div>`;
   }
