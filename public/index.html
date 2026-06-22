@@ -3426,7 +3426,20 @@ function renderCal(){
       fetchWCDay(day.date); // dispara fetch, re-renderiza al terminar
     }
     const _nStatic=day.eventos.length, _nCustom=customActs.length;
-    const allEvs=[...day.eventos,...customActs,..._wcEvs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=_nStatic&&i<_nStatic+_nCustom})).filter(e=>e._wcMatch||e.lockOblig||!evHidden[evKey(day.date,e._origIdx)]);
+    const _resch=getEvResch();
+    const allEvs=[...day.eventos,...customActs,..._wcEvs].map((e,i)=>({...e,_origIdx:i,_isCustom:i>=_nStatic&&i<_nStatic+_nCustom})).filter(e=>e._wcMatch||e.lockOblig||(!evHidden[evKey(day.date,e._origIdx)]&&!_resch[evKey(day.date,e._origIdx)]));
+    // Inyectar eventos reagendados a este día desde otros días
+    Object.entries(_resch).forEach(([key,val])=>{
+      if(val.toDate!==day.date)return;
+      const [origDate,origIdxStr]=key.split('_');
+      const origIdx=parseInt(origIdxStr);
+      const origDay=CALENDAR_DAYS.find(d=>d.date===origDate);
+      if(!origDay)return;
+      const origCustom=getDayActs()[origDate]||[];
+      const origEv=[...origDay.eventos,...origCustom][origIdx];
+      if(!origEv||origEv.noResch)return;
+      allEvs.push({...origEv,_origIdx:origIdx,_isResch:true,_origDate:origDate,h:val.toTime});
+    });
     allEvs.sort((a,b)=>evSortKey(day.date,a)-evSortKey(day.date,b));
     const div=document.createElement('div');
     div.className='cal-day'+(isToday?' today':'')+(isToday?' open':'')+(day.tipo==='md1'?' tipo-md1':day.tipo==='partido'?' tipo-partido':'');
