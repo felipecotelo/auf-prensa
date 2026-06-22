@@ -4811,16 +4811,27 @@ function rescheduleEvent(origDate,origIdx,renderDay,ev){
   const existing=getEvResch()[evKey(origDate,origIdx)];
   const overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-  const dateOpts=CALENDAR_DAYS.filter(d=>d.tipo!=='viaje'&&d.date!==origDate)
-    .map(d=>{const dt=new Date(d.date+'T12:00:00');const lbl=dt.toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short'});const sel=existing&&existing.toDate===d.date?' selected':'';return`<option value="${d.date}"${sel}>${lbl}</option>`;}).join('');
+  // Determinar el período del partido al que pertenece este evento
+  const _matchRange=Object.values(MATCH_RANGES).find(r=>origDate>=r.from&&origDate<=r.to);
+  const _rangeFrom=_matchRange?.from||'2026-06-10';
+  const _rangeTo=_matchRange?.to||'2026-06-30';
+  const _periodDays=CALENDAR_DAYS.filter(d=>d.tipo!=='viaje'&&d.date!==origDate&&d.date>=_rangeFrom&&d.date<=_rangeTo);
+  // Default: primer día del período distinto al origDate, o si existing, el día reagendado
+  const _defaultDate=existing?.toDate||_periodDays[0]?.date||'';
+  const dateOpts=_periodDays.map(d=>{
+    const dt=new Date(d.date+'T12:00:00');
+    const lbl=dt.toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short'});
+    const sel=d.date===_defaultDate?' selected':'';
+    return`<option value="${d.date}"${sel}>${lbl}</option>`;
+  }).join('');
   const inner=document.createElement('div');
   inner.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:280px;max-width:340px;font-family:inherit';
   inner.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <span style="font-weight:700;font-size:15px;color:var(--text)">📅 Reagendar evento</span>
       <button id="resch-close" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted)">✕</button>
     </div>
-    <div style="font-size:11.5px;color:var(--muted);margin-bottom:14px;line-height:1.4">Mové este evento a otro día del calendario.</div>
+    ${_matchRange?`<div style="font-size:11px;color:var(--muted);margin-bottom:12px;background:var(--surface);border:0.5px solid var(--border);border-radius:7px;padding:5px 9px">📌 Período obligatorio: <strong>${new Date(_rangeFrom+'T12:00').toLocaleDateString('es-UY',{day:'numeric',month:'short'})}</strong> – <strong>${new Date(_rangeTo+'T12:00').toLocaleDateString('es-UY',{day:'numeric',month:'short'})}</strong></div>`:''}
     <label style="font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Nuevo día</label>
     <select id="resch-date" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text);margin-bottom:12px">${dateOpts}</select>
     <label style="font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Hora</label>
