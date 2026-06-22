@@ -3440,7 +3440,7 @@ function renderCal(){
       if(!origEv||origEv.noResch)return;
       allEvs.push({...origEv,_origIdx:origIdx,_isResch:true,_origDate:origDate,h:val.toTime});
     });
-    allEvs.sort((a,b)=>evSortKey(day.date,a)-evSortKey(day.date,b));
+    allEvs.sort((a,b)=>{const d=evSortKey(day.date,a)-evSortKey(day.date,b);return d||((a.txt||'')>(b.txt||'')?1:(a.txt||'')<(b.txt||'')?-1:0);});
     const div=document.createElement('div');
     div.className='cal-day'+(isToday?' today':'')+(isToday?' open':'')+(day.tipo==='md1'?' tipo-md1':day.tipo==='partido'?' tipo-partido':'');
     div.dataset.date=day.date;
@@ -4940,12 +4940,15 @@ function rerenderDayEvents(date){
     allEvs.push({...origEv,_origIdx:origIdx,_isResch:true,_origDate:origDate,h:val.toTime});
   });
   allEvs.sort((a,b)=>{
+    let d;
     if(a._isResch||b._isResch){
       const tA=parseEvTime(a._isResch?a.h:getCalTime(date,a._origIdx,a.h));
       const tB=parseEvTime(b._isResch?b.h:getCalTime(date,b._origIdx,b.h));
-      return tA-tB;
+      d=tA-tB;
+    } else {
+      d=evSortKey(date,a)-evSortKey(date,b);
     }
-    return evSortKey(date,a)-evSortKey(date,b);
+    return d||((a.txt||'')>(b.txt||'')?1:(a.txt||'')<(b.txt||'')?-1:0);
   });
   evsCont.innerHTML=buildEventsHtml({...day,eventos:allEvs});
   openIds.forEach(id=>{
