@@ -8191,53 +8191,72 @@ function renderEstadisticas(){
 
     <!-- Totales -->
     <div class="stats-section">
-      <div class="phase">💾 Números totales <span style="font-size:9px;font-weight:600;color:var(--hint)">*post Cabo Verde · Copa Mundial 2026</span></div>
-
-      <!-- Total partidos — destacado -->
+      ${(()=>{
+        // Base pre-Copa Mundial (34 partidos, hasta el último amistoso)
+        const BASE={pj:34,g:14,e:13,p:7,gf:42,gc:24};
+        // Aporte del Preolímpico (no se cuenta en el principal pero sí en el subtotal)
+        const PRE={pj:4,g:1,e:1,p:2,gf:9,gc:8};
+        // Partidos del Mundial de Uruguay: {fixId, uruSide}
+        const WC_FIX=[{id:'m2',home:'ksa'},{id:'m4',home:'uru'},{id:'m6',home:'uru'}];
+        const fix=getFixture();
+        let wc={pj:0,g:0,e:0,p:0,gf:0,gc:0};
+        let lastMatchLabel='';
+        const matchLabels={m2:'Arabia Saudita',m4:'Cabo Verde',m6:'España'};
+        WC_FIX.forEach(({id,home})=>{
+          const r=fix[id];
+          if(!r||r.h===''||r.h==null) return;
+          const uruGf=home==='uru'?parseInt(r.h)||0:parseInt(r.a)||0;
+          const uruGc=home==='uru'?parseInt(r.a)||0:parseInt(r.h)||0;
+          wc.pj++; wc.gf+=uruGf; wc.gc+=uruGc;
+          if(uruGf>uruGc) wc.g++; else if(uruGf<uruGc) wc.p++; else wc.e++;
+          lastMatchLabel=matchLabels[id];
+        });
+        const t={pj:BASE.pj+wc.pj,g:BASE.g+wc.g,e:BASE.e+wc.e,p:BASE.p+wc.p,gf:BASE.gf+wc.gf,gc:BASE.gc+wc.gc};
+        const tp={pj:t.pj+PRE.pj,g:t.g+PRE.g,e:t.e+PRE.e,p:t.p+PRE.p,gf:t.gf+PRE.gf,gc:t.gc+PRE.gc};
+        const sub=lastMatchLabel?`*post ${lastMatchLabel} · Copa Mundial 2026`:'*pre Copa Mundial 2026';
+        return`
+      <div class="phase">💾 Números totales <span style="font-size:9px;font-weight:600;color:var(--hint)">${sub}</span></div>
       <div style="background:var(--navy);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.08em">Partidos dirigidos</div>
         <div style="text-align:right">
-          <div style="font-size:48px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px">36</div>
-          <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px">40 c/Preolímpico</div>
+          <div style="font-size:48px;font-weight:900;color:#fff;line-height:1;letter-spacing:-2px">${t.pj}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px">${tp.pj} c/Preolímpico</div>
         </div>
       </div>
-
-      <!-- G / E / P -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px">
         <div style="background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:10px 8px;text-align:center">
-          <div style="font-size:28px;font-weight:900;color:#15803D;line-height:1">14</div>
+          <div style="font-size:28px;font-weight:900;color:#15803D;line-height:1">${t.g}</div>
           <div style="font-size:10px;font-weight:800;color:#16A34A;margin-top:3px">Ganados</div>
-          <div style="font-size:8px;color:#4ADE80;margin-top:2px">15 c/Pre.</div>
+          <div style="font-size:8px;color:#4ADE80;margin-top:2px">${tp.g} c/Pre.</div>
         </div>
         <div style="background:#FEFCE8;border:1.5px solid #FDE047;border-radius:10px;padding:10px 8px;text-align:center">
-          <div style="font-size:28px;font-weight:900;color:#A16207;line-height:1">15</div>
+          <div style="font-size:28px;font-weight:900;color:#A16207;line-height:1">${t.e}</div>
           <div style="font-size:10px;font-weight:800;color:#CA8A04;margin-top:3px">Empatados</div>
-          <div style="font-size:8px;color:#EAB308;margin-top:2px">16 c/Pre.</div>
+          <div style="font-size:8px;color:#EAB308;margin-top:2px">${tp.e} c/Pre.</div>
         </div>
         <div style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:10px;padding:10px 8px;text-align:center">
-          <div style="font-size:28px;font-weight:900;color:#B91C1C;line-height:1">7</div>
+          <div style="font-size:28px;font-weight:900;color:#B91C1C;line-height:1">${t.p}</div>
           <div style="font-size:10px;font-weight:800;color:#DC2626;margin-top:3px">Perdidos</div>
-          <div style="font-size:8px;color:#F87171;margin-top:2px">9 c/Pre.</div>
+          <div style="font-size:8px;color:#F87171;margin-top:2px">${tp.p} c/Pre.</div>
         </div>
       </div>
-
-      <!-- Goles — más sutil -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
         <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
           <div>
             <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Goles a favor</div>
-            <div style="font-size:8px;color:var(--hint);margin-top:1px">54 c/Preolímpico</div>
+            <div style="font-size:8px;color:var(--hint);margin-top:1px">${tp.gf} c/Preolímpico</div>
           </div>
-          <div style="font-size:24px;font-weight:900;color:var(--navy)">45</div>
+          <div style="font-size:24px;font-weight:900;color:var(--navy)">${t.gf}</div>
         </div>
         <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
           <div>
             <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">En contra</div>
-            <div style="font-size:8px;color:var(--hint);margin-top:1px">35 c/Preolímpico</div>
+            <div style="font-size:8px;color:var(--hint);margin-top:1px">${tp.gc} c/Preolímpico</div>
           </div>
-          <div style="font-size:24px;font-weight:900;color:var(--muted)">27</div>
+          <div style="font-size:24px;font-weight:900;color:var(--muted)">${t.gc}</div>
         </div>
-      </div>
+      </div>`;
+      })()}
 
       <div style="background:#FEF9C3;border:0.5px solid #FDE047;border-radius:8px;padding:7px 12px;font-size:10px;color:#854D0E">
         ⚠️ <strong>Indisciplinas:</strong> 1 en Copa América (2 entradas tarde) · 2 incluyendo Preolímpico (doble amonestación)
