@@ -5489,6 +5489,29 @@ function removeMatchEvent(mId, pizMatchId, evId){
 
 // Trae goles, tarjetas y cambios desde la API pública de ESPN y reemplaza las incidencias del partido
 // ── Sync completo partido: ESPN (goles/cambios/tarjetas + XI) + FotMob (calificaciones) ──
+// Sync solo el marcador desde ESPN (no bloquea por candado — el resultado siempre debe reflejarse)
+async function syncMatchScore(matchId){
+  const PIZ_TO_FIX_=Object.fromEntries(Object.entries(FIX_TO_PIZ).map(([f,p])=>[p,f]));
+  const fixId=PIZ_TO_FIX_[matchId];
+  const matchIsoDate=GROUP_H.matches.find(m=>m.id===fixId)?.isoDate;
+  if(!matchIsoDate) return;
+  try{
+    const dateStr=matchIsoDate.replace(/-/g,'');
+    const sc=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`).then(r=>r.json());
+    const uruEv=(sc.events||[]).find(ev=>ev.competitions?.[0]?.competitors?.some(c=>c.team?.id===String(URU_ESPN_ID)));
+    if(!uruEv) return;
+    const comp=uruEv.competitions?.[0];
+    if(!comp?.status?.type?.completed) return;
+    const home=comp.competitors.find(c=>c.homeAway==='home');
+    const away=comp.competitors.find(c=>c.homeAway==='away');
+    const fixMatch=GROUP_H.matches.find(m=>m.id===fixId);
+    if(!fixMatch) return;
+    const fix=getFixture();
+    fix[fixMatch.id]={h:parseInt(home.score)||0,a:parseInt(away.score)||0};
+    setFixture(fix);
+  }catch(_){}
+}
+
 async function syncMatchFull(matchId){
   if(isMatchLocked(matchId)){toast('🔒 Partido cerrado con formulario oficial — desbloqueá para sincronizar ESPN');return;}
   const btn=document.getElementById(`piz-sync-btn-${matchId}`);
@@ -10203,7 +10226,13 @@ function lgCopy(i,url){
       const fixId=PIZ_TO_FIX[m.id];
       const matchDate=GROUP_H.matches.find(x=>x.id===fixId)?.isoDate;
       if(!matchDate||matchDate>=TODAY) continue; // solo partidos ya jugados
-      await syncMatchFull(m.id);
+      if(isMatchLocked(m.id)){
+        // Partido bloqueado: solo sincronizar marcador (no toca XI ni incidencias)
+        const fix=getFixture();
+        if(!fix[fixId]||fix[fixId].h===''||fix[fixId].h==null) await syncMatchScore(m.id);
+      } else {
+        await syncMatchFull(m.id);
+      }
     }
   })();
   // Migración: limpiar overrides "Obligatorio" guardados por error en eventos tipo:'info'
