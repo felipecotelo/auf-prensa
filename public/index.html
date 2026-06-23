@@ -6874,8 +6874,58 @@ function dtChipsForMatch(dtId,matchId){
   return count?`<span class="att-chip att-cf">${count}×</span>`:'<span class="att-none">—</span>';
 }
 
+// ── Competencias ────────────────────────────────────────────────────────────
+const COMPETENCIAS=[
+  {id:'cwc2026',label:'Copa Mundial FIFA 2026',short:'CM 2026',from:'2026-06-01',to:'2026-07-19',
+   phases:[
+     {key:'preMundial',label:'Pre-Mundial'},
+     {key:'llegada',   label:'Llegada 10/6'},
+     {key:'uru-ksa',   label:'vs KSA'},
+     {key:'uru-cpv',   label:'vs CPV'},
+     {key:'uru-esp',   label:'vs ESP'},
+   ]
+  },
+];
+let _dispComp='cwc2026';
+
+// ── Filtros de actividad ─────────────────────────────────────────────────────
+const ACT_FILTERS=[
+  {id:'fifa-crew',   icon:'🎥', label:'FIFA TV Crew',       match:e=>e.group&&e.group.startsWith('fifa-tv-crew')&&!e.isDT},
+  {id:'conf-md1',    icon:'🎙', label:'Conf. prensa MD-1',  match:e=>e.chkId==='md1-conf'},
+  {id:'llegada-est', icon:'🏟', label:'Llegada estadio',    match:e=>e.chkId==='md-llegada'},
+  {id:'zona-mixta',  icon:'🎤', label:'Zona mixta',         match:e=>e.chkId==='md-mix-est'},
+];
+let _actFilter=null;
+function toggleActFilter(id){_actFilter=_actFilter===id?null:id;renderDisponibilidad();}
+
 let _dispFilters={preMundial:false,llegada:true,'uru-ksa':true,'uru-cpv':true,'uru-esp':true};
 function toggleDispFilter(key){_dispFilters[key]=!_dispFilters[key];renderDisponibilidad();}
+
+function _isDateInDispFilter(date){
+  if(_dispFilters.preMundial&&date<'2026-06-10')return true;
+  if(_dispFilters.llegada&&date>='2026-06-10'&&date<='2026-06-15')return true;
+  for(const mid of['uru-ksa','uru-cpv','uru-esp']){
+    if(!_dispFilters[mid])continue;
+    const r=MATCH_RANGES[mid];
+    if(r&&date>=r.from&&date<=r.to)return true;
+  }
+  return false;
+}
+function getActFilterParticipation(actId){
+  const actDef=ACT_FILTERS.find(a=>a.id===actId);
+  if(!actDef)return new Set();
+  const evP=getEvParts();
+  const participated=new Set();
+  CALENDAR_DAYS.forEach(day=>{
+    if(!_isDateInDispFilter(day.date))return;
+    day.eventos.forEach((e,idx)=>{
+      if(!actDef.match(e))return;
+      const parts=evP[evKey(day.date,idx)]||[];
+      parts.filter(p=>p.startsWith('p_')).forEach(p=>participated.add(parseInt(p.slice(2))));
+    });
+  });
+  return participated;
+}
 
 function getPlayerAtencionesList(p){
   const evP=getEvParts(), items=[];
@@ -7152,38 +7202,71 @@ function renderDisponibilidad(){
   }).join('');
 
   // ─── SELECTOR RÁPIDO ──────────────────────────────────────────────────────
-  const fPhases=[
-    {key:'preMundial',label:'Pre-Mundial'},
-    {key:'llegada',   label:'Llegada 10/6'},
-    {key:'uru-ksa',   label:'vs KSA'},
-    {key:'uru-cpv',   label:'vs CPV'},
-    {key:'uru-esp',   label:'vs ESP'},
-  ];
+  const _comp=COMPETENCIAS.find(c=>c.id===_dispComp)||COMPETENCIAS[0];
+  const compTabsHtml=COMPETENCIAS.length>1
+    ?`<div style="display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:8px">${COMPETENCIAS.map(c=>{
+        const on=c.id===_dispComp;
+        return`<button onclick="_dispComp='${c.id}';renderDisponibilidad()" style="padding:5px 12px;font-size:11px;font-weight:700;border-radius:8px 8px 0 0;border:1.5px solid ${on?'var(--cel)':'var(--border)'};border-bottom:none;background:${on?'var(--cel-lt)':'var(--surface)'};color:${on?'var(--cel-dk)':'var(--muted)'};cursor:pointer;font-family:inherit;margin-bottom:-1px">${c.short}</button>`;
+      }).join('')}</div>`
+    :`<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">📋 ${_comp.label}</div>`;
+
+  const fPhases=_comp.phases;
   const filterBtns=fPhases.map(f=>{
     const on=_dispFilters[f.key];
     return`<button onclick="toggleDispFilter('${f.key}')" style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:20px;border:1.5px solid ${on?'var(--cel)':'var(--border)'};background:${on?'var(--cel-lt)':'transparent'};color:${on?'var(--cel-dk)':'var(--muted)'};cursor:pointer;font-family:inherit">${on?'✓ ':''}${f.label}</button>`;
   }).join('');
 
-  // Agrupar jugadores por carga filtrada
-  const groups=[
-    {label:'Sin atenciones',color:'#3B6D11',bg:'#EAF3DE',border:'#C0DD97',textColor:'#27500A',countBg:'#C0DD97',min:0,max:0},
-    {label:'1–2 atenciones',color:'#854F0B',bg:'#FAEEDA',border:'#FAC775',textColor:'#633806',countBg:'#FAC775',min:1,max:2},
-    {label:'3 o más',       color:'#A32D2D',bg:'#FCEBEB',border:'#F7C1C1',textColor:'#501313',countBg:'#F7C1C1',min:3,max:999},
-  ];
-  const selectorHtml=groups.map(g=>{
-    const members=sorted.filter(p=>{const t=playerFilteredTotal(p);return t>=g.min&&t<=g.max;});
-    if(!members.length)return'';
-    const chips=members.map(p=>{
-      const t=playerFilteredTotal(p);
-      const injColor=inj(p.n)==='red'?'#C0392B':inj(p.n)==='yellow'?'#F59E0B':'';
-      const injDot=injColor?`<span style="width:6px;height:6px;border-radius:50%;background:${injColor};display:inline-block;flex-shrink:0"></span>`:'';
-      return`<span onclick="showPlayerAtenciones(${p.n},this)" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;background:${g.bg};color:${g.color};border:1px solid ${g.border};font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer">${injDot}<span style="font-size:10px;opacity:.7">#${p.n}</span> ${pShort(p)} <span style="font-size:10px;font-weight:700;background:${g.countBg};color:${g.textColor};padding:1px 5px;border-radius:8px;margin-left:2px">${t}</span></span>`;
-    }).join('');
-    return`<div style="margin-bottom:12px">
-      <div style="font-size:10px;font-weight:700;color:${g.color};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${g.label} · ${members.length} jugadores</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
-    </div>`;
+  const actFilterBtns=ACT_FILTERS.map(a=>{
+    const on=_actFilter===a.id;
+    return`<button onclick="toggleActFilter('${a.id}')" style="padding:3px 9px;font-size:11px;font-weight:600;border-radius:20px;border:1.5px solid ${on?'#7C3AED':'var(--border)'};background:${on?'#EDE9FE':'transparent'};color:${on?'#5B21B6':'var(--muted)'};cursor:pointer;font-family:inherit">${on?'● ':''}${a.icon} ${a.label}</button>`;
   }).join('');
+
+  // Chips de jugador compartidos entre modos
+  function playerChip(p, bg, color, border, label, countBg, countColor){
+    const injColor=inj(p.n)==='red'?'#C0392B':inj(p.n)==='yellow'?'#F59E0B':'';
+    const injDot=injColor?`<span style="width:6px;height:6px;border-radius:50%;background:${injColor};display:inline-block;flex-shrink:0"></span>`:'';
+    return`<span onclick="showPlayerAtenciones(${p.n},this)" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;background:${bg};color:${color};border:1px solid ${border};font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer">${injDot}<span style="font-size:10px;opacity:.7">#${p.n}</span> ${pShort(p)}<span style="font-size:10px;font-weight:700;background:${countBg};color:${countColor};padding:1px 5px;border-radius:8px;margin-left:2px">${label}</span></span>`;
+  }
+
+  let selectorHtml='';
+  if(_actFilter){
+    // Modo filtro de actividad: separar en participó / no participó
+    const participated=getActFilterParticipation(_actFilter);
+    const actDef=ACT_FILTERS.find(a=>a.id===_actFilter);
+    const yes=PLAYERS.filter(p=>participated.has(p.n));
+    const no=PLAYERS.filter(p=>!participated.has(p.n));
+    const yesChips=yes.map(p=>playerChip(p,'#ECFDF5','#065F46','#A7F3D0','✓','#A7F3D0','#065F46')).join('');
+    const noChips=no.map(p=>playerChip(p,'#FEF2F2','#7F1D1D','#FECACA','–','#FECACA','#7F1D1D')).join('');
+    selectorHtml=`
+      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Filtro: ${actDef.icon} ${actDef.label}</div>
+      ${yes.length?`<div style="margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">✓ Participó · ${yes.length} jugadores</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${yesChips}</div>
+      </div>`:''}
+      ${no.length?`<div style="margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:#7F1D1D;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">– No participó · ${no.length} jugadores</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${noChips}</div>
+      </div>`:''}`;
+  } else {
+    // Modo normal: agrupar por cantidad de atenciones
+    const groups=[
+      {label:'Sin atenciones',color:'#3B6D11',bg:'#EAF3DE',border:'#C0DD97',textColor:'#27500A',countBg:'#C0DD97',min:0,max:0},
+      {label:'1–2 atenciones',color:'#854F0B',bg:'#FAEEDA',border:'#FAC775',textColor:'#633806',countBg:'#FAC775',min:1,max:2},
+      {label:'3 o más',       color:'#A32D2D',bg:'#FCEBEB',border:'#F7C1C1',textColor:'#501313',countBg:'#F7C1C1',min:3,max:999},
+    ];
+    selectorHtml=groups.map(g=>{
+      const members=sorted.filter(p=>{const t=playerFilteredTotal(p);return t>=g.min&&t<=g.max;});
+      if(!members.length)return'';
+      const chips=members.map(p=>{
+        const t=playerFilteredTotal(p);
+        return playerChip(p,g.bg,g.color,g.border,t,g.countBg,g.textColor);
+      }).join('');
+      return`<div style="margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:${g.color};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${g.label} · ${members.length} jugadores</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
+      </div>`;
+    }).join('');
+  }
 
   // ─── GRÁFICA DE BARRAS ────────────────────────────────────────────────────
   const chartMax=Math.max(1,...sorted.map(p=>playerFilteredTotal(p)));
@@ -7212,9 +7295,14 @@ function renderDisponibilidad(){
   con.innerHTML=`
     ${dtSection}
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:1.25rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      ${compTabsHtml}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px;font-weight:700;color:var(--text)">Selector rápido</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">${filterBtns}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;padding:8px 10px;background:var(--surface2,#F8FAFC);border-radius:8px;border:1px solid var(--border)">
+        <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Actividad:</span>
+        ${actFilterBtns}
       </div>
       ${selectorHtml}
     </div>
