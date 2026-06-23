@@ -2710,7 +2710,15 @@ const getPart=()=>stor.get(KPart,{});
 const setPart=v=>stor.set(KPart,v);
 const getPhotos=()=>stor.get(KPhoto,{});
 const setPhotos=v=>stor.set(KPhoto,v);
-const getFixture=()=>stor.get(KFix,{});
+// Resultados oficiales — fallback si ESPN no devuelve datos. m2=KSA, m4=CPV, m6=ESP
+const OFFICIAL_FIXTURE={m2:{h:1,a:1}, m4:{h:2,a:2}};
+function getFixture(){
+  const f=stor.get(KFix,{});
+  Object.entries(OFFICIAL_FIXTURE).forEach(([id,r])=>{
+    if(f[id]==null||f[id].h===''||f[id].h==null) f[id]=r;
+  });
+  return f;
+}
 const setFixture=v=>stor.set(KFix,v);
 function getPlayerPhoto(num,def){const ph=getPhotos();return ph[num]||def||''}
 function getPartVal(num,matchId){
@@ -4512,9 +4520,19 @@ function savePartVal(num,matchId,sel){
 // Eventos oficiales FIFA — fuente: informe del árbitro
 const FIFA_OFFICIAL_EVENTS = {
   'uru-cpv': [
-    {id:'fifa-uru-cpv-y20', min:20, type:'card', side:'uru', player:'Rodrigo Bentancur', extra:'y'},
-    {id:'fifa-uru-cpv-y58', min:58, type:'card', side:'uru', player:'Mathías Olivera',   extra:'y'},
-    {id:'fifa-uru-cpv-g44', min:44, type:'goal', side:'uru', player:'Maxi Araújo',       extra:''},
+    // Tarjetas amarillas URU — informe árbitro FIFA #37 (21-jun-2026)
+    {id:'fifa-uru-cpv-y20',  min:20,  type:'card', side:'uru',   player:'Rodrigo Bentancur',  extra:'y'},
+    {id:'fifa-uru-cpv-y58',  min:58,  type:'card', side:'uru',   player:'Mathías Olivera',    extra:'y'},
+    // Goles URU
+    {id:'fifa-uru-cpv-g44',  min:44,  type:'goal', side:'uru',   player:'Maxi Araújo',        extra:''},
+    {id:'fifa-uru-cpv-g45b', min:45,  type:'goal', side:'uru',   player:'Agustín Canobbio',   extra:'Maxi Araújo'},
+    // Goles CPV
+    {id:'fifa-uru-cpv-gc21', min:21,  type:'goal', side:'rival', player:'Kevin Pina',          extra:''},
+    {id:'fifa-uru-cpv-gc61', min:61,  type:'goal', side:'rival', player:'Helio Varela',        extra:''},
+    // Cambios URU
+    {id:'fifa-uru-cpv-s70a', min:70,  type:'sub',  side:'uru',   player:'Manuel Ugarte',      extra:'Nicolás De La Cruz'},
+    {id:'fifa-uru-cpv-s70b', min:70,  type:'sub',  side:'uru',   player:'Federico Viñas',     extra:'Darwin Núñez'},
+    {id:'fifa-uru-cpv-s81',  min:81,  type:'sub',  side:'uru',   player:'Maxi Araújo',        extra:'Brian Rodríguez'},
   ],
   'uru-ksa': [
     {id:'fifa-uru-ksa-g80',  min:80, type:'goal', side:'uru', player:'Maxi Araújo', extra:''},
@@ -4535,6 +4553,11 @@ const AUF_OFFICIAL_PART = {
     titular: [3,5,6,8,9,13,16,17,20,21,23],    // Cáceres, Ugarte, Bentancur, Valverde, Darwin, Varela, Olivera, Viña, Maxi Araújo, Viñas, Muslera
     entro:   [7,14,18,19,25],                    // De La Cruz 72', Canobbio HT, B. Rodríguez 81', Aguirre 90', Sanabria HT
     noEntro: [1,2,4,10,11,12,15,22,24,26]        // Rochet, Giménez, R. Araujo, Arrascaeta, Pellistri, Mele, E. Martínez, Piquerez, S. Bueno, Zalazar
+  },
+  'uru-cpv': {
+    titular: [3,5,6,8,13,14,16,20,21,23,25],    // Cáceres, Ugarte, Bentancur, Valverde, Varela, Canobbio, Olivera, Maxi Araújo, Viñas, Muslera, Sanabria
+    entro:   [7,9,18],                           // De La Cruz 70', Darwin 70', B. Rodríguez 81'
+    noEntro: [1,2,4,10,11,12,15,17,19,22,24,26] // Rochet, Giménez, R. Araujo, Arrascaeta, Pellistri, Mele, E. Martínez, M. Viña, Aguirre, Piquerez, S. Bueno, Zalazar
   }
 };
 
