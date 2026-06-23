@@ -6848,13 +6848,25 @@ function countCalParts(num, fromDate, toDate){
 // countFWC ya no lee de KC — usa solo el calendario a partir del 10/6
 function countFWC(num){ return {ob:0,noOb:0}; }
 
-// Count DT appearances in checklist
+// Count DT appearances: calendar evParts (primary) + checklist KC (legacy)
 function countDTApps(dtId){
-  const chk=getChk();
+  const partKey='dt_'+dtId;
+  const evP=getEvParts();
   let c=0;
+  // Calendar events (hasDT events where this DT member was marked)
+  CALENDAR_DAYS.forEach(day=>{
+    day.eventos.forEach((e,idx)=>{
+      if(!e.hasDT) return;
+      if(e.esTrain||e.noParts||e.tipo==='sched'||e.tipo==='team') return;
+      const parts=evP[evKey(day.date,idx)]||[];
+      if(parts.includes(partKey)) c++;
+    });
+  });
+  // Legacy: checklist KC (for old data)
+  const chk=getChk();
   ['llegada','uru-ksa','uru-cpv','uru-esp'].forEach(mid=>{
     const mc=chk[mid]||{};
-    Object.values(mc).forEach(d=>{if(d&&d.dt===dtId)c++});
+    Object.values(mc).forEach(d=>{if(d&&d.dt===dtId)c++;});
   });
   return c;
 }
