@@ -10258,6 +10258,34 @@ function lgCopy(i,url){
   // Limpieza: 'auf4_photos' es de una versión vieja (las fotos ahora viven en IndexedDB)
   // y puede ocupar varios MB de localStorage, provocando QuotaExceededError al guardar otros datos.
   if(localStorage.getItem('auf4_photos'))localStorage.removeItem('auf4_photos');
+  // Recalcular tarjetas acumuladas únicamente desde datos oficiales FIFA
+  // (evita que ESPN traiga amarillas erróneas que disparen suspensiones incorrectas)
+  (()=>{
+    const FLAG='auf4_mig_cards_official_v1';
+    if(localStorage.getItem(FLAG)) return;
+    const nameMap=buildNameMap();
+    const matchNum=name=>nameMap[normName(name)]||nameMap[normName((name||'').split(' ').pop())];
+    const ct={}, yellows={};
+    const matchOrder=['uru-ksa','uru-cpv','uru-esp'];
+    matchOrder.forEach(mid=>{
+      const evs=FIFA_OFFICIAL_EVENTS[mid]||[];
+      const next=nextPizMatch(mid);
+      evs.forEach(e=>{
+        if(e.type!=='card'||e.side!=='uru') return;
+        const num=matchNum(e.player); if(!num) return;
+        ct[num]=ct[num]||{yellows:0,suspendedFor:null,redCard:false};
+        if(e.extra==='r'){ct[num].redCard=true;if(next)ct[num].suspendedFor=next;}
+        else{
+          ct[num].yellows=(ct[num].yellows||0)+1;
+          if(ct[num].yellows>=2){ct[num].yellows=0;if(next)ct[num].suspendedFor=next;}
+        }
+        yellows[num]=ct[num].yellows===1;
+      });
+    });
+    setCardTrack(ct);
+    setYellows(yellows);
+    localStorage.setItem(FLAG,'1');
+  })();
   startAutoSync();
   // Auto-sync partidos ya jugados: carga XI, incidencias, ratings y actualiza stats/badges
   (async()=>{
