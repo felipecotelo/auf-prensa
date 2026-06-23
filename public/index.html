@@ -6895,8 +6895,8 @@ const ACT_FILTERS=[
   {id:'llegada-est', icon:'🏟', label:'Llegada estadio',    match:e=>e.chkId==='md-llegada'},
   {id:'zona-mixta',  icon:'🎤', label:'Zona mixta',         match:e=>e.chkId==='md-mix-est'},
 ];
-let _actFilter=null;
-function toggleActFilter(id){_actFilter=_actFilter===id?null:id;renderDisponibilidad();}
+let _actFilters=new Set();
+function toggleActFilter(id){if(_actFilters.has(id))_actFilters.delete(id);else _actFilters.add(id);renderDisponibilidad();}
 
 let _dispFilters={preMundial:false,llegada:true,'uru-ksa':true,'uru-cpv':true,'uru-esp':true};
 function toggleDispFilter(key){_dispFilters[key]=!_dispFilters[key];renderDisponibilidad();}
@@ -7217,7 +7217,7 @@ function renderDisponibilidad(){
   }).join('');
 
   const actFilterBtns=ACT_FILTERS.map(a=>{
-    const on=_actFilter===a.id;
+    const on=_actFilters.has(a.id);
     return`<button onclick="toggleActFilter('${a.id}')" style="padding:3px 9px;font-size:11px;font-weight:600;border-radius:20px;border:1.5px solid ${on?'#7C3AED':'var(--border)'};background:${on?'#EDE9FE':'transparent'};color:${on?'#5B21B6':'var(--muted)'};cursor:pointer;font-family:inherit">${on?'● ':''}${a.icon} ${a.label}</button>`;
   }).join('');
 
@@ -7229,16 +7229,29 @@ function renderDisponibilidad(){
   }
 
   let selectorHtml='';
-  if(_actFilter){
-    // Modo filtro de actividad: separar en participó / no participó
-    const participated=getActFilterParticipation(_actFilter);
-    const actDef=ACT_FILTERS.find(a=>a.id===_actFilter);
-    const yes=PLAYERS.filter(p=>participated.has(p.n));
-    const no=PLAYERS.filter(p=>!participated.has(p.n));
-    const yesChips=yes.map(p=>playerChip(p,'#ECFDF5','#065F46','#A7F3D0','✓','#A7F3D0','#065F46')).join('');
+  if(_actFilters.size>0){
+    // Modo filtro de actividad: para cada jugador, contar cuántas actividades activas hizo
+    const activeActDefs=[..._actFilters].map(id=>ACT_FILTERS.find(a=>a.id===id)).filter(Boolean);
+    const totalActs=activeActDefs.length;
+    // participación por actividad
+    const partByAct=new Map(activeActDefs.map(a=>[a.id,getActFilterParticipation(a.id)]));
+    function playerActCount(p){return activeActDefs.filter(a=>partByAct.get(a.id).has(p.n)).length;}
+    // Ordenar por count desc, luego por número
+    const sorted2=[...PLAYERS].sort((a,b)=>playerActCount(b)-playerActCount(a)||(a.n-b.n));
+    const yes=sorted2.filter(p=>playerActCount(p)>0);
+    const no=sorted2.filter(p=>playerActCount(p)===0);
+    const actLabel=totalActs===1?activeActDefs[0].label:activeActDefs.map(a=>a.icon).join('');
+    const yesChips=yes.map(p=>{
+      const ct=playerActCount(p);
+      const lbl=totalActs>1?`${ct}/${totalActs}`:'✓';
+      const bg=ct===totalActs?'#ECFDF5':'#F0FDF4';
+      const border=ct===totalActs?'#A7F3D0':'#BBF7D0';
+      return playerChip(p,bg,'#065F46',border,lbl,'#A7F3D0','#065F46');
+    }).join('');
     const noChips=no.map(p=>playerChip(p,'#FEF2F2','#7F1D1D','#FECACA','–','#FECACA','#7F1D1D')).join('');
+    const filterLabel=totalActs===1?`${activeActDefs[0].icon} ${activeActDefs[0].label}`:`${activeActDefs.map(a=>a.icon+' '+a.label).join(' · ')}`;
     selectorHtml=`
-      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Filtro: ${actDef.icon} ${actDef.label}</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Filtro: ${filterLabel}</div>
       ${yes.length?`<div style="margin-bottom:12px">
         <div style="font-size:10px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">✓ Participó · ${yes.length} jugadores</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">${yesChips}</div>
