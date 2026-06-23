@@ -8091,7 +8091,10 @@ function renderEstadisticas(){
   </tr>`;
 
   const ct=getCardTrack();
-  const susp=PLAYERS.filter(p=>ct[p.n]?.suspendedFor);
+  // Solo mostrar suspensiones para partidos que aún no se jugaron
+  const PIZ_TO_FIX_disp=Object.fromEntries(Object.entries(FIX_TO_PIZ).map(([f,p])=>[p,f]));
+  const playedMatches=new Set(PIZ_MATCHES.filter(m=>{const fid=PIZ_TO_FIX_disp[m.id];const d=GROUP_H.matches.find(x=>x.id===fid)?.isoDate;return d&&d<TODAY;}).map(m=>m.id));
+  const susp=PLAYERS.filter(p=>ct[p.n]?.suspendedFor&&!playedMatches.has(ct[p.n].suspendedFor));
   const sancionTxt=susp.length
     ? `🚫 <strong>Sanciones vigentes:</strong> ${susp.map(p=>`${p.name} (${PIZ_MATCHES.find(m=>m.id===ct[p.n].suspendedFor)?.label||ct[p.n].suspendedFor})`).join(', ')}.`
     : `Sin suspensiones pendientes · 2 amarillas en el torneo = sanción para el próximo partido.`;
