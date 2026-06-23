@@ -10241,33 +10241,46 @@ function lgCopy(i,url){
   // Auto-sync partidos ya jugados: carga XI, incidencias, ratings y actualiza stats/badges
   (async()=>{
     const PIZ_TO_FIX=Object.fromEntries(Object.entries(FIX_TO_PIZ).map(([f,p])=>[p,f]));
-    // 1. Actualizar KWCCache para fechas pasadas de Uruguay (popula getLastCompletedUruMatch)
-    for(const date of URU_MATCH_DATES){
-      if(date>=TODAY) continue;
-      await fetchWCDay(date);
-      // Sincronizar marcador en KFix desde el cache recién actualizado
-      const wcCache=stor.get(KWCCache,{});
-      const uruGame=wcCache[date]?.games?.find(g=>g.isUru&&g.completed&&g.score);
-      if(uruGame){
-        const fixMatch=GROUP_H.matches.find(m=>m.isoDate===date&&(m.home==='uru'||m.away==='uru'));
-        if(fixMatch){
-          const fix=getFixture();
-          if(fix[fixMatch.id]==null||fix[fixMatch.id].h===''||fix[fixMatch.id].h==null){
-            const [hs,as]=uruGame.score.split('-').map(Number);
-            const isHome=uruGame.homeEspnId===String(URU_ESPN_ID);
-            const uruGf=isHome?hs:as, uruGc=isHome?as:hs;
-            fix[fixMatch.id]={h:fixMatch.home==='uru'?uruGf:uruGc, a:fixMatch.away==='uru'?uruGf:uruGc};
-            setFixture(fix);
-          }
+    // 1. Sincronizar marcador desde ESPN summary para partidos ya jugados sin resultado en KFix
+    for(const m of PIZ_MATCHES){
+      const espnId=ESPN_EVENTS[m.id]; if(!espnId) continue;
+      const fixId=PIZ_TO_FIX[m.id];
+      const fixMatch=GROUP_H.matches.find(x=>x.id===fixId);
+      if(!fixMatch||fixMatch.isoDate>=TODAY) continue;
+      const fix=getFixture();
+      if(fix[fixId]!=null&&fix[fixId].h!==''&&fix[fixId].h!=null) continue; // ya tiene datos
+      try{
+        const data=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${espnId}`).then(r=>r.json());
+        const comp=data.header?.competitions?.[0];
+        if(!comp?.status?.type?.completed) continue;
+        const home=comp.competitors.find(c=>c.homeAway==='home');
+        const away=comp.competitors.find(c=>c.homeAway==='away');
+        if(!home||!away) continue;
+        // Identificar lado Uruguay por ID o por nombre
+        const homeIsUru=home.team?.id===String(URU_ESPN_ID)||/uruguay/i.test(home.team?.displayName||'');
+        const uruScore=parseInt(homeIsUru?home.score:away.score)||0;
+        const rivScore=parseInt(homeIsUru?away.score:home.score)||0;
+        const updFix=getFixture();
+        updFix[fixId]={h:fixMatch.home==='uru'?uruScore:rivScore, a:fixMatch.away==='uru'?uruScore:rivScore};
+        setFixture(updFix);
+        // Actualizar también KWCCache para que getLastCompletedUruMatch funcione
+        const wcCache=stor.get(KWCCache,{});
+        if(!wcCache[fixMatch.isoDate]) wcCache[fixMatch.isoDate]={ts:Date.now(),games:[]};
+        const cached=wcCache[fixMatch.isoDate];
+        if(!cached.games.find(g=>g.isUru&&g.completed)){
+          const rival=homeIsUru?(ESPN_ES[away.team?.displayName]||away.team?.displayName||'?'):(ESPN_ES[home.team?.displayName]||home.team?.displayName||'?');
+          cached.games.push({espnId:String(espnId),home:homeIsUru?'Uruguay':rival,away:homeIsUru?rival:'Uruguay',homeEspnId:home.team?.id||'',awayEspnId:away.team?.id||'',score:`${homeIsUru?uruScore:rivScore}-${homeIsUru?rivScore:uruScore}`,completed:true,isUru:true,isoDate:fixMatch.isoDate,time:''});
+          cached.ts=Date.now();
+          stor.set(KWCCache,wcCache);
         }
-      }
+      }catch(_){}
     }
-    // 2. Sincronización completa (XI, incidencias, stats)
+    // 2. Sincronización completa (XI, incidencias, stats) para partidos no bloqueados
     for(const m of PIZ_MATCHES){
       if(!ESPN_EVENTS[m.id]) continue;
       const fixId=PIZ_TO_FIX[m.id];
       const matchDate=GROUP_H.matches.find(x=>x.id===fixId)?.isoDate;
-      if(!matchDate||matchDate>=TODAY) continue; // solo partidos ya jugados
+      if(!matchDate||matchDate>=TODAY) continue;
       if(!isMatchLocked(m.id)) await syncMatchFull(m.id);
     }
   })();
