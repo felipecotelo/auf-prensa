@@ -3599,9 +3599,10 @@ function toggleDayClosed(date,btn){
 const TZ_INFO={
   UY: {label:'Uruguay',        short:'UY',  offset:-3},
   MIA:{label:'Miami',          short:'MIA', offset:-4},
-  GDL:{label:'Cancún / México',short:'MX',  offset:-5},
+  CUN:{label:'Cancún / México',short:'MX',  offset:-5},
+  GDL:{label:'Guadalajara',    short:'GDL', offset:-6},
 };
-const TZ_DEFAULT='GDL';
+const TZ_DEFAULT='CUN';
 
 // Convierte tiempo UY → otro huso
 function uyToTz(hStr, toTz){
@@ -3648,13 +3649,14 @@ function getEvTzLine(e, t, date, idx, rerenderDate){
   const tMIA=convertTz(tUY,'UY','MIA');
   if(!tMIA)return'';
   // Chips de selección
-  const chips=['UY','MIA','GDL'].map(tz=>
+  const chips=['UY','MIA','CUN','GDL'].map(tz=>
     `<button class="aap-tz-chip${activeTz===tz?' active':''}" onclick="setEvTz('${date}',${idx},'${tz}','${rerenderDate||date}')" style="font-size:10px;padding:3px 7px">${TZ_INFO[tz].short}</button>`
   ).join('');
   // Línea de tiempos
+  const tGDL=convertTz(tUY,'UY','GDL');
   const timeLine=activeTz==='UY'
-    ?`${tMIA} Miami · ${t} Uruguay`
-    :`${t} ${TZ_INFO[activeTz]?.short} · ${tMIA} Miami · ${tUY} Uruguay`;
+    ?`${tMIA} Miami · ${tGDL} GDL · ${t} Uruguay`
+    :`${t} ${TZ_INFO[activeTz]?.short} · ${tMIA} Miami · ${tGDL} GDL · ${tUY} Uruguay`;
   return `<div style="font-size:11px;color:var(--cel-dk);font-weight:600;margin-bottom:3px">🕐 ${timeLine}</div><div style="display:flex;gap:4px;align-items:center;margin-bottom:5px"><span style="font-size:10px;color:var(--muted);margin-right:2px">Hora original:</span>${chips}</div>`;
 }
 
@@ -10560,6 +10562,13 @@ function lgCopy(i,url){
     let ch=false;
     ['2026-06-25_0','2026-06-25_1'].forEach(k=>{if(hidden[k]){delete hidden[k];ch=true;}});
     if(ch){stor.set(KEvHidden,hidden);cloudPush(KEvHidden,hidden);}
+  })();
+  // Migrar KEvTz: clave 'GDL' (antes = Cancún) → 'CUN' para liberar GDL para Guadalajara
+  (()=>{
+    const tz=stor.get('auf4_evtz',{});
+    let ch=false;
+    Object.keys(tz).forEach(k=>{if(tz[k]==='GDL'){tz[k]='CUN';ch=true;}});
+    if(ch){stor.set('auf4_evtz',tz);cloudPush('auf4_evtz',tz);}
   })();
   // Limpiar dt_ partes contaminadas en KEvP por colisión de índice con conferencia MD-1 ESP
   // La conferencia (hasDT:true, dt_bielsa) era Jun 24 idx 2; ahora ese slot es una actividad custom
