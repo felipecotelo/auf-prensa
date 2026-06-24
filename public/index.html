@@ -3094,7 +3094,7 @@ function buildEventsHtml(day, startIdx=0){
             ].join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
           </div>
           <div class="cal-event-dot ${e.isDT?'ce-dt':'ce-'+e.tipo}" style="margin-top:5px;flex-shrink:0"></div>
-          ${isCustom?`<button onclick="deleteDayAct('${dataDate}',${realIdx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
+          ${isCustom?`<button onclick="deleteDayAct('${dataDate}',${realIdx-_origStaticLen},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
             :(e.tipo==='team'||e.tipo==='sched'||e.tipo==='viaje')?`<button onclick="hideEvent('${dataDate}',${realIdx},event)" title="Ocultar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>`
             :''}
           ${e.tipo!=='partido'&&e.tipo!=='viaje'?`<button onclick="rescheduleEvent('${dataDate}',${realIdx},'${day.date}',event)" title="${e._isResch?'Reagendado — click para cambiar o deshacer':'Reagendar a otro día'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0 3px;color:${e._isResch?'#c2410c':'var(--hint)'}">📅</button>`:''}
@@ -3957,12 +3957,9 @@ function addDayAct(date,optJson){
 function deleteDayAct(date,idx,ev){
   if(IS_RESTRICTED) return;
   if(ev)ev.stopPropagation();
-  const day=CALENDAR_DAYS.find(d=>d.date===date);
-  if(!day)return;
-  const customIdx=idx-day.eventos.length;
   const acts=getDayActs();
-  if(!acts[date]||!acts[date][customIdx])return;
-  acts[date].splice(customIdx,1);
+  if(!acts[date]||!acts[date][idx])return;
+  acts[date].splice(idx,1);
   stor.set(KDayActs,acts);
   rerenderDayEvents(date);
   toast('Actividad eliminada');
