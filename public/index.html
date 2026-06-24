@@ -1802,12 +1802,12 @@ const CALENDAR_DAYS = [
    eventos:[
      {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS',esTrain:true,chkId:'md1-train'},
      {h:'~14:00',tipo:'viaje',txt:'✈️ Viaje a Guadalajara, Jalisco'},
-     {h:'18:45',tipo:'oblig',txt:'Conferencia de prensa + Stand-up — DT + 1 jugador · Estadio Akron, Guadalajara · TV Uruguay (RH) + TV rival + equipo FIFA',hasDT:true,chkId:'md1-conf'},
    ]},
   {date:'2026-06-25',dow:'Jue',label:'25 jun',tipo:'md1', lugar:'Guadalajara, Jalisco 🇲🇽', rival:'España', md:'MD-1',
    eventos:[
      {h:'Mañana',tipo:'team',txt:'🏨 Descanso en hotel',noParts:true},
      {h:'AM',tipo:'oblig',txt:'Entrenamiento oficial — primeros 15 min abiertos · VSTS · Estadio Akron, Guadalajara',esTrain:true,chkId:'md1-train'},
+     {h:'18:45',tipo:'oblig',txt:'Conferencia de prensa + Stand-up — DT + 1 jugador · Estadio Akron, Guadalajara · TV Uruguay (RH) + TV rival + equipo FIFA',hasDT:true,chkId:'md1-conf'},
    ]},
   {date:'2026-06-26',dow:'Vie',label:'26 jun',tipo:'partido', lugar:'Guadalajara 🇲🇽 → Riviera Maya 🇲🇽', rival:'España', sede:'Estadio Akron, Guadalajara',
    kit:{
@@ -10541,10 +10541,14 @@ function lgCopy(i,url){
     if(p['2026-06-18_13']!==undefined){delete p['2026-06-18_13'];stor.set(KEvP,p);cloudPush(KEvP,p);}
   })();
   // Limpieza post-cloudPull: borra cualquier evResch que apunte a Jun 17
+  // y el reagendado incorrecto de la conferencia MD-1 ESP (era Jun 24 idx 2, ahora está en Jun 25 estático)
   (()=>{
     const resch=getEvResch();
     let changed=false;
-    Object.keys(resch).forEach(k=>{if(resch[k]?.toDate==='2026-06-17'){delete resch[k];changed=true;}});
+    Object.keys(resch).forEach(k=>{
+      if(resch[k]?.toDate==='2026-06-17'){delete resch[k];changed=true;}
+      if(k==='2026-06-24_2'&&resch[k]?.toDate==='2026-06-25'){delete resch[k];changed=true;}
+    });
     if(changed){localStorage.setItem(KEvResch,JSON.stringify(resch));cloudPush(KEvResch,resch);serverSave(true);}
   })();
   if(IS_RESTRICTED){
