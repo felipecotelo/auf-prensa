@@ -151,7 +151,6 @@ function buildCalendarICS(lsData) {
   const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
   CALENDAR_DAYS.forEach(day => {
-    if (day.tipo === 'partido') return;
     const customActs = dayActs[day.date] || [];
     const allEvs = [...day.eventos, ...customActs];
     allEvs.forEach((e, realIdx) => {
