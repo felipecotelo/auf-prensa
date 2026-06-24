@@ -9449,17 +9449,17 @@ const getLineup=()=>stor.get(KLineup,{});
 const setLineup=v=>stor.set(KLineup,v);
 const getSlotPos=()=>stor.get(KSlotPos,{});
 const setSlotPos=v=>stor.set(KSlotPos,v);
-function getMatchSlotPos(matchId){const all=getSlotPos();return all[matchId]||all['_shared']||{};}
+function getMatchSlotPos(matchId){return getSlotPos()['_shared']||{};}
 function saveSlotPos(matchId,slotId,x,y){
   const all=getSlotPos();
-  // Guardar en el match actual Y en el shared (aplica a todos los partidos)
-  if(!all[matchId])all[matchId]={};
-  all[matchId][slotId]={x,y};
   if(!all['_shared'])all['_shared']={};
   all['_shared'][slotId]={x,y};
   setSlotPos(all);
+  // Sincronizar pizarra stats si está visible
+  const wrap=document.getElementById('pizarra-wrap');
+  if(wrap&&wrap.offsetParent!==null) renderPizarra(_pizMatch);
 }
-function resetMatchSlotPos(matchId){const all=getSlotPos();delete all[matchId];delete all['_shared'];setSlotPos(all);}
+function resetMatchSlotPos(matchId){const all=getSlotPos();delete all['_shared'];setSlotPos(all);}
 
 const FORMATIONS={
   '4-3-3':[
