@@ -10540,7 +10540,16 @@ function lgCopy(i,url){
       if(resch[k]?.toDate==='2026-06-17'){delete resch[k];changed=true;}
       if(k==='2026-06-24_2'&&resch[k]?.toDate==='2026-06-25'){delete resch[k];changed=true;}
     });
+    // Limpiar reagendados desde Jun 25 idx 0/1 (Descanso/Entrenamiento MD-1 ocultos por error)
+    ['2026-06-25_0','2026-06-25_1'].forEach(k=>{if(resch[k]){delete resch[k];changed=true;}});
     if(changed){localStorage.setItem(KEvResch,JSON.stringify(resch));cloudPush(KEvResch,resch);serverSave(true);}
+  })();
+  // Limpiar evHidden para Descanso/Entrenamiento MD-1 ESP (Jun 25 idx 0 y 1)
+  (()=>{
+    const hidden=getEvHidden();
+    let ch=false;
+    ['2026-06-25_0','2026-06-25_1'].forEach(k=>{if(hidden[k]){delete hidden[k];ch=true;}});
+    if(ch){stor.set(KEvHidden,hidden);cloudPush(KEvHidden,hidden);}
   })();
   // Limpiar dt_ partes contaminadas en KEvP por colisión de índice con conferencia MD-1 ESP
   // La conferencia (hasDT:true, dt_bielsa) era Jun 24 idx 2; ahora ese slot es una actividad custom
