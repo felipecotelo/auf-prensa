@@ -4991,11 +4991,17 @@ function rerenderDayEvents(date){
 function editEventTime(date,idx,el){
   if(IS_RESTRICTED) return;
   const cur=el.textContent.trim();
+  const wrap=document.createElement('span');
+  wrap.style.cssText='display:inline-flex;align-items:center;gap:3px';
   const inp=document.createElement('input');
   inp.type='text'; inp.value=cur==='TBD'?'':cur;
   inp.placeholder='ej: 17:30';
-  inp.style.cssText='width:80px;font-size:10.5px;font-weight:700;color:var(--cel-dk);border:1.5px solid var(--cel);border-radius:5px;padding:2px 6px;font-family:inherit;background:#fff;outline:none';
-  el.replaceWith(inp); inp.focus(); inp.select();
+  inp.style.cssText='width:70px;font-size:10.5px;font-weight:700;color:var(--cel-dk);border:1.5px solid var(--cel);border-radius:5px;padding:2px 6px;font-family:inherit;background:#fff;outline:none';
+  const btn=document.createElement('button');
+  btn.textContent='✓';
+  btn.style.cssText='font-size:11px;padding:1px 5px;border-radius:4px;border:1.5px solid var(--cel);background:var(--cel);color:#fff;cursor:pointer;line-height:1.4;font-weight:700';
+  wrap.appendChild(inp); wrap.appendChild(btn);
+  el.replaceWith(wrap); inp.focus(); inp.select();
   let committed=false;
   function commit(){
     if(committed)return; committed=true;
@@ -5026,8 +5032,8 @@ function editEventTime(date,idx,el){
     }
     rerenderDayEvents(date); // re-sort automáticamente
   }
-  inp.onblur=commit;
-  inp.onkeydown=e=>{if(e.key==='Enter')commit(); if(e.key==='Escape'){committed=true;inp.replaceWith(el);}};
+  btn.onclick=e=>{e.stopPropagation();commit();};
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();commit();} if(e.key==='Escape'){committed=true;wrap.replaceWith(el);}};
 }
 
 function rescheduleEvent(origDate,origIdx,renderDay,ev){
