@@ -6047,6 +6047,9 @@ function renderFixture(){
     <div data-fix-sec="grupo" style="order:${secOrder.indexOf('grupo')}">
       ${standingsHtml}
     </div>
+    <div data-fix-sec="escenarios" style="order:${secOrder.indexOf('escenarios')}">
+      ${buildScenariosHtml()}
+    </div>
     <div data-fix-sec="cruces" style="order:${secOrder.indexOf('cruces')}">
       <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px;display:flex;align-items:center;gap:6px">
         <span style="display:inline-block;width:3px;height:12px;background:var(--cel);border-radius:2px"></span>
@@ -6450,6 +6453,122 @@ function renderGrafica(){
       </div>
     </div>
   `;
+}
+
+function buildScenariosHtml(){
+  const fix=getFixture();
+  // Solo mostrar si m6 (URU vs ESP) aún no tiene resultado
+  const m6r=fix['m6'];
+  const m6played=m6r&&m6r.h!==''&&m6r.a!==''&&m6r.h!=null&&m6r.a!=null;
+  if(m6played) return''; // ya se jugó, no mostrar calculadora
+
+  // Simular resultado de m6 (URU vs ESP) + m5 (KSA vs CPV) en best/worst case
+  function simulate(m6h,m6a,m5h,m5a){
+    const sim={...fix,m6:{h:m6h,a:m6a},m5:{h:m5h,a:m5a}};
+    return calcStandings(GROUP_H,sim);
+  }
+
+  // Para cada resultado de URU, obtener su posición final
+  // URU es home en m6 (home:'uru', away:'esp')
+  const scenarios=[
+    {key:'W', label:'URU gana', emoji:'🟢', m6h:1,m6a:0, color:'#16A34A', bgCol:'#F0FDF4', borderCol:'#86EFAC'},
+    {key:'D', label:'URU empata', emoji:'🟡', m6h:0,m6a:0, color:'#B45309', bgCol:'#FFFBEB', borderCol:'#FDE68A'},
+    {key:'L', label:'URU pierde', emoji:'🔴', m6h:0,m6a:1, color:'#DC2626', bgCol:'#FFF1F2', borderCol:'#FCA5A5'},
+  ];
+
+  // Clasificación FIFA 2026: top 2 avanzan directamente, 3° puede como mejor tercero
+  // Umbral estimado de mejor tercero: ≥4 pts (histórico de Mundiales 2026 con 12 grupos)
+  function classLabel(pos, pts){
+    if(pos===0) return {txt:'1° — Clasifica directo a octavos 🎉', cl:'#16A34A', bg:'#DCFCE7'};
+    if(pos===1) return {txt:'2° — Clasifica directo a octavos ✅', cl:'#15803D', bg:'#DCFCE7'};
+    if(pos===2){
+      if(pts>=4) return {txt:'3° con '+pts+' pts — Posiblemente mejor tercero 🟡', cl:'#B45309', bg:'#FEF9C3'};
+      if(pts===3) return {txt:'3° con 3 pts — Difícil como mejor tercero ⚠️', cl:'#92400E', bg:'#FEF3C7'};
+      return {txt:'3° con '+pts+' pts — Muy difícil clasificar 🔴', cl:'#DC2626', bg:'#FEE2E2'};
+    }
+    return {txt:'4° — Eliminado ❌', cl:'#DC2626', bg:'#FEE2E2'};
+  }
+
+  function miniTable(st){
+    return`<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-top:6px">
+      <thead><tr style="border-bottom:0.5px solid rgba(0,0,0,.08)">
+        <th style="padding:2px 4px;text-align:left;font-size:8.5px;color:#6B7280;font-weight:700">#</th>
+        <th style="padding:2px 6px;text-align:left;font-size:8.5px;color:#6B7280;font-weight:700">Equipo</th>
+        <th style="padding:2px 4px;font-size:8.5px;color:#6B7280;font-weight:700">PTS</th>
+        <th style="padding:2px 4px;font-size:8.5px;color:#6B7280;font-weight:700">DG</th>
+        <th style="padding:2px 4px;font-size:8.5px;color:#6B7280;font-weight:700">GF</th>
+      </tr></thead>
+      <tbody>${st.map((t,i)=>`<tr style="background:${t.isUs?'rgba(0,157,216,.08)':''}">
+        <td style="padding:2px 4px;font-weight:700;font-size:10.5px;color:#6B7280">${i+1}</td>
+        <td style="padding:2px 6px;font-size:10.5px;font-weight:${t.isUs?'800':'500'};color:${t.isUs?'var(--cel-dk)':'var(--text)'};display:flex;align-items:center;gap:4px">${flagImg(t.iso,14)} ${t.abbr}</td>
+        <td style="padding:2px 4px;font-size:11px;font-weight:${t.isUs?'900':'700'};color:${t.isUs?'var(--cel-dk)':'var(--text)'};text-align:center">${t.pts}</td>
+        <td style="padding:2px 4px;font-size:10.5px;text-align:center;color:#6B7280">${t.gd>0?'+':''}${t.gd}</td>
+        <td style="padding:2px 4px;font-size:10.5px;text-align:center;color:#6B7280">${t.gf}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  const cards=scenarios.map(sc=>{
+    // Simular con KSA-CPV empate (caso neutral)
+    const st=simulate(sc.m6h,sc.m6a,0,0);
+    const uruPos=st.findIndex(t=>t.id==='uru');
+    const uruPts=st[uruPos]?.pts||0;
+    const cl=classLabel(uruPos,uruPts);
+    return`<div style="background:${sc.bgCol};border:1.5px solid ${sc.borderCol};border-radius:12px;padding:14px 14px 10px;flex:1;min-width:200px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:14px">${sc.emoji}</span>
+        <span style="font-size:12px;font-weight:800;color:${sc.color}">${sc.label}</span>
+      </div>
+      <div style="font-size:10.5px;font-weight:700;padding:5px 8px;border-radius:7px;background:${cl.bg};color:${cl.cl};line-height:1.4;margin-bottom:8px">${cl.txt}</div>
+      ${miniTable(st)}
+      <div style="font-size:9px;color:#9CA3AF;margin-top:6px">*KSA vs CPV 0-0 (caso base)</div>
+    </div>`;
+  }).join('');
+
+  // Tabla interactiva: qué pasa si KSA-CPV varía
+  const m5scenarios=[{h:0,a:1,lbl:'CPV gana'},{h:0,a:0,lbl:'Empate'},{h:1,a:0,lbl:'KSA gana'}];
+  const interactRows=scenarios.map(sc=>{
+    return`<tr>
+      <td style="padding:5px 8px;font-size:10.5px;font-weight:800;color:${sc.color};white-space:nowrap">${sc.emoji} ${sc.label}</td>
+      ${m5scenarios.map(m5=>{
+        const st=simulate(sc.m6h,sc.m6a,m5.h,m5.a);
+        const uruPos=st.findIndex(t=>t.id==='uru');
+        const pts=st[uruPos]?.pts||0;
+        const cl=classLabel(uruPos,pts);
+        const badge=uruPos<=1?'✅':uruPos===2?'⚠️':'❌';
+        return`<td style="padding:5px 8px;text-align:center;font-size:10px;color:${cl.cl};font-weight:700">${badge} ${uruPos+1}° · ${pts}pts</td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
+
+  return`
+    <div style="font-size:9.5px;font-weight:800;color:var(--cel-dk);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+      <span style="display:inline-block;width:3px;height:12px;background:var(--cel);border-radius:2px"></span>
+      Calculadora de escenarios · Fecha 3
+    </div>
+    <div style="background:var(--white);border:0.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:14px">
+      <div style="padding:12px 16px 4px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:12px">📊 Posibles finales del Grupo H según resultado URU vs ESP · KSA-CPV en empate (caso base)</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">${cards}</div>
+      </div>
+      <div style="margin-top:14px;border-top:0.5px solid var(--border);padding:12px 16px">
+        <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin-bottom:8px">Matriz completa — todas las combinaciones</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border)">
+                <th style="padding:5px 8px;text-align:left;font-size:9px;color:var(--muted);font-weight:700">URU vs ESP \ KSA vs CPV</th>
+                ${m5scenarios.map(m=>`<th style="padding:5px 8px;text-align:center;font-size:9px;color:var(--muted);font-weight:700">${m.lbl}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>${interactRows}</tbody>
+          </table>
+        </div>
+        <div style="font-size:9.5px;color:var(--muted);margin-top:10px;line-height:1.5;padding:8px 10px;background:var(--surface);border-radius:8px">
+          ✅ Clasifica directo · ⚠️ 3° — posible mejor tercero (umbral estimado ≥4 pts en FIFA 2026 · 8 de 12 terceros avanzan) · ❌ Eliminado
+        </div>
+      </div>
+    </div>`;
 }
 
 function buildCrossesHtml(){
@@ -7731,8 +7850,8 @@ function resetTabOrder(){
 // ═══════════════════════════════════════════════════════════════════════════
 // REORDEN DE BLOQUES — FIXTURE
 // ═══════════════════════════════════════════════════════════════════════════
-const FIX_SEC_DEFAULT=['grupo','cruces','partidos'];
-const FIX_SEC_LABELS={grupo:'Grupo H · Uruguay',cruces:'Posibles Cruces',partidos:'Partidos del Mundial'};
+const FIX_SEC_DEFAULT=['grupo','escenarios','cruces','partidos'];
+const FIX_SEC_LABELS={grupo:'Grupo H · Uruguay',escenarios:'Calculadora de Escenarios',cruces:'Posibles Cruces',partidos:'Partidos del Mundial'};
 
 function getFixSecOrder(){
   const saved=stor.get(KFixSecOrder,null);
