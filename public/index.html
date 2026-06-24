@@ -3105,7 +3105,7 @@ function buildEventsHtml(day, startIdx=0){
           <button class="ev-expand" onclick="toggleEvDetail('${dataDate}',${realIdx},this)" title="Nota / participantes">⌄</button>
         </div>
         <div class="cal-ev-detail" id="ced-${dataDate}-${realIdx}">
-          ${getEvTzLine(e,t,dataDate,realIdx)}
+          ${getEvTzLine(e,t,dataDate,realIdx,day.date)}
           ${isFifaChange&&getEvFifaOrig()[k]&&getEvFifaOrig()[k]!==t?`<div style="font-size:11px;color:var(--gold);margin-bottom:4px">* Horario original: ${getEvFifaOrig()[k]} — reprogramado por FIFA</div>`:''}
           ${isOblig&&!e.extra?(()=>{
             const manualAtParts=[
@@ -3455,7 +3455,7 @@ function renderCal(){
       if(!origEv||origEv.noResch)return;
       allEvs.push({...origEv,_origIdx:origIdx,_isResch:true,_origDate:origDate,h:val.toTime});
     });
-    allEvs.sort((a,b)=>{const d=evSortKey(day.date,a)-evSortKey(day.date,b);return d||((a.txt||'')>(b.txt||'')?1:(a.txt||'')<(b.txt||'')?-1:0);});
+    allEvs.sort((a,b)=>{const tA=a._isResch?parseEvTime(a.h):evSortKey(day.date,a);const tB=b._isResch?parseEvTime(b.h):evSortKey(day.date,b);return (tA-tB)||((a.txt||'')>(b.txt||'')?1:(a.txt||'')<(b.txt||'')?-1:0);});
     const div=document.createElement('div');
     div.className='cal-day'+(isToday?' today':'')+(isToday?' open':'')+(day.tipo==='md1'?' tipo-md1':day.tipo==='partido'?' tipo-partido':'');
     div.dataset.date=day.date;
@@ -3616,13 +3616,13 @@ function uyToTz(hStr, toTz){
 
 function getEvTz(){return stor.get(KEvTz,{});}
 
-function setEvTz(date, idx, tz){
+function setEvTz(date, idx, tz, rerenderDate){
   if(IS_RESTRICTED)return;
   const store=getEvTz();
   const key=date+':'+idx;
   if(tz==='UY') delete store[key]; else store[key]=tz;
   stor.set(KEvTz,store);
-  rerenderDayEvents(date);
+  rerenderDayEvents(rerenderDate||date);
 }
 
 // Convierte tiempo de un huso a otro
@@ -3636,7 +3636,7 @@ function convertTz(hStr, fromTz, toTz){
 }
 
 // Genera línea de huso horario + selector en el panel expandido
-function getEvTzLine(e, t, date, idx){
+function getEvTzLine(e, t, date, idx, rerenderDate){
   // Partidos del Mundial: hora automática de la API, no se toca
   if(e._wcMatch||e.tipo==='partido-fifa')return'';
   if(!t||!/^\d{1,2}:\d{2}$/.test(t))return'';
@@ -3650,7 +3650,7 @@ function getEvTzLine(e, t, date, idx){
   if(!tMIA)return'';
   // Chips de selección
   const chips=['UY','MIA','GDL'].map(tz=>
-    `<button class="aap-tz-chip${activeTz===tz?' active':''}" onclick="setEvTz('${date}',${idx},'${tz}')" style="font-size:10px;padding:3px 7px">${TZ_INFO[tz].short}</button>`
+    `<button class="aap-tz-chip${activeTz===tz?' active':''}" onclick="setEvTz('${date}',${idx},'${tz}','${rerenderDate||date}')" style="font-size:10px;padding:3px 7px">${TZ_INFO[tz].short}</button>`
   ).join('');
   // Línea de tiempos
   const timeLine=activeTz==='UY'
