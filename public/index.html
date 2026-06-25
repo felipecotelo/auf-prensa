@@ -6845,27 +6845,30 @@ function renderJugadores(){
   if(q) document.getElementById('jug-search')?.focus();
 }
 
-function showJugador(nom){
-  // Reuse showConvPlayer logic but render into jug-profile-wrap
-  const wrap=document.getElementById('jug-profile-wrap');
-  if(!wrap) return;
-
+function _buildJugadorHTML(nom,closeId){
   const callups=BIELSA_CONVOCATORIAS.filter(c=>c.jugadores.some(j=>j.nom===nom));
   const p=PLAYERS.find(x=>x.name===nom);
   const auf=JUGADORES[nom];
-  if(!auf){wrap.innerHTML=`<div style="padding:16px;color:var(--muted);font-size:.85em">Jugador no encontrado en el registro.</div>`;return;}
-
+  if(!auf) return `<div style="padding:16px;color:var(--muted);font-size:.85em">Jugador no encontrado en el registro.</div>`;
   const posLbl={POR:'Portero',DEF:'Defensa',MED:'Mediocampista',DEL:'Delantero'};
   const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
   const pos=p?.pos||auf.pos||'—';
+  const isGK=pos==='POR';
   const club=p?`${p.clubPais} ${p.club}`:(auf.pais&&auf.club?`${auf.pais} ${auf.club}`:'—');
   const inWC26=auf.wc26;
   const aufSlug=auf.auf||null;
   const total=auf.total||null;
   const comp=auf.comp||null;
+  const photo=auf.foto||(p?.photo)||null;
   const initials=nom.split(' ').filter(w=>/^[A-ZÁÉÍÓÚÑÜ]/.test(w)).slice(0,2).map(w=>w[0]).join('');
   const col=posColor[pos]||'#555';
-
+  const golesVal=isGK?(total?.gc!=null?total.gc:'—'):(total?.g??'—');
+  const golesLabel=isGK?'Goles enc.':'Goles';
+  const golesSub=isGK?'encajados · carrera':'anotados · carrera';
+  const golesBg=isGK?'#FFF1F2':'#F0FDF4';
+  const golesBd=isGK?'#FCA5A5':'#86EFAC';
+  const golesNc=isGK?'#B91C1C':'#15803D';
+  const golesTc=isGK?'#991B1B':'#166534';
   const mainStats=total?`
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0 8px">
       <div style="text-align:center;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:11px 6px">
@@ -6873,18 +6876,17 @@ function showJugador(nom){
         <div style="font-size:.7em;font-weight:800;color:#1E40AF;margin-top:3px">PJ Selección</div>
         <div style="font-size:.6em;color:#3B82F6;margin-top:1px">total carrera</div>
       </div>
-      <div style="text-align:center;background:#F0FDF4;border:1px solid #86EFAC;border-radius:10px;padding:11px 6px">
-        <div style="font-size:1.8em;font-weight:900;color:#15803D;line-height:1">${total.g}</div>
-        <div style="font-size:.7em;font-weight:800;color:#166534;margin-top:3px">Goles</div>
-        <div style="font-size:.6em;color:#22C55E;margin-top:1px">total carrera</div>
+      <div style="text-align:center;background:${golesBg};border:1px solid ${golesBd};border-radius:10px;padding:11px 6px">
+        <div style="font-size:1.8em;font-weight:900;color:${golesNc};line-height:1">${golesVal}</div>
+        <div style="font-size:.7em;font-weight:800;color:${golesTc};margin-top:3px">${golesLabel}</div>
+        <div style="font-size:.6em;color:${golesNc};opacity:.75;margin-top:1px">${golesSub}</div>
       </div>
       <div style="text-align:center;background:#FAFAFA;border:1px solid var(--border);border-radius:10px;padding:11px 6px">
-        <div style="font-size:1.8em;font-weight:900;color:var(--navy);line-height:1">${total.min!=null?Math.round(total.min/total.pj)+'\''+'':'—'}</div>
-        <div style="font-size:.7em;font-weight:800;color:var(--navy);margin-top:3px">Min/partido</div>
-        <div style="font-size:.6em;color:var(--muted);margin-top:1px">${total.min!=null?total.min+' min totales':'sin datos'}</div>
+        <div style="font-size:1.8em;font-weight:900;color:var(--navy);line-height:1">${total.min!=null?total.min:'—'}</div>
+        <div style="font-size:.7em;font-weight:800;color:var(--navy);margin-top:3px">Min. totales</div>
+        <div style="font-size:.6em;color:var(--muted);margin-top:1px">${total.min!=null&&total.pj?Math.round(total.min/total.pj)+'\' prom.':'sin datos'}</div>
       </div>
     </div>`:'';
-
   const compLabels=[
     {key:'ca',label:'Copa América',icon:'🌎',bg:'#FEF9C3',bd:'#FDE047',tc:'#854D0E'},
     {key:'wc',label:'Copa del Mundo',icon:'🏆',bg:'var(--gold)15',bd:'var(--gold)66',tc:'#92400E'},
@@ -6895,11 +6897,11 @@ function showJugador(nom){
     <div style="margin-bottom:12px">
       <div style="font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Por competencia</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px">
-        ${compLabels.map(({key,label,icon,bg,bd,tc})=>{const d=comp[key];return`<div style="background:${bg};border:1px solid ${bd};border-radius:9px;padding:9px 11px;display:flex;align-items:center;gap:8px"><div style="font-size:1.2em">${icon}</div><div style="flex:1;min-width:0"><div style="font-size:.7em;font-weight:700;color:${tc}">${label}</div><div style="font-size:.65em;color:${tc};opacity:.75;margin-top:1px">${d?`${d.pj} partido${d.pj!==1?'s':''}${d.g!=null?' · '+d.g+' gol'+(d.g!==1?'es':''):''}`:d===undefined?'—':'Sin participación'}</div></div><div style="font-size:1.3em;font-weight:900;color:${tc}">${d?d.pj:d===undefined?'—':0}</div></div>`;}).join('')}
+        ${compLabels.map(({key,label,icon,bg,bd,tc})=>{const d=comp[key];const aufUrl=aufSlug?`https://www.auf.org.uy/${aufSlug}/`:null;return`<div onclick="${aufUrl?`window.open('${aufUrl}','_blank')`:''}" style="background:${bg};border:1px solid ${bd};border-radius:9px;padding:9px 11px;display:flex;align-items:center;gap:8px${aufUrl?';cursor:pointer':''}"><div style="font-size:1.2em;flex-shrink:0">${icon}</div><div style="flex:1;min-width:0"><div style="font-size:.7em;font-weight:700;color:${tc}">${label}</div><div style="font-size:.65em;color:${tc};opacity:.75;margin-top:1px">${d?`${d.pj} partido${d.pj!==1?'s':''}${d.g!=null?' · '+d.g+' gol'+(d.g!==1?'es':''):''}`:d===undefined?'—':'Sin participación'}</div></div><div style="font-size:1.3em;font-weight:900;color:${tc};flex-shrink:0">${d?d.pj:d===undefined?'—':0}</div></div>`;}).join('')}
       </div>
+      ${!aufSlug?`<div style="font-size:.65em;color:var(--muted);margin-top:5px;text-align:center">* Perfil AUF no disponible</div>`:''}
     </div>`
-  :`<div style="margin:8px 0 12px;padding:8px 12px;background:rgba(0,0,0,.04);border-radius:8px;font-size:.75em;color:var(--muted)">Sin datos de competencia disponibles</div>`;
-
+  :`<div style="margin:8px 0 12px;padding:8px 12px;background:rgba(0,0,0,.04);border-radius:8px;font-size:.75em;color:var(--muted)">${auf?'Sin desglose por competencia':'Sin datos AUF cargados'}</div>`;
   const byYr={};
   callups.forEach(c=>{if(!byYr[c.yr])byYr[c.yr]=[];byYr[c.yr].push(c);});
   const yrColors={2023:'#64748B',2024:'#4F46E5',2025:'#059669',2026:'#B45309'};
@@ -6908,19 +6910,15 @@ function showJugador(nom){
     ${Object.entries(byYr).map(([yr,cs])=>`
       <div style="margin-bottom:8px">
         <div style="font-size:.65em;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:${yrColors[yr]||'#555'};margin-bottom:4px">${yr} · ${cs.length} conv.</div>
-        ${cs.map(c=>{const jd=c.jugadores.find(j=>j.nom===nom);const isWC=c.id==='c16';const bg=jd?.noVino?'#FEF2F2':isWC?'var(--gold)11':'rgba(0,0,0,.03)';const bd=jd?.noVino?'#FECACA':isWC?'var(--gold)55':'transparent';const txt=jd?.noVino?'#B91C1C':isWC?'#92400E':'var(--fg)';return`<div style="display:flex;align-items:flex-start;gap:8px;background:${bg};border:1px solid ${bd};border-radius:8px;padding:6px 10px;margin-bottom:3px"><div style="width:3px;align-self:stretch;background:${yrColors[yr]||'#555'};border-radius:2px;flex-shrink:0;min-height:16px"></div><div style="flex:1;min-width:0"><div style="font-size:.8em;font-weight:700;color:${txt}">${isWC?'🏆 ':''}${c.label}</div><div style="font-size:.7em;color:var(--muted);margin-top:1px">${c.rivals}</div>${jd?.nota?`<div style="font-size:.66em;color:#B45309;margin-top:2px;font-style:italic">⚠️ ${jd.nota}</div>`:''}</div></div>`;}).join('')}
+        ${cs.map(c=>{const jd=c.jugadores.find(j=>j.nom===nom);const isWC=c.id==='c16';const bg=jd?.noVino?'#FEF2F2':(isWC?'var(--gold)11':'rgba(0,0,0,.03)');const bd=jd?.noVino?'#FECACA':(isWC?'var(--gold)55':'transparent');const txt=jd?.noVino?'#B91C1C':(isWC?'#92400E':'var(--fg)');return`<div style="display:flex;align-items:flex-start;gap:8px;background:${bg};border:1px solid ${bd};border-radius:8px;padding:6px 10px;margin-bottom:3px"><div style="width:3px;align-self:stretch;background:${yrColors[yr]||'#555'};border-radius:2px;flex-shrink:0;min-height:16px"></div><div style="flex:1;min-width:0"><div style="font-size:.8em;font-weight:700;color:${txt}">${isWC?'🏆 ':''}${c.label}</div><div style="font-size:.7em;color:var(--muted);margin-top:1px">${c.rivals}</div>${jd?.nota?`<div style="font-size:.66em;color:#B45309;margin-top:2px;font-style:italic">⚠️ ${jd.nota}</div>`:''}</div></div>`;}).join('')}
       </div>`).join('')}`
   :`<div style="font-size:.8em;color:var(--muted);padding:8px 0">No registra convocatorias en el ciclo Bielsa.</div>`;
-
   const aufLink=aufSlug?`<a href="https://www.auf.org.uy/${aufSlug}/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:.75em;font-weight:700;color:var(--cel-dk);text-decoration:none;border:1px solid var(--cel-dk)44;border-radius:8px;padding:4px 10px;margin-bottom:10px">🔗 Ver perfil AUF ↗</a>`:'';
-
-  wrap.innerHTML=`
+  return `
     <div style="margin-top:4px;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 14px rgba(0,0,0,.09)">
       <div style="background:var(--navy);padding:16px 18px;display:flex;align-items:center;gap:14px">
-        ${auf.foto
-          ?`<img src="${auf.foto}" alt="${nom}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.3);flex-shrink:0">`
-          :`<div style="width:52px;height:52px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:1.1em;font-weight:900;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.2)">${initials}</div>`
-        }
+        ${photo?`<img src="${photo}" alt="${nom}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.3);flex-shrink:0" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+        <div style="width:52px;height:52px;border-radius:50%;background:${col};display:${photo?'none':'flex'};align-items:center;justify-content:center;font-size:1.1em;font-weight:900;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.2)">${initials}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:1.1em;font-weight:900;color:#fff;letter-spacing:-.2px">${nom}</div>
           <div style="font-size:.76em;color:rgba(255,255,255,.65);margin-top:2px">${posLbl[pos]||pos} · ${club}</div>
@@ -6936,9 +6934,14 @@ function showJugador(nom){
         ${mainStats}
         ${compHtml}
         ${timelineHtml}
-        <button onclick="document.getElementById('jug-profile-wrap').innerHTML=''" style="width:100%;margin-top:10px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;font-size:.8em;color:var(--muted);cursor:pointer;font-weight:600">✕ Cerrar perfil</button>
+        <button onclick="document.getElementById('${closeId}').innerHTML=''" style="width:100%;margin-top:10px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;font-size:.8em;color:var(--muted);cursor:pointer;font-weight:600">✕ Cerrar perfil</button>
       </div>
     </div>`;
+}
+function showJugador(nom){
+  const wrap=document.getElementById('jug-profile-wrap');
+  if(!wrap) return;
+  wrap.innerHTML=_buildJugadorHTML(nom,'jug-profile-wrap');
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
@@ -8482,131 +8485,9 @@ function _convCounts(){
 function showConvPlayer(nom){
   const wrap=document.getElementById('conv-player-wrap');
   if(!wrap) return;
-  const callups=BIELSA_CONVOCATORIAS.filter(c=>c.jugadores.some(j=>j.nom===nom));
-  const p=PLAYERS.find(x=>x.name===nom);
-  const auf=JUGADORES[nom];
-  const posLabel={POR:'Portero',DEF:'Defensa',MED:'Mediocampista',DEL:'Delantero'};
-  const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
-  const inWC26=BIELSA_CONVOCATORIAS.find(c=>c.id==='c16')?.jugadores.some(j=>j.nom===nom);
-
-  // Position and club — prefer JUGADORES for non-WC players, PLAYERS for WC squad
-  const pos=p?.pos||auf?.pos||'—';
-  const club=p?`${p.clubPais} ${p.club}`:(auf?.pais&&auf?.club?`${auf.pais} ${auf.club}`:'—');
-  const posStr=posLabel[pos]||pos;
-
-  // Stats
-  const total=auf?.total||null;
-  const comp=auf?.comp||null;
-  const aufSlug=auf?.auf||null;
-
-  // Group callups by year for timeline
-  const byYr={};
-  callups.forEach(c=>{if(!byYr[c.yr])byYr[c.yr]=[];byYr[c.yr].push(c);});
-  const yrColors={2023:'#64748B',2024:'#4F46E5',2025:'#059669',2026:'#B45309'};
-
-  // Main stat cards — total career
-  const mainStats=total?`
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0 8px">
-      <div style="text-align:center;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:11px 6px">
-        <div style="font-size:1.8em;font-weight:900;color:#1D4ED8;line-height:1">${total.pj}</div>
-        <div style="font-size:.7em;font-weight:800;color:#1E40AF;margin-top:3px">PJ Selección</div>
-        <div style="font-size:.6em;color:#3B82F6;margin-top:1px">total carrera</div>
-      </div>
-      <div style="text-align:center;background:#F0FDF4;border:1px solid #86EFAC;border-radius:10px;padding:11px 6px">
-        <div style="font-size:1.8em;font-weight:900;color:#15803D;line-height:1">${total.g}</div>
-        <div style="font-size:.7em;font-weight:800;color:#166534;margin-top:3px">Goles</div>
-        <div style="font-size:.6em;color:#22C55E;margin-top:1px">total carrera</div>
-      </div>
-      <div style="text-align:center;background:#FAFAFA;border:1px solid var(--border);border-radius:10px;padding:11px 6px">
-        <div style="font-size:1.8em;font-weight:900;color:var(--navy);line-height:1">${total.min!=null?Math.round(total.min/total.pj)+'\'':'—'}</div>
-        <div style="font-size:.7em;font-weight:800;color:var(--navy);margin-top:3px">Min/partido</div>
-        <div style="font-size:.6em;color:var(--muted);margin-top:1px">${total.min!=null?total.min+' min totales':'sin datos'}</div>
-      </div>
-    </div>`:'';
-
-  // Competition breakdown
-  const compLabels=[
-    {key:'ca', label:'Copa América', icon:'🌎', bg:'#FEF9C3', bd:'#FDE047', tc:'#854D0E'},
-    {key:'wc', label:'Copa del Mundo', icon:'🏆', bg:'var(--gold)15', bd:'var(--gold)66', tc:'#92400E'},
-    {key:'el', label:'Eliminatorias', icon:'📋', bg:'#EDE9FE', bd:'#C4B5FD', tc:'#5B21B6'},
-    {key:'am', label:'Amistosos', icon:'🤝', bg:'#F1F5F9', bd:'#CBD5E1', tc:'#475569'},
-  ];
-  const compHtml=comp?`
-    <div style="margin-bottom:12px">
-      <div style="font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Por competencia</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px">
-        ${compLabels.map(({key,label,icon,bg,bd,tc})=>{
-          const d=comp[key];
-          return`<div style="background:${bg};border:1px solid ${bd};border-radius:9px;padding:9px 11px;display:flex;align-items:center;gap:8px">
-            <div style="font-size:1.2em;flex-shrink:0">${icon}</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:.7em;font-weight:700;color:${tc}">${label}</div>
-              <div style="font-size:.65em;color:${tc};opacity:.75;margin-top:1px">
-                ${d?`${d.pj} partido${d.pj!==1?'s':''}${d.g!=null?' · '+d.g+' gol'+(d.g!==1?'es':''):''}`:d===undefined?'—':'Sin participación'}
-              </div>
-            </div>
-            <div style="font-size:1.3em;font-weight:900;color:${tc};flex-shrink:0">${d?d.pj:d===undefined?'—':0}</div>
-          </div>`;
-        }).join('')}
-      </div>
-      ${!auf?.auf?`<div style="font-size:.65em;color:var(--muted);margin-top:5px;text-align:center">* Perfil AUF no disponible · datos parciales del plantel WC2026</div>`:''}
-    </div>`
-  :`<div style="margin:8px 0 12px;padding:8px 12px;background:rgba(0,0,0,.04);border-radius:8px;font-size:.75em;color:var(--muted)">${auf?'Desglose por competencia no disponible':'Sin datos AUF cargados'}</div>`;
-
-  // Callup timeline
-  const timelineHtml=`
-    <div style="font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Convocatorias con Bielsa (${callups.length})</div>
-    ${Object.entries(byYr).map(([yr,cs])=>`
-      <div style="margin-bottom:8px">
-        <div style="font-size:.65em;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:${yrColors[yr]||'#555'};margin-bottom:4px">${yr} · ${cs.length} convocatoria${cs.length>1?'s':''}</div>
-        <div style="display:flex;flex-direction:column;gap:3px">
-          ${cs.map(c=>{
-            const jd=c.jugadores.find(j=>j.nom===nom);
-            const isWC=c.id==='c16';
-            const bg=jd?.noVino?'#FEF2F2':isWC?'var(--gold)11':'rgba(0,0,0,.03)';
-            const bd=jd?.noVino?'#FECACA':isWC?'var(--gold)55':'transparent';
-            const txt=jd?.noVino?'#B91C1C':isWC?'#92400E':'var(--fg)';
-            return`<div style="display:flex;align-items:flex-start;gap:8px;background:${bg};border:1px solid ${bd};border-radius:8px;padding:6px 10px">
-              <div style="width:3px;align-self:stretch;background:${yrColors[yr]||'#555'};border-radius:2px;flex-shrink:0;min-height:16px"></div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:.8em;font-weight:700;color:${txt}">${isWC?'🏆 ':''}${c.label}</div>
-                <div style="font-size:.7em;color:var(--muted);margin-top:1px">${c.rivals}</div>
-                ${jd?.nota?`<div style="font-size:.66em;color:#B45309;margin-top:2px;font-style:italic">⚠️ ${jd.nota}</div>`:''}
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`).join('')}`;
-
-  const aufLink=aufSlug?`<a href="https://www.auf.org.uy/${aufSlug}/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:.75em;font-weight:700;color:var(--cel-dk);text-decoration:none;border:1px solid var(--cel-dk)44;border-radius:8px;padding:4px 10px;margin-bottom:10px">🔗 Ver perfil AUF ↗</a>`:'';
-
-  wrap.innerHTML=`
-    <div style="margin-top:12px;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 14px rgba(0,0,0,.09)">
-      <!-- Header -->
-      <div style="background:var(--navy);padding:16px 18px;display:flex;align-items:center;gap:14px">
-        <div style="width:44px;height:44px;border-radius:50%;background:${posColor[pos]||'#555'};display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:900;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.2);letter-spacing:.02em">${pos}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:1.05em;font-weight:900;color:#fff;letter-spacing:-.2px">${nom}</div>
-          <div style="font-size:.76em;color:rgba(255,255,255,.65);margin-top:2px">${posStr} · ${club}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:2.2em;font-weight:900;color:#fff;line-height:1">${callups.length}</div>
-          <div style="font-size:.6em;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.07em">convocatorias</div>
-        </div>
-      </div>
-      <!-- Body -->
-      <div style="padding:14px 16px;background:var(--surface2)">
-        ${inWC26?`<div style="display:inline-flex;align-items:center;gap:5px;background:var(--gold)22;border:1px solid var(--gold)66;border-radius:8px;padding:4px 10px;font-size:.72em;font-weight:700;color:#92400E;margin-bottom:10px">🏆 Plantel Copa Mundial 2026</div><br>`:''}
-        ${aufLink}
-        ${mainStats}
-        ${compHtml}
-        ${timelineHtml}
-        <button onclick="document.getElementById('conv-player-wrap').innerHTML=''" style="width:100%;margin-top:10px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;font-size:.8em;color:var(--muted);cursor:pointer;font-weight:600">✕ Cerrar</button>
-      </div>
-    </div>`;
+  wrap.innerHTML=_buildJugadorHTML(nom,'conv-player-wrap');
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-
 let _convView='fechas';
 function setConvView(v){window._convView=v;const c=document.getElementById('conv-player-wrap');if(c)c.innerHTML='';const s=document.getElementById('conv-content');if(s)s.innerHTML=buildConvContentHtml(v);}
 
