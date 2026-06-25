@@ -1150,7 +1150,7 @@ html.auf-gate body { display:none !important }
   var r=window.__AUF_RTABS;
   if(!r) return;
   var allowed=r.split(',');
-  var map=['inicio','disponibilidad','calendario','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
+  var map=['inicio','disponibilidad','calendario','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','periplo','registro','linkgen'];
   document.querySelectorAll('.tab').forEach(function(tab,i){ if(!allowed.includes(map[i])) tab.style.display='none'; });
   document.documentElement.setAttribute('data-dmode','1');
   if(window.__AUF_RO==='1') document.documentElement.setAttribute('data-readonly','1');
@@ -1341,6 +1341,18 @@ html.auf-gate body { display:none !important }
     </div>
   </div>
   <div id="infogeneral-container"></div>
+</div>
+
+<!-- ═══════════ MI PERIPLO ═══════════ -->
+<div id="periplo" class="section">
+  <div class="sec-hdr">
+    <div class="sec-icon" style="background:#0F4C81"><i class="ti ti-map-2"></i></div>
+    <div>
+      <div class="sec-title">Mi periplo</div>
+      <div class="sec-desc">Trayectoria personal — Selección Uruguaya 2022–2026</div>
+    </div>
+  </div>
+  <div id="periplo-container"></div>
 </div>
 
 <!-- ═══════════ DISEÑO GRÁFICO ═══════════ -->
@@ -2768,6 +2780,7 @@ function showTab(id){
   if(id==='linkgen'){renderLinkGen()}
   if(id==='infogeneral'){renderInfoGeneral()}
   if(id==='grafica'){renderGrafica()}
+  if(id==='periplo'){renderPeriplo()}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -6355,6 +6368,323 @@ const WC_CROSSES = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
+// MI PERIPLO
+// ═══════════════════════════════════════════════════════════════════════════
+const PERIPLO_MATCHES=[
+  // ── 2022 ── Eliminatorias Catar (asume Diego Alonso)
+  {yr:2022,fase:'Eliminatorias Catar 2022',tipo:'EL',rival:'Paraguay',res:'1-0',loc:'V',est:'Estadio Defensores del Chaco',ciudad:'Asunción',pais:'Paraguay',fui:true},
+  {yr:2022,fase:'Eliminatorias Catar 2022',tipo:'EL',rival:'Venezuela',res:'4-1',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2022,fase:'Eliminatorias Catar 2022',tipo:'EL',rival:'Perú',res:'1-0',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2022,fase:'Eliminatorias Catar 2022',tipo:'EL',rival:'Chile',res:'2-0',loc:'V',est:'Estadio Nacional',ciudad:'Santiago de Chile',pais:'Chile',fui:true},
+  // Amistosos preparación Mundial
+  {yr:2022,fase:'Preparación Copa Mundial 2022',tipo:'AM',rival:'México',res:'3-0',loc:'N',est:'Empower Field at Mile High',ciudad:'Denver',pais:'Estados Unidos',fui:true},
+  {yr:2022,fase:'Preparación Copa Mundial 2022',tipo:'AM',rival:'Estados Unidos',res:'0-0',loc:'N',est:'Children\'s Mercy Park',ciudad:'Kansas City',pais:'Estados Unidos',fui:true},
+  {yr:2022,fase:'Preparación Copa Mundial 2022',tipo:'AM',rival:'Irán',res:'0-1',loc:'N',est:'NV Arena Sankt Pölten',ciudad:'Viena',pais:'Austria',fui:true},
+  {yr:2022,fase:'Preparación Copa Mundial 2022',tipo:'AM',rival:'Canadá',res:'2-0',loc:'N',est:'Tehelné Pole',ciudad:'Bratislava',pais:'Eslovaquia',fui:true},
+  // Copa Mundial Qatar 2022
+  {yr:2022,fase:'Copa Mundial 2022',tipo:'WC',rival:'Corea del Sur',res:'0-0',loc:'N',est:'Education City Stadium',ciudad:'Al Rayyan',pais:'Catar',fui:true},
+  {yr:2022,fase:'Copa Mundial 2022',tipo:'WC',rival:'Portugal',res:'0-2',loc:'N',est:'Lusail Iconic Stadium',ciudad:'Lusail',pais:'Catar',fui:true},
+  {yr:2022,fase:'Copa Mundial 2022',tipo:'WC',rival:'Ghana',res:'2-0',loc:'N',est:'Al Jonoub Stadium',ciudad:'Al Wakrah',pais:'Catar',fui:true},
+  // ── 2023 ── Post-Mundial (Broli interino)
+  {yr:2023,fase:'Amistosos internacionales',tipo:'AM',rival:'Japón',res:'0-0',loc:'N',est:'Estadio Nacional',ciudad:'Tokio',pais:'Japón',fui:true},
+  {yr:2023,fase:'Amistosos internacionales',tipo:'AM',rival:'Corea del Sur',res:'2-1',loc:'N',est:'Seoul World Cup Stadium',ciudad:'Seúl',pais:'Corea del Sur',fui:true},
+  // Asume Bielsa
+  {yr:2023,fase:'Amistosos internacionales',tipo:'AM',rival:'Nicaragua',res:'4-1',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2023,fase:'Amistosos internacionales',tipo:'AM',rival:'Cuba',res:'2-0',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  // Eliminatorias 2026 (Bielsa)
+  {yr:2023,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Chile',num:'F1',res:'3-1',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2023,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Ecuador',num:'F2',res:'1-2',loc:'V',est:'Estadio Rodrigo Paz Delgado',ciudad:'Quito',pais:'Ecuador',fui:true},
+  {yr:2023,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Colombia',num:'F3',res:'2-2',loc:'V',est:'Estadio Metropolitano',ciudad:'Barranquilla',pais:'Colombia',fui:true},
+  {yr:2023,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Brasil',num:'F4',res:'2-0',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2023,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Argentina',num:'F5',res:'2-0',loc:'V',est:'La Bombonera',ciudad:'Buenos Aires',pais:'Argentina',fui:true},
+  {yr:2023,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Bolivia',num:'F6',res:'3-0',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  // ── 2024 ── Preolímpico Sub-23 (dirige Bielsa)
+  {yr:2024,fase:'Preolímpico Sub-23',tipo:'AM',rival:'Paraguay',res:'3-4',loc:'N',est:'Estadio Polideportivo Misael Delgado',ciudad:'Valencia',pais:'Venezuela',fui:true,sub:true},
+  {yr:2024,fase:'Preolímpico Sub-23',tipo:'AM',rival:'Chile',res:'0-1',loc:'N',est:'Estadio Polideportivo Misael Delgado',ciudad:'Valencia',pais:'Venezuela',fui:true,sub:true},
+  {yr:2024,fase:'Preolímpico Sub-23',tipo:'AM',rival:'Argentina',res:'3-3',loc:'N',est:'Estadio Polideportivo Misael Delgado',ciudad:'Valencia',pais:'Venezuela',fui:true,sub:true},
+  {yr:2024,fase:'Preolímpico Sub-23',tipo:'AM',rival:'Perú',res:'3-0',loc:'N',est:'Estadio Polideportivo Misael Delgado',ciudad:'Valencia',pais:'Venezuela',fui:true,sub:true},
+  // Amistosos marzo 2024
+  {yr:2024,fase:'Amistosos internacionales',tipo:'AM',rival:'País Vasco',res:'1-1',loc:'N',est:'Estadio San Mamés',ciudad:'Bilbao',pais:'España',fui:true},
+  {yr:2024,fase:'Amistosos internacionales',tipo:'AM',rival:'Costa de Marfil',res:'1-2',loc:'N',est:'Estadio Bollaert-Delelis',ciudad:'Lens',pais:'Francia',fui:true},
+  // Amistoso pre-Copa América (no fue)
+  {yr:2024,fase:'Amistosos internacionales',tipo:'AM',rival:'México',res:'4-0',loc:'N',est:'Empower Field at Mile High',ciudad:'Denver',pais:'Estados Unidos',fui:false},
+  // Copa América 2024
+  {yr:2024,fase:'Copa América 2024',tipo:'CA',rival:'Panamá',res:'3-1',loc:'N',est:'Hard Rock Stadium',ciudad:'Miami Gardens',pais:'Estados Unidos',fui:true},
+  {yr:2024,fase:'Copa América 2024',tipo:'CA',rival:'Bolivia',res:'5-0',loc:'N',est:'MetLife Stadium',ciudad:'East Rutherford',pais:'Estados Unidos',fui:true},
+  {yr:2024,fase:'Copa América 2024',tipo:'CA',rival:'Estados Unidos',res:'1-0',loc:'N',est:'GEHA Field at Arrowhead Stadium',ciudad:'Kansas City',pais:'Estados Unidos',fui:true},
+  {yr:2024,fase:'Copa América 2024',tipo:'CA',rival:'Brasil',res:'0-0 (4-2)',loc:'N',est:'Allegiant Stadium',ciudad:'Las Vegas',pais:'Estados Unidos',fui:true},
+  {yr:2024,fase:'Copa América 2024',tipo:'CA',rival:'Colombia',res:'0-1',loc:'N',est:'Bank of America Stadium',ciudad:'Charlotte',pais:'Estados Unidos',fui:true},
+  {yr:2024,fase:'Copa América 2024',tipo:'CA',rival:'Canadá',res:'2-2 (4-3)',loc:'N',est:'Bank of America Stadium',ciudad:'Charlotte',pais:'Estados Unidos',fui:true},
+  // Eliminatorias 2026 cont.
+  {yr:2024,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Paraguay',num:'F7',res:'0-0',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2024,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Venezuela',num:'F8',res:'0-0',loc:'V',est:'Estadio Monumental',ciudad:'Maturín',pais:'Venezuela',fui:true},
+  {yr:2024,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Perú',num:'F9',res:'0-1',loc:'V',est:'Estadio Nacional',ciudad:'Lima',pais:'Perú',fui:true},
+  {yr:2024,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Ecuador',num:'F10',res:'0-0',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2024,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Colombia',num:'F11',res:'3-2',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2024,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Brasil',num:'F12',res:'1-1',loc:'V',est:'Arena Fonte Nova',ciudad:'Salvador de Bahía',pais:'Brasil',fui:true},
+  // ── 2025 ──
+  {yr:2025,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Argentina',num:'F13',res:'0-1',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2025,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Bolivia',num:'F14',res:'0-0',loc:'V',est:'Estadio Municipal El Alto',ciudad:'El Alto',pais:'Bolivia',fui:true},
+  {yr:2025,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Paraguay',num:'F15',res:'0-2',loc:'V',est:'Estadio Defensores del Chaco',ciudad:'Asunción',pais:'Paraguay',fui:false},
+  {yr:2025,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Venezuela',num:'F16',res:'2-0',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2025,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Perú',num:'F17',res:'3-0',loc:'L',est:'Estadio Centenario',ciudad:'Montevideo',pais:'Uruguay',fui:true},
+  {yr:2025,fase:'Eliminatorias Mundial 2026',tipo:'EL',rival:'Chile',num:'F18',res:'0-0',loc:'V',est:'Estadio Nacional Julio Martínez Prádanos',ciudad:'Santiago de Chile',pais:'Chile',fui:false},
+  // Amistosos (no fue)
+  {yr:2025,fase:'Amistosos internacionales',tipo:'AM',rival:'República Dominicana',res:'1-0',loc:'N',est:'National Stadium Bukit Jalil',ciudad:'Kuala Lumpur',pais:'Malasia',fui:false},
+  {yr:2025,fase:'Amistosos internacionales',tipo:'AM',rival:'Uzbekistán',res:'3-1',loc:'N',est:'Stadium Hang Jebat',ciudad:'Malaca',pais:'Malasia',fui:false},
+  {yr:2025,fase:'Amistosos internacionales',tipo:'AM',rival:'México',res:'0-0',loc:'N',est:'Estadio Corona',ciudad:'Torreón',pais:'México',fui:false},
+  {yr:2025,fase:'Amistosos internacionales',tipo:'AM',rival:'Estados Unidos',res:'0-5',loc:'N',est:'Raymond James Stadium',ciudad:'Tampa',pais:'Estados Unidos',fui:false},
+  // ── 2026 ──
+  {yr:2026,fase:'Amistosos internacionales',tipo:'AM',rival:'Inglaterra',res:'1-1',loc:'N',est:'Wembley Stadium',ciudad:'Londres',pais:'Inglaterra',fui:true},
+  {yr:2026,fase:'Amistosos internacionales',tipo:'AM',rival:'Argelia',res:'0-0',loc:'N',est:'Juventus Stadium',ciudad:'Turín',pais:'Italia',fui:true},
+  // Copa Mundial 2026
+  {yr:2026,fase:'Copa Mundial 2026',tipo:'WC',rival:'Arabia Saudita',res:'1-1',loc:'N',est:'Hard Rock Stadium',ciudad:'Miami Gardens',pais:'Estados Unidos',fui:true,live:true,matchId:'m2'},
+  {yr:2026,fase:'Copa Mundial 2026',tipo:'WC',rival:'Cabo Verde',res:'2-2',loc:'N',est:'Hard Rock Stadium',ciudad:'Miami Gardens',pais:'Estados Unidos',fui:true,live:true,matchId:'m4'},
+  {yr:2026,fase:'Copa Mundial 2026',tipo:'WC',rival:'España',res:null,loc:'N',est:'Estadio Akron',ciudad:'Guadalajara',pais:'México',fui:true,live:true,matchId:'m6'},
+];
+
+const PERIPLO_PAISES=[
+  {pais:'Estados Unidos',ciudades:'Denver, Kansas City, Miami, East Rutherford, Las Vegas, Charlotte'},
+  {pais:'Austria',ciudades:'Viena'},
+  {pais:'Eslovaquia',ciudades:'Bratislava'},
+  {pais:'Emiratos Árabes Unidos',ciudades:'Abu Dabi'},
+  {pais:'Catar',ciudades:'Doha / Al Rayyan / Lusail / Al Wakrah'},
+  {pais:'Japón',ciudades:'Tokio'},
+  {pais:'Corea del Sur',ciudades:'Seúl'},
+  {pais:'Ecuador',ciudades:'Quito'},
+  {pais:'Colombia',ciudades:'Barranquilla'},
+  {pais:'Argentina',ciudades:'Buenos Aires'},
+  {pais:'Venezuela',ciudades:'Valencia, Maturín'},
+  {pais:'España',ciudades:'San Sebastián, Bilbao'},
+  {pais:'Francia',ciudades:'Lens'},
+  {pais:'Perú',ciudades:'Lima'},
+  {pais:'Brasil',ciudades:'Salvador de Bahía'},
+  {pais:'Bolivia',ciudades:'La Paz, El Alto'},
+  {pais:'Paraguay',ciudades:'Asunción'},
+  {pais:'Chile',ciudades:'Santiago de Chile'},
+  {pais:'Inglaterra',ciudades:'Watford, Londres'},
+  {pais:'Italia',ciudades:'Turín'},
+  {pais:'México',ciudades:'Cancún'},
+];
+
+const PERIPLO_ESTADIOS=[
+  {n:1, nom:'Estadio Centenario', ciudad:'Montevideo, Uruguay'},
+  {n:2, nom:'Empower Field at Mile High', ciudad:'Denver, Estados Unidos'},
+  {n:3, nom:'Children\'s Mercy Park', ciudad:'Kansas City, Estados Unidos'},
+  {n:4, nom:'NV Arena Sankt Pölten', ciudad:'Viena, Austria'},
+  {n:5, nom:'Tehelné Pole', ciudad:'Bratislava, Eslovaquia'},
+  {n:6, nom:'Education City Stadium', ciudad:'Al Rayyan, Catar'},
+  {n:7, nom:'Lusail Iconic Stadium', ciudad:'Lusail, Catar'},
+  {n:8, nom:'Al Jonoub Stadium', ciudad:'Al Wakrah, Catar'},
+  {n:9, nom:'Estadio Nacional', ciudad:'Tokio, Japón'},
+  {n:10, nom:'Seoul World Cup Stadium', ciudad:'Seúl, Corea del Sur'},
+  {n:11, nom:'Estadio Rodrigo Paz Delgado', ciudad:'Quito, Ecuador'},
+  {n:12, nom:'Estadio Metropolitano', ciudad:'Barranquilla, Colombia'},
+  {n:13, nom:'La Bombonera', ciudad:'Buenos Aires, Argentina'},
+  {n:14, nom:'Estadio Polideportivo Misael Delgado', ciudad:'Valencia, Venezuela'},
+  {n:15, nom:'Estadio San Mamés', ciudad:'Bilbao, España'},
+  {n:16, nom:'Estadio Bollaert-Delelis', ciudad:'Lens, Francia'},
+  {n:17, nom:'Hard Rock Stadium', ciudad:'Miami Gardens, Estados Unidos'},
+  {n:18, nom:'MetLife Stadium', ciudad:'East Rutherford, Estados Unidos'},
+  {n:19, nom:'GEHA Field at Arrowhead Stadium', ciudad:'Kansas City, Estados Unidos'},
+  {n:20, nom:'Allegiant Stadium', ciudad:'Las Vegas, Estados Unidos'},
+  {n:21, nom:'Bank of America Stadium', ciudad:'Charlotte, Estados Unidos'},
+  {n:22, nom:'Estadio Monumental', ciudad:'Maturín, Venezuela'},
+  {n:23, nom:'Estadio Nacional', ciudad:'Lima, Perú'},
+  {n:24, nom:'Arena Fonte Nova', ciudad:'Salvador de Bahía, Brasil'},
+  {n:25, nom:'Estadio Municipal El Alto', ciudad:'El Alto, Bolivia'},
+  {n:26, nom:'Estadio Defensores del Chaco', ciudad:'Asunción, Paraguay'},
+  {n:27, nom:'Estadio Nacional Julio Martínez Prádanos', ciudad:'Santiago de Chile, Chile'},
+  {n:28, nom:'Wembley Stadium', ciudad:'Londres, Inglaterra'},
+  {n:29, nom:'Juventus Stadium', ciudad:'Turín, Italia'},
+  {n:30, nom:'Estadio Akron', ciudad:'Guadalajara, México'},
+];
+
+function renderPeriplo(view){
+  if(view) window._periploView=view;
+  if(!window._periploView) window._periploView='partidos';
+  const con=document.getElementById('periplo-container');
+  if(!con) return;
+
+  const fix=getFixture();
+
+  // Build live score map from WC matches
+  const liveScores={};
+  PERIPLO_MATCHES.filter(m=>m.live&&m.matchId).forEach(m=>{
+    const fx=fix[m.matchId];
+    if(fx&&fx.gh!=null&&fx.ga!=null) liveScores[m.matchId]=`${fx.gh}-${fx.ga}`;
+  });
+
+  // Derive counts dynamically
+  const mayor=PERIPLO_MATCHES.filter(m=>!m.sub);
+  const wcM=mayor.filter(m=>m.tipo==='WC');
+  const elM=mayor.filter(m=>m.tipo==='EL');
+  const amM=mayor.filter(m=>m.tipo==='AM');
+  const fui=mayor.filter(m=>m.fui);
+  const paises=PERIPLO_PAISES.length;
+  const estadios=PERIPLO_ESTADIOS.length;
+
+  const tipos={
+    EL:{label:'Eliminatorias', color:'#1565C0'},
+    WC:{label:'Mundial',       color:'#B8860B'},
+    CA:{label:'Copa América',  color:'#1B5E20'},
+    AM:{label:'Amistoso',      color:'#555'},
+  };
+
+  function resBadge(m){
+    const score=m.live&&liveScores[m.matchId]?liveScores[m.matchId]:m.res;
+    if(!score) return `<span style="background:#888;color:#fff;padding:2px 8px;border-radius:10px;font-size:.8em;font-weight:600">Pendiente</span>`;
+    const [a,b]=score.replace(/\(.*\)/,'').trim().split('-').map(Number);
+    const col=isNaN(a)||isNaN(b)?'#555':a>b?'#1B5E20':a<b?'#B71C1C':'#555';
+    return `<span style="background:${col};color:#fff;padding:2px 8px;border-radius:10px;font-size:.8em;font-weight:700;font-variant-numeric:tabular-nums">${score}</span>`;
+  }
+
+  function tipoBadge(tipo){
+    const t=tipos[tipo]||{label:tipo,color:'#555'};
+    return `<span style="background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;padding:1px 6px;border-radius:8px;font-size:.7em;font-weight:700;white-space:nowrap">${t.label}</span>`;
+  }
+
+  // Group matches by year
+  const byYear={};
+  PERIPLO_MATCHES.forEach(m=>{
+    if(!byYear[m.yr]) byYear[m.yr]=[];
+    byYear[m.yr].push(m);
+  });
+
+  // Build partidos view
+  function buildPartidosHtml(){
+    let h='';
+    Object.keys(byYear).sort().forEach(yr=>{
+      h+=`<div style="margin-bottom:24px">
+        <div style="font-weight:700;font-size:1.05em;color:var(--gold);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:12px">${yr}</div>`;
+      let lastFase='';
+      byYear[yr].forEach(m=>{
+        if(m.fase!==lastFase){
+          h+=`<div style="font-size:.75em;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px">${m.fase}${m.sub?' · Sub-23':''}</div>`;
+          lastFase=m.fase;
+        }
+        const numLabel=m.num?`<span style="color:var(--muted);font-size:.8em;margin-right:4px">${m.num}</span>`:'';
+        const noFui=!m.fui?`<span style="color:#888;font-size:.7em;margin-left:6px;font-style:italic">no viajé</span>`:'';
+        const locLabel=m.loc==='L'?'Local':m.loc==='V'?'Visitante':'Neutro';
+        h+=`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)22">
+          <div style="min-width:100px">${resBadge(m)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:.92em">${numLabel}Uruguay vs. ${m.rival}${noFui}</div>
+            <div style="font-size:.78em;color:var(--muted);margin-top:1px">${m.est} · ${m.ciudad}, ${m.pais}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+            ${tipoBadge(m.tipo)}
+          </div>
+        </div>`;
+      });
+      h+='</div>';
+    });
+    return h;
+  }
+
+  function buildPaisesHtml(){
+    let h=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">`;
+    PERIPLO_PAISES.forEach((p,i)=>{
+      h+=`<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px">
+        <span style="font-weight:700;color:var(--muted);font-size:.8em;min-width:20px">${i+1}</span>
+        <div>
+          <div style="font-weight:600;font-size:.9em">${p.pais}</div>
+          <div style="font-size:.75em;color:var(--muted)">${p.ciudades}</div>
+        </div>
+      </div>`;
+    });
+    h+='</div>';
+    return h;
+  }
+
+  function buildEstadiosHtml(){
+    let h=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">`;
+    PERIPLO_ESTADIOS.forEach(e=>{
+      h+=`<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px">
+        <span style="font-weight:700;color:var(--gold);font-size:.85em;min-width:24px">${e.n}</span>
+        <div>
+          <div style="font-weight:600;font-size:.88em">${e.nom}</div>
+          <div style="font-size:.75em;color:var(--muted)">${e.ciudad}</div>
+        </div>
+      </div>`;
+    });
+    h+='</div>';
+    return h;
+  }
+
+  const statCards=[
+    {n:wcM.length, label:'Partidos en Mundiales', sub:'5 Qatar 2022 + WC 2026', color:'var(--gold)'},
+    {n:elM.filter(m=>m.fui).length+'/'+elM.length, label:'Partidos Eliminatorias', sub:'2 sin ir (PY/CHI 2025)', color:'#1565C0'},
+    {n:amM.filter(m=>m.fui).length+'/'+amM.length, label:'Partidos amistosos', sub:'5 sin ir', color:'#555'},
+    {n:paises, label:'Países visitados', sub:'en orden cronológico', color:'#2E7D32'},
+    {n:estadios, label:'Estadios visitados', sub:'Selección Mayor', color:'#6A1B9A'},
+    {n:fui.filter(m=>m.tipo==='CA').length, label:'Partidos Copa América', sub:'3er puesto 2024', color:'#1B5E20'},
+  ];
+
+  const tabs=[
+    {id:'partidos',label:'Partidos'},
+    {id:'paises',label:'Países ('+paises+')'},
+    {id:'estadios',label:'Estadios ('+estadios+')'},
+  ];
+
+  const pv=window._periploView;
+  const tabsHtml=`<div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
+    ${tabs.map(t=>`<button onclick="renderPeriplo('${t.id}')" style="padding:6px 14px;background:none;border:none;border-bottom:2px solid ${pv===t.id?'var(--gold)':'transparent'};color:${pv===t.id?'var(--gold)':'var(--muted)'};font-weight:${pv===t.id?700:400};cursor:pointer;font-size:.88em;transition:all .15s">${t.label}</button>`).join('')}
+  </div>`;
+
+  let content='';
+  if(pv==='partidos') content=buildPartidosHtml();
+  else if(pv==='paises') content=buildPaisesHtml();
+  else content=buildEstadiosHtml();
+
+  con.innerHTML=`
+    <!-- Stats hero -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
+      ${statCards.map(s=>`<div style="background:var(--surface2);border-radius:10px;padding:12px 14px;text-align:center">
+        <div style="font-size:1.6em;font-weight:800;color:${s.color}">${s.n}</div>
+        <div style="font-size:.78em;font-weight:600;color:var(--fg);margin-top:2px">${s.label}</div>
+        <div style="font-size:.7em;color:var(--muted);margin-top:1px">${s.sub}</div>
+      </div>`).join('')}
+    </div>
+
+    <!-- Torneos -->
+    <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:10px 14px">
+      <summary style="font-weight:700;font-size:.88em;cursor:pointer;list-style:none">▸ Torneos</summary>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-weight:700;font-size:.8em;color:var(--gold);margin-bottom:6px">SELECCIÓN MAYOR</div>
+          ${[
+            {t:'Eliminatorias Catar 2022',r:'Clasificados · 4/4 ganados desde mi ingreso'},
+            {t:'Copa Mundial 2022 | Catar',r:'Eliminados en fase de grupos'},
+            {t:'Copa América 2024 | Estados Unidos',r:'3.er puesto · venció a Canadá por penales'},
+            {t:'Eliminatorias Mundial 2026',r:'4.o puesto y clasificación'},
+            {t:'Copa Mundial 2026 | USA, México y Canadá',r:'En competencia 🔴'},
+          ].map(x=>`<div style="margin-bottom:8px"><div style="font-weight:600;font-size:.82em">${x.t}</div><div style="font-size:.75em;color:var(--muted)">${x.r}</div></div>`).join('')}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:.8em;color:var(--gold);margin-bottom:6px">SELECCIONES JUVENILES</div>
+          ${[
+            {t:'COTIF Sub-20 2022 | España',r:'Vice-campeones'},
+            {t:'Sudamericano Sub-20 2023 | Colombia',r:'2.o puesto · clasificó al Mundial'},
+            {t:'Mundial Sub-20 2023 | Argentina',r:'🏆 Campeones del Mundo'},
+            {t:'Juegos Panamericanos Sub-23 2023 | Chile',r:'5.o puesto'},
+            {t:'Preolímpico Sub-23 2024 | Venezuela',r:'Eliminados en fase de grupos'},
+            {t:'COTIF Sub-20 2024 | España',r:'Campeones'},
+            {t:'Sudamericano Sub-15/16 2024',r:'Eliminados en fase de grupos'},
+            {t:'Sudamericano Sub-20 2025 | Venezuela',r:'Pasaron el grupo, no clasificaron al Mundial'},
+            {t:'Sudamericano Sub-17 2025 | Colombia',r:'Eliminados en fase de grupos'},
+          ].map(x=>`<div style="margin-bottom:8px"><div style="font-weight:600;font-size:.82em">${x.t}</div><div style="font-size:.75em;color:var(--muted)">${x.r}</div></div>`).join('')}
+        </div>
+      </div>
+    </details>
+
+    <!-- Tabs + content -->
+    ${tabsHtml}
+    ${content}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // DISEÑO GRÁFICO
 // ═══════════════════════════════════════════════════════════════════════════
 function renderGrafica(){
@@ -7777,8 +8107,8 @@ const AUF_HIST_WC=[
 // ═══════════════════════════════════════════════════════════════════════════
 // REORDEN DE TABS
 // ═══════════════════════════════════════════════════════════════════════════
-const TAB_DEFAULT_ORDER=['inicio','disponibilidad','calendario','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
-const TAB_LABELS={inicio:'Inicio',disponibilidad:'Disponibilidad',calendario:'Calendario',pizarra:'Pizarra',fixture:'Fixture',partidos:'Partidos',plantel:'Plantel',estadisticas:'Stats',grafica:'Diseño',infogeneral:'Información general',registro:'Registro',linkgen:'Links'};
+const TAB_DEFAULT_ORDER=['inicio','disponibilidad','calendario','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','periplo','registro','linkgen'];
+const TAB_LABELS={inicio:'Inicio',disponibilidad:'Disponibilidad',calendario:'Calendario',pizarra:'Pizarra',fixture:'Fixture',partidos:'Partidos',plantel:'Plantel',estadisticas:'Stats',grafica:'Diseño',infogeneral:'Información general',periplo:'Mi periplo',registro:'Registro',linkgen:'Links'};
 
 function getTabOrder(){
   const saved=stor.get(KTabOrder,null);
