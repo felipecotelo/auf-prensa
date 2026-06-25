@@ -2128,6 +2128,10 @@ function hideEvent(date,idx,ev){
   rerenderDayEvents(date);
   toast('Actividad ocultada');
 }
+const KJugPos='auf4_jugpos';
+const getJugPos=()=>stor.get(KJugPos,{});
+const setJugPos=(nom,pos)=>{const d=getJugPos();d[nom]=pos;stor.set(KJugPos,d);};
+const clearJugPos=(nom)=>{const d=getJugPos();delete d[nom];stor.set(KJugPos,d);};
 const getYellows=()=>stor.get(KYellow,{});
 const setYellows=v=>stor.set(KYellow,v);
 function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y); _luPhotos=null; renderPizarra(_pizMatch); }
@@ -6757,8 +6761,7 @@ function renderJugadores(){
   const q=window._jSearch.toLowerCase().trim();
   if(q) entries=entries.filter(([nom])=>nom.toLowerCase().includes(q));
   if(window._jFilter==='wc26')  entries=entries.filter(([nom,d])=>d.wc26);
-  if(window._jFilter==='bielsa') entries=entries.filter(([nom,d])=>!d.wc26&&!d.sub20);
-  if(window._jFilter==='sub20') entries=entries.filter(([nom,d])=>d.sub20);
+  if(window._jFilter==='bielsa') entries=entries.filter(([nom,d])=>!d.wc26);
   if(window._jPos!=='todos') entries=entries.filter(([nom,d])=>d.pos===window._jPos);
 
   // Sort by convocatorias desc, then alpha
@@ -6770,11 +6773,11 @@ function renderJugadores(){
   const bielan=Object.values(JUGADORES).filter(d=>!d.wc26&&!d.sub20).length;
   const sub20n=Object.values(JUGADORES).filter(d=>d.sub20).length;
 
+  const bielsan2=Object.values(JUGADORES).filter(d=>!d.wc26).length;
   const filterPills=[
     {id:'todos',  label:`Todos (${total})`},
     {id:'wc26',   label:`🏆 Mundial 2026 (${wc26n})`},
-    {id:'bielsa', label:`Ciclo Bielsa (${bielan})`},
-    {id:'sub20',  label:`Sub-20 (${sub20n})`},
+    {id:'bielsa', label:`Ciclo Bielsa (${bielsan2})`},
   ];
   const posPills=[
     {id:'todos',label:'Todas'},
@@ -6793,17 +6796,21 @@ function renderJugadores(){
   function playerCard(nom, d){
     const isWC=wc26Set.has(nom);
     const calls=callupCount[nom]||0;
-    const col=posColor[d.pos]||'#64748B';
+    const customPos=getJugPos()[nom];
+    const pos=customPos||d.pos;
+    const col=posColor[pos]||'#64748B';
+    const plPhoto=PLAYERS.find(x=>x.name===nom)?.photo||null;
+    const photo=d.foto||plPhoto;
     return `<div onclick="showJugador('${nom.replace(/'/g,"\\'")}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
       <div style="display:flex;align-items:center;gap:10px">
-        ${avatar(nom, d.pos, d.foto, 42)}
+        ${avatar(nom, pos, photo, 42)}
         <div style="flex:1;min-width:0">
           <div style="font-weight:800;font-size:.88em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isWC?'🏆 ':''}${nom}</div>
           <div style="font-size:.7em;color:var(--muted);margin-top:1px">${d.pais||''} ${d.club||'—'}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:6px;padding:2px 7px;font-size:.67em;font-weight:800">${d.pos||'?'}</span>
+        <span style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:6px;padding:2px 7px;font-size:.67em;font-weight:800">${pos||'?'}${customPos?'*':''}</span>
         <span style="font-size:.7em;color:var(--muted);font-weight:600">${calls} conv.</span>
         ${d.total?`<span style="font-size:.7em;font-weight:700;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">—</span>`}
       </div>
@@ -6851,7 +6858,8 @@ function _buildJugadorHTML(nom,closeId){
   if(!auf) return `<div style="padding:16px;color:var(--muted);font-size:.85em">Jugador no encontrado en el registro.</div>`;
   const posLbl={POR:'Portero',DEF:'Defensa',MED:'Mediocampista',DEL:'Delantero'};
   const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
-  const pos=p?.pos||auf.pos||'—';
+  const _customPos=getJugPos()[nom];
+  const pos=_customPos||(p?.pos||auf.pos||'—');
   const isGK=pos==='POR';
   const club=p?`${p.clubPais} ${p.club}`:(auf.pais&&auf.club?`${auf.pais} ${auf.club}`:'—');
   const inWC26=auf.wc26;
@@ -6933,7 +6941,15 @@ function _buildJugadorHTML(nom,closeId){
         ${mainStats}
         ${compHtml}
         ${timelineHtml}
-        <button onclick="document.getElementById('${closeId}').innerHTML=''" style="width:100%;margin-top:10px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;font-size:.8em;color:var(--muted);cursor:pointer;font-weight:600">✕ Cerrar perfil</button>
+        <div style="margin-top:10px;padding:10px;background:var(--white);border:1px solid var(--border);border-radius:10px">
+          <div style="font-size:.65em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Posición <span style="font-weight:500;color:var(--hint)">(editable)</span></div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            ${['POR','DEF','MED','DEL'].map(pp=>{const isCur=pos===pp;const pCol={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'}[pp];return`<button onclick="event.stopPropagation();setJugPos('${nom}','${pp}');renderJugadores();showJugador('${nom}')" style="flex:1;padding:5px 10px;border-radius:7px;font-size:.75em;font-weight:${isCur?900:600};cursor:pointer;border:1.5px solid ${isCur?pCol:'var(--border)'};background:${isCur?pCol+'18':'transparent'};color:${isCur?pCol:'var(--muted)'};transition:all .1s">${pp}</button>`;}).join('')}
+            ${_customPos?`<button onclick="event.stopPropagation();clearJugPos('${nom}');renderJugadores();showJugador('${nom}')" style="padding:5px 8px;border-radius:7px;font-size:.7em;font-weight:600;cursor:pointer;border:1px solid var(--border);background:none;color:var(--muted)">↺ Reset</button>`:''}
+          </div>
+          ${_customPos?`<div style="font-size:.62em;color:var(--muted);margin-top:4px">* Posición editada manualmente</div>`:''}
+        </div>
+        <button onclick="document.getElementById('${closeId}').innerHTML=''" style="width:100%;margin-top:8px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;font-size:.8em;color:var(--muted);cursor:pointer;font-weight:600">✕ Cerrar perfil</button>
       </div>
     </div>`;
 }
