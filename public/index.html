@@ -8136,54 +8136,75 @@ function showConvPlayer(nom){
   const callups=BIELSA_CONVOCATORIAS.filter(c=>c.jugadores.some(j=>j.nom===nom));
   const p=PLAYERS.find(x=>x.name===nom);
   const posLabel={POR:'Portero',DEF:'Defensa',MED:'Mediocampista',DEL:'Delantero'};
+  const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
   const eff=p?effectiveStats(p):null;
+  const inWC26=BIELSA_CONVOCATORIAS.find(c=>c.id==='c16')?.jugadores.some(j=>j.nom===nom);
+
+  // Group callups by year for timeline
+  const byYr={};
+  callups.forEach(c=>{if(!byYr[c.yr])byYr[c.yr]=[];byYr[c.yr].push(c);});
+  const yrColors={2023:'#64748B',2024:'#4F46E5',2025:'#059669',2026:'#B45309'};
+
   const statsHtml=eff?`
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:10px 0">
-      <div style="text-align:center;background:var(--surface);border-radius:8px;padding:7px 4px">
-        <div style="font-size:1.25em;font-weight:900;color:var(--navy)">${eff.caps}</div>
-        <div style="font-size:.65em;color:var(--muted)">Caps</div>
-      </div>
-      <div style="text-align:center;background:var(--surface);border-radius:8px;padding:7px 4px">
-        <div style="font-size:1.25em;font-weight:900;color:var(--navy)">${eff.goals}</div>
-        <div style="font-size:.65em;color:var(--muted)">Goles</div>
-      </div>
-      <div style="text-align:center;background:var(--surface);border-radius:8px;padding:7px 4px">
-        <div style="font-size:1.25em;font-weight:900;color:var(--gold)">${eff.wcCaps||0}</div>
-        <div style="font-size:.65em;color:var(--muted)">PJ WC</div>
-      </div>
-      <div style="text-align:center;background:var(--surface);border-radius:8px;padding:7px 4px">
-        <div style="font-size:1.25em;font-weight:900;color:var(--gold)">${eff.wcGoals||0}</div>
-        <div style="font-size:.65em;color:var(--muted)">⚽ WC</div>
-      </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 10px">
+      ${[
+        {val:eff.caps,      label:'Caps',    sub:'carrera',   hi:false},
+        {val:eff.goals,     label:'Goles',   sub:'carrera',   hi:false},
+        {val:eff.wcCaps||0, label:'PJ WC',   sub:'mundiales', hi:true},
+        {val:eff.wcGoals||0,label:'⚽ WC',   sub:'mundiales', hi:true},
+      ].map(s=>`<div style="text-align:center;background:${s.hi?'var(--gold)11':'rgba(0,0,0,.04)'};border-radius:10px;padding:10px 6px;border:1px solid ${s.hi?'var(--gold)44':'transparent'}">
+        <div style="font-size:1.5em;font-weight:900;color:${s.hi?'#92400E':'var(--navy)'}; line-height:1">${s.val}</div>
+        <div style="font-size:.72em;font-weight:700;color:var(--fg);margin-top:3px">${s.label}</div>
+        <div style="font-size:.62em;color:var(--muted)">${s.sub}</div>
+      </div>`).join('')}
     </div>
-    <div style="font-size:.68em;color:var(--muted);margin-bottom:8px">📊 Estadísticas totales de carrera · Copa Mundial 2026 en curso</div>
-  `:`<div style="font-size:.75em;color:var(--muted);margin:8px 0;padding:6px 10px;background:var(--surface);border-radius:8px">No integra la nómina del Copa Mundial 2026</div>`;
-  wrap.innerHTML=`
-    <div style="background:var(--surface2);border-radius:12px;padding:14px 16px;margin-top:10px;border:1.5px solid var(--cel-dk)44">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-        <div>
-          <div style="font-weight:800;font-size:.95em;color:var(--fg)">${nom}</div>
-          ${p?`<div style="font-size:.75em;color:var(--muted)">${posLabel[p.pos]||p.pos} · ${p.clubPais} ${p.club}</div>`:''}
-        </div>
-        <div style="text-align:right;flex-shrink:0;margin-left:12px">
-          <div style="font-size:1.8em;font-weight:900;color:var(--cel-dk);line-height:1">${callups.length}</div>
-          <div style="font-size:.65em;color:var(--muted)">convocatorias</div>
-        </div>
-      </div>
-      ${statsHtml}
-      <div style="font-size:.72em;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px">Historial con Bielsa</div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px">
-        ${callups.map(c=>{
+  `:`<div style="margin:12px 0 10px;padding:8px 12px;background:rgba(0,0,0,.04);border-radius:8px;font-size:.78em;color:var(--muted)">No integra la nómina del Copa Mundial 2026</div>`;
+
+  const timelineHtml=Object.entries(byYr).map(([yr,cs])=>`
+    <div style="margin-bottom:10px">
+      <div style="font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:${yrColors[yr]||'#555'};margin-bottom:5px">${yr} · ${cs.length} convocatoria${cs.length>1?'s':''}</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        ${cs.map(c=>{
           const jd=c.jugadores.find(j=>j.nom===nom);
-          const badge=jd&&jd.noVino?'background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA':
-                      jd&&jd.sub20?'background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE':
-                      c.id==='c16'?'background:var(--gold)22;color:#92400E;border:1px solid var(--gold)66':
-                      'background:var(--surface);color:var(--fg);border:1px solid var(--border)';
-          const nota=jd&&jd.nota?`<span title="${jd.nota}" style="margin-left:2px;cursor:help">⚠️</span>`:'';
-          return`<span style="${badge};border-radius:7px;padding:2px 7px;font-size:.7em;font-weight:600">${c.label}${nota}</span>`;
+          const isWC=c.id==='c16';
+          const bg=jd&&jd.noVino?'#FEF2F2':isWC?'var(--gold)11':'rgba(0,0,0,.035)';
+          const bd=jd&&jd.noVino?'#FECACA':isWC?'var(--gold)55':'transparent';
+          const txt=jd&&jd.noVino?'#B91C1C':isWC?'#92400E':'var(--fg)';
+          return`<div style="display:flex;align-items:flex-start;gap:8px;background:${bg};border:1px solid ${bd};border-radius:8px;padding:7px 10px">
+            <div style="width:3px;height:100%;min-height:18px;background:${yrColors[yr]||'#555'};border-radius:2px;flex-shrink:0;margin-top:1px;self-align:stretch"></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.82em;font-weight:700;color:${txt}">${isWC?'🏆 ':''} ${c.label}</div>
+              <div style="font-size:.72em;color:var(--muted);margin-top:1px">${c.rivals}</div>
+              ${jd&&jd.nota?`<div style="font-size:.68em;color:#B45309;margin-top:3px;font-style:italic">⚠️ ${jd.nota}</div>`:''}
+            </div>
+          </div>`;
         }).join('')}
       </div>
-      <button onclick="document.getElementById('conv-player-wrap').innerHTML=''" style="background:none;border:1px solid var(--border);border-radius:8px;padding:3px 12px;font-size:.75em;color:var(--muted);cursor:pointer">✕ Cerrar</button>
+    </div>
+  `).join('');
+
+  wrap.innerHTML=`
+    <div style="margin-top:12px;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,.08)">
+      <!-- Header -->
+      <div style="background:var(--navy);padding:16px 18px;display:flex;align-items:center;gap:14px">
+        <div style="width:42px;height:42px;border-radius:50%;background:${posColor[p?.pos]||'#555'};display:flex;align-items:center;justify-content:center;font-size:.75em;font-weight:900;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.2)">${p?.pos||'—'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:1.1em;font-weight:900;color:#fff;letter-spacing:-.2px">${nom}</div>
+          <div style="font-size:.78em;color:rgba(255,255,255,.6);margin-top:2px">${p?`${posLabel[p.pos]||p.pos} · ${p.clubPais} ${p.club}`:'Sin datos de club'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:2.2em;font-weight:900;color:#fff;line-height:1">${callups.length}</div>
+          <div style="font-size:.65em;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em">convocatorias</div>
+        </div>
+      </div>
+      <!-- Body -->
+      <div style="padding:14px 16px;background:var(--surface2)">
+        ${inWC26?`<div style="display:inline-flex;align-items:center;gap:5px;background:var(--gold)22;border:1px solid var(--gold)66;border-radius:8px;padding:4px 10px;font-size:.75em;font-weight:700;color:#92400E;margin-bottom:2px">🏆 Integrante del plantel — Copa Mundial 2026</div>`:''}
+        ${statsHtml}
+        <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Historial de convocatorias</div>
+        ${timelineHtml}
+        <button onclick="document.getElementById('conv-player-wrap').innerHTML=''" style="width:100%;margin-top:4px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;font-size:.8em;color:var(--muted);cursor:pointer;font-weight:600">✕ Cerrar</button>
+      </div>
     </div>`;
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
