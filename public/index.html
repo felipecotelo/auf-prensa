@@ -6508,75 +6508,73 @@ function renderPeriplo(view){
   if(!con) return;
 
   const fix=getFixture();
-
-  // Build live score map from WC matches
   const liveScores={};
   PERIPLO_MATCHES.filter(m=>m.live&&m.matchId).forEach(m=>{
     const fx=fix[m.matchId];
     if(fx&&fx.gh!=null&&fx.ga!=null) liveScores[m.matchId]=`${fx.gh}-${fx.ga}`;
   });
 
-  // Derive counts dynamically
   const mayor=PERIPLO_MATCHES.filter(m=>!m.sub);
-  const wcM=mayor.filter(m=>m.tipo==='WC');
-  const elM=mayor.filter(m=>m.tipo==='EL');
-  const amM=mayor.filter(m=>m.tipo==='AM');
-  const fui=mayor.filter(m=>m.fui);
+  const wcM =mayor.filter(m=>m.tipo==='WC');
+  const elM =mayor.filter(m=>m.tipo==='EL');
+  const caM =mayor.filter(m=>m.tipo==='CA');
+  const amM =mayor.filter(m=>m.tipo==='AM');
   const paises=PERIPLO_PAISES.length;
   const estadios=PERIPLO_ESTADIOS.length;
+  const totalFui=mayor.filter(m=>m.fui).length;
 
   const tipos={
-    EL:{label:'Eliminatorias', color:'#1565C0'},
-    WC:{label:'Mundial',       color:'#B8860B'},
-    CA:{label:'Copa América',  color:'#1B5E20'},
-    AM:{label:'Amistoso',      color:'#555'},
+    EL:{label:'Eliminatorias', bg:'#EFF6FF', border:'#93C5FD', color:'#1D4ED8'},
+    WC:{label:'Mundial',       bg:'var(--gold)18', border:'var(--gold)66', color:'#92400E'},
+    CA:{label:'Copa América',  bg:'#F0FDF4', border:'#86EFAC', color:'#15803D'},
+    AM:{label:'Amistoso',      bg:'#F1F5F9', border:'#94A3B8', color:'#475569'},
   };
 
   function resBadge(m){
     const score=m.live&&liveScores[m.matchId]?liveScores[m.matchId]:m.res;
-    if(!score) return `<span style="background:#888;color:#fff;padding:2px 8px;border-radius:10px;font-size:.8em;font-weight:600">Pendiente</span>`;
+    if(!score) return `<span style="background:#94A3B8;color:#fff;padding:3px 10px;border-radius:10px;font-size:.82em;font-weight:700">Pendiente</span>`;
     const [a,b]=score.replace(/\(.*\)/,'').trim().split('-').map(Number);
-    const col=isNaN(a)||isNaN(b)?'#555':a>b?'#1B5E20':a<b?'#B71C1C':'#555';
-    return `<span style="background:${col};color:#fff;padding:2px 8px;border-radius:10px;font-size:.8em;font-weight:700;font-variant-numeric:tabular-nums">${score}</span>`;
+    const col=isNaN(a)||isNaN(b)?'#64748B':a>b?'#166534':a<b?'#B91C1C':'#374151';
+    return `<span style="background:${col};color:#fff;padding:3px 10px;border-radius:10px;font-size:.82em;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em">${score}</span>`;
   }
 
   function tipoBadge(tipo){
-    const t=tipos[tipo]||{label:tipo,color:'#555'};
-    return `<span style="background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;padding:1px 6px;border-radius:8px;font-size:.7em;font-weight:700;white-space:nowrap">${t.label}</span>`;
+    const t=tipos[tipo]||{label:tipo,bg:'#F1F5F9',border:'#CBD5E1',color:'#555'};
+    return `<span style="background:${t.bg};color:${t.color};border:1px solid ${t.border};padding:2px 8px;border-radius:8px;font-size:.7em;font-weight:800;white-space:nowrap;letter-spacing:.02em">${t.label}</span>`;
   }
 
-  // Group matches by year
-  const byYear={};
-  PERIPLO_MATCHES.forEach(m=>{
-    if(!byYear[m.yr]) byYear[m.yr]=[];
-    byYear[m.yr].push(m);
-  });
+  function matchLink(m){
+    const q=encodeURIComponent(`Uruguay vs ${m.rival} ${m.yr} Selección`);
+    return `https://www.google.com/search?q=${q}`;
+  }
 
-  // Build partidos view
+  const byYear={};
+  PERIPLO_MATCHES.forEach(m=>{if(!byYear[m.yr])byYear[m.yr]=[];byYear[m.yr].push(m);});
+
   function buildPartidosHtml(){
     let h='';
     Object.keys(byYear).sort().forEach(yr=>{
       h+=`<div style="margin-bottom:24px">
-        <div style="font-weight:700;font-size:1.05em;color:var(--gold);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:12px">${yr}</div>`;
+        <div style="font-weight:900;font-size:1em;color:var(--gold);border-bottom:2px solid var(--gold)33;padding-bottom:5px;margin-bottom:12px;letter-spacing:.02em">${yr}</div>`;
       let lastFase='';
       byYear[yr].forEach(m=>{
         if(m.fase!==lastFase){
-          h+=`<div style="font-size:.75em;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px">${m.fase}${m.sub?' · Sub-23':''}</div>`;
+          h+=`<div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;padding-left:2px">${m.fase}${m.sub?' · Sub-23':''}</div>`;
           lastFase=m.fase;
         }
-        const numLabel=m.num?`<span style="color:var(--muted);font-size:.8em;margin-right:4px">${m.num}</span>`:'';
-        const noFui=!m.fui?`<span style="color:#888;font-size:.7em;margin-left:6px;font-style:italic">no viajé</span>`:'';
-        const locLabel=m.loc==='L'?'Local':m.loc==='V'?'Visitante':'Neutro';
-        h+=`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)22">
-          <div style="min-width:100px">${resBadge(m)}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:.92em">${numLabel}Uruguay vs. ${m.rival}${noFui}</div>
-            <div style="font-size:.78em;color:var(--muted);margin-top:1px">${m.est} · ${m.ciudad}, ${m.pais}</div>
+        const numLabel=m.num?`<span style="color:var(--muted);font-size:.75em;margin-right:4px;font-weight:700">${m.num}</span>`:'';
+        const noFui=!m.fui;
+        const rowBg=noFui?'background:rgba(0,0,0,.025);':'';
+        const opac=noFui?'opacity:.5':'';
+        h+=`<a href="${matchLink(m)}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;margin-bottom:3px;${rowBg}border:1px solid ${noFui?'var(--border)':'transparent'};text-decoration:none;transition:background .12s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${noFui?'rgba(0,0,0,.025)':'transparent'}'">
+          <div style="${opac};min-width:80px">${resBadge(m)}</div>
+          <div style="flex:1;min-width:0;${opac}">
+            <div style="font-weight:700;font-size:.88em;color:var(--fg)">${numLabel}Uruguay vs. ${m.rival}${noFui?`<span style="font-size:.7em;font-weight:600;color:#94A3B8;margin-left:6px;border:1px solid #CBD5E1;border-radius:6px;padding:1px 5px;font-style:normal">no viajé</span>`:''}</div>
+            <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.est} · ${m.ciudad}, ${m.pais}</div>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
-            ${tipoBadge(m.tipo)}
-          </div>
-        </div>`;
+          <div style="flex-shrink:0;${opac}">${tipoBadge(m.tipo)}</div>
+          <span style="color:var(--muted);font-size:.8em;flex-shrink:0">↗</span>
+        </a>`;
       });
       h+='</div>';
     });
@@ -6586,11 +6584,11 @@ function renderPeriplo(view){
   function buildPaisesHtml(){
     let h=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">`;
     PERIPLO_PAISES.forEach((p,i)=>{
-      h+=`<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px">
-        <span style="font-weight:700;color:var(--muted);font-size:.8em;min-width:20px">${i+1}</span>
+      h+=`<div style="background:var(--surface2);border-radius:10px;padding:10px 14px;display:flex;align-items:flex-start;gap:10px;border:1px solid var(--border)">
+        <div style="font-weight:900;color:var(--gold);font-size:.85em;min-width:22px;padding-top:1px">${i+1}</div>
         <div>
-          <div style="font-weight:600;font-size:.9em">${p.pais}</div>
-          <div style="font-size:.75em;color:var(--muted)">${p.ciudades}</div>
+          <div style="font-weight:700;font-size:.88em">${p.pais}</div>
+          <div style="font-size:.73em;color:var(--muted);margin-top:1px">${p.ciudades}</div>
         </div>
       </div>`;
     });
@@ -6601,11 +6599,11 @@ function renderPeriplo(view){
   function buildEstadiosHtml(){
     let h=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">`;
     PERIPLO_ESTADIOS.forEach(e=>{
-      h+=`<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px">
-        <span style="font-weight:700;color:var(--gold);font-size:.85em;min-width:24px">${e.n}</span>
+      h+=`<div style="background:var(--surface2);border-radius:10px;padding:10px 14px;display:flex;align-items:flex-start;gap:10px;border:1px solid var(--border)">
+        <div style="font-weight:900;color:var(--gold);font-size:.85em;min-width:24px;padding-top:1px">${e.n}</div>
         <div>
-          <div style="font-weight:600;font-size:.88em">${e.nom}</div>
-          <div style="font-size:.75em;color:var(--muted)">${e.ciudad}</div>
+          <div style="font-weight:700;font-size:.85em">${e.nom}</div>
+          <div style="font-size:.73em;color:var(--muted);margin-top:1px">${e.ciudad}</div>
         </div>
       </div>`;
     });
@@ -6613,25 +6611,31 @@ function renderPeriplo(view){
     return h;
   }
 
-  const statCards=[
-    {n:wcM.length, label:'Partidos en Mundiales', sub:'5 Qatar 2022 + WC 2026', color:'var(--gold)'},
-    {n:elM.filter(m=>m.fui).length+'/'+elM.length, label:'Partidos Eliminatorias', sub:'2 sin ir (PY/CHI 2025)', color:'#1565C0'},
-    {n:amM.filter(m=>m.fui).length+'/'+amM.length, label:'Partidos amistosos', sub:'5 sin ir', color:'#555'},
-    {n:paises, label:'Países visitados', sub:'en orden cronológico', color:'#2E7D32'},
-    {n:estadios, label:'Estadios visitados', sub:'Selección Mayor', color:'#6A1B9A'},
-    {n:fui.filter(m=>m.tipo==='CA').length, label:'Partidos Copa América', sub:'3er puesto 2024', color:'#1B5E20'},
+  // ── Hero stats ─────────────────────────────────────────────────────────────
+  // Orden: total → elim → mundial → copa america → amistoso → paises → estadios
+  const heroStats=[
+    {n:totalFui, label:'Partidos asistidos', sub:'total carrera', icon:'⚽',
+     bg:'var(--navy)', nc:'#fff', tc:'rgba(255,255,255,.75)', sc:'rgba(255,255,255,.5)', view:null, big:true},
+    {n:`${elM.filter(m=>m.fui).length}/${elM.length}`, label:'Eliminatorias', sub:`${elM.length-elM.filter(m=>m.fui).length} sin ir`, icon:'📋',
+     bg:'#EFF6FF', nc:'#1D4ED8', tc:'#1E40AF', sc:'#3B82F6', border:'#BFDBFE', view:'partidos'},
+    {n:`${wcM.filter(m=>m.fui).length}/${wcM.length}`, label:'Copa del Mundo', sub:'Qatar 2022 + WC 2026', icon:'🏆',
+     bg:'var(--gold)15', nc:'#92400E', tc:'#B45309', sc:'#D97706', border:'var(--gold)55', view:'partidos'},
+    {n:caM.filter(m=>m.fui).length, label:'Copa América', sub:'3er puesto 2024', icon:'🌎',
+     bg:'#F0FDF4', nc:'#15803D', tc:'#166534', sc:'#22C55E', border:'#86EFAC', view:'partidos'},
+    {n:`${amM.filter(m=>m.fui).length}/${amM.length}`, label:'Amistosos', sub:`${amM.length-amM.filter(m=>m.fui).length} sin ir`, icon:'🤝',
+     bg:'#F8FAFC', nc:'#334155', tc:'#475569', sc:'#94A3B8', border:'#CBD5E1', view:'partidos'},
+    {n:paises, label:'Países visitados', sub:'en orden cronológico', icon:'🌍',
+     bg:'#FDF4FF', nc:'#7E22CE', tc:'#6B21A8', sc:'#A855F7', border:'#E9D5FF', view:'paises'},
+    {n:estadios, label:'Estadios visitados', sub:'Selección Mayor', icon:'🏟️',
+     bg:'#FFF7ED', nc:'#C2410C', tc:'#9A3412', sc:'#F97316', border:'#FED7AA', view:'estadios'},
   ];
 
+  const pv=window._periploView;
   const tabs=[
     {id:'partidos',label:'Partidos'},
     {id:'paises',label:'Países ('+paises+')'},
     {id:'estadios',label:'Estadios ('+estadios+')'},
   ];
-
-  const pv=window._periploView;
-  const tabsHtml=`<div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
-    ${tabs.map(t=>`<button onclick="renderPeriplo('${t.id}')" style="padding:6px 14px;background:none;border:none;border-bottom:2px solid ${pv===t.id?'var(--gold)':'transparent'};color:${pv===t.id?'var(--gold)':'var(--muted)'};font-weight:${pv===t.id?700:400};cursor:pointer;font-size:.88em;transition:all .15s">${t.label}</button>`).join('')}
-  </div>`;
 
   let content='';
   if(pv==='partidos') content=buildPartidosHtml();
@@ -6639,48 +6643,65 @@ function renderPeriplo(view){
   else content=buildEstadiosHtml();
 
   con.innerHTML=`
-    <!-- Stats hero -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
-      ${statCards.map(s=>`<div style="background:var(--surface2);border-radius:10px;padding:12px 14px;text-align:center">
-        <div style="font-size:1.6em;font-weight:800;color:${s.color}">${s.n}</div>
-        <div style="font-size:.78em;font-weight:600;color:var(--fg);margin-top:2px">${s.label}</div>
-        <div style="font-size:.7em;color:var(--muted);margin-top:1px">${s.sub}</div>
-      </div>`).join('')}
+    <!-- Hero stats -->
+    <div style="margin-bottom:20px">
+      <!-- Big total card -->
+      <div onclick="renderPeriplo('partidos')" style="background:var(--navy);border-radius:14px;padding:18px 20px;margin-bottom:10px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:opacity .12s" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+        <div style="font-size:2em">⚽</div>
+        <div style="flex:1">
+          <div style="font-size:.72em;font-weight:700;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.09em">Partidos presenciados — Selección Mayor</div>
+          <div style="font-size:2.6em;font-weight:900;color:#fff;line-height:1.1;letter-spacing:-1px">${totalFui}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:.72em;color:rgba(255,255,255,.45);margin-bottom:4px">2022 – 2026</div>
+          <div style="font-size:.8em;color:rgba(255,255,255,.6)">${mayor.length} totales (incluyendo no viajados)</div>
+        </div>
+      </div>
+      <!-- 6 stat cards grid -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        ${heroStats.slice(1).map(s=>`
+          <div onclick="${s.view?`renderPeriplo('${s.view}')`:''}" style="background:${s.bg};border:1px solid ${s.border||'transparent'};border-radius:12px;padding:12px 14px;cursor:${s.view?'pointer':'default'};transition:transform .12s,box-shadow .12s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div style="font-size:1.3em;margin-bottom:4px">${s.icon}</div>
+            <div style="font-size:1.55em;font-weight:900;color:${s.nc};line-height:1;letter-spacing:-.5px">${s.n}</div>
+            <div style="font-size:.72em;font-weight:800;color:${s.tc};margin-top:4px">${s.label}</div>
+            <div style="font-size:.64em;color:${s.sc};margin-top:2px">${s.sub}</div>
+          </div>`).join('')}
+      </div>
     </div>
 
     <!-- Torneos -->
-    <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:10px 14px">
-      <summary style="font-weight:700;font-size:.88em;cursor:pointer;list-style:none">▸ Torneos</summary>
+    <details style="margin-bottom:16px;background:var(--surface2);border-radius:12px;padding:10px 14px;border:1px solid var(--border)">
+      <summary style="font-weight:700;font-size:.85em;cursor:pointer;list-style:none;color:var(--fg)">▸ Torneos</summary>
       <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <div style="font-weight:700;font-size:.8em;color:var(--gold);margin-bottom:6px">SELECCIÓN MAYOR</div>
+          <div style="font-weight:800;font-size:.72em;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Selección Mayor</div>
           ${[
-            {t:'Eliminatorias Catar 2022',r:'Clasificados · 4/4 ganados desde mi ingreso'},
+            {t:'Eliminatorias Catar 2022',r:'Clasificados'},
             {t:'Copa Mundial 2022 | Catar',r:'Eliminados en fase de grupos'},
-            {t:'Copa América 2024 | Estados Unidos',r:'3.er puesto · venció a Canadá por penales'},
-            {t:'Eliminatorias Mundial 2026',r:'4.o puesto y clasificación'},
-            {t:'Copa Mundial 2026 | USA, México y Canadá',r:'En competencia 🔴'},
-          ].map(x=>`<div style="margin-bottom:8px"><div style="font-weight:600;font-size:.82em">${x.t}</div><div style="font-size:.75em;color:var(--muted)">${x.r}</div></div>`).join('')}
+            {t:'Copa América 2024 | EE.UU.',r:'3.er puesto · venció a Canadá por penales'},
+            {t:'Eliminatorias Mundial 2026',r:'4.o puesto · clasificación'},
+            {t:'Copa Mundial 2026 | USA/MEX/CAN',r:'En competencia 🔴'},
+          ].map(x=>`<div style="margin-bottom:8px"><div style="font-weight:700;font-size:.82em">${x.t}</div><div style="font-size:.73em;color:var(--muted)">${x.r}</div></div>`).join('')}
         </div>
         <div>
-          <div style="font-weight:700;font-size:.8em;color:var(--gold);margin-bottom:6px">SELECCIONES JUVENILES</div>
+          <div style="font-weight:800;font-size:.72em;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Juveniles</div>
           ${[
-            {t:'COTIF Sub-20 2022 | España',r:'Vice-campeones'},
-            {t:'Sudamericano Sub-20 2023 | Colombia',r:'2.o puesto · clasificó al Mundial'},
-            {t:'Mundial Sub-20 2023 | Argentina',r:'🏆 Campeones del Mundo'},
-            {t:'Juegos Panamericanos Sub-23 2023 | Chile',r:'5.o puesto'},
-            {t:'Preolímpico Sub-23 2024 | Venezuela',r:'Eliminados en fase de grupos'},
-            {t:'COTIF Sub-20 2024 | España',r:'Campeones'},
-            {t:'Sudamericano Sub-15/16 2024',r:'Eliminados en fase de grupos'},
-            {t:'Sudamericano Sub-20 2025 | Venezuela',r:'Pasaron el grupo, no clasificaron al Mundial'},
-            {t:'Sudamericano Sub-17 2025 | Colombia',r:'Eliminados en fase de grupos'},
-          ].map(x=>`<div style="margin-bottom:8px"><div style="font-weight:600;font-size:.82em">${x.t}</div><div style="font-size:.75em;color:var(--muted)">${x.r}</div></div>`).join('')}
+            {t:'COTIF Sub-20 2022 · España',r:'Vice-campeones'},
+            {t:'Sudamericano Sub-20 2023',r:'2.o · clasificó al Mundial'},
+            {t:'Mundial Sub-20 2023 · Argentina',r:'🏆 Campeones del Mundo'},
+            {t:'Juegos Panamericanos Sub-23 2023',r:'5.o puesto'},
+            {t:'Preolímpico Sub-23 2024',r:'Eliminados en fase de grupos'},
+            {t:'Sudamericano Sub-20 2025',r:'No clasificaron al Mundial'},
+            {t:'Sudamericano Sub-17 2025',r:'Eliminados en fase de grupos'},
+          ].map(x=>`<div style="margin-bottom:7px"><div style="font-weight:700;font-size:.8em">${x.t}</div><div style="font-size:.72em;color:var(--muted)">${x.r}</div></div>`).join('')}
         </div>
       </div>
     </details>
 
-    <!-- Tabs + content -->
-    ${tabsHtml}
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:2px solid var(--border)">
+      ${tabs.map(t=>`<button onclick="renderPeriplo('${t.id}')" style="padding:7px 16px;background:none;border:none;border-bottom:2px solid ${pv===t.id?'var(--gold)':'transparent'};margin-bottom:-2px;color:${pv===t.id?'var(--gold)':'var(--muted)'};font-weight:${pv===t.id?800:400};cursor:pointer;font-size:.85em;transition:all .15s">${t.label}</button>`).join('')}
+    </div>
     ${content}
   `;
 }
