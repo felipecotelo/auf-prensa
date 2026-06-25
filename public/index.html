@@ -7915,6 +7915,51 @@ function toggleLegend(name){
   stor.set(KLegends,custom);
   renderEstadisticas();
 }
+// ── ESTADÍSTICAS AUF POR COMPETENCIA ──────────────────────────────────────
+// Fuente: auf.org.uy/historico-jugadores · Incluye partidos WC2026 disputados
+// comp: ca=Copa América, wc=Copa Mundial, el=Eliminatorias, am=Amistosos
+// g=goles (null si no disponible por competencia)
+const AUF_STATS={
+  'Sergio Rochet':          {auf:'sergio-rochet',          club:'Sport Club Internacional',   pais:'🇧🇷',pos:'POR',total:{pj:35,min:3060,g:0},  comp:{ca:{pj:6},wc:{pj:3},el:{pj:18},am:{pj:8}}},
+  'José María Giménez':     {auf:'jose-maria-gimenez',     club:'Atlético de Madrid',         pais:'🇪🇸',pos:'DEF',total:{pj:99,min:8245,g:8},  comp:{ca:{pj:21},wc:{pj:10},el:{pj:34},am:{pj:34}}},
+  'Sebastián Cáceres':      {auf:'sebastian-caceres',      club:'CF América',                 pais:'🇲🇽',pos:'DEF',total:{pj:26,min:1780,g:0},  comp:{ca:{pj:5},wc:{pj:2},el:{pj:12},am:{pj:7}}},
+  'Ronald Araújo':          {auf:'ronald-araujo',          club:'FC Barcelona',               pais:'🇪🇸',pos:'DEF',total:{pj:27,min:1947,g:1},  comp:{ca:{pj:4},wc:{pj:0},el:{pj:17},am:{pj:6}}},
+  'Manuel Ugarte':          {auf:'manuel-ugarte',          club:'Manchester United',          pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',pos:'MED',total:{pj:38,min:2656,g:1},  comp:{ca:{pj:6},wc:{pj:2},el:{pj:18},am:{pj:12}}},
+  'Rodrigo Bentancur':      {auf:'rodrigo-bentancur',      club:'Tottenham Hotspur',          pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',pos:'MED',total:{pj:76,min:5332,g:3},  comp:{ca:{pj:14},wc:{pj:10},el:{pj:27},am:{pj:25}}},
+  'Nicolás De La Cruz':     {auf:'nicolas-de-la-cruz',     club:'CR Flamengo',                pais:'🇧🇷',pos:'MED',total:{pj:36,min:1971,g:5},  comp:{ca:{pj:9},wc:{pj:4},el:{pj:17},am:{pj:6}}},
+  'Federico Valverde':      {auf:'federico-valverde',      club:'Real Madrid CF',             pais:'🇪🇸',pos:'MED',total:{pj:75,min:5927,g:9},  comp:{ca:{pj:15},wc:{pj:5},el:{pj:32},am:{pj:23}}},
+  'Darwin Núñez':           {auf:'darwin-nunez',           club:'Al-Hilal SFC',              pais:'🇸🇦',pos:'DEL',total:{pj:40,min:2552,g:13}, comp:{ca:{pj:6},wc:{pj:5},el:{pj:21},am:{pj:8}}},
+  'Giorgian De Arrascaeta': {auf:'giorgian-de-arrascaeta', club:'CR Flamengo',                pais:'🇧🇷',pos:'MED',total:{pj:60,min:3184,g:13}, comp:{ca:{pj:13,g:3},wc:{pj:4,g:0},el:{pj:19,g:4},am:{pj:24,g:6}}},
+  'Facundo Pellistri':      {auf:null,                     club:'Panathinaikos',              pais:'🇬🇷',pos:'MED',total:{pj:39,min:null,g:2},  comp:null},
+  'Santiago Mele':          {auf:'santiago-mele',          club:'CF Monterrey',               pais:'🇲🇽',pos:'POR',total:{pj:8,min:675,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:4}}},
+  'Guillermo Varela':       {auf:'guillermo-varela',       club:'CR Flamengo',                pais:'🇧🇷',pos:'DEF',total:{pj:30,min:2041,g:0},  comp:{ca:{pj:2},wc:{pj:7},el:{pj:8},am:{pj:13}}},
+  'Agustín Canobbio':       {auf:'agustin-canobbio',       club:'Fluminense FC',              pais:'🇧🇷',pos:'MED',total:{pj:17,min:761,g:2},   comp:{ca:{pj:1},wc:{pj:3},el:{pj:5},am:{pj:8}}},
+  'Emiliano Martínez':      {auf:null,                     club:'SE Palmeiras',               pais:'🇧🇷',pos:'MED',total:{pj:10,min:null,g:0},  comp:null},
+  'Mathías Olivera':        {auf:null,                     club:'SSC Nápoles',                pais:'🇮🇹',pos:'DEF',total:{pj:35,min:null,g:2},  comp:null},
+  'Matías Viña':            {auf:'matias-vina',            club:'CA River Plate',             pais:'🇦🇷',pos:'DEF',total:{pj:44,min:2897,g:1},  comp:{ca:{pj:10},wc:{pj:3},el:{pj:17},am:{pj:14}}},
+  'Brian Rodríguez':        {auf:'brian-rodriguez',        club:'CF América',                 pais:'🇲🇽',pos:'MED',total:{pj:35,min:1805,g:4},  comp:{ca:{pj:1},wc:{pj:2},el:{pj:19},am:{pj:13}}},
+  'Rodrigo Aguirre':        {auf:null,                     club:'Tigres UANL',                pais:'🇲🇽',pos:'DEL',total:{pj:10,min:null,g:3},  comp:null},
+  'Maximiliano Araújo':     {auf:'maximiliano-araujo',     club:'Sporting de Lisboa',         pais:'🇵🇹',pos:'MED',total:{pj:30,min:2275,g:5},  comp:{ca:{pj:6},wc:{pj:2},el:{pj:15},am:{pj:8}}},
+  'Federico Viñas':         {auf:'federico-vinas',         club:'Real Oviedo',                pais:'🇪🇸',pos:'DEL',total:{pj:13,min:614,g:2},   comp:{ca:{pj:0},wc:{pj:2},el:{pj:5},am:{pj:6}}},
+  'Joaquín Piquerez':       {auf:'joaquin-piquerez',       club:'SE Palmeiras',               pais:'🇧🇷',pos:'DEF',total:{pj:19,min:1033,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:14},am:{pj:5}}},
+  'Fernando Muslera':       {auf:'fernando-muslera',       club:'Estudiantes de La Plata',    pais:'🇦🇷',pos:'POR',total:{pj:136,min:12285,g:0}, comp:{ca:{pj:22},wc:{pj:18},el:{pj:47},am:{pj:45}}},
+  'Santiago Bueno':         {auf:'santiago-bueno',         club:'Wolverhampton Wanderers',    pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',pos:'DEF',total:{pj:8,min:630,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:4}}},
+  'Juan Manuel Sanabria':   {auf:'juan-manuel-sanabria',   club:'Real Salt Lake',             pais:'🇺🇸',pos:'DEF',total:{pj:8,min:null,g:1},   comp:{ca:{pj:0},wc:{pj:2},el:{pj:0},am:{pj:6}}},
+  'Rodrigo Zalazar':        {auf:'rodrigo-zalazar',        club:'SC Braga',                   pais:'🇵🇹',pos:'MED',total:{pj:8,min:417,g:2},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:6}}},
+  // Non-WC 2026
+  'Luis Suárez':            {auf:'luis-suarez',            club:'Retirado',                   pais:'',   pos:'DEL',total:{pj:143,min:11281,g:69},comp:{ca:{pj:19,g:15},wc:{pj:16,g:6},el:{pj:64,g:31},am:{pj:39,g:17}}},
+  'Nahitan Nández':         {auf:'nahitan-nandez',         club:'Al-Qadsiah',                 pais:'🇸🇦',pos:'MED',total:{pj:72,min:4755,g:0},  comp:{ca:{pj:14},wc:{pj:5},el:{pj:31},am:{pj:22}}},
+  'Matías Vecino':          {auf:'matias-vecino',          club:'Retirado',                   pais:'',   pos:'MED',total:{pj:70,min:5078,g:6},  comp:{ca:{pj:8,g:0},wc:{pj:8,g:0},el:{pj:25,g:1},am:{pj:29,g:5}}},
+  'Lucas Olaza':            {auf:'lucas-olaza',            club:'FC Krasnodar',               pais:'🇷🇺',pos:'DEF',total:{pj:6,min:438,g:0},    comp:{ca:{pj:1},wc:{pj:0},el:{pj:2},am:{pj:3}}},
+  'Cristian Olivera':       {auf:'cristian-olivera',       club:'Grêmio',                     pais:'🇧🇷',pos:'MED',total:{pj:13,min:627,g:0},   comp:{ca:{pj:4},wc:{pj:0},el:{pj:9},am:{pj:0}}},
+  'Facundo Torres':         {auf:'facundo-torres',         club:'Austin FC',                  pais:'🇺🇸',pos:'DEL',total:{pj:23,min:912,g:2},   comp:{ca:{pj:5},wc:{pj:0},el:{pj:9},am:{pj:9}}},
+  'Luciano Rodríguez':      {auf:'luciano-rodriguez',      club:'Neom SC',                    pais:'🇸🇦',pos:'DEL',total:{pj:5,min:187,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:4}}},
+  'Franco Israel':          {auf:'franco-israel',          club:'Real Valladolid',            pais:'🇪🇸',pos:'POR',total:{pj:3,min:270,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:3}}},
+  'Nicolás Fonseca':        {auf:'nicolas-fonseca',        club:'Boca Juniors',               pais:'🇦🇷',pos:'MED',total:{pj:7,min:280,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:3}}},
+  'Maximiliano Gómez':      {auf:'maximiliano-gomez',      club:'Retirado',                   pais:'',   pos:'DEL',total:{pj:30,min:null,g:6},  comp:null},
+  'Brian Ocampo':           {auf:'brian-ocampo',           club:'Santos FC',                  pais:'🇧🇷',pos:'MED',total:{pj:4,min:null,g:0},   comp:{ca:{pj:3},wc:{pj:0},el:{pj:0},am:{pj:1}}},
+};
+
 // ── CONVOCATORIAS BIELSA ──────────────────────────────────────────────────
 const BIELSA_CONVOCATORIAS=[
   {id:'c01',yr:2023,label:'Fecha FIFA · Jun 2023',rivals:'vs. Nicaragua y Cuba',
@@ -8136,75 +8181,124 @@ function showConvPlayer(nom){
   if(!wrap) return;
   const callups=BIELSA_CONVOCATORIAS.filter(c=>c.jugadores.some(j=>j.nom===nom));
   const p=PLAYERS.find(x=>x.name===nom);
+  const auf=AUF_STATS[nom];
   const posLabel={POR:'Portero',DEF:'Defensa',MED:'Mediocampista',DEL:'Delantero'};
   const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
-  const eff=p?effectiveStats(p):null;
   const inWC26=BIELSA_CONVOCATORIAS.find(c=>c.id==='c16')?.jugadores.some(j=>j.nom===nom);
+
+  // Position and club — prefer AUF_STATS for non-WC players, PLAYERS for WC squad
+  const pos=p?.pos||auf?.pos||'—';
+  const club=p?`${p.clubPais} ${p.club}`:(auf?.pais&&auf?.club?`${auf.pais} ${auf.club}`:'—');
+  const posStr=posLabel[pos]||pos;
+
+  // Stats
+  const total=auf?.total||null;
+  const comp=auf?.comp||null;
+  const aufSlug=auf?.auf||null;
 
   // Group callups by year for timeline
   const byYr={};
   callups.forEach(c=>{if(!byYr[c.yr])byYr[c.yr]=[];byYr[c.yr].push(c);});
   const yrColors={2023:'#64748B',2024:'#4F46E5',2025:'#059669',2026:'#B45309'};
 
-  const statsHtml=eff?`
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 10px">
-      ${[
-        {val:eff.caps,      label:'PJ Selección', sub:'total carrera',   bg:'#EFF6FF', bd:'#BFDBFE', tc:'#1E40AF', nc:'#1D4ED8'},
-        {val:eff.goals,     label:'Goles',        sub:'total carrera',   bg:'#F0FDF4', bd:'#86EFAC', tc:'#166534', nc:'#15803D'},
-        {val:eff.wcCaps||0, label:'PJ Mundiales', sub:'Copa del Mundo',  bg:'var(--gold)18', bd:'var(--gold)55', tc:'#92400E', nc:'#B45309'},
-        {val:eff.wcGoals||0,label:'Goles WC',     sub:'Copa del Mundo',  bg:'var(--gold)18', bd:'var(--gold)55', tc:'#92400E', nc:'#B45309'},
-      ].map(s=>`<div style="text-align:center;background:${s.bg};border-radius:10px;padding:12px 6px;border:1px solid ${s.bd}">
-        <div style="font-size:1.6em;font-weight:900;color:${s.nc};line-height:1">${s.val}</div>
-        <div style="font-size:.72em;font-weight:800;color:${s.tc};margin-top:4px;line-height:1.2">${s.label}</div>
-        <div style="font-size:.6em;color:${s.tc};opacity:.65;margin-top:2px">${s.sub}</div>
-      </div>`).join('')}
-    </div>
-  `:`<div style="margin:12px 0 10px;padding:8px 12px;background:rgba(0,0,0,.04);border-radius:8px;font-size:.78em;color:var(--muted)">No integra la nómina del Copa Mundial 2026</div>`;
+  // Main stat cards — total career
+  const mainStats=total?`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0 8px">
+      <div style="text-align:center;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:11px 6px">
+        <div style="font-size:1.8em;font-weight:900;color:#1D4ED8;line-height:1">${total.pj}</div>
+        <div style="font-size:.7em;font-weight:800;color:#1E40AF;margin-top:3px">PJ Selección</div>
+        <div style="font-size:.6em;color:#3B82F6;margin-top:1px">total carrera</div>
+      </div>
+      <div style="text-align:center;background:#F0FDF4;border:1px solid #86EFAC;border-radius:10px;padding:11px 6px">
+        <div style="font-size:1.8em;font-weight:900;color:#15803D;line-height:1">${total.g}</div>
+        <div style="font-size:.7em;font-weight:800;color:#166534;margin-top:3px">Goles</div>
+        <div style="font-size:.6em;color:#22C55E;margin-top:1px">total carrera</div>
+      </div>
+      <div style="text-align:center;background:#FAFAFA;border:1px solid var(--border);border-radius:10px;padding:11px 6px">
+        <div style="font-size:1.8em;font-weight:900;color:var(--navy);line-height:1">${total.min!=null?Math.round(total.min/total.pj)+'\'':'—'}</div>
+        <div style="font-size:.7em;font-weight:800;color:var(--navy);margin-top:3px">Min/partido</div>
+        <div style="font-size:.6em;color:var(--muted);margin-top:1px">${total.min!=null?total.min+' min totales':'sin datos'}</div>
+      </div>
+    </div>`:'';
 
-  const timelineHtml=Object.entries(byYr).map(([yr,cs])=>`
-    <div style="margin-bottom:10px">
-      <div style="font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:${yrColors[yr]||'#555'};margin-bottom:5px">${yr} · ${cs.length} convocatoria${cs.length>1?'s':''}</div>
-      <div style="display:flex;flex-direction:column;gap:3px">
-        ${cs.map(c=>{
-          const jd=c.jugadores.find(j=>j.nom===nom);
-          const isWC=c.id==='c16';
-          const bg=jd&&jd.noVino?'#FEF2F2':isWC?'var(--gold)11':'rgba(0,0,0,.035)';
-          const bd=jd&&jd.noVino?'#FECACA':isWC?'var(--gold)55':'transparent';
-          const txt=jd&&jd.noVino?'#B91C1C':isWC?'#92400E':'var(--fg)';
-          return`<div style="display:flex;align-items:flex-start;gap:8px;background:${bg};border:1px solid ${bd};border-radius:8px;padding:7px 10px">
-            <div style="width:3px;height:100%;min-height:18px;background:${yrColors[yr]||'#555'};border-radius:2px;flex-shrink:0;margin-top:1px;self-align:stretch"></div>
+  // Competition breakdown
+  const compLabels=[
+    {key:'ca', label:'Copa América', icon:'🌎', bg:'#FEF9C3', bd:'#FDE047', tc:'#854D0E'},
+    {key:'wc', label:'Copa del Mundo', icon:'🏆', bg:'var(--gold)15', bd:'var(--gold)66', tc:'#92400E'},
+    {key:'el', label:'Eliminatorias', icon:'📋', bg:'#EDE9FE', bd:'#C4B5FD', tc:'#5B21B6'},
+    {key:'am', label:'Amistosos', icon:'🤝', bg:'#F1F5F9', bd:'#CBD5E1', tc:'#475569'},
+  ];
+  const compHtml=comp?`
+    <div style="margin-bottom:12px">
+      <div style="font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Por competencia</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px">
+        ${compLabels.map(({key,label,icon,bg,bd,tc})=>{
+          const d=comp[key];
+          return`<div style="background:${bg};border:1px solid ${bd};border-radius:9px;padding:9px 11px;display:flex;align-items:center;gap:8px">
+            <div style="font-size:1.2em;flex-shrink:0">${icon}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:.82em;font-weight:700;color:${txt}">${isWC?'🏆 ':''} ${c.label}</div>
-              <div style="font-size:.72em;color:var(--muted);margin-top:1px">${c.rivals}</div>
-              ${jd&&jd.nota?`<div style="font-size:.68em;color:#B45309;margin-top:3px;font-style:italic">⚠️ ${jd.nota}</div>`:''}
+              <div style="font-size:.7em;font-weight:700;color:${tc}">${label}</div>
+              <div style="font-size:.65em;color:${tc};opacity:.75;margin-top:1px">
+                ${d?`${d.pj} partido${d.pj!==1?'s':''}${d.g!=null?' · '+d.g+' gol'+(d.g!==1?'es':''):''}`:d===undefined?'—':'Sin participación'}
+              </div>
             </div>
+            <div style="font-size:1.3em;font-weight:900;color:${tc};flex-shrink:0">${d?d.pj:d===undefined?'—':0}</div>
           </div>`;
         }).join('')}
       </div>
-    </div>
-  `).join('');
+      ${!auf?.auf?`<div style="font-size:.65em;color:var(--muted);margin-top:5px;text-align:center">* Perfil AUF no disponible · datos parciales del plantel WC2026</div>`:''}
+    </div>`
+  :`<div style="margin:8px 0 12px;padding:8px 12px;background:rgba(0,0,0,.04);border-radius:8px;font-size:.75em;color:var(--muted)">${auf?'Desglose por competencia no disponible':'Sin datos AUF cargados'}</div>`;
+
+  // Callup timeline
+  const timelineHtml=`
+    <div style="font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Convocatorias con Bielsa (${callups.length})</div>
+    ${Object.entries(byYr).map(([yr,cs])=>`
+      <div style="margin-bottom:8px">
+        <div style="font-size:.65em;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:${yrColors[yr]||'#555'};margin-bottom:4px">${yr} · ${cs.length} convocatoria${cs.length>1?'s':''}</div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          ${cs.map(c=>{
+            const jd=c.jugadores.find(j=>j.nom===nom);
+            const isWC=c.id==='c16';
+            const bg=jd?.noVino?'#FEF2F2':isWC?'var(--gold)11':'rgba(0,0,0,.03)';
+            const bd=jd?.noVino?'#FECACA':isWC?'var(--gold)55':'transparent';
+            const txt=jd?.noVino?'#B91C1C':isWC?'#92400E':'var(--fg)';
+            return`<div style="display:flex;align-items:flex-start;gap:8px;background:${bg};border:1px solid ${bd};border-radius:8px;padding:6px 10px">
+              <div style="width:3px;align-self:stretch;background:${yrColors[yr]||'#555'};border-radius:2px;flex-shrink:0;min-height:16px"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:.8em;font-weight:700;color:${txt}">${isWC?'🏆 ':''}${c.label}</div>
+                <div style="font-size:.7em;color:var(--muted);margin-top:1px">${c.rivals}</div>
+                ${jd?.nota?`<div style="font-size:.66em;color:#B45309;margin-top:2px;font-style:italic">⚠️ ${jd.nota}</div>`:''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`).join('')}`;
+
+  const aufLink=aufSlug?`<a href="https://www.auf.org.uy/${aufSlug}/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:.75em;font-weight:700;color:var(--cel-dk);text-decoration:none;border:1px solid var(--cel-dk)44;border-radius:8px;padding:4px 10px;margin-bottom:10px">🔗 Ver perfil AUF ↗</a>`:'';
 
   wrap.innerHTML=`
-    <div style="margin-top:12px;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,.08)">
+    <div style="margin-top:12px;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 14px rgba(0,0,0,.09)">
       <!-- Header -->
       <div style="background:var(--navy);padding:16px 18px;display:flex;align-items:center;gap:14px">
-        <div style="width:42px;height:42px;border-radius:50%;background:${posColor[p?.pos]||'#555'};display:flex;align-items:center;justify-content:center;font-size:.75em;font-weight:900;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.2)">${p?.pos||'—'}</div>
+        <div style="width:44px;height:44px;border-radius:50%;background:${posColor[pos]||'#555'};display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:900;color:#fff;flex-shrink:0;border:2px solid rgba(255,255,255,.2);letter-spacing:.02em">${pos}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:1.1em;font-weight:900;color:#fff;letter-spacing:-.2px">${nom}</div>
-          <div style="font-size:.78em;color:rgba(255,255,255,.6);margin-top:2px">${p?`${posLabel[p.pos]||p.pos} · ${p.clubPais} ${p.club}`:'Sin datos de club'}</div>
+          <div style="font-size:1.05em;font-weight:900;color:#fff;letter-spacing:-.2px">${nom}</div>
+          <div style="font-size:.76em;color:rgba(255,255,255,.65);margin-top:2px">${posStr} · ${club}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:2.2em;font-weight:900;color:#fff;line-height:1">${callups.length}</div>
-          <div style="font-size:.65em;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em">convocatorias</div>
+          <div style="font-size:.6em;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.07em">convocatorias</div>
         </div>
       </div>
       <!-- Body -->
       <div style="padding:14px 16px;background:var(--surface2)">
-        ${inWC26?`<div style="display:inline-flex;align-items:center;gap:5px;background:var(--gold)22;border:1px solid var(--gold)66;border-radius:8px;padding:4px 10px;font-size:.75em;font-weight:700;color:#92400E;margin-bottom:2px">🏆 Integrante del plantel — Copa Mundial 2026</div>`:''}
-        ${statsHtml}
-        <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">Historial de convocatorias</div>
+        ${inWC26?`<div style="display:inline-flex;align-items:center;gap:5px;background:var(--gold)22;border:1px solid var(--gold)66;border-radius:8px;padding:4px 10px;font-size:.72em;font-weight:700;color:#92400E;margin-bottom:10px">🏆 Plantel Copa Mundial 2026</div><br>`:''}
+        ${aufLink}
+        ${mainStats}
+        ${compHtml}
         ${timelineHtml}
-        <button onclick="document.getElementById('conv-player-wrap').innerHTML=''" style="width:100%;margin-top:4px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;font-size:.8em;color:var(--muted);cursor:pointer;font-weight:600">✕ Cerrar</button>
+        <button onclick="document.getElementById('conv-player-wrap').innerHTML=''" style="width:100%;margin-top:10px;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;font-size:.8em;color:var(--muted);cursor:pointer;font-weight:600">✕ Cerrar</button>
       </div>
     </div>`;
   wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
