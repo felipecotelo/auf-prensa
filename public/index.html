@@ -8160,13 +8160,23 @@ function renderDisponibilidad(){
     const ranges={'llegada':{from:'2026-06-10',to:'2026-06-10'},...MATCH_RANGES};
     const range=ranges[matchId];
     if(!range)return'<span class="att-none">—</span>';
+    const partKey='dt_'+dtId;
+    const isBielsa=dtId==='bielsa';
+    const evP=getEvParts();
     const found=[];
     CALENDAR_DAYS.forEach(day=>{
       if(day.date<range.from||day.date>range.to)return;
       day.eventos.forEach((e,idx)=>{
-        if(!e.hasDT)return;
         if(e.esTrain||e.noParts||e.tipo==='sched'||e.tipo==='team')return;
-        found.push({date:day.label||day.date,txt:e.txt,h:e.h||''});
+        if(isBielsa){
+          // Para Bielsa: contar todos los eventos hasDT:true del rango
+          if(!e.hasDT)return;
+          found.push({date:day.label||day.date,txt:e.txt,h:e.h||''});
+        } else {
+          // Para asistentes: verificar participación explícita en evP
+          const parts=evP[evKey(day.date,idx)]||[];
+          if(parts.includes(partKey))found.push({date:day.label||day.date,txt:e.txt,h:e.h||''});
+        }
       });
     });
     if(!found.length)return'<span class="att-none">—</span>';
