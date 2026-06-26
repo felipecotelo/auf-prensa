@@ -8125,11 +8125,23 @@ function renderDisponibilidad(){
 
   // Helper: DT chips per match
   function dtChip(dtId,matchId){
-    const mc=chk[matchId]||{};
-    const items=matchId==='llegada'?CL_LLEGADA:CL_MATCH;
-    const done=items.filter(it=>{const d=mc[it.id];return d&&d.dt===dtId});
-    if(!done.length)return'<span class="att-none">—</span>';
-    return`<span class="att-chip att-cf" title="${done.map(i=>i.label).join(', ')}">${done.length}×</span>`;
+    const partKey='dt_'+dtId;
+    const ranges={'llegada':{from:'2026-06-10',to:'2026-06-15'},...MATCH_RANGES};
+    const range=ranges[matchId];
+    if(!range)return'<span class="att-none">—</span>';
+    const evP=getEvParts();
+    let count=0;
+    CALENDAR_DAYS.forEach(day=>{
+      if(day.date<range.from||day.date>range.to)return;
+      day.eventos.forEach((e,idx)=>{
+        if(!e.hasDT)return;
+        if(e.esTrain||e.noParts||e.tipo==='sched'||e.tipo==='team')return;
+        const parts=evP[evKey(day.date,idx)]||[];
+        if(parts.includes(partKey))count++;
+      });
+    });
+    if(!count)return'<span class="att-none">—</span>';
+    return`<span class="att-chip att-cf">${count}×</span>`;
   }
 
   // Injury indicator
