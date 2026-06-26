@@ -97,15 +97,13 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 .nav-l0-section.dim{opacity:.38;pointer-events:none}
 .nav-l0-sep{flex:1}
 .nav-l0-global{
-  height:34px;padding:0 10px;border:none;background:none;
+  height:38px;padding:0 10px;border:none;background:none;
   font-size:11px;font-weight:600;color:rgba(255,255,255,.45);
   cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;
   display:flex;align-items:center;gap:4px;transition:color .12s;
-  border-radius:0;margin-bottom:0;border-left:none;border-right:none;border-top:none;
-  background:rgba(255,255,255,.0);
 }
-.nav-l0-global:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.06)}
-.nav-l0-global.active{color:#fff!important;border-bottom-color:#a78bfa;background:rgba(167,139,250,.1)}
+.nav-l0-global:hover{color:rgba(255,255,255,.8)}
+.nav-l0-global.active{color:#fff;border-bottom-color:#a78bfa}
 .nav-l1{
   background:#112347;display:flex;align-items:center;gap:6px;
   padding:6px 1rem;border-bottom:1px solid rgba(255,255,255,.06);
@@ -113,6 +111,15 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 }
 .nav-l1::-webkit-scrollbar{display:none}
 .nav-l1-label{font-size:9px;font-weight:800;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.09em;margin-right:2px;white-space:nowrap}
+.nav-l1-sep{width:1px;height:18px;background:rgba(255,255,255,.12);margin:0 4px;flex-shrink:0}
+.nav-l1-btn{
+  height:30px;padding:0 12px;border:none;background:none;
+  font-size:11px;font-weight:700;color:rgba(255,255,255,.5);
+  cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;
+  display:flex;align-items:center;gap:4px;transition:color .12s;
+}
+.nav-l1-btn:hover{color:rgba(255,255,255,.85)}
+.nav-l1-btn.active{color:#fff;border-bottom-color:#3b9eff}
 .nav-t-pill{
   padding:4px 13px;border-radius:20px;font-size:10.5px;font-weight:700;
   border:1px solid rgba(255,255,255,.15);background:transparent;
@@ -1151,13 +1158,14 @@ html.auf-gate body { display:none !important }
     <button class="nav-l0-section" data-section="mayor" onclick="showSection('mayor')"><i class="ti ti-shield"></i>Selección Mayor</button>
     <button class="nav-l0-section dim" data-section="juveniles"><i class="ti ti-users-group"></i>Juveniles</button>
     <div class="nav-l0-sep"></div>
-    <button class="tab nav-l0-global" data-tab="jugadores" onclick="showTab('jugadores')"><i class="ti ti-user-circle"></i>Jugadores</button>
-    <button class="tab nav-l0-global" data-tab="estadisticas" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
-    <button class="tab nav-l0-global" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
-    <button class="tab nav-l0-global" data-tab="linkgen" onclick="showTab('linkgen')" style="color:#c4b5fd"><i class="ti ti-link"></i>Links</button>
+    <button class="nav-l0-global" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
+    <button class="nav-l0-global" data-tab="linkgen" onclick="showTab('linkgen')" style="color:#c4b5fd"><i class="ti ti-link"></i>Links</button>
   </div>
-  <!-- L1: selector de torneo (solo visible en Selección Mayor) -->
+  <!-- L1: menú de Selección Mayor (global Mayor + torneos) -->
   <div class="nav-l1" id="nav-l1" style="display:none">
+    <button class="nav-l1-btn" data-tab="jugadores" onclick="showTab('jugadores')"><i class="ti ti-user-circle"></i>Jugadores</button>
+    <button class="nav-l1-btn" data-tab="estadisticas" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
+    <div class="nav-l1-sep"></div>
     <span class="nav-l1-label">Torneo</span>
     <button class="nav-t-pill active" data-tournament="cm2026" onclick="showTournament('cm2026')">🏆 Copa Mundial 2026</button>
     <button class="nav-t-pill dim" title="Próximamente">📋 Eliminatorias</button>
@@ -2836,43 +2844,49 @@ function toast(msg){
 // ═══════════════════════════════════════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════════════════════════════════════
-// Tabs que pertenecen a un torneo (contextuales, van en L2)
+// Tabs contextuales al torneo activo (L2)
 const TOURNAMENT_TABS=['calendario','disponibilidad','fixture','partidos','plantel','pizarra','grafica','infogeneral','registro'];
-// Tabs globales (van en L0)
-const GLOBAL_TABS=['jugadores','estadisticas','periplo','linkgen'];
+// Tabs de Selección Mayor pero sin torneo (en L1 como botones)
+const MAYOR_GLOBAL_TABS=['jugadores','estadisticas'];
+// Tabs verdaderamente globales (L0 derecha)
+const GLOBAL_TABS=['periplo','linkgen'];
 
 function _updateNavState(id){
-  // Marcar sección activa en L0
   document.querySelectorAll('.nav-l0-section').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nav-l0-global,.nav-l1-btn').forEach(b=>b.classList.remove('active'));
   const isTournament=TOURNAMENT_TABS.includes(id);
-  const isGlobal=GLOBAL_TABS.includes(id);
+  const isMayorGlobal=MAYOR_GLOBAL_TABS.includes(id);
+  const inMayor=isTournament||isMayorGlobal;
+  // Sección activa en L0
   if(id==='inicio'){
     document.querySelector('.nav-l0-section[data-section="inicio"]')?.classList.add('active');
-  } else if(isTournament){
+  } else if(inMayor){
     document.querySelector('.nav-l0-section[data-section="mayor"]')?.classList.add('active');
   }
-  // Mostrar/ocultar L1 y L2
+  // L0 right activo (periplo/links)
+  document.querySelector(`.nav-l0-global[data-tab="${id}"]`)?.classList.add('active');
+  // L1 visible cuando estamos en Mayor
   const l1=document.getElementById('nav-l1');
   const l2=document.getElementById('nav-l2');
-  if(l1) l1.style.display=isTournament?'':'none';
+  if(l1) l1.style.display=inMayor?'':'none';
+  // L2 solo visible para tabs de torneo
   if(l2) l2.style.display=isTournament?'':'none';
-  // Marcar tab activo (en L0 o L2)
+  // Marcar tab activo en L1 (Jugadores/Stats) o L2
+  document.querySelector(`.nav-l1-btn[data-tab="${id}"]`)?.classList.add('active');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelector(`.tab[data-tab="${id}"]`)?.classList.add('active');
+  document.querySelector(`#nav-l2 .tab[data-tab="${id}"]`)?.classList.add('active');
 }
 
 function showSection(sec){
   if(sec==='inicio'){showTab('inicio');return;}
   if(sec==='mayor'){
-    document.querySelectorAll('.nav-l0-section').forEach(b=>b.classList.remove('active'));
-    document.querySelector('.nav-l0-section[data-section="mayor"]')?.classList.add('active');
-    const l1=document.getElementById('nav-l1');
-    const l2=document.getElementById('nav-l2');
-    if(l1) l1.style.display='';
-    if(l2) l2.style.display='';
-    // Activar la primera tab contextual visible
-    const activeL2=document.querySelector('#nav-l2 .tab.active');
-    if(!activeL2) showTab('fixture');
+    // Si ya hay una tab activa dentro de Mayor, no cambiar contenido
+    const alreadyActive=document.querySelector('#nav-l2 .tab.active,.nav-l1-btn.active');
+    if(alreadyActive){
+      _updateNavState(alreadyActive.dataset.tab||'fixture');
+      return;
+    }
+    showTab('fixture');
   }
 }
 
