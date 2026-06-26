@@ -6776,32 +6776,53 @@ function jToggleClubEdit(nom,el){
   const existing=document.getElementById('jclubpicker-'+nom.replace(/[^a-zA-Z]/g,'_'));
   if(existing){existing.remove();return;}
   document.querySelectorAll('.jclub-picker').forEach(x=>x.remove());
-  const currentClub=getJugClub()[nom]??JUGADORES[nom]?.club??'';
+  const jd=JUGADORES[nom]||{};
+  const savedClub=getJugClub()[nom];
+  const savedPais=getJugClub()[nom+'__pais'];
+  const curClub=savedClub!==undefined?savedClub:(jd.club||'');
+  const curPais=savedPais!==undefined?savedPais:(jd.pais||'');
+  const flags=['🇺🇾','🇧🇷','🇦🇷','🇪🇸','🇮🇹','🇬🇧','🏴󠁧󠁢󠁥󠁮󠁧󠁿','🇩🇪','🇫🇷','🇵🇹','🇲🇽','🇺🇸','🇸🇦','🇷🇺','🇹🇷','🇯🇵','🇳🇱','🇧🇪','🇨🇱','🇨🇴'];
   const picker=document.createElement('div');
   picker.id='jclubpicker-'+nom.replace(/[^a-zA-Z]/g,'_');
   picker.className='jclub-picker';
-  picker.style.cssText='position:absolute;z-index:999;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:200px;left:0;top:100%;margin-top:3px';
+  picker.style.cssText='position:absolute;z-index:999;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:10px;display:flex;flex-direction:column;gap:8px;min-width:220px;left:0;top:100%;margin-top:3px';
+  let selFlag=curPais;
+  const flagGrid=document.createElement('div');
+  flagGrid.style.cssText='display:flex;flex-wrap:wrap;gap:3px';
+  flags.forEach(f=>{
+    const btn=document.createElement('button');
+    btn.textContent=f;btn.dataset.flag=f;
+    btn.style.cssText=`font-size:16px;padding:2px 4px;border-radius:5px;cursor:pointer;border:1.5px solid ${f===selFlag?'var(--cel-dk,#1E4D8C)':'transparent'};background:${f===selFlag?'#EFF6FF':'transparent'}`;
+    btn.onclick=e=>{e.stopPropagation();selFlag=f;flagGrid.querySelectorAll('button').forEach(b=>{b.style.borderColor=b.dataset.flag===f?'var(--cel-dk,#1E4D8C)':'transparent';b.style.background=b.dataset.flag===f?'#EFF6FF':'transparent';});};
+    flagGrid.appendChild(btn);
+  });
+  picker.appendChild(flagGrid);
   const inp=document.createElement('input');
-  inp.value=currentClub==='—'||currentClub===null?'':currentClub;
+  inp.value=curClub==='—'?'':curClub;
   inp.placeholder='Nombre del club…';
-  inp.style.cssText='border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;width:100%;box-sizing:border-box';
+  inp.style.cssText='border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit;outline:none;width:100%;box-sizing:border-box';
   picker.appendChild(inp);
   const btns=document.createElement('div');
   btns.style.cssText='display:flex;gap:4px';
   const save=document.createElement('button');
   save.textContent='Guardar';
-  save.style.cssText='flex:1;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:var(--cel-dk,#1E4D8C);color:#fff;font-family:inherit';
-  save.onclick=e=>{e.stopPropagation();setJugClub(nom,inp.value.trim()||'—');picker.remove();renderJugadores();};
+  save.style.cssText='flex:1;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:var(--cel-dk,#1E4D8C);color:#fff;font-family:inherit';
+  save.onclick=e=>{
+    e.stopPropagation();
+    setJugClub(nom,inp.value.trim()||'—');
+    if(selFlag) setJugClub(nom+'__pais',selFlag);
+    picker.remove();renderJugadores();
+  };
   const noclub=document.createElement('button');
   noclub.textContent='Sin club';
-  noclub.style.cssText='padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
-  noclub.onclick=e=>{e.stopPropagation();setJugClub(nom,'—');picker.remove();renderJugadores();};
+  noclub.style.cssText='padding:5px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
+  noclub.onclick=e=>{e.stopPropagation();setJugClub(nom,'—');setJugClub(nom+'__pais','');picker.remove();renderJugadores();};
   btns.appendChild(save);btns.appendChild(noclub);
   if(getJugClub()[nom]!==undefined){
     const reset=document.createElement('button');
     reset.textContent='↺';reset.title='Restaurar original';
-    reset.style.cssText='padding:4px 7px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
-    reset.onclick=e=>{e.stopPropagation();clearJugClub(nom);picker.remove();renderJugadores();};
+    reset.style.cssText='padding:5px 7px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
+    reset.onclick=e=>{e.stopPropagation();clearJugClub(nom);clearJugClub(nom+'__pais');picker.remove();renderJugadores();};
     btns.appendChild(reset);
   }
   picker.appendChild(btns);
@@ -6880,14 +6901,16 @@ function renderJugadores(){
     const plPhoto=PLAYERS.find(x=>x.name===nom)?.photo||null;
     const photo=d.foto||plPhoto;
     const customClub=getJugClub()[nom];
+    const customPais=getJugClub()[nom+'__pais'];
     const club=customClub!==undefined?customClub:(d.club||'—');
+    const pais=customPais!==undefined?customPais:(d.pais||'');
     const nomId=nom.replace(/[^a-zA-Z]/g,'_');
     return `<div onclick="showJugador('${nom.replace(/'/g,"\\'")}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
       <div style="display:flex;align-items:center;gap:10px">
         ${avatar(nom, pos, photo, 42)}
         <div style="flex:1;min-width:0">
           <div style="font-weight:800;font-size:.88em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isWC?'🏆 ':''}${nom}</div>
-          <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nom.replace(/'/g,"\\'")}',this)" style="font-size:.7em;color:var(--muted);margin-top:1px;cursor:pointer" title="Tocar para editar club">${d.pais||''} ${club}${customClub!==undefined?' ✎':''}</div>
+          <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nom.replace(/'/g,"\\'")}',this)" style="font-size:.7em;color:var(--muted);margin-top:1px;cursor:pointer" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -8329,7 +8352,7 @@ const JUGADORES={
   'Mateo Ponte':             {auf:'mateo-ponte',                pos:'DEF',club:'LOSC Lille',               pais:'🇫🇷',foto:null,wc26:false,total:null,comp:null},
   'Mauricio Lemos':          {auf:'mauricio-lemos',             pos:'DEF',club:'Racing de Montevideo',     pais:'🇺🇾',foto:null,wc26:false,total:null,comp:null},
   'Bruno Méndez':            {auf:'bruno-mendez',               pos:'DEF',club:'Corinthians',              pais:'🇧🇷',foto:'./fotos/bruno-mendez.jpg',wc26:false,total:null,comp:null},
-  'José Luis Rodríguez':     {auf:'jose-luis-rodriguez',        pos:'DEF',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/jose-luis-rodriguez.jpg',wc26:false,total:null,comp:null},
+  'José Luis Rodríguez':     {auf:'jose-luis-rodriguez',        pos:'DEF',club:'CR Vasco da Gama',         pais:'🇧🇷',foto:'./fotos/jose-luis-rodriguez.jpg',wc26:false,total:null,comp:null},
   'Anderson Duarte':         {auf:'anderson-duarte',            pos:'DEF',club:null,                       pais:'',   foto:null,wc26:false,total:null,comp:null},
   'Santiago Mouriño':        {auf:'santiago-mourino',           pos:'DEF',club:null,                       pais:'',   foto:null,wc26:false,total:null,comp:null},
   'Fabricio Díaz':           {auf:'fabricio-diaz',              pos:'MED',club:'Estudiantes LP',           pais:'🇦🇷',foto:null,wc26:false,total:null,comp:null},
@@ -8337,7 +8360,7 @@ const JUGADORES={
   'Cristopher Fiermarin':    {auf:'cristopher-fiermarin',       pos:'MED',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/christopher-fiermarin.jpg',wc26:false,total:null,comp:null},
   'Ignacio Laquintana':      {auf:'ignacio-laquintana',         pos:'MED',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/ignacio-laquintana.jpg',wc26:false,total:null,comp:null},
   'Marcos Oroná':            {auf:'marcos-orona',               pos:'MED',club:null,                       pais:'',   foto:null,wc26:false,total:null,comp:null},
-  'Nicolás Marichal':        {auf:'nicolas-marichal',           pos:'MED',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/nicolas-marichal.jpg',wc26:false,total:null,comp:null},
+  'Nicolás Marichal':        {auf:'nicolas-marichal',           pos:'MED',club:'Dinamo de Moscú',          pais:'🇷🇺',foto:'./fotos/nicolas-marichal.jpg',wc26:false,total:null,comp:null},
   'Santiago Homenchenko':    {auf:'santiago-homenchenko',       pos:'MED',club:null,                       pais:'',   foto:'./fotos/santiago-homenchenko.jpg',wc26:false,total:null,comp:null},
   'Tiago Palacios':          {auf:'tiago-palacios',             pos:'MED',club:null,                       pais:'',   foto:'./fotos/tiago-palacios.jpg',wc26:false,total:null,comp:null},
   'Thiago Borbas':           {auf:'thiago-borbas',              pos:'DEL',club:'Racing Club',              pais:'🇦🇷',foto:null,wc26:false,total:null,comp:null},
