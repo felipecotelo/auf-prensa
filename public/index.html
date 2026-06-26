@@ -1724,7 +1724,7 @@ const CALENDAR_DAYS = [
    ]},
   {date:'2026-06-10',dow:'Mié',label:'10 jun',tipo:'llegada', lugar:'Cancún → Riviera Maya 🇲🇽',
    eventos:[
-     {h:'06:15',tipo:'oblig',txt:'Entrevistas al aterrizar — DT + 1 jugador · 3 puestos · Pista Cancún',chkId:'arr-ent'},
+     {h:'06:15',tipo:'oblig',txt:'Entrevistas al aterrizar — DT + 1 jugador · 3 puestos · Pista Cancún',hasDT:true,chkId:'arr-ent'},
      {h:'17:30',tipo:'oblig',txt:'Entrenamiento — primeros 15 min abiertos · MD-5 · Prensa accedió ✓'},
      {h:'17:45',tipo:'oblig',txt:'Meet & Greet comunidad FIFA ✓ — al terminar el entreno'},
      {h:'19:30',tipo:'oblig',txt:'Mediaday FIFA — perfiles · Fotos + video + escaneo 3D · 2h · Mayakoba',chkId:'arr-media'},
@@ -8142,22 +8142,39 @@ function renderDisponibilidad(){
   // Helper: DT chips per match
   function dtChip(dtId,matchId){
     const partKey='dt_'+dtId;
-    const ranges={'llegada':{from:'2026-06-10',to:'2026-06-15'},...MATCH_RANGES};
+    const ranges={'llegada':{from:'2026-06-10',to:'2026-06-10'},...MATCH_RANGES};
     const range=ranges[matchId];
     if(!range)return'<span class="att-none">—</span>';
     const evP=getEvParts();
-    let count=0;
+    const found=[];
     CALENDAR_DAYS.forEach(day=>{
       if(day.date<range.from||day.date>range.to)return;
       day.eventos.forEach((e,idx)=>{
         if(!e.hasDT)return;
         if(e.esTrain||e.noParts||e.tipo==='sched'||e.tipo==='team')return;
         const parts=evP[evKey(day.date,idx)]||[];
-        if(parts.includes(partKey))count++;
+        if(parts.includes(partKey))found.push({date:day.label||day.date,txt:e.txt,h:e.h||''});
       });
     });
-    if(!count)return'<span class="att-none">—</span>';
-    return`<span class="att-chip att-cf">${count}×</span>`;
+    if(!found.length)return'<span class="att-none">—</span>';
+    const safeId=`dtd-${dtId}-${matchId}`;
+    const listHtml=found.map(ev=>`<li style="padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06);font-size:.8em;color:#374151"><span style="color:#6B7280;font-size:.85em;display:block">${ev.date}${ev.h?' · '+ev.h:''}</span>${ev.txt}</li>`).join('');
+    return`<button onclick="toggleDtDetail('${safeId}')" style="background:rgba(59,158,255,.15);color:#1e50a0;border:1px solid rgba(59,158,255,.3);border-radius:20px;padding:2px 9px;font-size:.75em;font-weight:800;cursor:pointer" title="Ver detalle">${found.length}×</button>
+    <div id="${safeId}" style="display:none;position:absolute;z-index:500;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.12);min-width:220px;max-width:300px;margin-top:4px">
+      <div style="font-size:.7em;font-weight:800;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Actividades · ${found.length}</div>
+      <ul style="list-style:none;margin:0;padding:0">${listHtml}</ul>
+    </div>`;
+  }
+  function toggleDtDetail(id){
+    const el=document.getElementById(id);
+    if(!el)return;
+    const visible=el.style.display!=='none';
+    document.querySelectorAll('[id^="dtd-"]').forEach(d=>d.style.display='none');
+    if(!visible)el.style.display='block';
+    if(!visible){
+      const close=e=>{if(!el.contains(e.target)&&e.target.getAttribute('onclick')!==`toggleDtDetail('${id}')`){el.style.display='none';document.removeEventListener('click',close,true);}};
+      setTimeout(()=>document.addEventListener('click',close,true),0);
+    }
   }
 
   // Injury indicator
