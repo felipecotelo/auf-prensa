@@ -7913,41 +7913,22 @@ function wcMatchCardHtml(ev,showGroupTag){
     </div>`;
   }
   const fecha=dt.toLocaleDateString('es-UY',{day:'2-digit',month:'short',timeZone:'America/Montevideo'});
-  // Goleadores: boletín oficial tiene prioridad sobre Pizarra/ESPN
+  // Goleadores: MATCH_EVENTS (side explícito) tiene prioridad; boletín solo para el marcador
   let goalRowHtml='';
-  if(completed&&isUruInMatch){
+  if(completed&&isUruInMatch&&pizMidForBoletin){
     const homeIsUru=home.team.id===String(URU_ESPN_ID);
-    const fmt=g=>{const last=(g.player||'').split(' ').pop();return`<span style="font-size:9px;color:var(--text);font-weight:600">${g.min}' ${last}${g.ownGoal?' (AG)':''}</span>`;};
-    if(boletin&&boletin.goals){
-      // Fuente: boletín oficial — todos los goles están ahí sin distinción de lado
-      // Separar por equipo buscando URU players en PLAYERS
-      const uruNames=new Set(PLAYERS.map(p=>p.name.split(' ').pop().toLowerCase()));
-      const hGoalsList=boletin.goals.filter(g=>homeIsUru?uruNames.has(g.player.split(' ').pop().toLowerCase()):!uruNames.has(g.player.split(' ').pop().toLowerCase()));
-      const aGoalsList=boletin.goals.filter(g=>homeIsUru?!uruNames.has(g.player.split(' ').pop().toLowerCase()):uruNames.has(g.player.split(' ').pop().toLowerCase()));
-      const hGoals=hGoalsList.sort((a,b)=>a.min-b.min).map(fmt).join('<br>');
-      const aGoals=aGoalsList.sort((a,b)=>a.min-b.min).map(fmt).join('<br>');
-      if(hGoals||aGoals){
-        goalRowHtml=`<div style="display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr);gap:6px;margin-top:6px">
-          <div style="text-align:right;line-height:1.7">${hGoals}</div>
-          <div></div>
-          <div style="line-height:1.7">${aGoals}</div>
-        </div>`;
-      }
-    } else if(pizMidForBoletin) {
-      // Fallback: eventos de Pizarra
-      const evs=(getMatchEvents()[pizMidForBoletin]||[]).filter(e=>e.type==='goal').sort((a,b)=>a.min-b.min);
-      const uruGoals=evs.filter(e=>e.side==='uru');
-      const rivalGoals=evs.filter(e=>e.side==='rival');
-      const fmtP=g=>{const last=g.player.split(' ').pop();return`<span style="font-size:9px;color:var(--text);font-weight:600">${g.min}' ${last}</span>`;};
-      const hGoals=(homeIsUru?uruGoals:rivalGoals).map(fmtP).join('<br>');
-      const aGoals=(homeIsUru?rivalGoals:uruGoals).map(fmtP).join('<br>');
-      if(hGoals||aGoals){
-        goalRowHtml=`<div style="display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr);gap:6px;margin-top:6px">
-          <div style="text-align:right;line-height:1.7">${hGoals}</div>
-          <div></div>
-          <div style="line-height:1.7">${aGoals}</div>
-        </div>`;
-      }
+    const fmtP=g=>{const last=g.player.split(' ').pop();return`<span style="font-size:9px;color:var(--text);font-weight:600">${g.min}' ${last}</span>`;};
+    const evs=(getMatchEvents()[pizMidForBoletin]||[]).filter(e=>e.type==='goal').sort((a,b)=>a.min-b.min);
+    const uruGoals=evs.filter(e=>e.side==='uru');
+    const rivalGoals=evs.filter(e=>e.side==='rival');
+    const hGoals=(homeIsUru?uruGoals:rivalGoals).map(fmtP).join('<br>');
+    const aGoals=(homeIsUru?rivalGoals:uruGoals).map(fmtP).join('<br>');
+    if(hGoals||aGoals){
+      goalRowHtml=`<div style="display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr);gap:6px;margin-top:6px">
+        <div style="text-align:right;line-height:1.7">${hGoals}</div>
+        <div></div>
+        <div style="line-height:1.7">${aGoals}</div>
+      </div>`;
     }
   }
   return`<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:11px 14px">
