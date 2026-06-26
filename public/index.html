@@ -78,15 +78,57 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 @media(max-width:500px){.nav-sync-lbl{display:none}}
 
 /* ── TABS ───────────────────────────────────────── */
+#tabs-bar{
+  position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:200;
+}
+.nav-l0{
+  background:#0d2d58;display:flex;align-items:center;gap:1px;
+  padding:0 1rem;border-bottom:1px solid rgba(255,255,255,.08);overflow-x:auto;scrollbar-width:none;
+}
+.nav-l0::-webkit-scrollbar{display:none}
+.nav-l0-section{
+  height:38px;padding:0 12px;border:none;background:none;
+  font-size:11px;font-weight:700;color:rgba(255,255,255,.45);
+  cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;
+  display:flex;align-items:center;gap:5px;transition:color .12s;
+}
+.nav-l0-section:hover{color:rgba(255,255,255,.75)}
+.nav-l0-section.active{color:#fff;border-bottom-color:#3b9eff}
+.nav-l0-section.dim{opacity:.38;pointer-events:none}
+.nav-l0-sep{flex:1}
+.nav-l0-global{
+  height:34px;padding:0 10px;border:none;background:none;
+  font-size:11px;font-weight:600;color:rgba(255,255,255,.45);
+  cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;
+  display:flex;align-items:center;gap:4px;transition:color .12s;
+  border-radius:0;margin-bottom:0;border-left:none;border-right:none;border-top:none;
+  background:rgba(255,255,255,.0);
+}
+.nav-l0-global:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.06)}
+.nav-l0-global.active{color:#fff!important;border-bottom-color:#a78bfa;background:rgba(167,139,250,.1)}
+.nav-l1{
+  background:#112347;display:flex;align-items:center;gap:6px;
+  padding:6px 1rem;border-bottom:1px solid rgba(255,255,255,.06);
+  overflow-x:auto;scrollbar-width:none;
+}
+.nav-l1::-webkit-scrollbar{display:none}
+.nav-l1-label{font-size:9px;font-weight:800;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.09em;margin-right:2px;white-space:nowrap}
+.nav-t-pill{
+  padding:4px 13px;border-radius:20px;font-size:10.5px;font-weight:700;
+  border:1px solid rgba(255,255,255,.15);background:transparent;
+  color:rgba(255,255,255,.45);cursor:pointer;white-space:nowrap;transition:all .15s;
+}
+.nav-t-pill:hover{color:rgba(255,255,255,.8);border-color:rgba(255,255,255,.3)}
+.nav-t-pill.active{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)}
+.nav-t-pill.dim{opacity:.38;border-style:dashed}
 .tabs{
   background:var(--surface2);border-bottom:1.5px solid var(--border);
   display:flex;overflow-x:auto;align-items:flex-end;gap:2px;
-  padding:6px 1rem 0;
-  position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:200;scrollbar-width:none;
+  padding:6px 1rem 0;scrollbar-width:none;
 }
 /* Modo restringido — oculta nav */
 [data-dmode] nav{display:none!important}
-[data-dmode] .tabs{top:0}
+[data-dmode] #tabs-bar{top:0}
 /* Modo solo lectura — oculta todos los controles de edición */
 [data-readonly] .ev-st,
 [data-readonly] .ev-expand,
@@ -1102,21 +1144,38 @@ html.auf-gate body { display:none !important }
   </div>
 </nav>
 
-<div class="tabs" id="tabs-bar" style="opacity:0">
-  <button class="tab active" data-tab="inicio" onclick="showTab('inicio')"><i class="ti ti-layout-grid"></i>Inicio</button>
-  <button class="tab" data-tab="disponibilidad" onclick="showTab('disponibilidad')"><i class="ti ti-list-check"></i>Disponibilidad</button>
-  <button class="tab" data-tab="calendario" onclick="showTab('calendario')"><i class="ti ti-calendar"></i>Calendario</button>
-  <button class="tab" data-tab="pizarra" onclick="showTab('pizarra')"><i class="ti ti-ball-football"></i>Pizarra</button>
-  <button class="tab" data-tab="fixture" onclick="showTab('fixture')"><i class="ti ti-tournament"></i>Fixture</button>
-  <button class="tab" data-tab="partidos" onclick="showTab('partidos')"><i class="ti ti-world"></i>Partidos</button>
-  <button class="tab d-tab" data-tab="plantel" onclick="showTab('plantel')"><i class="ti ti-users"></i>Convocados</button>
-  <button class="tab d-tab" data-tab="estadisticas" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
-  <button class="tab d-tab" data-tab="grafica" onclick="showTab('grafica')"><i class="ti ti-photo"></i>Diseño</button>
-  <button class="tab" data-tab="infogeneral" onclick="showTab('infogeneral')"><i class="ti ti-info-circle"></i>Información general</button>
-  <button class="tab" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
-  <button class="tab" data-tab="jugadores" onclick="showTab('jugadores')"><i class="ti ti-user-circle"></i>Jugadores</button>
-  <button class="tab" data-tab="linkgen" onclick="showTab('linkgen')" style="color:#7C3AED"><i class="ti ti-link"></i>Links</button>
-  <button onclick="openTabReorder()" title="Reordenar pestañas" style="flex-shrink:0;border:none;background:none;padding:0 10px;cursor:pointer;color:var(--muted);font-size:14px;align-self:center;margin-left:2px" id="tab-reorder-btn"><i class="ti ti-adjustments-horizontal"></i></button>
+<div id="tabs-bar" style="opacity:0">
+  <!-- L0: secciones globales -->
+  <div class="nav-l0">
+    <button class="nav-l0-section active" data-section="inicio" onclick="showSection('inicio')"><i class="ti ti-layout-grid"></i>Inicio</button>
+    <button class="nav-l0-section" data-section="mayor" onclick="showSection('mayor')"><i class="ti ti-shield"></i>Selección Mayor</button>
+    <button class="nav-l0-section dim" data-section="juveniles"><i class="ti ti-users-group"></i>Juveniles</button>
+    <div class="nav-l0-sep"></div>
+    <button class="tab nav-l0-global" data-tab="jugadores" onclick="showTab('jugadores')"><i class="ti ti-user-circle"></i>Jugadores</button>
+    <button class="tab nav-l0-global" data-tab="estadisticas" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
+    <button class="tab nav-l0-global" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
+    <button class="tab nav-l0-global" data-tab="linkgen" onclick="showTab('linkgen')" style="color:#c4b5fd"><i class="ti ti-link"></i>Links</button>
+  </div>
+  <!-- L1: selector de torneo (solo visible en Selección Mayor) -->
+  <div class="nav-l1" id="nav-l1" style="display:none">
+    <span class="nav-l1-label">Torneo</span>
+    <button class="nav-t-pill active" data-tournament="cm2026" onclick="showTournament('cm2026')">🏆 Copa Mundial 2026</button>
+    <button class="nav-t-pill dim" title="Próximamente">📋 Eliminatorias</button>
+  </div>
+  <!-- L2: tabs contextuales del torneo -->
+  <div class="tabs" id="nav-l2" style="display:none">
+    <button class="tab" data-tab="calendario" onclick="showTab('calendario')"><i class="ti ti-calendar"></i>Calendario</button>
+    <button class="tab" data-tab="disponibilidad" onclick="showTab('disponibilidad')"><i class="ti ti-list-check"></i>Disponibilidad</button>
+    <button class="tab" data-tab="fixture" onclick="showTab('fixture')"><i class="ti ti-tournament"></i>Fixture</button>
+    <button class="tab" data-tab="partidos" onclick="showTab('partidos')"><i class="ti ti-world"></i>Partidos</button>
+    <button class="tab d-tab" data-tab="plantel" onclick="showTab('plantel')"><i class="ti ti-users"></i>Convocados</button>
+    <button class="tab" data-tab="pizarra" onclick="showTab('pizarra')"><i class="ti ti-ball-football"></i>Pizarra</button>
+    <button class="tab d-tab" data-tab="grafica" onclick="showTab('grafica')"><i class="ti ti-photo"></i>Diseño</button>
+    <button class="tab" data-tab="infogeneral" onclick="showTab('infogeneral')"><i class="ti ti-info-circle"></i>Info general</button>
+    <!-- compat ocultos -->
+    <button class="tab" data-tab="inicio" style="display:none"></button>
+    <button class="tab" data-tab="registro" onclick="showTab('registro')" style="display:none"></button>
+  </div>
 </div>
 
 <!-- Modal reordenar tabs -->
@@ -2777,18 +2836,59 @@ function toast(msg){
 // ═══════════════════════════════════════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════════════════════════════════════
+// Tabs que pertenecen a un torneo (contextuales, van en L2)
+const TOURNAMENT_TABS=['calendario','disponibilidad','fixture','partidos','plantel','pizarra','grafica','infogeneral','registro'];
+// Tabs globales (van en L0)
+const GLOBAL_TABS=['jugadores','estadisticas','periplo','linkgen'];
+
+function _updateNavState(id){
+  // Marcar sección activa en L0
+  document.querySelectorAll('.nav-l0-section').forEach(b=>b.classList.remove('active'));
+  const isTournament=TOURNAMENT_TABS.includes(id);
+  const isGlobal=GLOBAL_TABS.includes(id);
+  if(id==='inicio'){
+    document.querySelector('.nav-l0-section[data-section="inicio"]')?.classList.add('active');
+  } else if(isTournament){
+    document.querySelector('.nav-l0-section[data-section="mayor"]')?.classList.add('active');
+  }
+  // Mostrar/ocultar L1 y L2
+  const l1=document.getElementById('nav-l1');
+  const l2=document.getElementById('nav-l2');
+  if(l1) l1.style.display=isTournament?'':'none';
+  if(l2) l2.style.display=isTournament?'':'none';
+  // Marcar tab activo (en L0 o L2)
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${id}"]`)?.classList.add('active');
+}
+
+function showSection(sec){
+  if(sec==='inicio'){showTab('inicio');return;}
+  if(sec==='mayor'){
+    document.querySelectorAll('.nav-l0-section').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.nav-l0-section[data-section="mayor"]')?.classList.add('active');
+    const l1=document.getElementById('nav-l1');
+    const l2=document.getElementById('nav-l2');
+    if(l1) l1.style.display='';
+    if(l2) l2.style.display='';
+    // Activar la primera tab contextual visible
+    const activeL2=document.querySelector('#nav-l2 .tab.active');
+    if(!activeL2) showTab('fixture');
+  }
+}
+
+function showTournament(id){
+  document.querySelectorAll('.nav-t-pill').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`.nav-t-pill[data-tournament="${id}"]`)?.classList.add('active');
+}
+
 function showTab(id){
   if(IS_RESTRICTED&&!RESTRICTED_TABS.includes(id)) return;
   document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active','dmode-visible');});
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   const _sec=document.getElementById(id);
   _sec.classList.add('active');
   if(IS_RESTRICTED) _sec.classList.add('dmode-visible');
-  // Quitar overlay de restricción (se puso en el inline script para cubrir todo hasta acá)
   document.getElementById('restrict-cover')?.remove();
-  const map=['inicio','disponibilidad','calendario','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','registro','linkgen'];
-  const i=map.indexOf(id);
-  if(i>=0)document.querySelectorAll('.tab')[i].classList.add('active');
+  _updateNavState(id);
   window.scrollTo({top:0,behavior:'smooth'});
   if(id==='inicio'){renderInicio()}
   if(id==='disponibilidad'){renderDisponibilidad()}
@@ -2804,7 +2904,6 @@ function showTab(id){
   if(id==='grafica'){renderGrafica()}
   if(id==='periplo'){renderPeriplo()}
   if(id==='jugadores'){renderJugadores()}
-  if(i<0) document.querySelector(`.tab[data-tab="${id}"]`)?.classList.add('active');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
