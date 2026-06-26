@@ -2132,6 +2132,10 @@ const KJugPos='auf4_jugpos';
 const getJugPos=()=>stor.get(KJugPos,{});
 const setJugPos=(nom,pos)=>{const d=getJugPos();d[nom]=pos;stor.set(KJugPos,d);};
 const clearJugPos=(nom)=>{const d=getJugPos();delete d[nom];stor.set(KJugPos,d);};
+const KJugClub='auf4_jugclub';
+const getJugClub=()=>stor.get(KJugClub,{});
+const setJugClub=(nom,club)=>{const d=getJugClub();d[nom]=club;stor.set(KJugClub,d);};
+const clearJugClub=(nom)=>{const d=getJugClub();delete d[nom];stor.set(KJugClub,d);};
 const getYellows=()=>stor.get(KYellow,{});
 const setYellows=v=>stor.set(KYellow,v);
 function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y); _luPhotos=null; renderPizarra(_pizMatch); }
@@ -6768,6 +6772,45 @@ function jTogglePosEdit(nom,el){
   // Cerrar al click fuera
   setTimeout(()=>document.addEventListener('click',function h(){picker.remove();document.removeEventListener('click',h);},{once:true}),0);
 }
+function jToggleClubEdit(nom,el){
+  const existing=document.getElementById('jclubpicker-'+nom.replace(/[^a-zA-Z]/g,'_'));
+  if(existing){existing.remove();return;}
+  document.querySelectorAll('.jclub-picker').forEach(x=>x.remove());
+  const currentClub=getJugClub()[nom]??JUGADORES[nom]?.club??'';
+  const picker=document.createElement('div');
+  picker.id='jclubpicker-'+nom.replace(/[^a-zA-Z]/g,'_');
+  picker.className='jclub-picker';
+  picker.style.cssText='position:absolute;z-index:999;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:200px;left:0;top:100%;margin-top:3px';
+  const inp=document.createElement('input');
+  inp.value=currentClub==='—'||currentClub===null?'':currentClub;
+  inp.placeholder='Nombre del club…';
+  inp.style.cssText='border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;outline:none;width:100%;box-sizing:border-box';
+  picker.appendChild(inp);
+  const btns=document.createElement('div');
+  btns.style.cssText='display:flex;gap:4px';
+  const save=document.createElement('button');
+  save.textContent='Guardar';
+  save.style.cssText='flex:1;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:var(--cel-dk,#1E4D8C);color:#fff;font-family:inherit';
+  save.onclick=e=>{e.stopPropagation();setJugClub(nom,inp.value.trim()||'—');picker.remove();renderJugadores();};
+  const noclub=document.createElement('button');
+  noclub.textContent='Sin club';
+  noclub.style.cssText='padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
+  noclub.onclick=e=>{e.stopPropagation();setJugClub(nom,'—');picker.remove();renderJugadores();};
+  btns.appendChild(save);btns.appendChild(noclub);
+  if(getJugClub()[nom]!==undefined){
+    const reset=document.createElement('button');
+    reset.textContent='↺';reset.title='Restaurar original';
+    reset.style.cssText='padding:4px 7px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
+    reset.onclick=e=>{e.stopPropagation();clearJugClub(nom);picker.remove();renderJugadores();};
+    btns.appendChild(reset);
+  }
+  picker.appendChild(btns);
+  el.style.position='relative';
+  el.appendChild(picker);
+  inp.focus();inp.select();
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();save.click();}if(e.key==='Escape'){picker.remove();}});
+  setTimeout(()=>document.addEventListener('click',function h(ev){if(!picker.contains(ev.target)){picker.remove();document.removeEventListener('click',h);}},{once:false,capture:true}),0);
+}
 function renderJugadores(){
   const con=document.getElementById('jugadores-container');
   if(!con) return;
@@ -6836,12 +6879,15 @@ function renderJugadores(){
     const col=posColor[pos]||'#64748B';
     const plPhoto=PLAYERS.find(x=>x.name===nom)?.photo||null;
     const photo=d.foto||plPhoto;
+    const customClub=getJugClub()[nom];
+    const club=customClub!==undefined?customClub:(d.club||'—');
+    const nomId=nom.replace(/[^a-zA-Z]/g,'_');
     return `<div onclick="showJugador('${nom.replace(/'/g,"\\'")}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
       <div style="display:flex;align-items:center;gap:10px">
         ${avatar(nom, pos, photo, 42)}
         <div style="flex:1;min-width:0">
           <div style="font-weight:800;font-size:.88em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isWC?'🏆 ':''}${nom}</div>
-          <div style="font-size:.7em;color:var(--muted);margin-top:1px">${d.pais||''} ${d.club||'—'}</div>
+          <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nom.replace(/'/g,"\\'")}',this)" style="font-size:.7em;color:var(--muted);margin-top:1px;cursor:pointer" title="Tocar para editar club">${d.pais||''} ${club}${customClub!==undefined?' ✎':''}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -8243,17 +8289,17 @@ const JUGADORES={
   'Guillermo Varela':        {auf:'guillermo-varela',           pos:'DEF',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/guillermo-varela.jpg',wc26:true, total:{pj:30,min:2041,g:0}, comp:{ca:{pj:2},wc:{pj:7},el:{pj:8},am:{pj:13}}},
   'Mathías Olivera':         {auf:'mathias-olivera-miramontes', pos:'DEF',club:'SSC Nápoles',              pais:'🇮🇹',foto:'./fotos/mathias-olivera.jpg',wc26:true, total:{pj:37,min:2928,g:2}, comp:{ca:{pj:5},wc:{pj:5},el:{pj:15},am:{pj:12}}},
   'Matías Viña':             {auf:'matias-vina',                pos:'DEF',club:'CA River Plate',           pais:'🇦🇷',foto:null,wc26:true, total:{pj:44,min:2897,g:1}, comp:{ca:{pj:10},wc:{pj:3},el:{pj:17},am:{pj:14}}},
-  'Joaquín Piquerez':        {auf:'joaquin-piquerez',           pos:'DEF',club:'SE Palmeiras',             pais:'🇧🇷',foto:'./fotos/Joaquín Piquerez.jpg',wc26:true, total:{pj:19,min:1033,g:0}, comp:{ca:{pj:0},wc:{pj:0},el:{pj:14},am:{pj:5}}},
+  'Joaquín Piquerez':        {auf:'joaquin-piquerez',           pos:'DEF',club:'SE Palmeiras',             pais:'🇧🇷',foto:'./fotos/joaquin-piquerez.jpg',wc26:true, total:{pj:19,min:1033,g:0}, comp:{ca:{pj:0},wc:{pj:0},el:{pj:14},am:{pj:5}}},
   'Juan Manuel Sanabria':    {auf:'juan-manuel-sanabria',       pos:'DEF',club:'Real Salt Lake',           pais:'🇺🇸',foto:'./fotos/juan-manuel-sanabria.jpg',wc26:true, total:{pj:8,min:null,g:1},  comp:{ca:{pj:0},wc:{pj:2},el:{pj:0},am:{pj:6}}},
   'Manuel Ugarte':           {auf:'manuel-ugarte',              pos:'MED',club:'Manchester United',        pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',foto:'./fotos/manuel-ugarte.jpg',wc26:true, total:{pj:38,min:2656,g:1}, comp:{ca:{pj:6},wc:{pj:2},el:{pj:18},am:{pj:12}}},
   'Rodrigo Bentancur':       {auf:'rodrigo-bentancur',          pos:'MED',club:'Tottenham Hotspur',        pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',foto:'./fotos/rodrigo-bentancur.jpg',wc26:true, total:{pj:76,min:5332,g:3}, comp:{ca:{pj:14},wc:{pj:10},el:{pj:27},am:{pj:25}}},
   'Federico Valverde':       {auf:'federico-valverde',          pos:'MED',club:'Real Madrid CF',           pais:'🇪🇸',foto:'./fotos/federico-valverde.jpg',wc26:true, total:{pj:75,min:5927,g:9}, comp:{ca:{pj:15},wc:{pj:5},el:{pj:32},am:{pj:23}}},
-  'Nicolás De La Cruz':      {auf:'nicolas-de-la-cruz',         pos:'MED',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/Nicolás De La Cruz.jpg',wc26:true, total:{pj:36,min:1971,g:5}, comp:{ca:{pj:9},wc:{pj:4},el:{pj:17},am:{pj:6}}},
+  'Nicolás De La Cruz':      {auf:'nicolas-de-la-cruz',         pos:'MED',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/nicolas-de-la-cruz.jpg',wc26:true, total:{pj:36,min:1971,g:5}, comp:{ca:{pj:9},wc:{pj:4},el:{pj:17},am:{pj:6}}},
   'Giorgian De Arrascaeta':  {auf:'giorgian-de-arrascaeta',     pos:'MED',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/giorgian-de-arrascaeta.jpg',wc26:true, total:{pj:60,min:3184,g:13},comp:{ca:{pj:13,g:3},wc:{pj:4,g:0},el:{pj:19,g:4},am:{pj:24,g:6}}},
   'Facundo Pellistri':       {auf:'facundo-pellistri-rebollo',  pos:'MED',club:'Panathinaikos',            pais:'🇬🇷',foto:'./fotos/facundo-pellistri.jpg',wc26:true, total:{pj:39,min:2543,g:2}, comp:{ca:{pj:6},wc:{pj:3},el:{pj:20},am:{pj:10}}},
   'Emiliano Martínez':       {auf:'emiliano-martinez-toranza',  pos:'MED',club:'SE Palmeiras',             pais:'🇧🇷',foto:null,wc26:true, total:{pj:10,min:466,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:8}}},
   'Maximiliano Araújo':      {auf:'maximiliano-araujo',         pos:'MED',club:'Sporting de Lisboa',       pais:'🇵🇹',foto:'./fotos/maxi-araujo.jpg',wc26:true, total:{pj:30,min:2275,g:5}, comp:{ca:{pj:6},wc:{pj:2},el:{pj:15},am:{pj:8}}},
-  'Agustín Canobbio':        {auf:'agustin-canobbio',           pos:'MED',club:'Fluminense FC',            pais:'🇧🇷',foto:'./fotos/Agustín Canobbio.jpg',wc26:true, total:{pj:17,min:761,g:2},  comp:{ca:{pj:1},wc:{pj:3},el:{pj:5},am:{pj:8}}},
+  'Agustín Canobbio':        {auf:'agustin-canobbio',           pos:'MED',club:'Fluminense FC',            pais:'🇧🇷',foto:'./fotos/agustin-canobbio.jpg',wc26:true, total:{pj:17,min:761,g:2},  comp:{ca:{pj:1},wc:{pj:3},el:{pj:5},am:{pj:8}}},
   'Brian Rodríguez':         {auf:'brian-rodriguez',            pos:'MED',club:'CF América',               pais:'🇲🇽',foto:null,wc26:true, total:{pj:35,min:1805,g:4}, comp:{ca:{pj:1},wc:{pj:2},el:{pj:19},am:{pj:13}}},
   'Rodrigo Zalazar':         {auf:'rodrigo-zalazar',            pos:'MED',club:'SC Braga',                 pais:'🇵🇹',foto:'./fotos/rodrigo-zalazar.jpg',wc26:true, total:{pj:8,min:417,g:2},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:6}}},
   'Darwin Núñez':            {auf:'darwin-nunez',               pos:'DEL',club:'Al-Hilal SFC',             pais:'🇸🇦',foto:null,wc26:true, total:{pj:40,min:2552,g:13},comp:{ca:{pj:6},wc:{pj:5},el:{pj:21},am:{pj:8}}},
@@ -8276,7 +8322,7 @@ const JUGADORES={
   'Miguel Merentiel':        {auf:'miguel-merentiel',           pos:'DEL',club:'Boca Juniors',             pais:'🇦🇷',foto:'./fotos/miguel-merentiel.jpg',wc26:false,total:null,comp:null},
   'Matías Arezo':            {auf:'matias-arezo',               pos:'DEL',club:'Granada CF',               pais:'🇪🇸',foto:null,wc26:false,total:null,comp:null},
   'Franco Israel':           {auf:'franco-israel',              pos:'POR',club:'Torino FC',                  pais:'🇮🇹',foto:'./fotos/franco-israel.jpg',wc26:false,total:{pj:3,min:270,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:3}}},
-  'Nicolás Fonseca':         {auf:'nicolas-fonseca',            pos:'MED',club:'Boca Juniors',             pais:'🇦🇷',foto:'./fotos/Nicolás Fonseca.jpg',wc26:false,total:{pj:7,min:280,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:3}}},
+  'Nicolás Fonseca':         {auf:'nicolas-fonseca',            pos:'MED',club:'Boca Juniors',             pais:'🇦🇷',foto:'./fotos/nicolas-fonseca.jpg',wc26:false,total:{pj:7,min:280,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:3}}},
   'Luciano Rodríguez':       {auf:'luciano-rodriguez',          pos:'DEL',club:'Neom SC',                  pais:'🇸🇦',foto:'./fotos/luciano-rodriguez.jpg',wc26:false,total:{pj:5,min:187,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:4}}},
   'Lucas Olaza':             {auf:'lucas-olaza',                pos:'DEF',club:'FC Krasnodar',             pais:'🇷🇺',foto:null,wc26:false,total:{pj:6,min:438,g:0},    comp:{ca:{pj:1},wc:{pj:0},el:{pj:2},am:{pj:3}}},
   'Marcelo Saracchi':        {auf:'marcelo-saracchi',           pos:'DEF',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/marcelo-saracchi.jpg',wc26:false,total:null,comp:null},
@@ -8291,12 +8337,12 @@ const JUGADORES={
   'Cristopher Fiermarin':    {auf:'cristopher-fiermarin',       pos:'MED',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/christopher-fiermarin.jpg',wc26:false,total:null,comp:null},
   'Ignacio Laquintana':      {auf:'ignacio-laquintana',         pos:'MED',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/ignacio-laquintana.jpg',wc26:false,total:null,comp:null},
   'Marcos Oroná':            {auf:'marcos-orona',               pos:'MED',club:null,                       pais:'',   foto:null,wc26:false,total:null,comp:null},
-  'Nicolás Marichal':        {auf:'nicolas-marichal',           pos:'MED',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/Nicolás Marichal.jpg',wc26:false,total:null,comp:null},
+  'Nicolás Marichal':        {auf:'nicolas-marichal',           pos:'MED',club:'Club Nacional',            pais:'🇺🇾',foto:'./fotos/nicolas-marichal.jpg',wc26:false,total:null,comp:null},
   'Santiago Homenchenko':    {auf:'santiago-homenchenko',       pos:'MED',club:null,                       pais:'',   foto:'./fotos/santiago-homenchenko.jpg',wc26:false,total:null,comp:null},
   'Tiago Palacios':          {auf:'tiago-palacios',             pos:'MED',club:null,                       pais:'',   foto:'./fotos/tiago-palacios.jpg',wc26:false,total:null,comp:null},
   'Thiago Borbas':           {auf:'thiago-borbas',              pos:'DEL',club:'Racing Club',              pais:'🇦🇷',foto:null,wc26:false,total:null,comp:null},
   'Joaquín Lavega':          {auf:'joaquin-lavega',             pos:'DEL',club:null,                       pais:'',   foto:null,wc26:false,total:null,comp:null},
-  'Matías Abaldo':           {auf:'matias-abaldo',              pos:'DEF',club:null,                       pais:'',   foto:'./fotos/Matías Abaldo.jpg',wc26:false,total:null,comp:null},
+  'Matías Abaldo':           {auf:'matias-abaldo',              pos:'DEF',club:null,                       pais:'',   foto:'./fotos/matias-abaldo.jpg',wc26:false,total:null,comp:null},
   'Germán Barbas':           {auf:'german-barbas',              pos:'DEF',club:null,                       pais:'',   foto:null,wc26:false,total:null,comp:null},
   'Erico Cuello':            {auf:'erico-cuello',               pos:'DEF',club:null,                       pais:'',   foto:null,wc26:false,total:null,comp:null},
   'Lucas Agazzi':            {auf:'lucas-agazzi',               pos:'POR',club:null,                       pais:'',   foto:null,wc26:false,total:null,comp:null},
@@ -8308,7 +8354,7 @@ const JUGADORES={
   //  CITADOS SUB-20 / JUVENILES
   // ═══════════════════════════════════════════════════════
   'Randall Rodríguez':       {auf:null,pos:'DEF',club:null,pais:'',foto:'./fotos/randall-rodriguez.jpg',wc26:false,sub20:true,total:null,comp:null},
-  'Sebastián Boselli':       {auf:null,pos:'POR',club:null,pais:'',foto:'./fotos/Sebastián Boselli.jpg',wc26:false,sub20:true,total:null,comp:null},
+  'Sebastián Boselli':       {auf:null,pos:'POR',club:null,pais:'',foto:'./fotos/sebastian-boselli.jpg',wc26:false,sub20:true,total:null,comp:null},
   'Facundo González':        {auf:null,pos:'MED',club:null,pais:'',foto:null,wc26:false,sub20:true,total:null,comp:null},
   'Pablo Suárez':            {auf:null,pos:null, club:null,pais:'',foto:null,wc26:false,sub20:true,total:null,comp:null},
   'Kevin Martínez':          {auf:null,pos:null, club:null,pais:'',foto:null,wc26:false,sub20:true,total:null,comp:null},
