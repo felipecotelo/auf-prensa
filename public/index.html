@@ -2366,6 +2366,7 @@ function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y);
 const KCardTrack='auf4_cardtrack', KStatsDelta='auf4_statsdelta', KCardSynced='auf4_cardsynced', KStatsMeta='auf4_statsmeta', KTabOrder='auf4_taborder', KBoletin='auf4_boletin', KFixSecOrder='auf4_fix_sec_order';
 const KManualDelta='auf4_manual_delta';
 const KMatchDelta='auf4_match_delta'; // snapshot por partido para poder revertir en re-sync
+const KCm2026Closed='auf4_cm2026_closed'; // {date:'2026-06-26'} cuando el torneo está cerrado
 const getCardTrack=()=>stor.get(KCardTrack,{});
 const setCardTrack=v=>stor.set(KCardTrack,v);
 const getStatsDelta=()=>stor.get(KStatsDelta,{});
@@ -2876,6 +2877,55 @@ document.addEventListener('keydown',e=>{
 
 const VIEW_MODE=new URLSearchParams(location.search).get('view')==='1';
 if(VIEW_MODE) document.documentElement.classList.add('view-mode');
+
+// ── Cierre de torneo ───────────────────────────────────────────────────────
+const getCm2026Closed=()=>stor.get(KCm2026Closed,null);
+function closeTournament(){
+  if(!confirm('¿Cerrar el torneo Copa Mundial 2026? El calendario y la app quedarán en modo vista. Podés reabrir en cualquier momento.'))return;
+  stor.set(KCm2026Closed,{date:'2026-06-26',ts:Date.now()});
+  applyTournamentClosed();
+}
+function reopenTournament(){
+  stor.set(KCm2026Closed,null);
+  document.documentElement.classList.remove('view-mode','tournament-closed');
+  document.getElementById('tournament-closed-banner')?.remove();
+  renderInfoGeneral();
+  renderCal();
+}
+let _tournamentEditOverride=false;
+function toggleTournamentEdit(){
+  _tournamentEditOverride=!_tournamentEditOverride;
+  if(_tournamentEditOverride){
+    document.documentElement.classList.remove('view-mode');
+  } else {
+    document.documentElement.classList.add('view-mode');
+  }
+  const btn=document.getElementById('tournament-edit-btn');
+  if(btn){btn.textContent=_tournamentEditOverride?'🔒 Bloquear':'✏️ Editar';btn.style.background=_tournamentEditOverride?'#FEF3C7':'#e2e8f0';btn.style.color=_tournamentEditOverride?'#92400E':'#1e293b';}
+}
+function applyTournamentClosed(){
+  document.documentElement.classList.add('view-mode','tournament-closed');
+  _tournamentEditOverride=false;
+  renderClosedBanner();
+  renderInfoGeneral();
+  renderCal();
+}
+function renderClosedBanner(){
+  document.getElementById('tournament-closed-banner')?.remove();
+  const closed=getCm2026Closed();
+  if(!closed)return;
+  const banner=document.createElement('div');
+  banner.id='tournament-closed-banner';
+  banner.style.cssText='position:sticky;top:0;z-index:1200;background:#1a3a6b;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:7px 16px;font-size:12px;border-bottom:2px solid #e2e8f0;gap:10px';
+  banner.innerHTML=`<span style="display:flex;align-items:center;gap:7px;font-weight:700;letter-spacing:.01em">🏁 <span style="color:#f87171">ELIMINADOS</span> &nbsp;·&nbsp; Copa Mundial 2026 &nbsp;·&nbsp; <span style="opacity:.7;font-weight:500;font-size:11px">Fase de grupos · 26 jun 2026</span></span>
+    <span style="display:flex;align-items:center;gap:8px">
+      <button id="tournament-edit-btn" onclick="toggleTournamentEdit()" style="background:#e2e8f0;color:#1e293b;border:none;border-radius:7px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer">✏️ Editar</button>
+      <button onclick="reopenTournament()" style="background:none;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,.7);cursor:pointer">Reabrir torneo</button>
+    </span>`;
+  document.querySelector('main').prepend(banner);
+}
+// Inicializar cierre si ya estaba guardado
+if(getCm2026Closed()) setTimeout(applyTournamentClosed,0);
 
 let _autoSyncDirty=false;
 // ── Supabase cloud sync ────────────────────────────────────────────────────
@@ -3712,7 +3762,11 @@ function renderCal(){
   const dn=getDayNotes();
   tl.innerHTML='';
   const _dayActive=getDayActive();
+  const _closed=getCm2026Closed();
+  const _closeDate=_closed?.date||null;
   CALENDAR_DAYS.forEach((day)=>{
+    // Torneo cerrado: ocultar días posteriores a la fecha de cierre
+    if(_closeDate&&day.date>_closeDate) return;
     // Días post-grupo bloqueados: mostrar stub compacto si no están habilitados
     if(day.locked&&!_dayActive[day.date]){
       const div=document.createElement('div');
@@ -6549,8 +6603,14 @@ function renderInfoGeneral(){
       }).join('')}
     </div>`).join('');
 
+  const _cm2026closed=getCm2026Closed();
   con.innerHTML=`
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
+      <div>
+        ${_cm2026closed
+          ?`<span style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:8px;padding:5px 12px;font-size:11.5px;font-weight:700">🏁 Torneo cerrado · 26/6/2026</span>`
+          :`<button onclick="closeTournament()" style="background:#1a3a6b;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px"><i class="ti ti-lock"></i> Cerrar torneo</button>`}
+      </div>
       <button onclick="toggleInfoEdit()" style="background:${infoEditMode?'var(--cel)':'var(--surface)'};color:${infoEditMode?'#fff':'var(--text)'};border:0.5px solid var(--border);border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
         <i class="ti ti-${infoEditMode?'check':'edit'}"></i> ${infoEditMode?'Listo':'Editar'}
       </button>
