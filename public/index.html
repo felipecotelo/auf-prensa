@@ -1172,6 +1172,7 @@ html.auf-gate body { display:none !important }
     <button class="nav-l1-btn" data-tab="jugadores" onclick="showTab('jugadores')"><i class="ti ti-user-circle"></i>Jugadores</button>
     <button class="nav-l1-btn" data-tab="estadisticas" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
     <button class="nav-l1-btn" data-tab="calendariomayor" onclick="showTab('calendariomayor')"><i class="ti ti-calendar-event"></i>Calendario Mayor</button>
+    <button class="nav-l1-btn" data-tab="tecnicos" onclick="showTab('tecnicos')"><i class="ti ti-whistle"></i>Técnicos</button>
   </div>
   <!-- L2: tabs contextuales del torneo -->
   <div class="tabs" id="nav-l2" style="display:none">
@@ -1600,6 +1601,18 @@ html.auf-gate body { display:none !important }
     </div>
   </div>
   <div id="jugadores-container"></div>
+</div>
+
+<!-- ═══════════ TÉCNICOS ═══════════ -->
+<div id="tecnicos" class="section">
+  <div class="sec-hdr">
+    <div class="sec-icon" style="background:#1a3a6b"><i class="ti ti-whistle"></i></div>
+    <div>
+      <div class="sec-title">Técnicos</div>
+      <div class="sec-desc">Cuerpo técnico · Selección Mayor</div>
+    </div>
+  </div>
+  <div id="tecnicos-container" style="padding:0 1rem 2rem"></div>
 </div>
 
 <div id="linkgen" class="section">
@@ -3050,7 +3063,7 @@ function toast(msg){
 // Tabs contextuales al torneo activo (L2)
 const TOURNAMENT_TABS=['calendario','disponibilidad','fixture','partidos','plantel','pizarra','grafica','infogeneral','registro'];
 // Tabs de Selección Mayor pero sin torneo (en L1 como botones)
-const MAYOR_GLOBAL_TABS=['jugadores','estadisticas','calendariomayor'];
+const MAYOR_GLOBAL_TABS=['jugadores','estadisticas','calendariomayor','tecnicos'];
 // Tabs verdaderamente globales (L0 derecha)
 const GLOBAL_TABS=['periplo','linkgen'];
 
@@ -3125,6 +3138,7 @@ function showTab(id){
   if(id==='grafica'){renderGrafica()}
   if(id==='periplo'){renderPeriplo()}
   if(id==='jugadores'){renderJugadores()}
+  if(id==='tecnicos'){renderTecnicos()}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -7169,6 +7183,157 @@ function jToggleClubEdit(nom,el){
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();save.click();}if(e.key==='Escape'){picker.remove();}});
   setTimeout(()=>document.addEventListener('click',function h(ev){if(!picker.contains(ev.target)){picker.remove();document.removeEventListener('click',h);}},{once:false,capture:true}),0);
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// TÉCNICOS
+// ═══════════════════════════════════════════════════════════════════════════
+let _tecTab='record'; // record | convocatoria | conferencias
+
+const BIELSA_BIO={
+  full:'Marcelo Bielsa',
+  nac:'Argentina', nacISO:'ar',
+  born:'21 feb 1955',
+  desde:'jun 2023',
+  hasta:'jul 2026',
+  foto:'./fotos/bielsa.jpg',
+};
+
+// Partidos del ciclo Bielsa: desde jun 2023 (asume en Nicaragua), excluye Sub-23 y no asistidos
+const _bielsaStart=PERIPLO.findIndex(m=>m.rival==='Nicaragua'&&m.yr===2023);
+const BIELSA_MATCHES=PERIPLO.slice(_bielsaStart).filter(m=>m.fui&&!m.sub);
+
+function renderTecnicos(){
+  const con=document.getElementById('tecnicos-container');
+  if(!con) return;
+
+  // Calcular récord
+  const matches=BIELSA_MATCHES;
+  let pj=0,g=0,e=0,p=0,gf=0,gc=0;
+  matches.forEach(m=>{
+    if(!m.res) return;
+    pj++;
+    const base=m.res.split(' ')[0]; // "2-1" o "0-0"
+    const [a,b]=base.split('-').map(Number);
+    gf+=a; gc+=b;
+    if(a>b) g++; else if(a===b) e++; else p++;
+  });
+  const pct=pj?Math.round(((g+e*0.5)/pj)*100):0;
+
+  // Conferencias de prensa con Bielsa (hasDT:true en calendario)
+  const confs=[];
+  CALENDAR_DAYS.forEach(day=>{
+    day.eventos.forEach(ev=>{
+      if(ev.hasDT&&ev.txt&&!ev.esTrain){
+        confs.push({fecha:day.label||day.date,date:day.date,txt:ev.txt,h:ev.h||''});
+      }
+    });
+  });
+
+  // Convocatoria WC2026
+  const wc26=PLAYERS.slice().sort((a,b)=>{
+    const ord={POR:0,DEF:1,MED:2,DEL:3};
+    return (ord[a.pos]??9)-(ord[b.pos]??9)||a.n-b.n;
+  });
+  const posTags={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
+
+  const tabBtn=(id,label)=>`<button onclick="window._tecTab='${id}';renderTecnicos()" style="padding:6px 14px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:1.5px solid ${_tecTab===id?'#1a3a6b':'var(--border)'};background:${_tecTab===id?'#1a3a6b':'var(--surface)'};color:${_tecTab===id?'#fff':'var(--text)'}">${label}</button>`;
+
+  // Récord por competencia
+  const byComp={};
+  matches.forEach(m=>{
+    if(!m.res) return;
+    const k=m.fase;
+    if(!byComp[k]) byComp[k]={fase:k,tipo:m.tipo,pj:0,g:0,e:0,p:0};
+    const base=m.res.split(' ')[0];
+    const [a,b]=base.split('-').map(Number);
+    byComp[k].pj++;
+    if(a>b) byComp[k].g++; else if(a===b) byComp[k].e++; else byComp[k].p++;
+  });
+
+  const recordHtml=`
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;text-align:center">
+      ${[['PJ',pj,'var(--text)'],['G',g,'#16a34a'],['E',e,'#ca8a04'],['P',p,'#dc2626'],['%',pct+'%','var(--cel-dk)']].map(([l,v,c])=>`
+        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:10px 4px">
+          <div style="font-size:22px;font-weight:900;color:${c}">${v}</div>
+          <div style="font-size:9.5px;font-weight:700;color:var(--muted);margin-top:2px">${l}</div>
+        </div>`).join('')}
+    </div>
+    <div style="margin-bottom:8px;font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Por competencia</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
+      ${Object.values(byComp).map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:12px">
+        <span style="flex:1;font-weight:600;color:var(--text)">${c.fase}</span>
+        <span style="font-size:10.5px;color:var(--muted)">PJ ${c.pj}</span>
+        <span style="color:#16a34a;font-weight:700;min-width:20px;text-align:center">${c.g}G</span>
+        <span style="color:#ca8a04;font-weight:700;min-width:20px;text-align:center">${c.e}E</span>
+        <span style="color:#dc2626;font-weight:700;min-width:20px;text-align:center">${c.p}P</span>
+      </div>`).join('')}
+    </div>
+    <div style="margin-bottom:8px;font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Todos los partidos</div>
+    <div style="display:flex;flex-direction:column;gap:3px">
+      ${matches.map(m=>{
+        if(!m.res) return '';
+        const base=m.res.split(' ')[0];
+        const [a,b]=base.split('-').map(Number);
+        const col=a>b?'#16a34a':a===b?'#ca8a04':'#dc2626';
+        const res=a>b?'G':a===b?'E':'P';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:7px;font-size:11.5px">
+          <span style="font-size:9.5px;color:var(--muted);min-width:32px">${m.yr}</span>
+          <span style="flex:1;color:var(--text);font-weight:500">${m.rival}</span>
+          <span style="font-weight:800;min-width:36px;text-align:center">${m.res}</span>
+          <span style="font-weight:900;color:${col};min-width:14px;text-align:center">${res}</span>
+          <span style="font-size:9.5px;color:var(--muted);text-align:right;min-width:70px">${m.loc==='L'?'🏠':m.loc==='V'?'✈️':'🔄'} ${m.ciudad}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  const convHtml=(()=>{
+    let html='';
+    let curPos='';
+    wc26.forEach(p=>{
+      if(p.pos!==curPos){
+        curPos=p.pos;
+        html+=`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 5px">${posTags[p.pos]||p.pos}</div>`;
+      }
+      html+=`<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:3px">
+        <span style="font-size:10.5px;font-weight:800;color:var(--muted);min-width:22px">#${p.n}</span>
+        <img src="${p.photo||''}" onerror="this.style.display='none'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--surface)">
+        <span style="flex:1;font-size:12.5px;font-weight:600;color:var(--text)">${p.name}</span>
+        <span style="font-size:11px;color:var(--muted)">${p.clubPais||''} ${p.club||''}</span>
+      </div>`;
+    });
+    return `<div style="margin-bottom:6px;font-size:11px;color:var(--muted)">26 jugadores convocados · Copa Mundial FIFA 2026</div>${html}`;
+  })();
+
+  const confHtml=confs.length
+    ?`<div style="display:flex;flex-direction:column;gap:4px">${confs.map(c=>`<div style="padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px">
+        <div style="font-size:9.5px;font-weight:700;color:var(--muted);margin-bottom:2px">${c.fecha}${c.h?' · '+c.h:''}</div>
+        <div style="font-size:12.5px;font-weight:600;color:var(--text)">${c.txt}</div>
+      </div>`).join('')}</div>`
+    :`<div style="color:var(--muted);font-size:12px;padding:20px 0">Sin conferencias registradas.</div>`;
+
+  con.innerHTML=`
+    <!-- Perfil -->
+    <div style="background:var(--navy);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;color:#fff">
+      <div style="width:56px;height:56px;border-radius:50%;background:#2a4a7b;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🧑‍💼</div>
+      <div style="flex:1">
+        <div style="font-size:17px;font-weight:900;letter-spacing:-.01em">${BIELSA_BIO.full}</div>
+        <div style="font-size:11.5px;opacity:.75;margin-top:2px">${flagImg(BIELSA_BIO.nacISO,14)} ${BIELSA_BIO.nac} · n. ${BIELSA_BIO.born}</div>
+        <div style="font-size:11px;opacity:.6;margin-top:3px">Director Técnico · ${BIELSA_BIO.desde} – ${BIELSA_BIO.hasta}</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+      ${tabBtn('record','Récord')}
+      ${tabBtn('convocatoria','Convocatoria WC2026')}
+      ${tabBtn('conferencias','Conferencias')}
+    </div>
+
+    <!-- Contenido -->
+    <div id="tec-content">
+      ${_tecTab==='record'?recordHtml:_tecTab==='convocatoria'?convHtml:confHtml}
+    </div>`;
+}
+
 function renderJugadores(){
   const con=document.getElementById('jugadores-container');
   if(!con) return;
