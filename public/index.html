@@ -7186,7 +7186,7 @@ function jToggleClubEdit(nom,el){
 // ═══════════════════════════════════════════════════════════════════════════
 // TÉCNICOS
 // ═══════════════════════════════════════════════════════════════════════════
-let _tecTab='record'; // record | convocatoria | conferencias
+let _tecTab='resumen'; // resumen | estadisticas | prensa | convocatorias | infogendt
 
 const BIELSA_BIO={
   full:'Marcelo Bielsa',
@@ -7205,133 +7205,185 @@ function renderTecnicos(){
   const con=document.getElementById('tecnicos-container');
   if(!con) return;
 
-  // Calcular récord
+  // ── Cálculo de stats ────────────────────────────────────────────────────
   const matches=BIELSA_MATCHES;
   let pj=0,g=0,e=0,p=0,gf=0,gc=0;
   matches.forEach(m=>{
     if(!m.res) return;
     pj++;
-    const base=m.res.split(' ')[0]; // "2-1" o "0-0"
+    const base=m.res.split(' ')[0];
     const [a,b]=base.split('-').map(Number);
     gf+=a; gc+=b;
     if(a>b) g++; else if(a===b) e++; else p++;
   });
   const pct=pj?Math.round(((g+e*0.5)/pj)*100):0;
 
-  // Conferencias de prensa con Bielsa (hasDT:true en calendario)
-  const confs=[];
+  const byComp={};
+  matches.forEach(m=>{
+    if(!m.res) return;
+    const k=m.fase;
+    if(!byComp[k]) byComp[k]={fase:k,pj:0,g:0,e:0,p:0,gf:0,gc:0};
+    const base=m.res.split(' ')[0];
+    const [a,b]=base.split('-').map(Number);
+    byComp[k].pj++; byComp[k].gf+=a; byComp[k].gc+=b;
+    if(a>b) byComp[k].g++; else if(a===b) byComp[k].e++; else byComp[k].p++;
+  });
+
+  // ── Atención prensa (hasDT:true en calendario) ─────────────────────────
+  const prensaEvs=[];
   CALENDAR_DAYS.forEach(day=>{
     day.eventos.forEach(ev=>{
-      if(ev.hasDT&&ev.txt&&!ev.esTrain){
-        confs.push({fecha:day.label||day.date,date:day.date,txt:ev.txt,h:ev.h||''});
-      }
+      if(ev.hasDT&&ev.txt&&!ev.esTrain)
+        prensaEvs.push({fecha:day.label||day.date,date:day.date,txt:ev.txt,h:ev.h||''});
     });
   });
 
-  // Convocatoria WC2026
+  // ── Convocatoria WC2026 ────────────────────────────────────────────────
   const wc26=PLAYERS.slice().sort((a,b)=>{
     const ord={POR:0,DEF:1,MED:2,DEL:3};
     return (ord[a.pos]??9)-(ord[b.pos]??9)||a.n-b.n;
   });
   const posTags={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
 
-  const tabBtn=(id,label)=>`<button onclick="window._tecTab='${id}';renderTecnicos()" style="padding:6px 14px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;border:1.5px solid ${_tecTab===id?'#1a3a6b':'var(--border)'};background:${_tecTab===id?'#1a3a6b':'var(--surface)'};color:${_tecTab===id?'#fff':'var(--text)'}">${label}</button>`;
+  // ── Helper tab button ───────────────────────────────────────────────────
+  const tabBtn=(id,label)=>`<button onclick="window._tecTab='${id}';renderTecnicos()" style="padding:5px 13px;border-radius:20px;font-size:11.5px;font-weight:700;cursor:pointer;border:1.5px solid ${_tecTab===id?'#1a3a6b':'var(--border)'};background:${_tecTab===id?'#1a3a6b':'transparent'};color:${_tecTab===id?'#fff':'var(--text)'};white-space:nowrap">${label}</button>`;
 
-  // Récord por competencia
-  const byComp={};
-  matches.forEach(m=>{
-    if(!m.res) return;
-    const k=m.fase;
-    if(!byComp[k]) byComp[k]={fase:k,tipo:m.tipo,pj:0,g:0,e:0,p:0};
-    const base=m.res.split(' ')[0];
-    const [a,b]=base.split('-').map(Number);
-    byComp[k].pj++;
-    if(a>b) byComp[k].g++; else if(a===b) byComp[k].e++; else byComp[k].p++;
-  });
+  // ── Stat chip ──────────────────────────────────────────────────────────
+  const statChip=(label,val,col)=>`<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center">
+    <div style="font-size:20px;font-weight:900;color:${col}">${val}</div>
+    <div style="font-size:9px;font-weight:700;color:var(--muted);margin-top:2px;letter-spacing:.04em">${label}</div>
+  </div>`;
 
-  const recordHtml=`
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;text-align:center">
-      ${[['PJ',pj,'var(--text)'],['G',g,'#16a34a'],['E',e,'#ca8a04'],['P',p,'#dc2626'],['%',pct+'%','var(--cel-dk)']].map(([l,v,c])=>`
-        <div style="background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:10px 4px">
-          <div style="font-size:22px;font-weight:900;color:${c}">${v}</div>
-          <div style="font-size:9.5px;font-weight:700;color:var(--muted);margin-top:2px">${l}</div>
-        </div>`).join('')}
+  // ════════════════════════════════════════════════════════════════════════
+  // TAB: RESUMEN
+  // ════════════════════════════════════════════════════════════════════════
+  const resumenHtml=`
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px">
+      ${statChip('PJ',pj,'var(--text)')}
+      ${statChip('G',g,'#16a34a')}
+      ${statChip('E',e,'#ca8a04')}
+      ${statChip('P',p,'#dc2626')}
+      ${statChip('GF',gf,'var(--cel-dk)')}
+      ${statChip('%',pct+'%','#7c3aed')}
+    </div>
+    <div style="margin-bottom:8px;font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Últimos 5 partidos</div>
+    <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:16px">
+      ${matches.filter(m=>m.res).slice(-5).reverse().map(m=>{
+        const base=m.res.split(' ')[0];const[a,b]=base.split('-').map(Number);
+        const col=a>b?'#16a34a':a===b?'#ca8a04':'#dc2626';const res=a>b?'G':a===b?'E':'P';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:12px">
+          <span style="font-size:10px;color:var(--muted);min-width:28px">${m.yr}</span>
+          <span style="flex:1;font-weight:600">${m.rival}</span>
+          <span style="font-weight:800">${m.res}</span>
+          <span style="font-weight:900;color:${col};min-width:16px;text-align:right">${res}</span>
+        </div>`;
+      }).join('')}
     </div>
     <div style="margin-bottom:8px;font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Por competencia</div>
-    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
-      ${Object.values(byComp).map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:12px">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      ${Object.values(byComp).map(c=>`<div style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:11.5px">
         <span style="flex:1;font-weight:600;color:var(--text)">${c.fase}</span>
-        <span style="font-size:10.5px;color:var(--muted)">PJ ${c.pj}</span>
-        <span style="color:#16a34a;font-weight:700;min-width:20px;text-align:center">${c.g}G</span>
-        <span style="color:#ca8a04;font-weight:700;min-width:20px;text-align:center">${c.e}E</span>
-        <span style="color:#dc2626;font-weight:700;min-width:20px;text-align:center">${c.p}P</span>
+        <span style="color:var(--muted);font-size:10px">PJ ${c.pj}</span>
+        <span style="color:#16a34a;font-weight:700;min-width:18px;text-align:center">${c.g}G</span>
+        <span style="color:#ca8a04;font-weight:700;min-width:18px;text-align:center">${c.e}E</span>
+        <span style="color:#dc2626;font-weight:700;min-width:18px;text-align:center">${c.p}P</span>
       </div>`).join('')}
-    </div>
-    <div style="margin-bottom:8px;font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Todos los partidos</div>
+    </div>`;
+
+  // ════════════════════════════════════════════════════════════════════════
+  // TAB: ESTADÍSTICAS
+  // ════════════════════════════════════════════════════════════════════════
+  const statsHtml=`
     <div style="display:flex;flex-direction:column;gap:3px">
       ${matches.map(m=>{
         if(!m.res) return '';
-        const base=m.res.split(' ')[0];
-        const [a,b]=base.split('-').map(Number);
-        const col=a>b?'#16a34a':a===b?'#ca8a04':'#dc2626';
-        const res=a>b?'G':a===b?'E':'P';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:7px;font-size:11.5px">
-          <span style="font-size:9.5px;color:var(--muted);min-width:32px">${m.yr}</span>
-          <span style="flex:1;color:var(--text);font-weight:500">${m.rival}</span>
-          <span style="font-weight:800;min-width:36px;text-align:center">${m.res}</span>
-          <span style="font-weight:900;color:${col};min-width:14px;text-align:center">${res}</span>
-          <span style="font-size:9.5px;color:var(--muted);text-align:right;min-width:70px">${m.loc==='L'?'🏠':m.loc==='V'?'✈️':'🔄'} ${m.ciudad}</span>
+        const base=m.res.split(' ')[0];const[a,b]=base.split('-').map(Number);
+        const col=a>b?'#16a34a':a===b?'#ca8a04':'#dc2626';const res=a>b?'G':a===b?'E':'P';
+        return `<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:7px;font-size:11.5px">
+          <span style="font-size:9px;color:var(--muted);min-width:28px">${m.yr}</span>
+          <span style="font-size:8.5px;color:var(--muted);min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.fase}</span>
+          <span style="flex:1;font-weight:600;color:var(--text)">${m.rival}</span>
+          <span style="font-weight:800;min-width:34px;text-align:center">${m.res}</span>
+          <span style="font-weight:900;color:${col};min-width:12px;text-align:center;font-size:10px">${res}</span>
+          <span style="font-size:9px;color:var(--muted);text-align:right;min-width:60px">${m.loc==='L'?'🏠':m.loc==='V'?'✈️':'🔄'} ${m.ciudad}</span>
         </div>`;
       }).join('')}
     </div>`;
 
+  // ════════════════════════════════════════════════════════════════════════
+  // TAB: ATENCIÓN PRENSA
+  // ════════════════════════════════════════════════════════════════════════
+  const prensaHtml=prensaEvs.length
+    ?`<div style="display:flex;flex-direction:column;gap:5px">${prensaEvs.map(c=>`
+        <div style="padding:9px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;display:flex;gap:10px;align-items:flex-start">
+          <div style="flex:1">
+            <div style="font-size:12.5px;font-weight:600;color:var(--text)">${c.txt}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">${c.fecha}${c.h?' · '+c.h:''}</div>
+          </div>
+        </div>`).join('')}</div>`
+    :`<div style="color:var(--muted);font-size:12px;padding:20px 0">Sin actividades de prensa registradas.</div>`;
+
+  // ════════════════════════════════════════════════════════════════════════
+  // TAB: CONVOCATORIAS
+  // ════════════════════════════════════════════════════════════════════════
   const convHtml=(()=>{
-    let html='';
+    let html=`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Copa Mundial FIFA 2026 · 26 jugadores</div>`;
     let curPos='';
     wc26.forEach(p=>{
       if(p.pos!==curPos){
         curPos=p.pos;
-        html+=`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 5px">${posTags[p.pos]||p.pos}</div>`;
+        html+=`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 5px">${posTags[p.pos]||p.pos}</div>`;
       }
       html+=`<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:3px">
-        <span style="font-size:10.5px;font-weight:800;color:var(--muted);min-width:22px">#${p.n}</span>
-        <img src="${p.photo||''}" onerror="this.style.display='none'" style="width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--surface)">
+        <span style="font-size:10px;font-weight:800;color:var(--muted);min-width:20px">#${p.n}</span>
+        <img src="${p.photo||''}" onerror="this.style.display='none'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">
         <span style="flex:1;font-size:12.5px;font-weight:600;color:var(--text)">${p.name}</span>
-        <span style="font-size:11px;color:var(--muted)">${p.clubPais||''} ${p.club||''}</span>
+        <span style="font-size:10.5px;color:var(--muted)">${p.clubPais||''} ${p.club||''}</span>
       </div>`;
     });
-    return `<div style="margin-bottom:6px;font-size:11px;color:var(--muted)">26 jugadores convocados · Copa Mundial FIFA 2026</div>${html}`;
+    return html;
   })();
 
-  const confHtml=confs.length
-    ?`<div style="display:flex;flex-direction:column;gap:4px">${confs.map(c=>`<div style="padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px">
-        <div style="font-size:9.5px;font-weight:700;color:var(--muted);margin-bottom:2px">${c.fecha}${c.h?' · '+c.h:''}</div>
-        <div style="font-size:12.5px;font-weight:600;color:var(--text)">${c.txt}</div>
-      </div>`).join('')}</div>`
-    :`<div style="color:var(--muted);font-size:12px;padding:20px 0">Sin conferencias registradas.</div>`;
+  // ════════════════════════════════════════════════════════════════════════
+  // TAB: INFORMACIÓN GENERAL
+  // ════════════════════════════════════════════════════════════════════════
+  const infoHtml=`
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${[
+        ['Nombre completo','Marcelo Alberto Bielsa Caldera'],
+        ['Nacionalidad',`${flagImg('ar',14)} Argentina`],
+        ['Fecha de nacimiento','21 de febrero de 1955'],
+        ['Lugar de nacimiento','Córdoba, Argentina'],
+        ['Cargo','Director Técnico — Selección Mayor de Uruguay'],
+        ['Período','junio 2023 – julio 2026'],
+        ['Asistentes','Pablo Quiroga · Diego Reyes · Lucas Ouviña'],
+        ['Vínculo','Contrato vigente hasta julio 2026'],
+      ].map(([k,v])=>`<div style="display:flex;gap:10px;padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px">
+        <span style="font-size:10.5px;font-weight:700;color:var(--muted);min-width:120px;flex-shrink:0">${k}</span>
+        <span style="font-size:12px;color:var(--text)">${v}</span>
+      </div>`).join('')}
+    </div>`;
+
+  // ── Render ──────────────────────────────────────────────────────────────
+  const tabContent={resumen:resumenHtml,estadisticas:statsHtml,prensa:prensaHtml,convocatorias:convHtml,infogendt:infoHtml};
 
   con.innerHTML=`
-    <!-- Perfil -->
-    <div style="background:var(--navy);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;color:#fff">
-      <div style="width:56px;height:56px;border-radius:50%;background:#2a4a7b;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🧑‍💼</div>
+    <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
+      <div style="width:52px;height:52px;border-radius:50%;background:#2a4a7b;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🧑‍💼</div>
       <div style="flex:1">
-        <div style="font-size:17px;font-weight:900;letter-spacing:-.01em">${BIELSA_BIO.full}</div>
-        <div style="font-size:11.5px;opacity:.75;margin-top:2px">${flagImg(BIELSA_BIO.nacISO,14)} ${BIELSA_BIO.nac} · n. ${BIELSA_BIO.born}</div>
-        <div style="font-size:11px;opacity:.6;margin-top:3px">Director Técnico · ${BIELSA_BIO.desde} – ${BIELSA_BIO.hasta}</div>
+        <div style="font-size:16px;font-weight:900">${BIELSA_BIO.full}</div>
+        <div style="font-size:11px;opacity:.7;margin-top:2px">${flagImg(BIELSA_BIO.nacISO,13)} ${BIELSA_BIO.nac} · n. ${BIELSA_BIO.born}</div>
+        <div style="font-size:10.5px;opacity:.55;margin-top:2px">Director Técnico · ${BIELSA_BIO.desde} – ${BIELSA_BIO.hasta}</div>
       </div>
     </div>
-
-    <!-- Tabs -->
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-      ${tabBtn('record','Récord')}
-      ${tabBtn('convocatoria','Convocatoria WC2026')}
-      ${tabBtn('conferencias','Conferencias')}
+    <div style="display:flex;gap:5px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px">
+      ${tabBtn('resumen','Resumen')}
+      ${tabBtn('estadisticas','Estadísticas')}
+      ${tabBtn('prensa','Atención prensa')}
+      ${tabBtn('convocatorias','Convocatorias')}
+      ${tabBtn('infogendt','Información general')}
     </div>
-
-    <!-- Contenido -->
-    <div id="tec-content">
-      ${_tecTab==='record'?recordHtml:_tecTab==='convocatoria'?convHtml:confHtml}
-    </div>`;
+    <div>${tabContent[_tecTab]||''}</div>`;
 }
 
 function renderJugadores(){
