@@ -7194,6 +7194,9 @@ function jToggleClubEdit(nom,el){
 // ═══════════════════════════════════════════════════════════════════════════
 let _tecDT=null;   // null = selector | 'bielsa' | 'alonso'
 let _tecTab='resumen';
+function selectDT(id){_tecDT=id;_tecTab='resumen';renderTecnicos();}
+function selectTecTab(id){_tecTab=id;renderTecnicos();}
+function backToTecSelector(){_tecDT=null;renderTecnicos();}
 
 const DT_CATALOG=[
   {
@@ -7232,7 +7235,7 @@ function renderTecnicos(){
       <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px">Cuerpo técnico — Selección Mayor</div>
       <div style="display:flex;flex-direction:column;gap:10px">
         ${DT_CATALOG.map(dt=>`
-          <button onclick="window._tecDT='${dt.id}';window._tecTab='resumen';renderTecnicos()"
+          <button onclick="selectDT('${dt.id}')"
             style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--white);border:0.5px solid var(--border);border-radius:12px;cursor:pointer;text-align:left;width:100%;transition:box-shadow .15s"
             onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow=''">
             <img src="${dt.foto}" onerror="this.src=''" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--surface);border:2px solid var(--border);flex-shrink:0">
@@ -7288,7 +7291,7 @@ function renderTecnicos(){
   const posTags={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
 
   // ── Helper tab button ───────────────────────────────────────────────────
-  const tabBtn=(id,label)=>`<button onclick="window._tecTab='${id}';renderTecnicos()" style="padding:5px 13px;border-radius:20px;font-size:11.5px;font-weight:700;cursor:pointer;border:1.5px solid ${_tecTab===id?'#1a3a6b':'var(--border)'};background:${_tecTab===id?'#1a3a6b':'transparent'};color:${_tecTab===id?'#fff':'var(--text)'};white-space:nowrap">${label}</button>`;
+  const tabBtn=(id,label)=>`<button onclick="selectTecTab('${id}')" style="padding:5px 13px;border-radius:20px;font-size:11.5px;font-weight:700;cursor:pointer;border:1.5px solid ${_tecTab===id?'#1a3a6b':'var(--border)'};background:${_tecTab===id?'#1a3a6b':'transparent'};color:${_tecTab===id?'#fff':'var(--text)'};white-space:nowrap">${label}</button>`;
 
   // ── Stat chip ──────────────────────────────────────────────────────────
   const statChip=(label,val,col)=>`<div style="background:var(--surface);border:0.5px solid var(--border);border-radius:10px;padding:10px 6px;text-align:center">
@@ -7386,23 +7389,7 @@ function renderTecnicos(){
   // ════════════════════════════════════════════════════════════════════════
   // TAB: CONVOCATORIAS
   // ════════════════════════════════════════════════════════════════════════
-  const convHtml=_tecDT!=='bielsa'?_noDataHtml:(()=>{
-    let html=`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Copa Mundial FIFA 2026 · 26 jugadores</div>`;
-    let curPos='';
-    wc26.forEach(p=>{
-      if(p.pos!==curPos){
-        curPos=p.pos;
-        html+=`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 5px">${posTags[p.pos]||p.pos}</div>`;
-      }
-      html+=`<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:3px">
-        <span style="font-size:10px;font-weight:800;color:var(--muted);min-width:20px">#${p.n}</span>
-        <img src="${p.photo||''}" onerror="this.style.display='none'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">
-        <span style="flex:1;font-size:12.5px;font-weight:600;color:var(--text)">${p.name}</span>
-        <span style="font-size:10.5px;color:var(--muted)">${p.clubPais||''} ${p.club||''}</span>
-      </div>`;
-    });
-    return html;
-  })();
+  const convHtml=_tecDT!=='bielsa'?_noDataHtml:buildConvocatoriasHtml();
 
   // ════════════════════════════════════════════════════════════════════════
   // TAB: INFORMACIÓN GENERAL
@@ -7446,7 +7433,7 @@ function renderTecnicos(){
   const tabContent={resumen:resumenHtml,estadisticas:statsHtml,prensa:prensaHtml,convocatorias:convHtml,infogendt:infoHtml};
 
   con.innerHTML=`
-    <button onclick="window._tecDT=null;renderTecnicos()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:11.5px;font-weight:600;padding:0;margin-bottom:12px">
+    <button onclick="backToTecSelector()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:11.5px;font-weight:600;padding:0;margin-bottom:12px">
       <i class="ti ti-arrow-left"></i> Técnicos
     </button>
     <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
