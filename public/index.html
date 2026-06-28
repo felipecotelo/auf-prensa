@@ -2931,7 +2931,7 @@ function renderClosedBanner(){
   if(document.getElementById('tecnicos')?.classList.contains('active'))return;
   const banner=document.createElement('div');
   banner.id='tournament-closed-banner';
-  banner.style.cssText='position:sticky;top:0;z-index:1200;background:#1a3a6b;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:7px 16px;font-size:12px;border-bottom:2px solid #e2e8f0;gap:10px';
+  banner.style.cssText='position:relative;z-index:100;background:#1a3a6b;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:7px 16px;font-size:12px;border-bottom:2px solid #e2e8f0;gap:10px;margin-bottom:4px';
   banner.innerHTML=`<span style="display:flex;align-items:center;gap:7px;font-size:12.5px"><span style="font-weight:800">Copa Mundial 2026</span><span style="opacity:.5">·</span><span style="opacity:.8;font-weight:400">Eliminados en Fase de grupos el 26 junio luego del partido con España</span></span>
     <span style="display:flex;align-items:center;gap:8px">
       <button id="tournament-edit-btn" onclick="toggleTournamentEdit()" style="background:#e2e8f0;color:#1e293b;border:none;border-radius:7px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer">✏️ Editar</button>
@@ -11168,15 +11168,26 @@ async function renderPizarra(matchId){
       </div>`;
     })()}
     ${matchId==='uru-esp'&&(()=>{const _d=(ESPN_MATCH_DATES['uru-esp']||'').replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3');return _d&&_d<TODAY;})()
-      ?`<div style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:8px;padding:10px 13px;margin-bottom:10px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <span style="font-size:15px">🟥</span>
-            <div>
-              <div style="font-size:11px;font-weight:900;color:#991B1B">Sanción pendiente — Agustín Canobbio</div>
-              <div style="font-size:9.5px;color:#B91C1C;margin-top:1px">Expulsión directa 90' vs. España · Suspensión a cumplir en próximo partido oficial</div>
+      ?`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+          <div style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:8px;padding:10px 13px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:15px">🟥</span>
+              <div>
+                <div style="font-size:11px;font-weight:900;color:#991B1B">Sanción pendiente — Agustín Canobbio</div>
+                <div style="font-size:9.5px;color:#B91C1C;margin-top:1px">Expulsión directa 90' vs. España · Suspensión a cumplir en próximo partido oficial</div>
+              </div>
+            </div>
+            ${(()=>{const yw=PLAYERS.filter(p=>yellows[p.n]&&!suspendedNums.has(p.n));if(!yw.length)return'';return`<div style="margin-top:8px;padding-top:8px;border-top:0.5px solid #FCA5A5"><span style="font-size:9.5px;color:#B91C1C;font-weight:700">Con amarilla al cierre del torneo: </span><span style="font-size:9.5px;color:#991B1B">${yw.map(p=>{const pts=p.name.trim().split(' ');return pts[0][0]+'. '+pts[pts.length-1];}).join(', ')}</span></div>`;})()}
+          </div>
+          <div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:8px;padding:10px 13px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:15px">🤕</span>
+              <div>
+                <div style="font-size:11px;font-weight:900;color:#9A3412">Lesión — Manuel Ugarte</div>
+                <div style="font-size:9.5px;color:#C2410C;margin-top:1px">Sustituido durante el partido · Rotura de ligamento cruzado anterior — rodilla izquierda</div>
+              </div>
             </div>
           </div>
-          ${(()=>{const yw=PLAYERS.filter(p=>yellows[p.n]&&!suspendedNums.has(p.n));if(!yw.length)return'';return`<div style="margin-top:8px;padding-top:8px;border-top:0.5px solid #FCA5A5"><span style="font-size:9.5px;color:#B91C1C;font-weight:700">Con amarilla al cierre del torneo: </span><span style="font-size:9.5px;color:#991B1B">${yw.map(p=>{const pts=p.name.trim().split(' ');return pts[0][0]+'. '+pts[pts.length-1];}).join(', ')}</span></div>`;})()}
         </div>`
       :''}
 
@@ -11808,8 +11819,12 @@ async function syncLineupESPN(matchId){
       if(arr[i]){st[slot.id]=arr[i];cnt[slot.pos]=i+1;}
     });
 
-    all[matchId].starters=st;
-    setLineup(all);
+    // Solo sobreescribe starters si no hay alineación manual ya guardada
+    const existingManual=Object.values(all[matchId].starters||{}).filter(Boolean);
+    if(!existingManual.length){
+      all[matchId].starters=st;
+      setLineup(all);
+    }
     // Sync participation — respeta 'no part' seteado manualmente
     const espnNums=new Set();
     uru.roster.forEach(e=>{
