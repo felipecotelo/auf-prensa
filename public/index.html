@@ -10170,20 +10170,35 @@ function renderEstadisticas(){
 // ALONSO STATS
 // ════════════════════════════════════════════════════════════════════════════
 function buildAlonsoStatsHtml(){
+  window._alonsoPhasesOpen=window._alonsoPhasesOpen||{elim:false,ami:false,wc:false};
+  window.toggleAlonsoPhase=function(id){
+    window._alonsoPhasesOpen[id]=!window._alonsoPhasesOpen[id];
+    renderTecnicos();
+  };
   const chip=(l,v,c)=>`<div style="background:var(--surface);border-radius:8px;padding:10px 6px;text-align:center;border:0.5px solid var(--border)"><div style="font-size:18px;font-weight:900;color:${c}">${v}</div><div style="font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${l}</div></div>`;
-  const mrow=(res,rival,comp,lugar)=>{
+  const mrow=(res,rival,lugar,url)=>{
     const [gf,gc]=res.split('-').map(Number);
     const col=gf>gc?'#16a34a':gf===gc?'#ca8a04':'#dc2626';
     const lbl=gf>gc?'G':gf===gc?'E':'P';
+    const rivalLnk=url?`<a href="${url}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none;font-weight:700">vs. ${rival} ↗</a>`:`vs. ${rival}`;
     return`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border-radius:8px;margin-bottom:3px">
       <div style="width:22px;height:22px;border-radius:6px;background:${col};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;flex-shrink:0">${lbl}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:11.5px;font-weight:700;color:var(--text)">vs. ${rival} <span style="font-size:11px;color:${col};font-weight:800">(${res})</span></div>
-        <div style="font-size:9px;color:var(--muted)">${comp} · ${lugar}</div>
+        <div style="font-size:11.5px;font-weight:700;color:var(--text)">${rivalLnk} <span style="font-size:11px;color:${col};font-weight:800">(${res})</span></div>
+        <div style="font-size:9px;color:var(--muted)">${lugar}</div>
       </div>
     </div>`;
   };
-  const sec=(label,color)=>`<div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:${color};margin:12px 0 5px;padding:0 2px">${label}</div>`;
+  const phase=(id,label,det,color,rows)=>{
+    const open=window._alonsoPhasesOpen[id];
+    return`<button onclick="toggleAlonsoPhase('${id}')" style="width:100%;display:flex;align-items:center;gap:6px;padding:10px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:4px;cursor:pointer;text-align:left">
+      <span style="flex:1;font-size:11.5px;font-weight:700;color:var(--text)">${label}</span>
+      <span style="font-size:10px;color:var(--muted)">${det}</span>
+      <i class="ti ti-chevron-${open?'up':'down'}" style="font-size:13px;color:var(--muted);flex-shrink:0"></i>
+    </button>
+    ${open?`<div style="margin-bottom:8px">${rows}</div>`:''}`;
+  };
+  const BASE='https://www.auf.org.uy';
   return`
     <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Récord con Selección Mayor · 2022</div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px">
@@ -10193,21 +10208,24 @@ function buildAlonsoStatsHtml(){
       ${chip('P',2,'#dc2626')}
       ${chip('%',Math.round(((8+2*0.5)/12)*100)+'%','#7c3aed')}
     </div>
-    ${sec('Eliminatorias Qatar 2022 · 4PJ 4G 0E 0P','#64748B')}
-    ${mrow('1-0','Paraguay','Elim. Qatar 2022','Est. Defensores del Chaco, Asunción')}
-    ${mrow('4-1','Venezuela','Elim. Qatar 2022','Estadio Centenario, Montevideo')}
-    ${mrow('1-0','Perú','Elim. Qatar 2022','Estadio Centenario, Montevideo')}
-    ${mrow('2-0','Chile','Elim. Qatar 2022','Estadio Nacional, Santiago de Chile')}
-    ${sec('Preparación para el Mundial · 5PJ 3G 1E 1P','#4F46E5')}
-    ${mrow('3-0','México','Amistoso','Empower Field at Mile High, Denver')}
-    ${mrow('0-0','Estados Unidos','Amistoso','Children\'s Mercy Park, Kansas')}
-    ${mrow('5-0','Panamá','Amistoso','Estadio Centenario, Montevideo')}
-    ${mrow('0-1','Irán','Amistoso','NV Arena Sankt Pölten, Viena')}
-    ${mrow('2-0','Canadá','Amistoso','Tehelné Pole, Bratislava')}
-    ${sec('Copa Mundial Qatar 2022 · 3PJ 1G 1E 1P · Eliminados en fase de grupos','#B45309')}
-    ${mrow('0-0','Corea del Sur','Fase de grupos','Education City Stadium, Al Rayyan')}
-    ${mrow('0-2','Portugal','Fase de grupos','Lusail Iconic Stadium, Lusail')}
-    ${mrow('2-0','Ghana','Fase de grupos','Al Jonoub Stadium, Al Wakrah')}
+    ${phase('elim','Eliminatorias para Copa Mundial de Catar 2022','4PJ · 4G 0E 0P','#64748B',
+      mrow('1-0','Paraguay','Est. Defensores del Chaco, Asunción',BASE+'/eliminatorias-catar-2022paraguay-vs-uruguay/')
+      +mrow('4-1','Venezuela','Estadio Centenario, Montevideo',BASE+'/eliminatorias-catar-2022uruguay-vs-venezuela/')
+      +mrow('1-0','Perú','Estadio Centenario, Montevideo',BASE+'/eliminatorias-catar-2022uruguay-vs-peru/')
+      +mrow('2-0','Chile','Estadio Nacional, Santiago de Chile',BASE+'/eliminatorias-catar-2022chile-vs-uruguay/')
+    )}
+    ${phase('ami','Amistosos internacionales','5PJ · 3G 1E 1P','#4F46E5',
+      mrow('3-0','México','Empower Field at Mile High, Denver',BASE+'/amistosomexico-vs-uruguay/')
+      +mrow('0-0','Estados Unidos','Children\'s Mercy Park, Kansas',BASE+'/amistosoestados-unidos-vs-uruguay543282/')
+      +mrow('5-0','Panamá','Estadio Centenario, Montevideo',BASE+'/amistoso-despedida-uruguay-panama/')
+      +mrow('0-1','Irán','NV Arena Sankt Pölten, Viena',BASE+'/amistoso-uruguay-vs-iran/')
+      +mrow('2-0','Canadá','Tehelné Pole, Bratislava',BASE+'/amistosouruguay-vs-canada/')
+    )}
+    ${phase('wc','Copa Mundial 2022','3PJ · 1G 1E 1P · Eliminados en fase de grupos','#B45309',
+      mrow('0-0','Corea del Sur','Education City Stadium, Al Rayyan',BASE+'/copa-mundial-fifa-catar-2022uruguay-vs-corea-del-sur/')
+      +mrow('0-2','Portugal','Lusail Iconic Stadium, Lusail',BASE+'/copa-mundial-fifa-catar-2022uruguay-vs-portugal/')
+      +mrow('2-0','Ghana','Al Jonoub Stadium, Al Wakrah',BASE+'/copa-mundial-fifa-catar-2022uruguay-vs-ghana/')
+    )}
   `;
 }
 
