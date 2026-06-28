@@ -7398,30 +7398,52 @@ function renderTecnicos(){
   const curDT=DT_CATALOG.find(d=>d.id===_tecDT)||BIELSA_BIO;
   const _cuerpoData={
     bielsa:[
-      {iso:'ar',name:'Marcelo Bielsa',  rol:'Director técnico',   dt:true},
-      {iso:'ar',name:'Pablo Quiroga',   rol:'Segundo entrenador'},
-      {iso:'cl',name:'Diego Reyes',     rol:'Ayudante técnico'},
-      {iso:'es',name:'Sara Bouzas',     rol:'Logística-analista'},
-      {iso:'ar',name:'Lucas Ouviña',    rol:'Auxiliar técnico'},
-      {iso:'uy',name:'Enzo Ferrari',    rol:'Entrenador de arqueros'},
-      {iso:'uy',name:'Santiago Ferro',  rol:'Profe principal'},
-      {iso:'uy',name:'Diego Estavillo', rol:'Profe secundario'},
-      {iso:'uy',name:'Kevin Beckman',   rol:'Videoanalista'},
+      {iso:'ar',name:'Marcelo Bielsa',   rol:'Director técnico',       dt:true},
+      {iso:'ar',name:'Pablo Quiroga',    rol:'Segundo entrenador'},
+      {iso:'cl',name:'Diego Reyes',      rol:'Ayudante técnico'},
+      {iso:'es',name:'Sara Bouzas',      rol:'Logística-analista'},
+      {iso:'ar',name:'Lucas Ouviña',     rol:'Auxiliar técnico'},
+      {iso:'uy',name:'Enzo Ferrari',     rol:'Entrenador de arqueros', reemplazoa:'Carlos Nicola'},
+      {iso:'uy',name:'Santiago Ferro',   rol:'Profe principal'},
+      {iso:'uy',name:'Diego Estavillo',  rol:'Profe secundario'},
+      {iso:'uy',name:'Kevin Beckman',    rol:'Videoanalista'},
       {iso:'uy',name:'Gonzalo Rodríguez',rol:'Videoanalista'},
+      {iso:'uy',name:'Carlos Nicola',    rol:'Entrenador de arqueros', salio:true, salioPor:'Enzo Ferrari'},
+      {iso:'ar',name:'Magalí Conde',     rol:'Logística',              salio:true},
+      {iso:'es',name:'Diego Bermúdez',   rol:'Colaborador',            salio:true},
     ],
-    alonso:[],
+    alonso:[
+      {iso:'uy',name:'Diego Alonso',       rol:'Director técnico',    dt:true},
+      {iso:'ar',name:'Gabriel Raimundi',   rol:'Ayudante técnico'},
+      {iso:'uy',name:'Darío Rodríguez',    rol:'Ayudante técnico'},
+      {iso:'uy',name:'Óscar Ortega',       rol:'Preparador físico'},
+      {iso:'uy',name:'Guillermo Souto',    rol:'Preparador físico'},
+      {iso:'br',name:'Guilherme Rodrígues',rol:'Fisiólogo'},
+      {iso:'uy',name:'Carlos Nicola',      rol:'Entrenador de arqueros'},
+    ],
   };
   const _cuerpoList=_cuerpoData[_tecDT]||[];
+  const _cuerpoActivos=_cuerpoList.filter(m=>!m.salio);
+  const _cuerpoSalidos=_cuerpoList.filter(m=>m.salio);
+  const _renderCuerpoRow=(m,i,arr)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;${m.dt?'background:#FFFBEB;':''}${m.salio?'opacity:0.45;':''}${i<arr.length-1?'border-bottom:0.5px solid var(--border)':''}">
+      <span style="font-size:16px;line-height:1">${flagImg(m.iso,18)}</span>
+      <span style="flex:1;font-size:13px;font-weight:${m.dt?800:600};color:var(--text);${m.salio?'text-decoration:line-through;':''}">${m.dt?'⭐ ':''}<strong>${m.name}</strong>${m.reemplazoa?`<span style="font-size:9px;font-weight:600;color:#16a34a;text-decoration:none;display:inline-block;margin-left:6px">↩ reemplazó a ${m.reemplazoa}</span>`:''}</span>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--muted)">${m.rol}</div>
+        ${m.salioPor?`<div style="font-size:8.5px;color:#dc2626;font-weight:600">→ ${m.salioPor}</div>`:''}
+      </div>
+    </div>`;
   const cuerpoHtml=!_cuerpoList.length?_noDataHtml:`
     <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Cuerpo técnico</div>
-    <div style="display:flex;flex-direction:column">
-      ${_cuerpoList.map((m,i)=>`
-        <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;${m.dt?'background:#FFFBEB;':''}${i<_cuerpoList.length-1?'border-bottom:0.5px solid var(--border)':''}">
-          <span style="font-size:16px;line-height:1">${flagImg(m.iso,18)}</span>
-          <span style="flex:1;font-size:13px;font-weight:${m.dt?800:600};color:var(--text)">${m.dt?'⭐ ':''}<strong>${m.name}</strong></span>
-          <span style="font-size:11px;color:var(--muted);text-align:right">${m.rol}</span>
-        </div>`).join('')}
-    </div>`;
+    <div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:0.5px solid var(--border)">
+      ${_cuerpoActivos.map((m,i,arr)=>_renderCuerpoRow(m,i,arr)).join('')}
+    </div>
+    ${_cuerpoSalidos.length?`
+      <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:14px;margin-bottom:8px">Salieron del proceso</div>
+      <div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:0.5px solid var(--border)">
+        ${_cuerpoSalidos.map((m,i,arr)=>_renderCuerpoRow(m,i,arr)).join('')}
+      </div>`:''}`;
   const tabContent={resumen:resumenHtml,estadisticas:statsHtml,prensa:prensaHtml,convocatorias:convHtml,cuerpodt:cuerpoHtml,infogendt:infoHtml};
 
   con.innerHTML=`
