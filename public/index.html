@@ -7113,6 +7113,8 @@ function renderPeriplo(view){
 // ═══════════════════════════════════════════════════════════════════════════
 function jSetFilter(v){window._jFilter=v;renderJugadores();}
 function jSetPos(v){window._jPos=v;renderJugadores();}
+function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_leyendas',s);renderJugadores();}
+function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderJugadores();}
 function jTogglePosEdit(nom,el){
   // Si ya hay un picker abierto para este jugador, cerrarlo
   const existing=document.getElementById('jpicker-'+nom.replace(/[^a-zA-Z]/g,'_'));
@@ -7549,18 +7551,30 @@ function renderJugadores(){
     const club=customClub!==undefined?customClub:(d.club||'—');
     const pais=customPais!==undefined?customPais:(d.pais||'');
     const nomId=nom.replace(/[^a-zA-Z]/g,'_');
-    return `<div onclick="showJugador('${nom.replace(/'/g,"\\'")}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
-      <div style="display:flex;align-items:center;gap:10px">
-        ${avatar(nom, pos, photo, 42)}
+    const nomSafe=nom.replace(/'/g,"\\'");
+    const leyendas=stor.get('auf4_leyendas',{});
+    const retirados=stor.get('auf4_retirado',{});
+    const isLeyenda=!!leyendas[nom];
+    const isRetirado=!!retirados[nom];
+    const borderStyle=isLeyenda?'2px solid #F59E0B':'1px solid var(--border)';
+    const cardBg=isRetirado?'var(--surface)':'var(--surface2)';
+    return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px;position:relative;${isRetirado?'opacity:.55':''}" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
+      ${isRetirado?`<div style="position:absolute;top:8px;left:8px;background:#94A3B8;color:#fff;font-size:7.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`:''}
+      <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:7px;right:8px;background:none;border:none;cursor:pointer;font-size:14px;padding:0;line-height:1;opacity:${isLeyenda?1:.25};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
+      <div style="display:flex;align-items:center;gap:10px;${isRetirado?'margin-top:6px':''}">
+        <div style="flex-shrink:0;filter:${isRetirado?'grayscale(1)':''}">${avatar(nom, pos, photo, 42)}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:800;font-size:.88em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isWC?'🏆 ':''}${nom}</div>
-          <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nom.replace(/'/g,"\\'")}',this)" style="font-size:.7em;color:var(--muted);margin-top:1px;cursor:pointer" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
+          <div style="font-weight:800;font-size:.88em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${isWC?'🏆 ':''}${nom}</div>
+          <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:1px;cursor:pointer" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <span id="jpos-${nom.replace(/[^a-zA-Z]/g,'_')}" onclick="event.stopPropagation();jTogglePosEdit('${nom.replace(/'/g,"\\'")}',this)" style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:6px;padding:2px 7px;font-size:.67em;font-weight:800;cursor:pointer" title="Tocar para cambiar posición">${pos||'?'}${customPos?'✎':''}</span>
+        <span id="jpos-${nomId}" onclick="event.stopPropagation();jTogglePosEdit('${nomSafe}',this)" style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:6px;padding:2px 7px;font-size:.67em;font-weight:800;cursor:pointer" title="Tocar para cambiar posición">${pos||'?'}${customPos?'✎':''}</span>
         <span style="font-size:.7em;color:var(--muted);font-weight:600">${calls} conv.</span>
-        ${d.total?`<span style="font-size:.7em;font-weight:700;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">—</span>`}
+        <div style="display:flex;align-items:center;gap:6px">
+          ${d.total?`<span style="font-size:.7em;font-weight:700;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">—</span>`}
+          <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:0;line-height:1;color:${isRetirado?'#94A3B8':'var(--muted)'};opacity:${isRetirado?1:.35}" title="Retirado">💤</button>
+        </div>
       </div>
     </div>`;
   }
