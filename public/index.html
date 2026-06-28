@@ -2728,6 +2728,25 @@ function getEvNotes(){return stor.get(KEvN,{})}
 function setEvNotes(v){stor.set(KEvN,v)}
 
 const KEvLink='auf4_evlink';
+function _editConfRow(key){
+  const c=(window._confMeta||{})[key]||{};
+  const edits=stor.get('auf4_confedits',{});
+  const cur=edits[key]||{};
+  const curTxt=cur.txt||c.txt||'';
+  const curLugar=cur.lugar||c.lugar||'';
+  const newTxt=prompt('Nombre de la conferencia:',curTxt);
+  if(newTxt===null) return;
+  const newLugar=prompt('Lugar:',curLugar);
+  if(newLugar===null) return;
+  const s=stor.get('auf4_confedits',{});
+  if(newTxt.trim()===c.txt&&newLugar.trim()===c.lugar){
+    delete s[key];
+  } else {
+    s[key]={txt:newTxt.trim()||curTxt,lugar:newLugar.trim()||curLugar};
+  }
+  stor.set('auf4_confedits',s);
+  renderTecnicos();
+}
 function _editConfLink(key){
   const c=(window._confMeta||{})[key]||{};
   const cur=c.url||(stor.get('auf4_conflinks',{})[key]||'');
@@ -10604,6 +10623,7 @@ function buildBielsaConfsHtml(){
   ];
   const _confLinks=stor.get('auf4_conflinks',{});
   const _confNoFui=stor.get('auf4_confnofui',{});
+  const _confEdits=stor.get('auf4_confedits',{});
   window._toggleConfNoFui=function(key){
     const s=stor.get('auf4_confnofui',{});
     if(s[key])delete s[key];else s[key]=true;
@@ -10615,6 +10635,9 @@ function buildBielsaConfsHtml(){
     const key=`conf_${c.n}${c.fwc?'_fwc':''}`;
     const url=c.url||_confLinks[key]||'';
     const noFui=!!_confNoFui[key];
+    const _ed=_confEdits[key]||{};
+    const txt=_ed.txt||c.txt;
+    const lugar=_ed.lugar||c.lugar;
     window._confMeta[key]=c;
     const bg=c.noBielsa?'rgba(251,191,36,0.07)':noFui?'rgba(148,163,184,0.07)':'var(--surface)';
     const txtColor=noFui?'var(--muted)':(c.fwc?'var(--gold)':'var(--text)');
@@ -10627,10 +10650,11 @@ function buildBielsaConfsHtml(){
     return`<div id="conf-row-${key}" style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:${bg};margin-bottom:2px;opacity:${noFui?'.6':'1'}">
     <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
     <div style="flex:1">
-      <div style="font-size:10.5px;font-weight:700;color:${txtColor}">${url?`<a href="${url}" target="_blank" rel="noopener" style="color:${linkColor};text-decoration:none">${c.txt} ↗</a>`:c.txt}${badge}</div>
-      <div style="font-size:9px;color:var(--muted)">${c.fecha} · ${c.lugar}</div>
+      <div style="font-size:10.5px;font-weight:700;color:${txtColor}">${url?`<a href="${url}" target="_blank" rel="noopener" style="color:${linkColor};text-decoration:none">${txt} ↗</a>`:txt}${badge}</div>
+      <div style="font-size:9px;color:var(--muted)">${c.fecha} · ${lugar}</div>
     </div>
     <div style="display:flex;gap:2px;flex-shrink:0;margin-top:2px">
+      <button onclick="_editConfRow('${key}')" title="Editar nombre/lugar" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${_ed.txt||_ed.lugar?'var(--cel-dk)':'var(--hint)'};line-height:1;transition:color .15s">✏️</button>
       <button onclick="_toggleConfNoFui('${key}')" title="${noFui?'Quitar marca':'Marcar como no estuve'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${noFui?'#64748b':'var(--hint)'};line-height:1;transition:color .15s">👤</button>
       <button onclick="_editConfLink('${key}')" title="${url?'Editar link':'Agregar link'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${url?'var(--cel-dk)':'var(--hint)'};line-height:1;transition:color .15s">${url?'🔗':'＋'}</button>
     </div>
