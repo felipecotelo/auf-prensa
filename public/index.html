@@ -11914,10 +11914,13 @@ async function autoSyncCheck(){
       const syncKey = `${eventId}-${isFinished?'final':isLive?clock:'pre'}`;
       if(_lastSyncedEvent===syncKey) continue;
 
-      if(isMatchLocked(matchId)) continue; // partido cerrado con oficial — ESPN no toca nada
-      const existingStarters=Object.values(getLineup()[matchId]?.starters||{}).filter(Boolean);
-      if(!existingStarters.length) await syncLineupSilent(matchId, eventId, summary);
-      await syncIncidentsSilent(matchId, summary);
+      // Lineup: solo si NO está cerrado con oficial Y no hay starters manuales
+      if(!isMatchLocked(matchId)){
+        const existingStarters=Object.values(getLineup()[matchId]?.starters||{}).filter(Boolean);
+        if(!existingStarters.length) await syncLineupSilent(matchId, eventId, summary);
+      }
+      // Eventos (goles, tarjetas, subs): siempre se sincronizan salvo que esté bloqueado con FIFA_OFFICIAL
+      if(!isMatchLocked(matchId)||!FIFA_OFFICIAL_EVENTS[matchId]) await syncIncidentsSilent(matchId, summary);
       _lastSyncedEvent = syncKey;
 
       // Marcador si hay goles
