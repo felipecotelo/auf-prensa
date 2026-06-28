@@ -3141,6 +3141,7 @@ function showTournament(id){
 
 function showTab(id){
   if(IS_RESTRICTED&&!RESTRICTED_TABS.includes(id)) return;
+  stor.set('auf4_lastTab',id);
   document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active','dmode-visible');});
   const _sec=document.getElementById(id);
   _sec.classList.add('active');
@@ -7506,7 +7507,10 @@ function renderJugadores(){
   const q=window._jSearch.toLowerCase().trim();
   if(q) entries=entries.filter(([nom])=>nom.toLowerCase().includes(q));
   if(window._jFilter==='wc26')     entries=entries.filter(([nom,d])=>d.wc26);
-  if(window._jFilter==='bielsa')   entries=entries.filter(([nom,d])=>!d.wc26&&!d.sub20);
+  if(window._jFilter==='bielsa'){
+    const _bs=new Set(BIELSA_CONVOCATORIAS.flatMap(c=>c.jugadores.filter(j=>!j.noVino).map(j=>j.nom)));
+    entries=entries.filter(([nom])=>_bs.has(nom)&&!JUGADORES[nom]?.wc26);
+  }
   if(window._jFilter==='leyendas') entries=entries.filter(([nom])=>LEYENDAS_SET.has(nom));
   if(window._jPos!=='todos') entries=entries.filter(([nom,d])=>d.pos===window._jPos);
 
@@ -7522,7 +7526,8 @@ function renderJugadores(){
   // Stats for header
   const total=Object.keys(JUGADORES).length;
   const wc26n=Object.values(JUGADORES).filter(d=>d.wc26).length;
-  const bielsan2=Object.values(JUGADORES).filter(d=>!d.wc26&&!d.sub20).length;
+  const _bielsaSet=new Set(BIELSA_CONVOCATORIAS.flatMap(c=>c.jugadores.filter(j=>!j.noVino).map(j=>j.nom)));
+  const bielsan2=Object.keys(JUGADORES).filter(n=>_bielsaSet.has(n)&&!JUGADORES[n].wc26).length;
   const leyendasN=LEYENDAS_SET.size;
   const filterPills=[
     {id:'todos',    label:`Todos (${total})`},
@@ -13032,6 +13037,10 @@ function lgCopy(i,url){
     renderLineup('uru-ksa');
     await renderPlantel();
     renderLog('all');
+    const _savedTab=stor.get('auf4_lastTab',null);
+    if(_savedTab&&_savedTab!=='inicio'&&document.getElementById(_savedTab)){
+      showTab(_savedTab);
+    }
   }
   // Auto-sync ESPN al abrir — detecta si hay partido en curso o recién terminado
   autoSyncCheck();
