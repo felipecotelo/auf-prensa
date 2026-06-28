@@ -7505,24 +7505,30 @@ function renderJugadores(){
   let entries=Object.entries(JUGADORES);
   const q=window._jSearch.toLowerCase().trim();
   if(q) entries=entries.filter(([nom])=>nom.toLowerCase().includes(q));
-  if(window._jFilter==='wc26')  entries=entries.filter(([nom,d])=>d.wc26);
-  if(window._jFilter==='bielsa') entries=entries.filter(([nom,d])=>!d.wc26);
+  if(window._jFilter==='wc26')     entries=entries.filter(([nom,d])=>d.wc26);
+  if(window._jFilter==='bielsa')   entries=entries.filter(([nom,d])=>!d.wc26&&!d.sub20);
+  if(window._jFilter==='leyendas') entries=entries.filter(([nom])=>LEYENDAS_SET.has(nom));
   if(window._jPos!=='todos') entries=entries.filter(([nom,d])=>d.pos===window._jPos);
 
-  // Sort by convocatorias desc, then alpha
-  entries.sort(([a],[b])=>(callupCount[b]||0)-(callupCount[a]||0)||(a<b?-1:1));
+  // Sort: leyendas tab → preserve list order; others → callups desc then alpha
+  if(window._jFilter==='leyendas'){
+    const _leyList=[...'Luis Suárez,Diego Forlán,Enzo Francescoli,Edinson Cavani,Diego Godín,Obdulio Varela,Alcides Ghiggia,Diego Lugano,Juan Schiaffino,José Nasazzi,Héctor Scarone,Sebastián Abreu,Fernando Muslera,Ladislao Mazurkiewicz,Diego \'Ruso\' Pérez,Álvaro Recoba,Paolo Montero,Fabián O\'Neill,Fernando Morena,Pablo Bengoechea,Ruben Sosa,Hugo De León,Waldemar Victorino,Roque Gastón Máspoli,Luis Cubilla,Carlos Scarone,Martín Cáceres,José Leandro Andrade,Pedro Rocha,Schubert Gambetta,Antonio Alzamendi,Cristian Rodríguez,Maximiliano Pereira,Venancio Ramos,Óscar Míguez,Juan Eduardo Hohberg,Héctor Castro,Carlos Céspedes,Carlos Aguilera,Rodolfo Rodríguez,René \'Tito\' Borjas,José Piendibene,Pedro Petrone,Bolívar Céspedes,Fernando Álvez,Pedro Cea,José Sasía,Víctor Hugo Diogo,Julio Montero Castillo,Ángel Romano,Isabelino Grandín,Andrés Mazali,Eliseo Álvarez,Lorenzo Fernández,Roberto Chery'.split(',')];
+    const _idx=n=>{ const i=_leyList.indexOf(n); return i<0?999:i; };
+    entries.sort(([a],[b])=>_idx(a)-_idx(b));
+  } else {
+    entries.sort(([a],[b])=>(callupCount[b]||0)-(callupCount[a]||0)||(a<b?-1:1));
+  }
 
   // Stats for header
   const total=Object.keys(JUGADORES).length;
   const wc26n=Object.values(JUGADORES).filter(d=>d.wc26).length;
-  const bielan=Object.values(JUGADORES).filter(d=>!d.wc26&&!d.sub20).length;
-  const sub20n=Object.values(JUGADORES).filter(d=>d.sub20).length;
-
-  const bielsan2=Object.values(JUGADORES).filter(d=>!d.wc26).length;
+  const bielsan2=Object.values(JUGADORES).filter(d=>!d.wc26&&!d.sub20).length;
+  const leyendasN=LEYENDAS_SET.size;
   const filterPills=[
-    {id:'todos',  label:`Todos (${total})`},
-    {id:'wc26',   label:`🏆 Mundial 2026 (${wc26n})`},
-    {id:'bielsa', label:`Ciclo Bielsa (${bielsan2})`},
+    {id:'todos',    label:`Todos (${total})`},
+    {id:'wc26',     label:`🏆 Mundial 2026 (${wc26n})`},
+    {id:'bielsa',   label:`Ciclo Bielsa (${bielsan2})`},
+    {id:'leyendas', label:`⭐ Leyendas (${leyendasN})`},
   ];
   const posPills=[
     {id:'todos',label:'Todas'},
@@ -7554,7 +7560,7 @@ function renderJugadores(){
     const nomSafe=nom.replace(/'/g,"\\'");
     const leyendas=stor.get('auf4_leyendas',{});
     const retirados=stor.get('auf4_retirado',{});
-    const isLeyenda=!!leyendas[nom];
+    const isLeyenda=LEYENDAS_SET.has(nom)||!!leyendas[nom];
     const isRetirado=!!retirados[nom];
     const borderStyle=isLeyenda?'2px solid #F59E0B':'1px solid var(--border)';
     const cardBg=isRetirado?'var(--surface)':'var(--surface2)';
@@ -9171,6 +9177,44 @@ const JUGADORES={
   'Alfonso Espino':      {auf:null,                         pos:'DEF',club:null,                   pais:'',    foto:'./fotos/alfonso-espino.jpg',         wc26:false,total:null,comp:null},
   'Federico Pereira':    {auf:null,                         pos:'DEF',club:null,                   pais:'',    foto:'./fotos/federico-pereira.jpg',       wc26:false,total:null,comp:null},
 };
+
+// ── LEYENDAS ──────────────────────────────────────────────────────────────
+const LEYENDAS_SET=new Set([
+  'Luis Suárez','Diego Forlán','Enzo Francescoli','Edinson Cavani','Diego Godín',
+  'Obdulio Varela','Alcides Ghiggia','Diego Lugano','Juan Schiaffino','José Nasazzi',
+  'Héctor Scarone','Sebastián Abreu','Fernando Muslera','Ladislao Mazurkiewicz',
+  "Diego 'Ruso' Pérez",'Álvaro Recoba','Paolo Montero','Fabián O\'Neill','Fernando Morena',
+  'Pablo Bengoechea','Ruben Sosa','Hugo De León','Waldemar Victorino','Roque Gastón Máspoli',
+  'Luis Cubilla','Carlos Scarone','Martín Cáceres','José Leandro Andrade','Pedro Rocha',
+  'Schubert Gambetta','Antonio Alzamendi','Cristian Rodríguez','Maximiliano Pereira',
+  'Venancio Ramos','Óscar Míguez','Juan Eduardo Hohberg','Héctor Castro','Carlos Céspedes',
+  'Carlos Aguilera','Rodolfo Rodríguez','René \'Tito\' Borjas','José Piendibene','Pedro Petrone',
+  'Bolívar Céspedes','Fernando Álvez','Pedro Cea','José Sasía','Víctor Hugo Diogo',
+  'Julio Montero Castillo','Ángel Romano','Isabelino Grandín','Andrés Mazali',
+  'Eliseo Álvarez','Lorenzo Fernández','Roberto Chery',
+]);
+
+// ── LEYENDAS SIN PERFIL — entradas mínimas ────────────────────────────────
+Object.assign(JUGADORES,{
+  'Fernando Morena':       {auf:null,pos:'DEL',club:null,pais:'',foto:'./fotos/fernando-morena.jpg',      wc26:false,total:null,comp:null},
+  'Waldemar Victorino':    {auf:null,pos:'DEL',club:null,pais:'',foto:'./fotos/waldemar-victorino.jpg',   wc26:false,total:null,comp:null},
+  'José Leandro Andrade':  {auf:null,pos:'MED',club:null,pais:'',foto:'./fotos/jose-leandro-andrade.jpg', wc26:false,total:null,comp:null},
+  'Pedro Rocha':           {auf:null,pos:'MED',club:null,pais:'',foto:'./fotos/pedro-rocha.jpg',          wc26:false,total:null,comp:null},
+  'Schubert Gambetta':     {auf:null,pos:'DEF',club:null,pais:'',foto:'./fotos/schubert-gambetta.jpg',    wc26:false,total:null,comp:null},
+  'Antonio Alzamendi':     {auf:null,pos:'DEL',club:null,pais:'',foto:'./fotos/antonio-alzamendi.jpg',    wc26:false,total:null,comp:null},
+  'Maximiliano Pereira':   {auf:null,pos:'DEF',club:null,pais:'',foto:'./fotos/maximiliano-pereira.jpg',  wc26:false,total:null,comp:null},
+  'Venancio Ramos':        {auf:null,pos:'DEF',club:null,pais:'',foto:'./fotos/venancio-ramos.jpg',       wc26:false,total:null,comp:null},
+  'Óscar Míguez':          {auf:null,pos:'DEL',club:null,pais:'',foto:'./fotos/oscar-miguez.jpg',         wc26:false,total:null,comp:null},
+  'Juan Eduardo Hohberg':  {auf:null,pos:'MED',club:null,pais:'',foto:'./fotos/juan-eduardo-hohberg.jpg', wc26:false,total:null,comp:null},
+  'Carlos Aguilera':       {auf:null,pos:'MED',club:null,pais:'',foto:'./fotos/carlos-aguilera.jpg',      wc26:false,total:null,comp:null},
+  'Pedro Petrone':         {auf:null,pos:'DEL',club:null,pais:'',foto:'./fotos/pedro-petrone.jpg',        wc26:false,total:null,comp:null},
+  'José Sasía':            {auf:null,pos:'DEL',club:null,pais:'',foto:'./fotos/jose-sasia.jpg',           wc26:false,total:null,comp:null},
+  'Víctor Hugo Diogo':     {auf:null,pos:'MED',club:null,pais:'',foto:'./fotos/victor-hugo-diogo.jpg',    wc26:false,total:null,comp:null},
+  'Julio Montero Castillo':{auf:null,pos:'DEF',club:null,pais:'',foto:'./fotos/julio-montero-castillo.jpg',wc26:false,total:null,comp:null},
+  'Andrés Mazali':         {auf:null,pos:'POR',club:null,pais:'',foto:'./fotos/andres-mazali.jpg',        wc26:false,total:null,comp:null},
+  'Eliseo Álvarez':        {auf:null,pos:'DEF',club:null,pais:'',foto:'./fotos/eliseo-alvarez.jpg',       wc26:false,total:null,comp:null},
+  'Lorenzo Fernández':     {auf:null,pos:'MED',club:null,pais:'',foto:'./fotos/lorenzo-fernandez.jpg',    wc26:false,total:null,comp:null},
+});
 
 // ── CONVOCATORIAS BIELSA ──────────────────────────────────────────────────
 const BIELSA_CONVOCATORIAS=[
