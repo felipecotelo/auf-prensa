@@ -10603,26 +10603,37 @@ function buildBielsaConfsHtml(){
     {n:59,txt:'Copa Mundial Post vs. España (0-1)',fecha:'26/6/26',lugar:'Estadio Akron (Guadalajara, México)',fwc:true,url:'https://www.youtube.com/watch?v=uqgFHrqBZug'},
   ];
   const _confLinks=stor.get('auf4_conflinks',{});
+  const _confNoFui=stor.get('auf4_confnofui',{});
+  window._toggleConfNoFui=function(key){
+    const s=stor.get('auf4_confnofui',{});
+    if(s[key])delete s[key];else s[key]=true;
+    stor.set('auf4_confnofui',s);
+    renderTecnicos();
+  };
   window._confMeta=window._confMeta||{};
   const row=c=>{
     const key=`conf_${c.n}${c.fwc?'_fwc':''}`;
     const url=c.url||_confLinks[key]||'';
+    const noFui=!!_confNoFui[key];
     window._confMeta[key]=c;
-    const bg=c.noBielsa?'rgba(251,191,36,0.07)':c.noFui?'rgba(148,163,184,0.07)':'var(--surface)';
-    const txtColor=c.noFui?'var(--muted)':(c.fwc?'var(--gold)':'var(--text)');
+    const bg=c.noBielsa?'rgba(251,191,36,0.07)':noFui?'rgba(148,163,184,0.07)':'var(--surface)';
+    const txtColor=noFui?'var(--muted)':(c.fwc?'var(--gold)':'var(--text)');
     const badge=c.noBielsa
       ?`<span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,0.15);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">no habló Bielsa</span>`
-      :c.noFui
+      :noFui
         ?`<span style="font-size:8px;font-weight:700;color:#64748b;background:rgba(148,163,184,0.15);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">no estuve</span>`
         :'';
-    const linkColor=c.noFui?'var(--muted)':c.noBielsa?'#b45309':'var(--cel-dk)';
-    return`<div id="conf-row-${key}" style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:${bg};margin-bottom:2px;opacity:${c.noFui?'.6':'1'}">
+    const linkColor=noFui?'var(--muted)':c.noBielsa?'#b45309':'var(--cel-dk)';
+    return`<div id="conf-row-${key}" style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:${bg};margin-bottom:2px;opacity:${noFui?'.6':'1'}">
     <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
     <div style="flex:1">
       <div style="font-size:10.5px;font-weight:700;color:${txtColor}">${url?`<a href="${url}" target="_blank" rel="noopener" style="color:${linkColor};text-decoration:none">${c.txt} ↗</a>`:c.txt}${badge}</div>
       <div style="font-size:9px;color:var(--muted)">${c.fecha} · ${c.lugar}</div>
     </div>
-    <button onclick="_editConfLink('${key}')" title="${url?'Editar link':'Agregar link'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${url?'var(--cel-dk)':'var(--hint)'};flex-shrink:0;line-height:1;margin-top:2px;transition:color .15s">${url?'🔗':'＋'}</button>
+    <div style="display:flex;gap:2px;flex-shrink:0;margin-top:2px">
+      <button onclick="_toggleConfNoFui('${key}')" title="${noFui?'Quitar marca':'Marcar como no estuve'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${noFui?'#64748b':'var(--hint)'};line-height:1;transition:color .15s">👤</button>
+      <button onclick="_editConfLink('${key}')" title="${url?'Editar link':'Agregar link'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${url?'var(--cel-dk)':'var(--hint)'};line-height:1;transition:color .15s">${url?'🔗':'＋'}</button>
+    </div>
   </div>`;
   };
   const yr=(label,list,color)=>`<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:${color};margin:6px 0 4px;padding:0 2px">${label}</div>${list.map(row).join('')}</div>`;
