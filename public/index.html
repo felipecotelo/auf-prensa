@@ -7356,35 +7356,14 @@ function renderTecnicos(){
   // ════════════════════════════════════════════════════════════════════════
   // TAB: ESTADÍSTICAS
   // ════════════════════════════════════════════════════════════════════════
-  const statsHtml=!matches.length?_noDataHtml:`
-    <div style="display:flex;flex-direction:column;gap:3px">
-      ${matches.map(m=>{
-        if(!m.res) return '';
-        const base=m.res.split(' ')[0];const[a,b]=base.split('-').map(Number);
-        const col=a>b?'#16a34a':a===b?'#ca8a04':'#dc2626';const res=a>b?'G':a===b?'E':'P';
-        return `<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:7px;font-size:11.5px">
-          <span style="font-size:9px;color:var(--muted);min-width:28px">${m.yr}</span>
-          <span style="font-size:8.5px;color:var(--muted);min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.fase}</span>
-          <span style="flex:1;font-weight:600;color:var(--text)">${m.rival}</span>
-          <span style="font-weight:800;min-width:34px;text-align:center">${m.res}</span>
-          <span style="font-weight:900;color:${col};min-width:12px;text-align:center;font-size:10px">${res}</span>
-          <span style="font-size:9px;color:var(--muted);text-align:right;min-width:60px">${m.loc==='L'?'🏠':m.loc==='V'?'✈️':'🔄'} ${m.ciudad}</span>
-        </div>`;
-      }).join('')}
-    </div>`;
+  const statsHtml=_tecDT==='bielsa'?buildBielsaStatsHtml()
+    :_tecDT==='alonso'?_alonsoResumenHtml
+    :_noDataHtml;
 
   // ════════════════════════════════════════════════════════════════════════
   // TAB: ATENCIÓN PRENSA
   // ════════════════════════════════════════════════════════════════════════
-  const prensaHtml=prensaEvs.length
-    ?`<div style="display:flex;flex-direction:column;gap:5px">${prensaEvs.map(c=>`
-        <div style="padding:9px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;display:flex;gap:10px;align-items:flex-start">
-          <div style="flex:1">
-            <div style="font-size:12.5px;font-weight:600;color:var(--text)">${c.txt}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">${c.fecha}${c.h?' · '+c.h:''}</div>
-          </div>
-        </div>`).join('')}</div>`
-    :`<div style="color:var(--muted);font-size:12px;padding:20px 0">Sin actividades de prensa registradas.</div>`;
+  const prensaHtml=_tecDT==='bielsa'?buildBielsaConfsHtml():_noDataHtml;
 
   // ════════════════════════════════════════════════════════════════════════
   // TAB: CONVOCATORIAS
@@ -7394,39 +7373,7 @@ function renderTecnicos(){
   // ════════════════════════════════════════════════════════════════════════
   // TAB: INFORMACIÓN GENERAL
   // ════════════════════════════════════════════════════════════════════════
-  const _infoRows={
-    bielsa:[
-      ['Nombre completo','Marcelo Alberto Bielsa Caldera'],
-      ['Nacionalidad',`${flagImg('ar',14)} Argentina`],
-      ['Fecha de nacimiento','21 de febrero de 1955'],
-      ['Lugar de nacimiento','Córdoba, Argentina'],
-      ['Cargo','Director Técnico — Selección Mayor de Uruguay'],
-      ['Período','junio 2023 – julio 2026'],
-      ['Asistentes','Pablo Quiroga · Diego Reyes · Lucas Ouviña'],
-      ['Vínculo','Contrato vigente hasta julio 2026'],
-    ],
-    alonso:[
-      ['Nombre completo','Diego Martín Alonso'],
-      ['Nacionalidad',`${flagImg('uy',14)} Uruguay`],
-      ['Fecha de nacimiento','16 de abril de 1975'],
-      ['Lugar de nacimiento','Montevideo, Uruguay'],
-      ['Cargo','Director Técnico — Selección Mayor de Uruguay'],
-      ['Período','enero 2022 – diciembre 2022'],
-      ['Debut','27 ene 2022 vs. Paraguay'],
-      ['Último partido','2 dic 2022 vs. Ghana (Qatar 2022)'],
-      ['Clubes (DT)','Bella Vista · Guaraní · Peñarol · Olimpia · Pachuca · Monterrey · Inter Miami'],
-      ['Redes',`@AlonsoDT`],
-    ],
-  };
-  const _infoRowsCur=_infoRows[_tecDT]||[];
-  const infoHtml=_infoRowsCur.length
-    ?`<div style="display:flex;flex-direction:column;gap:8px">
-      ${_infoRowsCur.map(([k,v])=>`<div style="display:flex;gap:10px;padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px">
-        <span style="font-size:10.5px;font-weight:700;color:var(--muted);min-width:120px;flex-shrink:0">${k}</span>
-        <span style="font-size:12px;color:var(--text)">${v}</span>
-      </div>`).join('')}
-    </div>`
-    :`<div style="color:var(--muted);font-size:12px;padding:20px 0">Sin información disponible aún.</div>`;
+  const infoHtml=buildDTInfoHtml(_tecDT);
 
   // ── Render ──────────────────────────────────────────────────────────────
   const curDT=DT_CATALOG.find(d=>d.id===_tecDT)||BIELSA_BIO;
@@ -10200,21 +10147,42 @@ function renderEstadisticas(){
     ${aufHistSection('Más goles — Selección Mayor (All Time)',AUF_HIST_GOALS,'Goles','c',PLAYERS,isActive,activeMark,'goals',legendStar,_legendsEdit)}
     ${aufHistSection('Más partidos — Copa del Mundo (All Time)',AUF_HIST_WC,'PJ','c',PLAYERS,isActive,activeMark,'wcCaps',legendStar,_legendsEdit)}
     ` : tab==='bielsa' ? `
-    <!-- ══ MARCELO BIELSA ══ -->
+    ${buildBielsaStatsHtml()}
+    ${buildBielsaConfsHtml()}
+    ` : `
+    <div class="note gold" style="margin-bottom:1.25rem">
+      <div class="note-t">🏆 Datos de color — FWC26 (verificado PDF TAM)</div>
+      <div class="note-b">
+        <strong>Muslera</strong> 5° Mundial (convocatorias) — no jugó en Qatar 2022, por lo que no correspondería el Legacy Patch FIFA.<br>
+        <strong>Ugarte y Araújo</strong>: 2ª participación, 0 minutos en Qatar 2022. Siguen con Debut Patch.<br>
+        <strong>Giménez</strong>: 99 caps — <strong>a 1 del centenar 🎯</strong>. Capitán, 10 PJ mundiales, 1 gol.<br>
+        <strong>13 jugadores</strong> debutarán en Mundiales: llevan <strong>Debut Patch FIFA</strong> hasta el primer partido.<br>
+        ${sancionTxt}
+      </div>
+    </div>
+
+    `}
+    ${buildConvocatoriasHtml()}
+  `;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// BIELSA HELPER FUNCTIONS — used in Estadísticas tab AND renderTecnicos
+// ════════════════════════════════════════════════════════════════════════════
+function buildBielsaStatsHtml(){
+  const lnk=(t,u)=>u?`<a href="${u}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none;font-weight:600">${t}</a>`:t;
+  const a='https://www.auf.org.uy/';
+  return `
     <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:12px;color:#fff">
       <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;opacity:.6;margin-bottom:2px">Entrenador</div>
       <div style="font-size:20px;font-weight:900;letter-spacing:-.3px;margin-bottom:2px">Marcelo Bielsa</div>
       <div style="font-size:10px;opacity:.7">Asumió mayo 2023 · En cargo desde el post-Qatar 2022</div>
     </div>
 
-    <!-- Totales -->
     <div class="stats-section">
       ${(()=>{
-        // Base pre-Copa Mundial (34 partidos, hasta el último amistoso)
         const BASE={pj:34,g:14,e:13,p:7,gf:42,gc:24};
-        // Aporte del Preolímpico (no se cuenta en el principal pero sí en el subtotal)
         const PRE={pj:4,g:1,e:1,p:2,gf:9,gc:8};
-        // Partidos del Mundial de Uruguay: {fixId, uruSide}
         const WC_FIX=[{id:'m2',home:'ksa'},{id:'m4',home:'uru'},{id:'m6',home:'uru'}];
         const fix=getFixture();
         let wc={pj:0,g:0,e:0,p:0,gf:0,gc:0};
@@ -10281,13 +10249,10 @@ function renderEstadisticas(){
       </div>
     </div>
 
-    <!-- Por competencia -->
     <div class="stats-section">
       <div class="phase">Por competencia</div>
       <div style="display:flex;flex-direction:column;gap:6px">
         ${(()=>{
-          const lnk=(t,u)=>u?`<a href="${u}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none;font-weight:600">${t}</a>`:t;
-          const a='https://www.auf.org.uy/';
           return [
           {
             icon:'🤝', label:'Amistosos <span style="font-size:9px;font-weight:600;color:var(--hint)">2023–2026</span>', color:'var(--muted)',
@@ -10397,7 +10362,6 @@ function renderEstadisticas(){
       </div>
     </div>
 
-    <!-- Goleadores -->
     <div class="stats-section">
       <div class="phase">⚽ Goleadores bajo Bielsa <span style="font-size:9px;font-weight:600;color:var(--hint)">(sin Preolímpico)</span></div>
       <div style="overflow-x:auto"><table class="stats-table">
@@ -10429,7 +10393,6 @@ function renderEstadisticas(){
       </table></div>
     </div>
 
-    <!-- Preolímpico goleadores -->
     <div class="stats-section">
       <div class="phase">⚽ Goleadores — Preolímpico Sub-23</div>
       <div style="overflow-x:auto"><table class="stats-table">
@@ -10445,7 +10408,6 @@ function renderEstadisticas(){
       </table></div>
     </div>
 
-    <!-- Estadísticas Eliminatorias -->
     <div class="stats-section">
       <div class="phase">🌎 Estadísticas — Eliminatorias 2026 <span style="font-size:9px;font-weight:600;color:var(--hint)">ESPN · 41 jugadores</span></div>
       <div><table class="disp-table">
@@ -10510,118 +10472,186 @@ function renderEstadisticas(){
         </tbody>
       </table></div>
     </div>
-
-    <!-- Conferencias de prensa -->
-    <div class="stats-section">
-      <div class="phase">🎙️ Conferencias de prensa — Bielsa <span style="font-size:9px;font-weight:600;color:var(--hint)">Registro cronológico</span></div>
-      ${(()=>{
-        const conf2023=[
-          {n:1,txt:'Presentación oficial como DT',fecha:'17/5/23',lugar:'Estadio Centenario',url:'https://www.youtube.com/watch?v=cliAe1BUKZM'},
-          {n:2,txt:'Post amistoso vs. Nicaragua (4-1)',fecha:'14/6/23',lugar:'Estadio Centenario'},
-          {n:3,txt:'Post amistoso vs. Cuba (2-0)',fecha:'20/6/23',lugar:'Estadio Centenario'},
-          {n:4,txt:'Previo Fecha FIFA setiembre 2023',fecha:'2/9/23',lugar:'Estadio Centenario'},
-          {n:5,txt:'Post Elim. vs. Chile (3-1)',fecha:'8/9/23',lugar:'Estadio Centenario'},
-          {n:6,txt:'Post Elim. vs. Ecuador (1-2)',fecha:'12/9/23',lugar:'Est. Rodrigo Paz (Quito)'},
-          {n:7,txt:'Previo Fecha FIFA octubre 2023',fecha:'6/10/23',lugar:'Estadio Centenario'},
-          {n:8,txt:'Post Elim. vs. Colombia (2-2)',fecha:'12/10/23',lugar:'Est. Metropolitano (Barranquilla)'},
-          {n:9,txt:'Post Elim. vs. Brasil (2-0)',fecha:'17/10/23',lugar:'Estadio Centenario'},
-          {n:10,txt:'Previo Fecha FIFA noviembre 2023',fecha:'11/11/23',lugar:'Estadio Centenario'},
-          {n:11,txt:'Post Elim. vs. Argentina (2-0)',fecha:'16/11/23',lugar:'Est. La Bombonera (Buenos Aires)'},
-          {n:12,txt:'Post Elim. vs. Bolivia (3-0)',fecha:'21/11/23',lugar:'Estadio Centenario'},
-        ];
-        const conf2024=[
-          {n:13,txt:'Previo Fecha FIFA marzo — MD-1 vs. País Vasco',fecha:'22/3/24',lugar:'Hotel Costa Vasca (San Sebastián)'},
-          {n:14,txt:'Post Fecha FIFA marzo',fecha:'1/4/24',lugar:'Estadio Centenario'},
-          {n:15,txt:'Previo Fecha FIFA junio — MD-1 vs. México',fecha:'4/6/24',lugar:'Power Field (Denver)'},
-          {n:16,txt:'Post amistoso vs. México (4-0)',fecha:'5/6/24',lugar:'Power Field (Denver)'},
-          {n:17,txt:'Copa América MD-1 vs Panamá + R. Araújo',fecha:'22/6/24',lugar:'Hard Rock Stadium (Miami)'},
-          {n:18,txt:'Copa América Post vs. Panamá (3-1)',fecha:'23/6/24',lugar:'Hard Rock Stadium (Miami)'},
-          {n:19,txt:'Copa América MD-1 vs Bolivia + Bentancur',fecha:'26/6/24',lugar:'Metlife Stadium (Nueva Jersey)'},
-          {n:20,txt:'Copa América Post vs. Bolivia (5-0)',fecha:'27/6/24',lugar:'Metlife Stadium (Nueva Jersey)'},
-          {n:21,txt:'Copa América MD-1 vs USA — habla Diego Reyes ⚠️ Bielsa susp.',fecha:'30/6/24',lugar:'GEHA Stadium (Kansas City)'},
-          {n:22,txt:'Copa América Post vs. EE.UU. (1-0) — habla Quiroga ⚠️',fecha:'1/7/24',lugar:'GEHA Stadium (Kansas City)'},
-          {n:23,txt:'Copa América QF MD-1 vs Brasil + Pellistri',fecha:'5/7/24',lugar:'Allegiant Stadium (Las Vegas)'},
-          {n:24,txt:'Copa América QF Post vs. Brasil (0-0, 4-2 pen)',fecha:'6/7/24',lugar:'Allegiant Stadium (Las Vegas)'},
-          {n:25,txt:'Copa América SF MD-1 vs Colombia + M. Araújo',fecha:'9/7/24',lugar:'Bank of America Stadium (Charlotte)'},
-          {n:26,txt:'Copa América SF Post vs. Colombia (0-1)',fecha:'10/7/24',lugar:'Bank of America Stadium (Charlotte)'},
-          {n:27,txt:'Copa América 3° MD-1 vs Canadá + S. Cáceres',fecha:'12/7/24',lugar:'Bank of America Stadium (Charlotte)'},
-          {n:28,txt:'Copa América 3° Post vs. Canadá (2-2, 4-3 pen)',fecha:'13/7/24',lugar:'Bank of America Stadium (Charlotte)'},
-          {n:29,txt:'Post Elim. vs. Paraguay (0-0)',fecha:'6/9/24',lugar:'Estadio Centenario'},
-          {n:30,txt:'Post Elim. vs. Venezuela (0-0)',fecha:'10/9/24',lugar:'Est. Monumental (Maturín)'},
-          {n:31,txt:'Previo Fecha FIFA octubre — La de Suárez',fecha:'25/9/24',lugar:'Museo del Fútbol · Estadio Centenario'},
-          {n:32,txt:'Post Elim. vs. Perú (0-1)',fecha:'11/10/24',lugar:'Estadio Nacional (Lima)'},
-          {n:33,txt:'Post Elim. vs. Ecuador (0-0)',fecha:'15/10/24',lugar:'Estadio Centenario'},
-          {n:34,txt:'Post Elim. vs. Colombia (3-2)',fecha:'15/11/24',lugar:'Estadio Centenario'},
-          {n:35,txt:'Post Elim. vs. Brasil (1-1)',fecha:'19/11/24',lugar:'Arena Fonte Nova (Salvador de Bahía)'},
-        ];
-        const conf2025=[
-          {n:36,txt:'Post Elim. vs. Argentina (0-1)',fecha:'21/3/25',lugar:'Estadio Centenario'},
-          {n:37,txt:'Post Elim. vs. Bolivia (0-0)',fecha:'25/3/25',lugar:'Est. Municipal (El Alto)'},
-          {n:38,txt:'Post Elim. vs. Paraguay (0-2)',fecha:'5/6/25',lugar:'Est. Defensores del Chaco (Asunción)'},
-          {n:39,txt:'Post Elim. vs. Venezuela (2-0)',fecha:'10/6/25',lugar:'Estadio Centenario'},
-          {n:40,txt:'Previo Fecha FIFA setiembre',fecha:'29/8/25',lugar:'Estadio Centenario'},
-          {n:41,txt:'Post Elim. vs. Perú (3-0)',fecha:'4/9/25',lugar:'Estadio Centenario'},
-          {n:42,txt:'Post Elim. vs. Chile (0-0)',fecha:'9/9/25',lugar:'Estadio Nacional (Santiago)'},
-          {n:43,txt:'Previo Fecha FIFA octubre — MD-1 vs. Rep. Dom. + Zalazar',fecha:'9/10/25',lugar:'Bukit Jalil National Stadium (Kuala Lumpur)'},
-          {n:44,txt:'Post amistoso vs. Rep. Dominicana (1-0)',fecha:'10/10/25',lugar:'Bukit Jalil National Stadium (Kuala Lumpur)'},
-          {n:45,txt:'Previo Fecha FIFA octubre — MD-1 vs. Uzbekistán + Saracchi',fecha:'12/10/25',lugar:'Hotel Sofitel (Kuala Lumpur)'},
-          {n:46,txt:'Post amistoso vs. Uzbekistán (1-2)',fecha:'13/10/25',lugar:'Stadium Hang Jebat (Malaca)'},
-          {n:47,txt:'Post amistoso vs. México (0-0)',fecha:'15/11/25',lugar:'Corona Stadium (Torreón)'},
-          {n:48,txt:'Post Fecha FIFA noviembre',fecha:'20/11/25',lugar:'Museo del Fútbol · Estadio Centenario'},
-        ];
-        const conf2026=[
-          {n:49,txt:'Previo Fecha FIFA marzo — MD-1 vs. Inglaterra',fecha:'26/3/26',lugar:'Hotel The Grove (Watford)'},
-          {n:50,txt:'Post amistoso vs. Inglaterra (1-1)',fecha:'27/3/26',lugar:'Wembley Stadium (Londres)'},
-          {n:51,txt:'MD-1 vs. Argelia',fecha:'30/3/26',lugar:'Allianz Stadium (Turín)'},
-          {n:52,txt:'Post amistoso vs. Argelia (1-1)',fecha:'31/3/26',lugar:'Allianz Stadium (Turín)'},
-        ];
-        const confFWC=[
-          {n:53,txt:'Post lista de convocados',fecha:'1/6/26',lugar:'Complejo Celeste (Canelones)'},
-          {n:54,txt:'Copa Mundial MD-1 vs. Arabia Saudita',fecha:'14/6/26',lugar:'Hard Rock Stadium (Miami)',fwc:true},
-          {n:55,txt:'Copa Mundial Post vs. Arabia Saudita (1-1)',fecha:'15/6/26',lugar:'Hard Rock Stadium (Miami)',fwc:true,url:'https://www.youtube.com/watch?v=0vVZ6SHcpC8'},
-          {n:56,txt:'Copa Mundial MD-1 vs. Cabo Verde',fecha:'21/6/26',lugar:'Miami',fwc:true,url:'https://www.youtube.com/watch?v=EFpnUjRPasA'},
-          {n:57,txt:'Copa Mundial Post vs. Cabo Verde (2-2)',fecha:'21/6/26',lugar:'Hard Rock Stadium (Miami)',fwc:true,url:'https://www.youtube.com/watch?v=Keto_5wF6ac'},
-        ];
-        const _confLinks=stor.get('auf4_conflinks',{});
-        const _saveConfLink=(key,url)=>{const s=stor.get('auf4_conflinks',{});if(url)s[key]=url;else delete s[key];stor.set('auf4_conflinks',s);};
-        window._confMeta=window._confMeta||{};
-        const row=c=>{
-          const key=`conf_${c.n}${c.fwc?'_fwc':''}`;
-          const url=c.url||_confLinks[key]||'';
-          window._confMeta[key]=c;
-          return`<div id="conf-row-${key}" style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:var(--surface);margin-bottom:2px">
-          <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
-          <div style="flex:1">
-            <div style="font-size:10.5px;font-weight:700;color:${c.fwc?'var(--gold)':'var(--text)'}">${url?`<a href="${url}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}</div>
-            <div style="font-size:9px;color:var(--muted)">${c.fecha} · ${c.lugar}</div>
-          </div>
-          <button onclick="_editConfLink('${key}')" title="${url?'Editar link':'Agregar link'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${url?'var(--cel-dk)':'var(--hint)'};flex-shrink:0;line-height:1;margin-top:2px;transition:color .15s">${url?'🔗':'＋'}</button>
-        </div>`;
-        };
-        const yr=(label,list,color)=>`<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:${color};margin:6px 0 4px;padding:0 2px">${label}</div>${list.map(row).join('')}</div>`;
-        return yr('2023 · 12 conferencias',conf2023,'#64748B')
-          +yr('2024 · 23 conferencias',conf2024,'#4F46E5')
-          +yr('2025 · 13 conferencias',conf2025,'#059669')
-          +yr('2026 · 4 conferencias',conf2026,'#DC2626')
-          +yr('Copa Mundial 2026 · en curso ('+confFWC.length+')',confFWC,'#B45309');
-      })()}
-    </div>
-
-    ` : `
-    <div class="note gold" style="margin-bottom:1.25rem">
-      <div class="note-t">🏆 Datos de color — FWC26 (verificado PDF TAM)</div>
-      <div class="note-b">
-        <strong>Muslera</strong> 5° Mundial (convocatorias) — no jugó en Qatar 2022, por lo que no correspondería el Legacy Patch FIFA.<br>
-        <strong>Ugarte y Araújo</strong>: 2ª participación, 0 minutos en Qatar 2022. Siguen con Debut Patch.<br>
-        <strong>Giménez</strong>: 99 caps — <strong>a 1 del centenar 🎯</strong>. Capitán, 10 PJ mundiales, 1 gol.<br>
-        <strong>13 jugadores</strong> debutarán en Mundiales: llevan <strong>Debut Patch FIFA</strong> hasta el primer partido.<br>
-        ${sancionTxt}
-      </div>
-    </div>
-
-    `}
-    ${buildConvocatoriasHtml()}
   `;
+}
+
+function buildBielsaConfsHtml(){
+  const conf2023=[
+    {n:1,txt:'Presentación oficial como DT',fecha:'17/5/23',lugar:'Estadio Centenario',url:'https://www.youtube.com/watch?v=cliAe1BUKZM'},
+    {n:2,txt:'Post amistoso vs. Nicaragua (4-1)',fecha:'14/6/23',lugar:'Estadio Centenario'},
+    {n:3,txt:'Post amistoso vs. Cuba (2-0)',fecha:'20/6/23',lugar:'Estadio Centenario'},
+    {n:4,txt:'Previo Fecha FIFA setiembre 2023',fecha:'2/9/23',lugar:'Estadio Centenario'},
+    {n:5,txt:'Post Elim. vs. Chile (3-1)',fecha:'8/9/23',lugar:'Estadio Centenario'},
+    {n:6,txt:'Post Elim. vs. Ecuador (1-2)',fecha:'12/9/23',lugar:'Est. Rodrigo Paz (Quito)'},
+    {n:7,txt:'Previo Fecha FIFA octubre 2023',fecha:'6/10/23',lugar:'Estadio Centenario'},
+    {n:8,txt:'Post Elim. vs. Colombia (2-2)',fecha:'12/10/23',lugar:'Est. Metropolitano (Barranquilla)'},
+    {n:9,txt:'Post Elim. vs. Brasil (2-0)',fecha:'17/10/23',lugar:'Estadio Centenario'},
+    {n:10,txt:'Previo Fecha FIFA noviembre 2023',fecha:'11/11/23',lugar:'Estadio Centenario'},
+    {n:11,txt:'Post Elim. vs. Argentina (2-0)',fecha:'16/11/23',lugar:'Est. La Bombonera (Buenos Aires)'},
+    {n:12,txt:'Post Elim. vs. Bolivia (3-0)',fecha:'21/11/23',lugar:'Estadio Centenario'},
+  ];
+  const conf2024=[
+    {n:13,txt:'Previo Fecha FIFA marzo — MD-1 vs. País Vasco',fecha:'22/3/24',lugar:'Hotel Costa Vasca (San Sebastián)'},
+    {n:14,txt:'Post Fecha FIFA marzo',fecha:'1/4/24',lugar:'Estadio Centenario'},
+    {n:15,txt:'Previo Fecha FIFA junio — MD-1 vs. México',fecha:'4/6/24',lugar:'Power Field (Denver)'},
+    {n:16,txt:'Post amistoso vs. México (4-0)',fecha:'5/6/24',lugar:'Power Field (Denver)'},
+    {n:17,txt:'Copa América MD-1 vs Panamá + R. Araújo',fecha:'22/6/24',lugar:'Hard Rock Stadium (Miami)'},
+    {n:18,txt:'Copa América Post vs. Panamá (3-1)',fecha:'23/6/24',lugar:'Hard Rock Stadium (Miami)'},
+    {n:19,txt:'Copa América MD-1 vs Bolivia + Bentancur',fecha:'26/6/24',lugar:'Metlife Stadium (Nueva Jersey)'},
+    {n:20,txt:'Copa América Post vs. Bolivia (5-0)',fecha:'27/6/24',lugar:'Metlife Stadium (Nueva Jersey)'},
+    {n:21,txt:'Copa América MD-1 vs USA — habla Diego Reyes ⚠️ Bielsa susp.',fecha:'30/6/24',lugar:'GEHA Stadium (Kansas City)'},
+    {n:22,txt:'Copa América Post vs. EE.UU. (1-0) — habla Quiroga ⚠️',fecha:'1/7/24',lugar:'GEHA Stadium (Kansas City)'},
+    {n:23,txt:'Copa América QF MD-1 vs Brasil + Pellistri',fecha:'5/7/24',lugar:'Allegiant Stadium (Las Vegas)'},
+    {n:24,txt:'Copa América QF Post vs. Brasil (0-0, 4-2 pen)',fecha:'6/7/24',lugar:'Allegiant Stadium (Las Vegas)'},
+    {n:25,txt:'Copa América SF MD-1 vs Colombia + M. Araújo',fecha:'9/7/24',lugar:'Bank of America Stadium (Charlotte)'},
+    {n:26,txt:'Copa América SF Post vs. Colombia (0-1)',fecha:'10/7/24',lugar:'Bank of America Stadium (Charlotte)'},
+    {n:27,txt:'Copa América 3° MD-1 vs Canadá + S. Cáceres',fecha:'12/7/24',lugar:'Bank of America Stadium (Charlotte)'},
+    {n:28,txt:'Copa América 3° Post vs. Canadá (2-2, 4-3 pen)',fecha:'13/7/24',lugar:'Bank of America Stadium (Charlotte)'},
+    {n:29,txt:'Post Elim. vs. Paraguay (0-0)',fecha:'6/9/24',lugar:'Estadio Centenario'},
+    {n:30,txt:'Post Elim. vs. Venezuela (0-0)',fecha:'10/9/24',lugar:'Est. Monumental (Maturín)'},
+    {n:31,txt:'Previo Fecha FIFA octubre — La de Suárez',fecha:'25/9/24',lugar:'Museo del Fútbol · Estadio Centenario'},
+    {n:32,txt:'Post Elim. vs. Perú (0-1)',fecha:'11/10/24',lugar:'Estadio Nacional (Lima)'},
+    {n:33,txt:'Post Elim. vs. Ecuador (0-0)',fecha:'15/10/24',lugar:'Estadio Centenario'},
+    {n:34,txt:'Post Elim. vs. Colombia (3-2)',fecha:'15/11/24',lugar:'Estadio Centenario'},
+    {n:35,txt:'Post Elim. vs. Brasil (1-1)',fecha:'19/11/24',lugar:'Arena Fonte Nova (Salvador de Bahía)'},
+  ];
+  const conf2025=[
+    {n:36,txt:'Post Elim. vs. Argentina (0-1)',fecha:'21/3/25',lugar:'Estadio Centenario'},
+    {n:37,txt:'Post Elim. vs. Bolivia (0-0)',fecha:'25/3/25',lugar:'Est. Municipal (El Alto)'},
+    {n:38,txt:'Post Elim. vs. Paraguay (0-2)',fecha:'5/6/25',lugar:'Est. Defensores del Chaco (Asunción)'},
+    {n:39,txt:'Post Elim. vs. Venezuela (2-0)',fecha:'10/6/25',lugar:'Estadio Centenario'},
+    {n:40,txt:'Previo Fecha FIFA setiembre',fecha:'29/8/25',lugar:'Estadio Centenario'},
+    {n:41,txt:'Post Elim. vs. Perú (3-0)',fecha:'4/9/25',lugar:'Estadio Centenario'},
+    {n:42,txt:'Post Elim. vs. Chile (0-0)',fecha:'9/9/25',lugar:'Estadio Nacional (Santiago)'},
+    {n:43,txt:'Previo Fecha FIFA octubre — MD-1 vs. Rep. Dom. + Zalazar',fecha:'9/10/25',lugar:'Bukit Jalil National Stadium (Kuala Lumpur)'},
+    {n:44,txt:'Post amistoso vs. Rep. Dominicana (1-0)',fecha:'10/10/25',lugar:'Bukit Jalil National Stadium (Kuala Lumpur)'},
+    {n:45,txt:'Previo Fecha FIFA octubre — MD-1 vs. Uzbekistán + Saracchi',fecha:'12/10/25',lugar:'Hotel Sofitel (Kuala Lumpur)'},
+    {n:46,txt:'Post amistoso vs. Uzbekistán (1-2)',fecha:'13/10/25',lugar:'Stadium Hang Jebat (Malaca)'},
+    {n:47,txt:'Post amistoso vs. México (0-0)',fecha:'15/11/25',lugar:'Corona Stadium (Torreón)'},
+    {n:48,txt:'Post Fecha FIFA noviembre',fecha:'20/11/25',lugar:'Museo del Fútbol · Estadio Centenario'},
+  ];
+  const conf2026=[
+    {n:49,txt:'Previo Fecha FIFA marzo — MD-1 vs. Inglaterra',fecha:'26/3/26',lugar:'Hotel The Grove (Watford)'},
+    {n:50,txt:'Post amistoso vs. Inglaterra (1-1)',fecha:'27/3/26',lugar:'Wembley Stadium (Londres)'},
+    {n:51,txt:'MD-1 vs. Argelia',fecha:'30/3/26',lugar:'Allianz Stadium (Turín)'},
+    {n:52,txt:'Post amistoso vs. Argelia (1-1)',fecha:'31/3/26',lugar:'Allianz Stadium (Turín)'},
+  ];
+  const confFWC=[
+    {n:53,txt:'Post lista de convocados',fecha:'1/6/26',lugar:'Complejo Celeste (Canelones)'},
+    {n:54,txt:'Copa Mundial MD-1 vs. Arabia Saudita',fecha:'14/6/26',lugar:'Hard Rock Stadium (Miami)',fwc:true},
+    {n:55,txt:'Copa Mundial Post vs. Arabia Saudita (1-1)',fecha:'15/6/26',lugar:'Hard Rock Stadium (Miami)',fwc:true,url:'https://www.youtube.com/watch?v=0vVZ6SHcpC8'},
+    {n:56,txt:'Copa Mundial MD-1 vs. Cabo Verde',fecha:'21/6/26',lugar:'Miami',fwc:true,url:'https://www.youtube.com/watch?v=EFpnUjRPasA'},
+    {n:57,txt:'Copa Mundial Post vs. Cabo Verde (2-2)',fecha:'21/6/26',lugar:'Hard Rock Stadium (Miami)',fwc:true,url:'https://www.youtube.com/watch?v=Keto_5wF6ac'},
+  ];
+  const _confLinks=stor.get('auf4_conflinks',{});
+  window._confMeta=window._confMeta||{};
+  const row=c=>{
+    const key=`conf_${c.n}${c.fwc?'_fwc':''}`;
+    const url=c.url||_confLinks[key]||'';
+    window._confMeta[key]=c;
+    return`<div id="conf-row-${key}" style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;background:var(--surface);margin-bottom:2px">
+    <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
+    <div style="flex:1">
+      <div style="font-size:10.5px;font-weight:700;color:${c.fwc?'var(--gold)':'var(--text)'}">${url?`<a href="${url}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}</div>
+      <div style="font-size:9px;color:var(--muted)">${c.fecha} · ${c.lugar}</div>
+    </div>
+    <button onclick="_editConfLink('${key}')" title="${url?'Editar link':'Agregar link'}" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:${url?'var(--cel-dk)':'var(--hint)'};flex-shrink:0;line-height:1;margin-top:2px;transition:color .15s">${url?'🔗':'＋'}</button>
+  </div>`;
+  };
+  const yr=(label,list,color)=>`<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:${color};margin:6px 0 4px;padding:0 2px">${label}</div>${list.map(row).join('')}</div>`;
+  return `<div class="stats-section">
+    <div class="phase">🎙️ Conferencias de prensa — Bielsa <span style="font-size:9px;font-weight:600;color:var(--hint)">Registro cronológico</span></div>
+    ${yr('2023 · 12 conferencias',conf2023,'#64748B')}
+    ${yr('2024 · 23 conferencias',conf2024,'#4F46E5')}
+    ${yr('2025 · 13 conferencias',conf2025,'#059669')}
+    ${yr('2026 · 4 conferencias',conf2026,'#DC2626')}
+    ${yr('Copa Mundial 2026 · en curso ('+confFWC.length+')',confFWC,'#B45309')}
+  </div>`;
+}
+
+function buildDTInfoHtml(dtId){
+  const sectionHdr=t=>`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 8px">${t}</div>`;
+  const row=(k,v)=>`<div style="display:flex;gap:10px;padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:4px">
+    <span style="font-size:10.5px;font-weight:700;color:var(--muted);min-width:130px;flex-shrink:0">${k}</span>
+    <span style="font-size:12px;color:var(--text)">${v}</span>
+  </div>`;
+  const quote=t=>`<div style="background:var(--surface);border-left:3px solid var(--cel-dk);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:6px;font-size:11.5px;color:var(--text);font-style:italic;line-height:1.5">${t}</div>`;
+  const prose=t=>`<div style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:12px">${t}</div>`;
+  const timelineItem=(club,period)=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;margin-bottom:4px;font-size:11.5px">
+    <span style="flex:1;font-weight:600;color:var(--text)">${club}</span>
+    <span style="color:var(--muted);font-size:10px">${period}</span>
+  </div>`;
+
+  if(dtId==='bielsa'){
+    const born=new Date(1955,6,21); // July 21 1955
+    const today=new Date();
+    let age=today.getFullYear()-born.getFullYear();
+    if(today<new Date(today.getFullYear(),born.getMonth(),born.getDate())) age--;
+    return `
+      ${sectionHdr('Datos personales')}
+      ${row('Nombre completo','Marcelo Alberto Bielsa Caldera')}
+      ${row('Fecha de nacimiento','21 de julio de 1955')}
+      ${row('Edad',age+' años')}
+      ${row('Apodos','<em>El Loco</em> · <em>Cabezón</em> · <em>El Cholo</em>')}
+      ${row('Último club (jugador)','Argentino de Rosario')}
+      ${row('Posición (jugador)','Defensa')}
+
+      ${sectionHdr('Familia')}
+      ${prose('Su abuelo Rafael era abogado, muy reconocido en Rosario. Su padre Rafael Pedro <em>"el turco"</em>, hincha de Racing, nunca le interesó el fútbol. Su madre Lida Silva Rosa Caldera, <em>"Toti"</em>, profesora de historia — le inculcó la exigencia y disciplina.')}
+      ${prose('Es el hijo del medio: su hermano Rafael es abogado y su hermana María Eugenia, arquitecta. Su esposa Laura Braccalenti, arquitecta, es amiga de su hermana. Tienen dos hijas: Inés y Mercedes.')}
+      ${prose('De chico lo llamaban <em>"niño Marcelo"</em> — con eso lo hacían enojar sus amigos.')}
+
+      ${sectionHdr('Frases')}
+      ${quote('"Los momentos de mi vida en los que yo he crecido tienen que ver con los fracasos; los momentos de mi vida en los que yo he empeorado, tienen que ver con el éxito..."')}
+      ${quote('"Soy una persona muy rechazada en mi país. Cuando explico algo dicen que vendo humo, por eso me da vergüenza explicar lo que pienso"')}
+      ${quote('"Los entrenadores podemos cometer dos pecados: hacer caminar a jugadores que vuelan o pretender que vuelen los que solo pueden caminar"')}
+      ${quote('"Cuando estaba en Bilbao jugamos una final contra Barcelona. Después del partido, le mandé nuestro análisis a Guardiola. Me dijo: \'Sabes más de Barcelona que yo\'"')}
+      ${quote('"Sé que el apoyo solo te lo da el triunfo. Casi todos los entrenadores somos perdedores y por eso estamos tan solos"')}
+      ${quote('"Soy muy respetuoso y un admirador de la gambeta..."')}
+
+      ${sectionHdr('Trayectoria como futbolista')}
+      ${prose('Surgió en las divisiones inferiores de Newell\'s Old Boys como defensa. En 1974 integró la Selección Argentina Sub-20 en el Campeonato Sudamericano. Debutó en primera división el 29 de febrero de 1976 frente a River Plate. Era un defensa combativo y temperamental, de técnica rústica, compañero de Valdano y Gallego. A finales de 1976 ganó la medalla de bronce en el Preolímpico de Recife con una convocatoria formada íntegramente por jugadores de Newell\'s (seleccionados por César Luis Menotti); Bielsa fue elegido para el equipo ideal del torneo. Una lesión lo obligó a dejar Newell\'s en 1978 y fichó por Instituto de Córdoba (16 partidos). En 1979 pasó a Argentino de Rosario, donde se retiró en 1980 marcando el único gol oficial de su carrera. Mientras jugaba estudió el profesorado de Educación Física. Ya entonces analizaba videos de ligas europeas que le enviaba el tío de un amigo desde España. Tras retirarse, abrió un kiosko de diarios en Rosario.')}
+
+      ${sectionHdr('Trayectoria como entrenador')}
+      ${timelineItem('Newell\'s Old Boys (Argentina)','1990–1992')}
+      ${timelineItem('Atlas (México)','1993–1995')}
+      ${timelineItem('América (México)','1995–1996')}
+      ${timelineItem('Vélez Sársfield (Argentina)','1997–1998')}
+      ${timelineItem('Espanyol (España)','1998')}
+      ${timelineItem('Selección Argentina','1998–2004')}
+      ${timelineItem('Selección Chilena','2007–2011')}
+      ${timelineItem('Athletic Bilbao (España)','2011–2013')}
+      ${timelineItem('Olympique de Marseille (Francia)','2014–2016')}
+      ${timelineItem('Lille (Francia)','2017–2018')}
+      ${timelineItem('Leeds United (Inglaterra)','2018–2022')}
+      ${timelineItem('Selección Uruguaya','2023–2026')}
+    `;
+  }
+
+  if(dtId==='alonso'){
+    return `
+      ${sectionHdr('Datos personales')}
+      ${row('Nombre completo','Diego Martín Alonso')}
+      ${row('Fecha de nacimiento','16 de abril de 1975')}
+      ${row('Lugar de nacimiento','Montevideo, Uruguay')}
+      ${row('Posición (jugador)','Delantero / Atacante')}
+
+      ${sectionHdr('Trayectoria como entrenador')}
+      ${timelineItem('Bella Vista (Uruguay)','')}
+      ${timelineItem('Guaraní (Paraguay)','')}
+      ${timelineItem('Peñarol (Uruguay)','')}
+      ${timelineItem('Olimpia (Paraguay)','')}
+      ${timelineItem('Pachuca (México)','')}
+      ${timelineItem('Monterrey (México)','')}
+      ${timelineItem('Inter Miami (EE.UU.)','')}
+      ${timelineItem('Selección Uruguaya','ene 2022 – dic 2022')}
+
+      ${sectionHdr('Datos adicionales')}
+      <div style="color:var(--muted);font-size:12px;padding:8px 0">Secciones adicionales (frases, trayectoria como jugador) — pendiente de incorporar.</div>
+    `;
+  }
+
+  return `<div style="color:var(--muted);font-size:12px;padding:20px 0">Sin información disponible aún.</div>`;
 }
 
 let _statsSubTab='copa-mundial';
