@@ -14541,18 +14541,30 @@ function _renderJuvenilesSafe(el){
     } else {
       const ctMain = ct.filter(m=>!m.coord);
       const ctCoord = ct.filter(m=>m.coord);
-      body = estructuraNota + ctMain.map(m=>`
+      body = estructuraNota + ctMain.map(m=>{
+        const nomEnc = encodeURIComponent(m.name);
+        const photo = !m.pendiente && window._juvPhotoCache?.[m.name];
+        const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+        const avatar = photo
+          ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+          : `<span>${initials}</span>`;
+        const photoBlock = m.pendiente
+          ? `<div style="width:28px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-dots" style="color:var(--muted);font-size:.9em"></i></div>`
+          : `<div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
+              <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
+              <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
+              <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
+            </div>`;
+        return `
         <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;${m.pendiente?'opacity:.55':''}" >
-          ${m.pendiente
-            ? `<div style="width:28px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-dots" style="color:var(--muted);font-size:.9em"></i></div>`
-            : `<img src="https://flagcdn.com/w40/${m.iso}.png" style="width:28px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">`
-          }
+          ${photoBlock}
           <div style="flex:1">
             <div style="font-weight:${m.pendiente?'600':'800'};font-size:.9em;${m.pendiente?'font-style:italic;color:var(--muted)':''}">${m.name}</div>
             <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.rol}</div>
           </div>
           ${m.dt?`<span style="font-size:.65em;font-weight:800;color:${color};background:${color}18;border-radius:8px;padding:2px 8px;text-transform:uppercase;letter-spacing:.05em">DT</span>`:''}
-        </div>`).join('');
+        </div>`;
+      }).join('');
       if(ctCoord.length){
         body += `
           <div style="font-size:.68em;font-weight:800;color:#9333EA;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px">Coordinación transversal de Juveniles</div>
