@@ -14058,10 +14058,23 @@ window._setJuvPos = function(nom,pos){
   window.renderJuveniles();
 };
 const JUV_POS_CYCLE = ['','POR','DEF','MED','DEL'];
-window._cycleJuvPos = function(nom){
+// Al ciclar el puesto NO reordenamos la grilla al toque — si no, la ficha se mueve
+// apenas tocás y es imposible llegar al puesto que querés. Actualizamos solo el
+// badge en el momento, y recién reordenamos 1.5s después de que dejás de tocar.
+window._cycleJuvPos = function(nom, badgeEl){
   const cur = getJuvPos()[nom]||'';
   const next = JUV_POS_CYCLE[(JUV_POS_CYCLE.indexOf(cur)+1)%JUV_POS_CYCLE.length];
-  window._setJuvPos(nom, next);
+  const m = getJuvPos();
+  if(next) m[nom]=next; else delete m[nom];
+  stor.set('auf4_juvPos', m);
+  if(badgeEl){
+    badgeEl.textContent = next||'—';
+    badgeEl.style.color = next?JUV_POS_FG[next]:'var(--muted)';
+    badgeEl.style.background = next?JUV_POS_BG[next]:'var(--bg)';
+    badgeEl.style.borderColor = next?JUV_POS_FG[next]+'55':'var(--border)';
+  }
+  clearTimeout(window._juvPosTimer);
+  window._juvPosTimer = setTimeout(()=>window.renderJuveniles(), 1500);
 };
 const JUV_POS_BG = {POR:'#FEF3C7',DEF:'#DCFCE7',MED:'#EDE9FE',DEL:'#FEE2E2'};
 const JUV_POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
@@ -14091,7 +14104,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <span onclick="_cycleJuvPos('${p.nom.replace(/'/g,"\\'")}')" title="Click para cambiar el puesto" style="font-size:.68em;font-weight:800;color:${p.pos?JUV_POS_FG[p.pos]:'var(--muted)'};background:${p.pos?JUV_POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?JUV_POS_FG[p.pos]+'55':'var(--border)'};border-radius:6px;padding:2px 7px;cursor:pointer">${posLabel}</span>
+      <span onclick="_cycleJuvPos('${p.nom.replace(/'/g,"\\'")}',this)" title="Click para cambiar el puesto" style="font-size:.68em;font-weight:800;color:${p.pos?JUV_POS_FG[p.pos]:'var(--muted)'};background:${p.pos?JUV_POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?JUV_POS_FG[p.pos]+'55':'var(--border)'};border-radius:6px;padding:2px 7px;cursor:pointer">${posLabel}</span>
       <span style="font-size:.78em;font-weight:700">${off.conv} <span style="font-weight:500;color:var(--muted);font-size:.85em">conv.</span></span>
       <span style="font-size:.78em;font-weight:700">${off.pj} <span style="font-weight:500;color:var(--muted);font-size:.85em">PJ</span></span>
     </div>
