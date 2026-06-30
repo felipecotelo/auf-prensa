@@ -13662,6 +13662,16 @@ let _juvTab = stor.get('auf4_juvTab','convocados');
 let _juvComp = null; // competencia abierta (detalle)
 let _juvCompTab = 'convocados'; // sub-tab dentro de competencia
 
+// Si la categoría no tiene convocatorias propias pero sí competencias (el caso típico:
+// los convocados reales viven dentro del Sudamericano/Mundial), arrancamos directo ahí
+// para no aterrizar en una pestaña "Convocados" vacía.
+function _juvDefaultTab(cat,yr){
+  const anoData = JUVENILES[cat]?.anos?.[yr];
+  if(!anoData) return 'convocados';
+  const hasConv = (anoData.convocatorias||[]).length>0;
+  const hasComp = (anoData.competencias||[]).length>0;
+  return (!hasConv && hasComp) ? 'competencias' : 'convocados';
+}
 window._setJuvCat = function(cat){
   _juvCat = cat;
   stor.set('auf4_juvCat', cat);
@@ -13669,14 +13679,14 @@ window._setJuvCat = function(cat){
   const anos = Object.keys(JUVENILES[cat]?.anos||{}).sort((a,b)=>b-a);
   _juvYear = anos[0]||'2025';
   stor.set('auf4_juvYear', _juvYear);
-  _juvTab = 'convocados';
+  _juvTab = _juvDefaultTab(_juvCat,_juvYear);
   stor.set('auf4_juvTab', _juvTab);
   window.renderJuveniles();
 };
 window._setJuvYear = function(yr){
   _juvYear = yr;
   stor.set('auf4_juvYear', yr);
-  _juvTab = 'convocados';
+  _juvTab = _juvDefaultTab(_juvCat,_juvYear);
   stor.set('auf4_juvTab', _juvTab);
   window.renderJuveniles();
 };
@@ -13741,6 +13751,13 @@ function _renderJuvenilesSafe(el){
   const anos = Object.keys(catData.anos).sort((a,b)=>b-a);
   if(!catData.anos[_juvYear]) _juvYear = anos[0];
   const anoData = catData.anos[_juvYear];
+
+  // Auto-corrección: si quedó guardada la pestaña "Convocados" vacía pero hay competencias
+  // con los convocados reales adentro, saltamos directo ahí para evitar la pantalla vacía.
+  if(_juvTab==='convocados' && !(anoData.convocatorias||[]).length && (anoData.competencias||[]).length){
+    _juvTab = 'competencias';
+    stor.set('auf4_juvTab', _juvTab);
+  }
 
   const CAT_ORDER = ['sub20','sub18','sub17','sub16','sub15','sub13'];
   const catColor = {sub20:'#1D4ED8',sub18:'#7C3AED',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626'};
