@@ -4924,9 +4924,14 @@ function renderSparrings(){
   const countEl=document.getElementById('sparr-count');
   if(!grid) return;
   countEl.textContent=`(${SPARRINGS_2026.length})`;
+  const juvPos = stor.get('auf4_juvPos', {});
   grid.innerHTML = SPARRINGS_2026.map(s=>{
     const initials=s.nom.split(' ').filter((_,i,arr)=>i===0||i===arr.length-1).map(w=>w[0]).join('');
     const hist = (window._juvPlayerHistory?window._juvPlayerHistory(s.nom):[])||[];
+    const pos = juvPos[s.nom]||'';
+    const posLabel = pos||'—';
+    const bg = pos?window.JUV_POS_BG[pos]:'var(--bg)';
+    const fg = pos?window.JUV_POS_FG[pos]:'var(--muted)';
     return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <div style="width:34px;height:34px;border-radius:50%;background:#FEF3C7;color:#92400E;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0">${initials}</div>
@@ -4934,6 +4939,9 @@ function renderSparrings(){
           <div style="font-weight:800;font-size:.85em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nom}</div>
           <div style="font-size:.7em;color:var(--muted)">${s.club||''}</div>
         </div>
+      </div>
+      <div style="margin-bottom:6px">
+        <span onclick="_cycleJuvPos('${s.nom.replace(/'/g,"\\'")}',this)" title="Click para cambiar el puesto" style="font-size:.68em;font-weight:800;color:${fg};background:${bg};border:1px solid ${pos?fg+'55':'var(--border)'};border-radius:6px;padding:2px 7px;cursor:pointer">${posLabel}</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">
         <span style="font-size:.6em;font-weight:800;color:#92400E;background:#FEF3C7;border-radius:6px;padding:1px 6px;letter-spacing:.04em">SPARRING</span>
@@ -14078,6 +14086,7 @@ window._cycleJuvPos = function(nom, badgeEl){
 };
 const JUV_POS_BG = {POR:'#FEF3C7',DEF:'#DCFCE7',MED:'#EDE9FE',DEL:'#FEE2E2'};
 const JUV_POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
+window.JUV_POS_BG = JUV_POS_BG; window.JUV_POS_FG = JUV_POS_FG;
 // Ficha de jugador Juveniles — mismo layout que las cards de la Mayor (avatar, nombre,
 // club con bandera, puesto + stats en una fila). Tocar el puesto lo va ciclando.
 function _juvFichaCard(p, hist, off, extraIcon){
