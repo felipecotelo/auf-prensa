@@ -13773,6 +13773,14 @@ window.renderJuveniles = function(){
   try { _renderJuvenilesSafe(el); } catch(e){ el.innerHTML=`<div style="padding:20px;color:red;font-family:monospace;font-size:.8em;white-space:pre-wrap">[ERR] ${e.message}\n${e.stack}</div>`; }
 };
 if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
+// Puesto de jugadores Juveniles — el usuario lo carga a mano y queda guardado en el navegador
+function getJuvPos(){ return stor.get('auf4_juvPos', {}); }
+window._setJuvPos = function(nom,pos){
+  const m = getJuvPos();
+  if(pos) m[nom]=pos; else delete m[nom];
+  stor.set('auf4_juvPos', m);
+  window.renderJuveniles();
+};
 window._juvPlayerHistory = function(nom){return _juvPlayerHistory(nom);};
 function _juvPlayerHistory(nom){
   const catColor = {sub20:'#1D4ED8',sub18:'#7C3AED',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626'};
@@ -13965,7 +13973,11 @@ function _renderJuvenilesSafe(el){
         if(!allPlayers[j.nom]) allPlayers[j.nom]={nom:j.nom,club:j.club||''};
       });
     });
-    const fichas = Object.values(allPlayers).sort((a,b)=>a.nom.localeCompare(b.nom));
+    const juvPos = getJuvPos();
+    const POS_ORDER = {POR:0,DEF:1,MED:2,DEL:3,'':4};
+    const fichas = Object.values(allPlayers)
+      .map(p=>({...p,pos:juvPos[p.nom]||''}))
+      .sort((a,b)=> (POS_ORDER[a.pos]-POS_ORDER[b.pos]) || a.nom.localeCompare(b.nom));
     if(fichas.length===0){
       body = `<div style="text-align:center;padding:48px 16px;color:var(--muted)">
         <i class="ti ti-id-badge-2" style="font-size:2.5rem;display:block;margin-bottom:10px;opacity:.3"></i>
@@ -13973,16 +13985,23 @@ function _renderJuvenilesSafe(el){
         <div style="font-size:.8em">Las fichas se generan automáticamente con cada convocatoria cargada</div>
       </div>`;
     } else {
+      const POS_OPTS = ['',  'POR','DEF','MED','DEL'];
+      const POS_LABELS = {'':'Puesto…',POR:'POR',DEF:'DEF',MED:'MED',DEL:'DEL'};
       body = `
         <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
-          Fichas de jugadores — ${fichas.length}
+          Fichas de jugadores — ${fichas.length} · click en el puesto para editarlo
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
           ${fichas.map(p=>{
             const hist = _juvPlayerHistory(p.nom);
             return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
-              <div style="width:36px;height:36px;border-radius:50%;background:${color}18;color:${color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.95em;margin-bottom:8px">
-                ${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="width:36px;height:36px;border-radius:50%;background:${color}18;color:${color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.95em">
+                  ${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}
+                </div>
+                <select onchange="_setJuvPos('${p.nom.replace(/'/g,"\\'")}',this.value)" style="font-size:.68em;font-weight:800;color:${p.pos?color:'var(--muted)'};background:${p.pos?color+'18':'var(--bg)'};border:1px solid ${p.pos?color+'55':'var(--border)'};border-radius:8px;padding:2px 6px;cursor:pointer">
+                  ${POS_OPTS.map(o=>`<option value="${o}" ${o===p.pos?'selected':''}>${POS_LABELS[o]}</option>`).join('')}
+                </select>
               </div>
               <div style="font-weight:800;font-size:.85em;margin-bottom:2px">${p.nom}</div>
               ${p.club?`<div style="font-size:.72em;color:var(--muted);margin-bottom:6px">${p.club}</div>`:''}
