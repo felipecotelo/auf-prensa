@@ -988,6 +988,8 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 .p-slot.drag-over .p-slot-av{border-color:#22C55E;box-shadow:0 0 0 3px rgba(34,197,94,.4)}
 .p-slot--sel .p-slot-av{border-color:#FFD700!important;box-shadow:0 0 0 4px rgba(255,215,0,.5),0 0 16px rgba(255,215,0,.4)!important;animation:piz-sel-pulse 1s ease-in-out infinite alternate}
 @keyframes piz-sel-pulse{from{box-shadow:0 0 0 3px rgba(255,215,0,.4)}to{box-shadow:0 0 0 6px rgba(255,215,0,.2)}}
+.juv-cat-sel{animation:juv-cat-pulse 1.1s ease-in-out infinite alternate}
+@keyframes juv-cat-pulse{from{box-shadow:0 0 0 2px var(--juv-glow,rgba(29,78,216,.45))}to{box-shadow:0 0 0 5px var(--juv-glow,rgba(29,78,216,.15))}}
 
 /* ── LINEUP BUILDER ──────────────────────────────────── */
 .lineup-hdr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -13667,17 +13669,19 @@ function _renderJuvenilesSafe(el){
     const active = k===_juvCat;
     const cc = catColor[k]||color;
     const dot = d.activa
-      ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${active?'#fff':cc};box-shadow:0 0 0 2px ${active?'rgba(255,255,255,.4)':cc+'33'}"></span>`
+      ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cc};box-shadow:0 0 0 2px ${cc}33"></span>`
       : '';
-    return `<button onclick="_setJuvCat('${k}')" style="
+    // Categorías "activa" (con Mundial este año) quedan siempre teñidas en su color, estén seleccionadas o no.
+    // La seleccionada suma un anillo que titila para indicar cuál se está viendo.
+    return `<button onclick="_setJuvCat('${k}')" class="${active?'juv-cat-sel':''}" style="
+      --juv-glow:${cc}73;
       display:flex;align-items:center;gap:6px;justify-content:center;
       padding:12px 10px;border-radius:14px;cursor:pointer;font-size:.95em;font-weight:900;
-      border:2px solid ${active?cc:'var(--border)'};
-      background:${active?cc:'var(--card)'};
-      color:${active?'#fff':'var(--text)'};
-      box-shadow:${active?'0 4px 10px '+cc+'40':'0 1px 3px rgba(0,0,0,.06)'};
+      border:2px solid ${d.activa?cc:(active?'var(--text)':'var(--border)')};
+      background:${d.activa?cc+'1c':(active?'var(--text)':'var(--card)')};
+      color:${d.activa?cc:(active?'var(--bg)':'var(--text)')};
+      box-shadow:${active?'0 2px 8px rgba(0,0,0,.12)':'0 1px 3px rgba(0,0,0,.06)'};
       opacity:${d.activa||active?1:.6};
-      transform:${active?'scale(1.04)':'none'};
       transition:all .15s
     ">${d.label}${dot}</button>`;
   }).join('');
