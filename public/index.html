@@ -13213,8 +13213,30 @@ const JUVENILES = {
       },
       2026: {
         ct: [],
-        info: {titulo:'Ciclo 2026', cuando:'', resultado:'', desc:'Información próximamente.'},
-        convocatorias: [],
+        info: {titulo:'Ciclo 2026', cuando:'', resultado:'', desc:'Preparación rumbo al Sudamericano Sub-15.'},
+        convocatorias: [
+          {fecha:'15 al 17 de junio', jugadores:[
+            {nom:'Santiago Boix'},{nom:'Francisco Inciarte'},{nom:'Enzo Mastrogiovani'},{nom:'Guzmán Suárez'},
+            {nom:'Ignacio Echavarría'},{nom:'Benjamín Martínez'},{nom:'Lucas Besonart'},{nom:'Guillermo Pintos'},
+            {nom:'Valentino Pérez'},{nom:'Luan Sosa'},{nom:'Joaquín Míguez'},{nom:'Matheus Sena'},
+            {nom:'Juan Rodríguez'},{nom:'Rafael Feller'},{nom:'Martín Sagasta'},{nom:'Bruno Meza'},
+            {nom:'Bautista Casco'},{nom:'Lautaro Tealde'},{nom:'Benjamín Suárez'},{nom:'Kevin Miguelez'},
+            {nom:'Felipe Newton'},{nom:'Lucas Juárez'},{nom:'Bruno Lotito'},{nom:'Valentino Vera'},
+            {nom:'Kevin Bueno'},{nom:'Lautaro Satragno'},{nom:'Ezequiel Álvarez'},{nom:'Manuel Moraes'},
+            {nom:'Santiago Larrosa'},{nom:'Máximo Bentancor'},
+          ]},
+          {fecha:'22 al 24 de junio', jugadores:[
+            {nom:'Thiago Carballo'},{nom:'Thiago Neroda'},{nom:'Iván Ortíz'},{nom:'Enzo Mastrogiovani'},
+            {nom:'Guzmán Suárez'},{nom:'Alfonzo Portillo'},{nom:'Benjamín Martínez'},{nom:'Lucas Besonart'},
+            {nom:'Guillermo Pintos'},{nom:'Valentino Pérez'},{nom:'Axel Sosa'},{nom:'Thian Suárez'},
+            {nom:'Matheus Sena'},{nom:'Juan Rodríguez'},{nom:'Rafael Feller'},{nom:'Martín Sagasta'},
+            {nom:'Bruno Meza'},{nom:'Bautista Casco'},{nom:'Lautaro Tealde'},{nom:'Benjamín Suárez'},
+            {nom:'Kevin Miguelez'},{nom:'Felipe Newton'},{nom:'Tiziano García'},{nom:'Santiago Amorín'},
+            {nom:'Valentino Vera'},{nom:'Mateo Rodríguez'},{nom:'Enzo Ferreira'},{nom:'Ezequiel Álvarez'},
+            {nom:'Federico Pereira'},{nom:'Santiago Larrosa'},{nom:'Máximo Bentancor'},{nom:'Juan Raymundo'},
+            {nom:'Enzo Scagni'},
+          ]},
+        ],
         competencias: []
       }
     }
@@ -13650,6 +13672,15 @@ window.renderJuveniles = function(){
   try { _renderJuvenilesSafe(el); } catch(e){ el.innerHTML=`<div style="padding:20px;color:red;font-family:monospace;font-size:.8em;white-space:pre-wrap">[ERR] ${e.message}\n${e.stack}</div>`; }
 };
 if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
+function _juvPlayerRow(p,destacado,color){
+  return `<div style="display:flex;align-items:center;justify-content:space-between;background:${destacado?color+'14':'var(--card)'};border:1px solid ${destacado?color+'55':'var(--border)'};border-radius:8px;padding:7px 12px">
+    <span style="font-weight:${destacado?800:600};font-size:.85em;color:${destacado?color:'var(--muted)'}">${p.nom}</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      ${p.club?`<span style="font-size:.72em;color:var(--muted)">${p.club}</span>`:''}
+      <span style="font-size:.68em;font-weight:700;color:${destacado?'#fff':color};background:${destacado?color:color+'18'};border-radius:10px;padding:1px 7px">${p.veces}×</span>
+    </div>
+  </div>`;
+}
 function _renderJuvenilesSafe(el){
 
   // Asegurar que la categoría/año existan
@@ -13730,24 +13761,31 @@ function _renderJuvenilesSafe(el){
     } else {
       // Última convocatoria destacada
       const last = convs[convs.length-1];
+      const lastNames = new Set((last.jugadores||[]).map(j=>j.nom));
       const allPlayers = {};
       convs.forEach(c=>(c.jugadores||[]).forEach(j=>{
         if(!allPlayers[j.nom]) allPlayers[j.nom]={nom:j.nom,pos:j.pos||'',veces:0,club:j.club||''};
         allPlayers[j.nom].veces++;
       }));
+      const hasPosData = Object.values(allPlayers).some(p=>p.pos);
       const byPos = {POR:[],DEF:[],MED:[],DEL:[]};
       Object.values(allPlayers).forEach(p=>{
         const g = byPos[p.pos]?p.pos:'MED';
         byPos[g].push(p);
       });
       const posLabel={POR:'Arqueros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
+      const sortedPlayers = Object.values(allPlayers).sort((a,b)=>{
+        const ai=lastNames.has(a.nom)?0:1, bi=lastNames.has(b.nom)?0:1;
+        if(ai!==bi) return ai-bi;
+        return a.nom.localeCompare(b.nom);
+      });
 
       const lastHtml = `
         <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px">
           <div style="font-size:.68em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
             Última convocatoria · ${last.fecha||''}
           </div>
-          ${['POR','DEF','MED','DEL'].map(pos=>{
+          ${hasPosData ? ['POR','DEF','MED','DEL'].map(pos=>{
             const pl=(last.jugadores||[]).filter(j=>j.pos===pos);
             if(!pl.length) return '';
             return `<div style="margin-bottom:8px">
@@ -13756,30 +13794,29 @@ function _renderJuvenilesSafe(el){
                 <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:.78em;font-weight:600">${j.nom}</span>
               `).join('')}</div>
             </div>`;
-          }).join('')}
+          }).join('') : `
+            <div style="display:flex;flex-wrap:wrap;gap:4px">${(last.jugadores||[]).map(j=>`
+              <span style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:.78em;font-weight:600">${j.nom}</span>
+            `).join('')}</div>`}
         </div>`;
 
       const registryHtml = `
-        <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 10px">
-          Registro de convocados ${_juvYear} (${Object.keys(allPlayers).length} jugadores)
+        <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 6px">
+          Lista general ${_juvYear} (${Object.keys(allPlayers).length} jugadores) — destacados los de la última convocatoria
         </div>
-        ${['POR','DEF','MED','DEL'].map(pos=>{
+        ${hasPosData ? ['POR','DEF','MED','DEL'].map(pos=>{
           const pl=byPos[pos];
           if(!pl.length) return '';
           return `<div style="margin-bottom:12px">
             <div style="font-size:.65em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${posLabel[pos]}</div>
             <div style="display:flex;flex-direction:column;gap:4px">
-              ${pl.map(p=>`
-                <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px">
-                  <span style="font-weight:700;font-size:.85em">${p.nom}</span>
-                  <div style="display:flex;align-items:center;gap:8px">
-                    ${p.club?`<span style="font-size:.72em;color:var(--muted)">${p.club}</span>`:''}
-                    <span style="font-size:.68em;font-weight:700;color:${color};background:${color}18;border-radius:10px;padding:1px 7px">${p.veces}×</span>
-                  </div>
-                </div>`).join('')}
+              ${pl.map(p=>_juvPlayerRow(p,lastNames.has(p.nom),color)).join('')}
             </div>
           </div>`;
-        }).join('')}`;
+        }).join('') : `
+          <div style="display:flex;flex-direction:column;gap:4px">
+            ${sortedPlayers.map(p=>_juvPlayerRow(p,lastNames.has(p.nom),color)).join('')}
+          </div>`}`;
 
       body = lastHtml + registryHtml;
     }
