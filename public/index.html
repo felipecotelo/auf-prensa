@@ -5685,7 +5685,12 @@ async function savePE(){
     await savePhotoIDB(PE.num, dataUrl);
     invalidatePhotoCache();
   }catch(e){toast('⚠ Error guardando foto: '+e.message);return}
-  applyPhotoToCard(PE.num, dataUrl);
+  if(typeof PE.num==='string' && PE.num.startsWith('juv:')){
+    _juvPhotoCache[PE.num.slice(4)]=dataUrl;
+    window.renderJuveniles?.();
+  } else {
+    applyPhotoToCard(PE.num, dataUrl);
+  }
   closePE();
   toast('📷 Foto actualizada');
 }
@@ -14018,6 +14023,32 @@ window.renderJuveniles = function(){
   try { _renderJuvenilesSafe(el); } catch(e){ el.innerHTML=`<div style="padding:20px;color:red;font-family:monospace;font-size:.8em;white-space:pre-wrap">[ERR] ${e.message}\n${e.stack}</div>`; }
 };
 if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
+
+// Fotos de jugadores Juveniles — se guardan en el mismo IndexedDB que las de la Mayor,
+// con clave 'juv:<nombre>' para no chocar con los números de camiseta de la Mayor.
+let _juvPhotoCache = {};
+async function _loadJuvPhotoCache(){
+  const all = await getAllPhotosIDB();
+  const out = {};
+  Object.keys(all).forEach(k=>{ if(typeof k==='string' && k.startsWith('juv:')) out[k.slice(4)]=all[k]; });
+  _juvPhotoCache = out;
+  if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
+}
+_loadJuvPhotoCache();
+window._clickJuvPhoto = async function(nomEncoded){
+  const nom = decodeURIComponent(nomEncoded);
+  const existing = _juvPhotoCache[nom] || await getPhotoIDB('juv:'+nom);
+  if(existing){ openPE('juv:'+nom, existing); return; }
+  document.getElementById('juv-photo-input-'+nomEncoded)?.click();
+};
+window._juvPhotoSelected = function(nomEncoded, input){
+  const file = input.files[0]; if(!file) return;
+  input.value='';
+  const reader = new FileReader();
+  reader.onload = ev => openPE('juv:'+decodeURIComponent(nomEncoded), ev.target.result);
+  reader.readAsDataURL(file);
+};
+
 // Puesto de jugadores Juveniles — el usuario lo carga a mano y queda guardado en el navegador
 function getJuvPos(){ return stor.get('auf4_juvPos', {}); }
 window._setJuvPos = function(nom,pos){
@@ -14039,10 +14070,16 @@ const JUV_POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
 function _juvFichaCard(p, hist, off, extraIcon){
   const hasOficial = off.conv>0;
   const posLabel = p.pos||'—';
+  const nomEnc = encodeURIComponent(p.nom);
+  const photo = _juvPhotoCache[p.nom];
+  const avatar = photo
+    ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+    : `<span>${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}</span>`;
   return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
-      <div style="width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid var(--border)">
-        ${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}
+      <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:hidden">
+        ${avatar}
+        <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:.88em;display:flex;align-items:center;gap:4px">
