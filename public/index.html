@@ -13722,8 +13722,9 @@ function _juvPlayerHistory(nom){
   const out = [];
   Object.entries(JUVENILES).forEach(([catKey,catData])=>{
     Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
-      const found = (anoData.convocatorias||[]).some(c=>(c.jugadores||[]).some(j=>j.nom===nom));
-      if(found){
+      const foundConv = (anoData.convocatorias||[]).some(c=>(c.jugadores||[]).some(j=>j.nom===nom));
+      const foundComp = (anoData.competencias||[]).some(c=>_juvCompAllPlayers(c.id).some(j=>j.nom===nom));
+      if(foundConv||foundComp){
         const key = catKey+yr;
         if(!seen.has(key)){
           seen.add(key);
@@ -13899,6 +13900,13 @@ function _renderJuvenilesSafe(el){
     convs.forEach(c=>(c.jugadores||[]).forEach(j=>{
       if(!allPlayers[j.nom]) allPlayers[j.nom]={nom:j.nom,club:j.club||''};
     }));
+    // Sumar también los jugadores que aparecen en las competencias de esta categoría/año
+    // (Sudamericano, Mundial, etc.), donde suele vivir el dato real de convocados.
+    (anoData.competencias||[]).forEach(c=>{
+      _juvCompAllPlayers(c.id).forEach(j=>{
+        if(!allPlayers[j.nom]) allPlayers[j.nom]={nom:j.nom,club:j.club||''};
+      });
+    });
     const fichas = Object.values(allPlayers).sort((a,b)=>a.nom.localeCompare(b.nom));
     if(fichas.length===0){
       body = `<div style="text-align:center;padding:48px 16px;color:var(--muted)">
@@ -14046,11 +14054,22 @@ function _playerEvents(p){
   return s;
 }
 
+const COMP_DATA = {
+  'sud17-2026': SUD17_2026,
+  'wc17-2026': WC17_2026,
+};
+// Une convocados + preparación de una competencia en una sola lista de jugadores (sin duplicados)
+function _juvCompAllPlayers(compId){
+  const comp = COMP_DATA[compId];
+  if(!comp) return [];
+  const out = {};
+  [...(comp.convocados||[]), ...(comp.preparacion||[])].forEach(j=>{
+    if(j.descartado) return;
+    if(!out[j.nom]) out[j.nom]={nom:j.nom,club:j.club||''};
+  });
+  return Object.values(out);
+}
 function _buildJuvCompBody(compId, color, catData){
-  const COMP_DATA = {
-    'sud17-2026': SUD17_2026,
-    'wc17-2026': WC17_2026,
-  };
   const comp = COMP_DATA[compId];
   if(!comp) return '<div style="padding:32px;text-align:center;color:var(--muted)">Sin datos</div>';
   const cc = comp.color||color;
