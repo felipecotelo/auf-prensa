@@ -13158,8 +13158,8 @@ const JUVENILES = {
           {iso:'uy', name:'Álvaro Fernández', rol:'Ayudante técnico'},
           {iso:'uy', name:'Juan Prieto', rol:'Preparador físico'},
           {iso:'uy', name:'Santiago Morandi', rol:'Entrenador de arqueros'},
-          {iso:'uy', name:'Esteban Gesto', rol:'Preparador físico integrado'},
-          {iso:'uy', name:'Emil Leibner', rol:'Preparador físico integrado'},
+          {iso:'uy', name:'Esteban Gesto', rol:'Coordinador del área física de Juveniles', coord:true},
+          {iso:'uy', name:'Emil Leibner', rol:'Preparador físico integrado', coord:true},
         ],
         info: {
           titulo:'Sudamericano Sub-17 2026 + Mundial Sub-17 Qatar 2026',
@@ -13376,8 +13376,8 @@ const SUD17_2026 = {
     {iso:'uy',name:'Álvaro Fernández',rol:'Ayudante técnico'},
     {iso:'uy',name:'Juan Prieto',rol:'Preparador físico'},
     {iso:'uy',name:'Santiago Morandi',rol:'Entrenador de arqueros'},
-    {iso:'uy',name:'Esteban Gesto',rol:'Preparador físico integrado'},
-    {iso:'uy',name:'Emil Leibner',rol:'Preparador físico integrado'},
+    {iso:'uy',name:'Esteban Gesto',rol:'Coordinador del área física de Juveniles',coord:true},
+    {iso:'uy',name:'Emil Leibner',rol:'Preparador físico integrado',coord:true},
   ],
   delegacion:[
     {name:'Marcelo García',rol:'Presidente de Juveniles'},
@@ -13792,7 +13792,9 @@ function _renderJuvenilesSafe(el){
         <div style="font-size:.8em">La información se cargará aquí</div>
       </div>`;
     } else {
-      body = estructuraNota + ct.map(m=>`
+      const ctMain = ct.filter(m=>!m.coord);
+      const ctCoord = ct.filter(m=>m.coord);
+      body = estructuraNota + ctMain.map(m=>`
         <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;${m.pendiente?'opacity:.55':''}" >
           ${m.pendiente
             ? `<div style="width:28px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-dots" style="color:var(--muted);font-size:.9em"></i></div>`
@@ -13804,6 +13806,18 @@ function _renderJuvenilesSafe(el){
           </div>
           ${m.dt?`<span style="font-size:.65em;font-weight:800;color:${color};background:${color}18;border-radius:8px;padding:2px 8px;text-transform:uppercase;letter-spacing:.05em">DT</span>`:''}
         </div>`).join('');
+      if(ctCoord.length){
+        body += `
+          <div style="font-size:.68em;font-weight:800;color:#9333EA;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px">Coordinación transversal de Juveniles</div>
+          ${ctCoord.map(m=>`
+            <div style="display:flex;align-items:center;gap:12px;background:#FAF5FF;border:1px solid #E9D5FF;border-radius:10px;padding:12px 14px;margin-bottom:8px">
+              <img src="https://flagcdn.com/w40/${m.iso}.png" style="width:28px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">
+              <div style="flex:1">
+                <div style="font-weight:800;font-size:.9em;color:#6B21A8">${m.name}</div>
+                <div style="font-size:.75em;color:#9333EA;margin-top:1px">${m.rol}</div>
+              </div>
+            </div>`).join('')}`;
+      }
     }
   }
 
@@ -14065,12 +14079,18 @@ function _buildJuvCompBody(compId, color, catData){
   else if(_juvCompTab==='ct_del'){
     const ct = comp.ct||[];
     const del_ = comp.delegacion||[];
-    const rowCT = ct.map(m=>`
+    const rowCT = ct.filter(m=>!m.coord).map(m=>`
       <div style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:6px">
         <img src="https://flagcdn.com/w40/${m.iso}.png" style="width:24px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0" onerror="this.style.display='none'">
         <div style="flex:1"><div style="font-weight:800;font-size:.88em">${m.name}</div><div style="font-size:.72em;color:var(--muted)">${m.rol}</div></div>
         ${m.dt?`<span style="font-size:.62em;font-weight:800;color:${cc};background:${cc}18;border-radius:6px;padding:2px 7px">DT</span>`:''}
-      </div>`).join('');
+      </div>`).join('') + (ct.some(m=>m.coord)?`
+      <div style="font-size:.62em;font-weight:800;color:#9333EA;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px">Coordinación transversal de Juveniles</div>
+      ${ct.filter(m=>m.coord).map(m=>`
+      <div style="display:flex;align-items:center;gap:10px;background:#FAF5FF;border:1px solid #E9D5FF;border-radius:9px;padding:10px 12px;margin-bottom:6px">
+        <img src="https://flagcdn.com/w40/${m.iso}.png" style="width:24px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0" onerror="this.style.display='none'">
+        <div style="flex:1"><div style="font-weight:800;font-size:.88em;color:#6B21A8">${m.name}</div><div style="font-size:.72em;color:#9333EA">${m.rol}</div></div>
+      </div>`).join('')}` : '');
     const rowDel = del_.map(m=>`
       <div style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:8px 12px;margin-bottom:5px">
         <div style="flex:1"><div style="font-weight:700;font-size:.85em">${m.name}</div><div style="font-size:.7em;color:var(--muted)">${m.rol}</div></div>
