@@ -1283,6 +1283,12 @@ html.auf-gate body { display:none !important }
     <button class="pf-btn" onclick="filterPos('DEL',this)">DEL</button>
   </div>
   <div class="p-grid" id="p-grid"></div>
+
+  <div style="margin:24px 0 10px;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="_toggleSparrings()">
+    <i class="ti ti-chevron-right" id="sparr-chevron" style="transition:transform .15s"></i>
+    <div style="font-weight:800;font-size:.9em">Sparrings — juveniles invitados a entrenar <span id="sparr-count" style="color:var(--muted);font-weight:600"></span></div>
+  </div>
+  <div id="sparr-grid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:10px"></div>
 </div>
 
 <!-- ═══════════ PIZARRA ═══════════ -->
@@ -1701,6 +1707,24 @@ const DT_STAFF = [
 //        wcCaps  = partidos jugados en Mundiales
 //        wcGoals = goles en Mundiales
 // injury: 'green'|'yellow'|'red'
+// Sparrings: juveniles invitados a entrenar con la Mayor durante la Copa del Mundo 2026.
+// No integran el plantel de 26 (sin número/stats) — son fichas livianas que se cruzan
+// con el sistema de fichas de Juveniles por nombre (ver _juvPlayerHistory).
+const SPARRINGS_2026 = [
+  {nom:'Felipe Ortiz', club:'Deportivo Maldonado'},
+  {nom:'Benjamín García', club:'Montevideo City Torque'},
+  {nom:'Mateo Caballero', club:'Defensor Sporting'},
+  {nom:'Yuri Oyarzo', club:'Racing Club'},
+  {nom:'Pablo Alcoba', club:'Albion'},
+  {nom:'Germán Barbas', club:'Peñarol'},
+  {nom:'Pablo Cardozo', club:'Danubio'},
+  {nom:'Julio Daguer', club:'Peñarol'},
+  {nom:'Luciano González', club:'Nacional'},
+  {nom:'Alexander Velázquez', club:'Danubio'},
+  {nom:'Facundo Martínez', club:'Montevideo City Torque'},
+  {nom:'Alan Torterolo', club:'Defensor Sporting'},
+];
+
 const PLAYERS = [
   {n:1,aeroUy:0,name:'Sergio Rochet',          pos:'POR', captain:0, injury:'green',
    club:'Sport Club Internacional', clubPais:'🇧🇷',
@@ -4884,6 +4908,39 @@ async function renderPlantel(searchVal){
         </div>`;
       grid.appendChild(card);
     });
+  renderSparrings();
+}
+
+function _toggleSparrings(){
+  const grid=document.getElementById('sparr-grid');
+  const chev=document.getElementById('sparr-chevron');
+  const open=grid.style.display!=='none';
+  grid.style.display=open?'none':'grid';
+  chev.style.transform=open?'none':'rotate(90deg)';
+}
+
+function renderSparrings(){
+  const grid=document.getElementById('sparr-grid');
+  const countEl=document.getElementById('sparr-count');
+  if(!grid) return;
+  countEl.textContent=`(${SPARRINGS_2026.length})`;
+  grid.innerHTML = SPARRINGS_2026.map(s=>{
+    const initials=s.nom.split(' ').filter((_,i,arr)=>i===0||i===arr.length-1).map(w=>w[0]).join('');
+    const hist = (window._juvPlayerHistory?window._juvPlayerHistory(s.nom):[])||[];
+    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:34px;height:34px;border-radius:50%;background:#FEF3C7;color:#92400E;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:.85em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nom}</div>
+          <div style="font-size:.7em;color:var(--muted)">${s.club||''}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">
+        <span style="font-size:.6em;font-weight:800;color:#92400E;background:#FEF3C7;border-radius:6px;padding:1px 6px;letter-spacing:.04em">SPARRING</span>
+        ${hist.map(h=>`<span style="font-size:.6em;font-weight:700;color:${h.color};background:${h.color}18;border-radius:6px;padding:1px 6px">${h.label}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function switchPTab(btn, tab, num){
@@ -13716,6 +13773,7 @@ window.renderJuveniles = function(){
   try { _renderJuvenilesSafe(el); } catch(e){ el.innerHTML=`<div style="padding:20px;color:red;font-family:monospace;font-size:.8em;white-space:pre-wrap">[ERR] ${e.message}\n${e.stack}</div>`; }
 };
 if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
+window._juvPlayerHistory = function(nom){return _juvPlayerHistory(nom);};
 function _juvPlayerHistory(nom){
   const catColor = {sub20:'#1D4ED8',sub18:'#7C3AED',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626'};
   const seen = new Set();
