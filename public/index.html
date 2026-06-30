@@ -14026,6 +14026,43 @@ window._setJuvPos = function(nom,pos){
   stor.set('auf4_juvPos', m);
   window.renderJuveniles();
 };
+const JUV_POS_CYCLE = ['','POR','DEF','MED','DEL'];
+window._cycleJuvPos = function(nom){
+  const cur = getJuvPos()[nom]||'';
+  const next = JUV_POS_CYCLE[(JUV_POS_CYCLE.indexOf(cur)+1)%JUV_POS_CYCLE.length];
+  window._setJuvPos(nom, next);
+};
+const JUV_POS_BG = {POR:'#FEF3C7',DEF:'#DCFCE7',MED:'#EDE9FE',DEL:'#FEE2E2'};
+const JUV_POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
+// Ficha de jugador Juveniles — mismo layout que las cards de la Mayor (avatar, nombre,
+// club con bandera, puesto + stats en una fila). Tocar el puesto lo va ciclando.
+function _juvFichaCard(p, hist, off, extraIcon){
+  const hasOficial = off.conv>0;
+  const posLabel = p.pos||'—';
+  return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+      <div style="width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid var(--border)">
+        ${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:.88em;display:flex;align-items:center;gap:4px">
+          ${hasOficial?'<span title="Tiene convocatorias oficiales">🏆</span>':''}
+          ${extraIcon||''}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nom}</span>
+        </div>
+        ${p.club?`<div style="font-size:.72em;color:var(--muted);display:flex;align-items:center;gap:4px"><img src="https://flagcdn.com/w20/uy.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">${p.club}</div>`:''}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span onclick="_cycleJuvPos('${p.nom.replace(/'/g,"\\'")}')" title="Click para cambiar el puesto" style="font-size:.68em;font-weight:800;color:${p.pos?JUV_POS_FG[p.pos]:'var(--muted)'};background:${p.pos?JUV_POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?JUV_POS_FG[p.pos]+'55':'var(--border)'};border-radius:6px;padding:2px 7px;cursor:pointer">${posLabel}</span>
+      <span style="font-size:.78em;font-weight:700">${off.conv} <span style="font-weight:500;color:var(--muted);font-size:.85em">conv.</span></span>
+      <span style="font-size:.78em;font-weight:700">${off.pj} <span style="font-weight:500;color:var(--muted);font-size:.85em">PJ</span></span>
+    </div>
+    ${hist.length?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:8px">
+      ${hist.map(h=>`<span style="font-size:.62em;font-weight:700;color:${h.color};background:${h.color}18;border-radius:6px;padding:1px 6px">${h.label}</span>`).join('')}
+    </div>`:''}
+  </div>`;
+}
 window._juvPlayerHistory = function(nom){return _juvPlayerHistory(nom);};
 function _juvPlayerHistory(nom){
   const catColor = {sub20:'#1D4ED8',sub18:'#7C3AED',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626'};
@@ -14256,46 +14293,12 @@ function _renderJuvenilesSafe(el){
         <div style="font-size:.8em">Las fichas se generan automáticamente con cada convocatoria cargada</div>
       </div>`;
     } else {
-      const POS_OPTS = ['',  'POR','DEF','MED','DEL'];
-      const POS_LABELS = {'':'Puesto…',POR:'POR',DEF:'DEF',MED:'MED',DEL:'DEL'};
-      const POS_BG = {POR:'#FEF3C7',DEF:'#DCFCE7',MED:'#EDE9FE',DEL:'#FEE2E2'};
-      const POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
       body = `
         <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
           Fichas de jugadores — ${fichas.length} · click en el puesto para editarlo
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-          ${fichas.map(p=>{
-            const hist = _juvPlayerHistory(p.nom);
-            const off = _juvOfficialStats(p.nom);
-            const hasOficial = off.conv>0;
-            return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;position:relative">
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-                <div style="width:44px;height:44px;border-radius:50%;background:${color}18;color:${color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1em;flex-shrink:0;border:2px solid ${color}33">
-                  ${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}
-                </div>
-                <div style="flex:1;min-width:0">
-                  <div style="font-weight:800;font-size:.88em;display:flex;align-items:center;gap:4px">
-                    ${hasOficial?'<span title="Tiene convocatorias oficiales">🏆</span>':''}
-                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nom}</span>
-                  </div>
-                  ${p.club?`<div style="font-size:.72em;color:var(--muted);display:flex;align-items:center;gap:4px"><img src="https://flagcdn.com/w20/uy.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">${p.club}</div>`:''}
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-                <select onchange="_setJuvPos('${p.nom.replace(/'/g,"\\'")}',this.value)" style="font-size:.68em;font-weight:800;color:${p.pos?POS_FG[p.pos]:'var(--muted)'};background:${p.pos?POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?POS_FG[p.pos]+'55':'var(--border)'};border-radius:8px;padding:2px 6px;cursor:pointer">
-                  ${POS_OPTS.map(o=>`<option value="${o}" ${o===p.pos?'selected':''}>${POS_LABELS[o]}</option>`).join('')}
-                </select>
-              </div>
-              <div style="display:flex;align-items:center;gap:14px;background:var(--bg);border-radius:8px;padding:6px 10px;margin-bottom:8px">
-                <div style="text-align:center"><div style="font-weight:900;font-size:.95em">${off.conv}</div><div style="font-size:.6em;color:var(--muted);text-transform:uppercase">conv.</div></div>
-                <div style="text-align:center"><div style="font-weight:900;font-size:.95em">${off.pj}</div><div style="font-size:.6em;color:var(--muted);text-transform:uppercase">PJ</div></div>
-              </div>
-              <div style="display:flex;flex-wrap:wrap;gap:3px">
-                ${hist.map(h=>`<span style="font-size:.62em;font-weight:700;color:${h.color};background:${h.color}18;border-radius:6px;padding:1px 6px">${h.label}</span>`).join('')}
-              </div>
-            </div>`;
-          }).join('')}
+          ${fichas.map(p=>_juvFichaCard(p, _juvPlayerHistory(p.nom), _juvOfficialStats(p.nom))).join('')}
         </div>`;
     }
   }
@@ -14429,10 +14432,6 @@ function _buildJuvGlobalPlayers(){
 
   const juvPos = getJuvPos();
   const POS_ORDER = {POR:0,DEF:1,MED:2,DEL:3,'':4};
-  const POS_OPTS = ['','POR','DEF','MED','DEL'];
-  const POS_LABELS = {'':'Puesto…',POR:'POR',DEF:'DEF',MED:'MED',DEL:'DEL'};
-  const POS_BG = {POR:'#FEF3C7',DEF:'#DCFCE7',MED:'#EDE9FE',DEL:'#FEE2E2'};
-  const POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
 
   const fichas = Object.values(allPlayers)
     .map(p=>({...p,pos:juvPos[p.nom]||''}))
@@ -14447,36 +14446,8 @@ function _buildJuvGlobalPlayers(){
       ${fichas.map(p=>{
         const hist = _juvPlayerHistory(p.nom);
         const off = _juvOfficialStats(p.nom);
-        const hasOficial = off.conv>0;
-        const ascendio = hist.length>1;
-        const color = '#1D4ED8';
-        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;position:relative">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-            <div style="width:44px;height:44px;border-radius:50%;background:${color}18;color:${color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1em;flex-shrink:0;border:2px solid ${color}33">
-              ${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}
-            </div>
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:800;font-size:.88em;display:flex;align-items:center;gap:4px">
-                ${hasOficial?'<span title="Tiene convocatorias oficiales">🏆</span>':''}
-                ${ascendio?'<span title="Pasó por más de una categoría">⬆️</span>':''}
-                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nom}</span>
-              </div>
-              ${p.club?`<div style="font-size:.72em;color:var(--muted);display:flex;align-items:center;gap:4px"><img src="https://flagcdn.com/w20/uy.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">${p.club}</div>`:''}
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-            <select onchange="_setJuvPos('${p.nom.replace(/'/g,"\\'")}',this.value)" style="font-size:.68em;font-weight:800;color:${p.pos?POS_FG[p.pos]:'var(--muted)'};background:${p.pos?POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?POS_FG[p.pos]+'55':'var(--border)'};border-radius:8px;padding:2px 6px;cursor:pointer">
-              ${POS_OPTS.map(o=>`<option value="${o}" ${o===p.pos?'selected':''}>${POS_LABELS[o]}</option>`).join('')}
-            </select>
-          </div>
-          <div style="display:flex;align-items:center;gap:14px;background:var(--bg);border-radius:8px;padding:6px 10px;margin-bottom:8px">
-            <div style="text-align:center"><div style="font-weight:900;font-size:.95em">${off.conv}</div><div style="font-size:.6em;color:var(--muted);text-transform:uppercase">conv.</div></div>
-            <div style="text-align:center"><div style="font-weight:900;font-size:.95em">${off.pj}</div><div style="font-size:.6em;color:var(--muted);text-transform:uppercase">PJ</div></div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:3px">
-            ${hist.map(h=>`<span style="font-size:.62em;font-weight:700;color:${h.color};background:${h.color}18;border-radius:6px;padding:1px 6px">${h.label}</span>`).join('')}
-          </div>
-        </div>`;
+        const ascendio = hist.length>1?'<span title="Pasó por más de una categoría">⬆️</span>':'';
+        return _juvFichaCard(p, hist, off, ascendio);
       }).join('')}
     </div>`;
 
