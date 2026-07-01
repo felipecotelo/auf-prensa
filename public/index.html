@@ -15603,89 +15603,153 @@ document.addEventListener('click', ()=>{ const s=document.getElementById('pw-pro
 
 // ── Base de datos: Medios y programas ─────────────────────────────────────────
 let _medEditIdx = null;
+// Estado en memoria del modal activo
+let _medState = { periodistas:[], productores:[], formato:'' };
+
+const _MED_FORMATOS = ['TV','Radio','Prensa escrita','Streaming','Mixto'];
+const _MED_FORMATO_COLORS = {TV:'#1D4ED8',Radio:'#7C3AED','Prensa escrita':'#B45309',Streaming:'#0F766E',Mixto:'#6B7280'};
+
+// Extrae todos los nombres únicos de periodistas y productores de la DB
+function _medGetPersonas(){
+  const set = new Set();
+  _mediosGetAll().forEach(m=>{
+    (m.periodistas||[]).forEach(p=>{ if(p&&p!=='luego') set.add(p); });
+    (m.productores||[]).forEach(p=>{ if(p&&p!=='luego') set.add(p); });
+  });
+  return [...set].sort();
+}
+// Extrae todos los medios únicos
+function _medGetMediosKnown(){
+  const set = new Set();
+  _mediosGetAll().forEach(m=>{ if(m.medio) set.add(m.medio); });
+  return [...set].sort();
+}
 
 function _renderMediosDB(){
   const el = document.getElementById('prensa-body');
   if(!el) return;
   const list = _mediosGetAll();
+  const fmtColor = f => _MED_FORMATO_COLORS[f]||'#6B7280';
 
-  const rows = list.length ? list.map((m,i)=>`
-    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px">
+  const rows = list.length ? list.map((m,i)=>{
+    const periStr = Array.isArray(m.periodistas) ? m.periodistas.join(', ') : (m.periodistas==='luego'?'Agregar luego':'');
+    const prodStr = Array.isArray(m.productores) ? m.productores.join(', ') : (m.productores==='luego'?'Agregar luego':'');
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
       <div style="flex:1;min-width:0">
-        <div style="font-size:.9em;font-weight:800;color:var(--text)">${m.programa||'—'}</div>
-        <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.medio||''}</div>
-        ${m.periodista?`<div style="font-size:.75em;color:var(--text);margin-top:3px"><i class="ti ti-user" style="font-size:.85em"></i> ${m.periodista}</div>`:''}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
+          <span style="font-size:.92em;font-weight:900;color:var(--text)">${m.programa||'—'}</span>
+          ${m.formato?`<span style="font-size:.68em;font-weight:700;border-radius:20px;padding:2px 9px;background:${fmtColor(m.formato)}18;color:${fmtColor(m.formato)}">${m.formato}</span>`:''}
+          ${m.pais?`<span style="font-size:.68em;color:var(--muted)">${m.pais}</span>`:''}
+        </div>
+        <div style="font-size:.78em;font-weight:700;color:var(--muted)">${m.medio||''}</div>
+        ${periStr?`<div style="font-size:.73em;color:var(--text);margin-top:5px"><span style="color:var(--muted)">Periodistas:</span> ${periStr}</div>`:''}
+        ${prodStr?`<div style="font-size:.73em;color:var(--text);margin-top:2px"><span style="color:var(--muted)">Productores:</span> ${prodStr}</div>`:''}
+        ${m.emision&&m.emision!=='luego'?`<div style="font-size:.72em;color:var(--muted);margin-top:4px"><i class="ti ti-clock" style="font-size:.9em"></i> ${m.emision}</div>`:''}
         ${m.notas?`<div style="font-size:.72em;color:var(--muted);margin-top:4px;background:var(--surface);border-radius:6px;padding:3px 8px">${m.notas}</div>`:''}
       </div>
-      <div style="display:flex;gap:4px;flex-shrink:0">
-        ${m.formato?`<span style="font-size:.68em;font-weight:700;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:2px 9px;align-self:flex-start">${m.formato}</span>`:''}
+      <div style="display:flex;gap:4px;flex-shrink:0;margin-top:2px">
         <button onclick="_medEdit(${i})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
         <button onclick="_medDel(${i})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
       </div>
-    </div>`).join('')
+    </div>`;
+  }).join('')
   : `<div style="text-align:center;padding:48px 24px;color:var(--muted)">
       <i class="ti ti-device-tv" style="font-size:2.5em;display:block;margin-bottom:12px;opacity:.3"></i>
       <div style="font-weight:700;margin-bottom:4px">Sin medios cargados</div>
-      <div style="font-size:.82em">Tocá "+ Agregar" para crear la base de datos</div>
+      <div style="font-size:.82em">Tocá "+ Agregar" para comenzar</div>
     </div>`;
 
   el.innerHTML = `
     <div style="max-width:700px;margin:0 auto;padding:16px">
       <!-- Tabs -->
-      <div style="display:flex;gap:6px;margin-bottom:20px;background:var(--surface);border-radius:12px;padding:4px">
-        <button onclick="_pwSetTab('list')" style="flex:1;padding:8px;border:none;border-radius:9px;font-size:.82em;font-weight:800;cursor:pointer;background:transparent;color:var(--muted)">Ventanas de prensa</button>
-        <button onclick="_pwSetTab('medios')" style="flex:1;padding:8px;border:none;border-radius:9px;font-size:.82em;font-weight:800;cursor:pointer;background:var(--cel);color:#fff">Medios y programas</button>
+      <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:24px">
+        <button onclick="_pwSetTab('list')" style="padding:10px 20px;border:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:var(--muted);display:flex;align-items:center;gap:6px"><i class="ti ti-microphone-2" style="font-size:.95em"></i>Ventanas de prensa</button>
+        <button onclick="_pwSetTab('medios')" style="padding:10px 20px;border:none;border-bottom:2.5px solid var(--cel);margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:var(--cel);display:flex;align-items:center;gap:6px"><i class="ti ti-device-tv" style="font-size:.95em"></i>Medios y programas</button>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div>
           <div style="font-size:1.1em;font-weight:900;color:var(--text)">Medios y programas</div>
-          <div style="font-size:.78em;color:var(--muted);margin-top:2px">${list.length} entradas · usada para autocompletar pedidos</div>
+          <div style="font-size:.78em;color:var(--muted);margin-top:2px">${list.length} entrada${list.length!==1?'s':''} · autocompleta al cargar pedidos</div>
         </div>
         <button onclick="_medNuevo()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:10px;background:var(--cel);color:#fff;font-size:.82em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">${rows}</div>
     </div>
 
-    <!-- Modal medio -->
+    <!-- Modal medio/programa -->
     <div id="med-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_medCloseModal()">
-      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:20px 20px 32px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-          <div id="med-modal-title" style="font-weight:900;font-size:1em">Nuevo medio / programa</div>
+      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;padding:20px 20px 32px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div id="med-modal-title" style="font-weight:900;font-size:1.05em">Nuevo programa</div>
           <button onclick="_medCloseModal()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <!-- PROGRAMA + MEDIO -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
           <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
-            <input id="med-programa" type="text" placeholder='ej: "Punto Penal"' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
+            <input id="med-programa" type="text" placeholder='ej: Punto Penal' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
           </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
-            <input id="med-medio" type="text" placeholder='ej: "Canal 10"' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PERIODISTA / CONTACTO</label>
-            <input id="med-periodista" type="text" placeholder="Nombre" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
-          </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO HABITUAL</label>
-            <select id="med-formato" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box">
-              <option value="">— Opcional —</option>
-              <option value="Presencial">Presencial</option>
-              <option value="Telefónica">Telefónica</option>
-              <option value="Zoom">Zoom</option>
-              <option value="Stand-up">Stand-up</option>
-              <option value="Nota escrita">Nota escrita</option>
-            </select>
+          <div style="position:relative">
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
+            <input id="med-medio" type="text" autocomplete="off" placeholder='ej: Canal 10' oninput="_medMedioInput(this)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+            <div id="med-medio-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:140px;overflow-y:auto"></div>
           </div>
         </div>
 
-        <div style="margin-bottom:20px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
-          <textarea id="med-notas" rows="2" placeholder="Horario habitual, observaciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+        <!-- PAÍS + FORMATO -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div>
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PAÍS</label>
+            <input id="med-pais" type="text" placeholder='ej: Uruguay' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:2px" id="med-formato-btns">
+              ${_MED_FORMATOS.map(f=>`<button type="button" onclick="_medToggleFmt('${f}')" id="med-fmt-${f.replace(/ /g,'-')}" style="padding:4px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${f}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- PERIODISTAS -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+            <label style="font-size:.72em;font-weight:700;color:var(--muted)">PERIODISTAS PRINCIPALES</label>
+            <button type="button" id="med-peri-luego-btn" onclick="_medToggleLuego('peri')" style="font-size:.7em;font-weight:700;border:none;background:none;cursor:pointer;color:var(--hint);padding:0">Agregar luego</button>
+          </div>
+          <div id="med-peri-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px"></div>
+          <div id="med-peri-input-wrap" style="position:relative">
+            <input id="med-peri-input" type="text" autocomplete="off" placeholder="Nombre + Enter" oninput="_medPersonaInput(this,'peri')" onkeydown="_medPersonaKeydown(event,'peri')" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;box-sizing:border-box">
+            <div id="med-peri-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:140px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- PRODUCTORES -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+            <label style="font-size:.72em;font-weight:700;color:var(--muted)">PRODUCTORES</label>
+            <button type="button" id="med-prod-luego-btn" onclick="_medToggleLuego('prod')" style="font-size:.7em;font-weight:700;border:none;background:none;cursor:pointer;color:var(--hint);padding:0">Agregar luego</button>
+          </div>
+          <div id="med-prod-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px"></div>
+          <div id="med-prod-input-wrap" style="position:relative">
+            <input id="med-prod-input" type="text" autocomplete="off" placeholder="Nombre + Enter" oninput="_medPersonaInput(this,'prod')" onkeydown="_medPersonaKeydown(event,'prod')" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;box-sizing:border-box">
+            <div id="med-prod-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:140px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- EMISIÓN -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+            <label style="font-size:.72em;font-weight:700;color:var(--muted)">EMISIÓN (día y horario)</label>
+            <button type="button" id="med-emis-luego-btn" onclick="_medToggleLuego('emis')" style="font-size:.7em;font-weight:700;border:none;background:none;cursor:pointer;color:var(--hint);padding:0">Agregar luego</button>
+          </div>
+          <input id="med-emision" type="text" placeholder='ej: Lunes y jueves, 21h' style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;box-sizing:border-box">
+        </div>
+
+        <!-- NOTAS -->
+        <div style="margin-bottom:22px">
+          <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
+          <textarea id="med-notas" rows="2" placeholder="Observaciones adicionales…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
         </div>
 
         <button onclick="_medGuardar()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar</button>
@@ -15695,26 +15759,158 @@ function _renderMediosDB(){
 
 function _medNuevo(){ _medEditIdx=null; _medOpenModal(null); }
 function _medEdit(i){ _medEditIdx=i; _medOpenModal(i); }
+
 function _medOpenModal(i){
   const m = i!=null ? _mediosGetAll()[i] : null;
-  document.getElementById('med-modal-title').textContent = m ? 'Editar entrada' : 'Nuevo medio / programa';
-  document.getElementById('med-programa').value  = m?.programa||'';
-  document.getElementById('med-medio').value     = m?.medio||'';
-  document.getElementById('med-periodista').value= m?.periodista||'';
-  document.getElementById('med-formato').value   = m?.formato||'';
-  document.getElementById('med-notas').value     = m?.notas||'';
+  _medState = {
+    periodistas: Array.isArray(m?.periodistas) ? [...m.periodistas] : [],
+    productores: Array.isArray(m?.productores) ? [...m.productores] : [],
+    formato: m?.formato||'',
+    periLuego: m?.periodistas==='luego',
+    prodLuego: m?.productores==='luego',
+    emisLuego: m?.emision==='luego',
+  };
+  document.getElementById('med-modal-title').textContent = m ? 'Editar programa' : 'Nuevo programa';
+  document.getElementById('med-programa').value = m?.programa||'';
+  document.getElementById('med-medio').value    = m?.medio||'';
+  document.getElementById('med-pais').value     = m?.pais||'';
+  document.getElementById('med-emision').value  = (m?.emision && m.emision!=='luego') ? m.emision : '';
+  document.getElementById('med-notas').value    = m?.notas||'';
+  _medRenderChips('peri'); _medRenderChips('prod');
+  _medApplyFmt(_medState.formato);
+  _medApplyLuego('peri', _medState.periLuego);
+  _medApplyLuego('prod', _medState.prodLuego);
+  _medApplyLuego('emis', _medState.emisLuego);
   document.getElementById('med-modal').style.display='flex';
 }
-function _medCloseModal(){ document.getElementById('med-modal').style.display='none'; }
+
+function _medCloseModal(){
+  document.getElementById('med-modal').style.display='none';
+  const s1=document.getElementById('med-peri-suggest'); if(s1) s1.style.display='none';
+  const s2=document.getElementById('med-prod-suggest'); if(s2) s2.style.display='none';
+  const s3=document.getElementById('med-medio-suggest'); if(s3) s3.style.display='none';
+}
+
+// ── Formato pills ──────────────────────────────────────────────────────────────
+function _medToggleFmt(f){
+  _medState.formato = _medState.formato===f ? '' : f;
+  _medApplyFmt(_medState.formato);
+}
+function _medApplyFmt(sel){
+  _MED_FORMATOS.forEach(f=>{
+    const btn=document.getElementById('med-fmt-'+f.replace(/ /g,'-'));
+    if(!btn) return;
+    const c=_MED_FORMATO_COLORS[f]||'#6B7280';
+    btn.style.background = f===sel ? c : 'transparent';
+    btn.style.color      = f===sel ? '#fff' : '#64748B';
+    btn.style.borderColor= f===sel ? c : '#CBD5E1';
+  });
+}
+
+// ── Luego toggle ───────────────────────────────────────────────────────────────
+function _medToggleLuego(field){
+  if(field==='peri')  { _medState.periLuego=!_medState.periLuego; _medApplyLuego('peri',_medState.periLuego); }
+  if(field==='prod')  { _medState.prodLuego=!_medState.prodLuego; _medApplyLuego('prod',_medState.prodLuego); }
+  if(field==='emis')  { _medState.emisLuego=!_medState.emisLuego; _medApplyLuego('emis',_medState.emisLuego); }
+}
+function _medApplyLuego(field, on){
+  if(field==='peri'){
+    const wrap=document.getElementById('med-peri-input-wrap');
+    const chips=document.getElementById('med-peri-chips');
+    const btn=document.getElementById('med-peri-luego-btn');
+    if(wrap)  wrap.style.opacity  = on?'.35':'1';
+    if(wrap)  wrap.querySelector('input').disabled = !!on;
+    if(chips) chips.style.opacity = on?'.35':'1';
+    if(btn)   { btn.style.color=on?'var(--cel)':'var(--hint)'; btn.textContent=on?'✓ Agregar luego':'Agregar luego'; }
+  }
+  if(field==='prod'){
+    const wrap=document.getElementById('med-prod-input-wrap');
+    const chips=document.getElementById('med-prod-chips');
+    const btn=document.getElementById('med-prod-luego-btn');
+    if(wrap)  wrap.style.opacity  = on?'.35':'1';
+    if(wrap)  wrap.querySelector('input').disabled = !!on;
+    if(chips) chips.style.opacity = on?'.35':'1';
+    if(btn)   { btn.style.color=on?'var(--cel)':'var(--hint)'; btn.textContent=on?'✓ Agregar luego':'Agregar luego'; }
+  }
+  if(field==='emis'){
+    const inp=document.getElementById('med-emision');
+    const btn=document.getElementById('med-emis-luego-btn');
+    if(inp) inp.disabled=!!on; if(inp) inp.style.opacity=on?'.35':'1';
+    if(btn) { btn.style.color=on?'var(--cel)':'var(--hint)'; btn.textContent=on?'✓ Agregar luego':'Agregar luego'; }
+  }
+}
+
+// ── Chips personas ─────────────────────────────────────────────────────────────
+function _medRenderChips(field){
+  const arr = field==='peri' ? _medState.periodistas : _medState.productores;
+  const container = document.getElementById(field==='peri'?'med-peri-chips':'med-prod-chips');
+  if(!container) return;
+  container.innerHTML = arr.map((n,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:5px;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:3px 10px;font-size:.78em;font-weight:700">
+      ${n}
+      <button type="button" onclick="_medRemoveChip('${field}',${i})" style="border:none;background:none;cursor:pointer;color:#93C5FD;font-size:.9em;padding:0;line-height:1">×</button>
+    </span>`).join('');
+}
+function _medRemoveChip(field, i){
+  if(field==='peri') _medState.periodistas.splice(i,1);
+  else               _medState.productores.splice(i,1);
+  _medRenderChips(field);
+}
+function _medAddChip(field, name){
+  if(!name) return;
+  const arr = field==='peri' ? _medState.periodistas : _medState.productores;
+  if(!arr.includes(name)) arr.push(name);
+  _medRenderChips(field);
+  const inp=document.getElementById(field==='peri'?'med-peri-input':'med-prod-input');
+  if(inp){ inp.value=''; }
+  const sug=document.getElementById(field==='peri'?'med-peri-suggest':'med-prod-suggest');
+  if(sug) sug.style.display='none';
+}
+function _medPersonaKeydown(e, field){
+  if(e.key==='Enter'||e.key===','){ e.preventDefault(); _medAddChip(field, e.target.value.trim()); }
+}
+function _medPersonaInput(el, field){
+  const q=el.value.trim().toLowerCase();
+  const sugId = field==='peri'?'med-peri-suggest':'med-prod-suggest';
+  const sug=document.getElementById(sugId);
+  if(!sug) return;
+  if(q.length<1){ sug.style.display='none'; return; }
+  const known=_medGetPersonas().filter(p=>p.toLowerCase().includes(q));
+  if(!known.length){ sug.style.display='none'; return; }
+  sug.innerHTML=known.map(p=>`<div onclick="_medAddChip('${field}','${p.replace(/'/g,"\\'")}');event.stopPropagation()"
+    style="padding:8px 13px;cursor:pointer;font-size:.85em;border-bottom:0.5px solid var(--border)"
+    onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background='#fff'">${p}</div>`).join('');
+  sug.style.display='block';
+}
+
+// ── Autocomplete MEDIO ─────────────────────────────────────────────────────────
+function _medMedioInput(el){
+  const q=el.value.trim().toLowerCase();
+  const sug=document.getElementById('med-medio-suggest');
+  if(!sug) return;
+  if(q.length<1){ sug.style.display='none'; return; }
+  const known=_medGetMediosKnown().filter(m=>m.toLowerCase().includes(q));
+  if(!known.length){ sug.style.display='none'; return; }
+  sug.innerHTML=known.map(m=>`<div onclick="document.getElementById('med-medio').value='${m.replace(/'/g,"\\'")}';document.getElementById('med-medio-suggest').style.display='none';event.stopPropagation()"
+    style="padding:8px 13px;cursor:pointer;font-size:.85em;border-bottom:0.5px solid var(--border)"
+    onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background='#fff'">${m}</div>`).join('');
+  sug.style.display='block';
+}
+
+// ── Guardar ────────────────────────────────────────────────────────────────────
 function _medGuardar(){
+  const programa = document.getElementById('med-programa').value.trim();
+  const medio    = document.getElementById('med-medio').value.trim();
+  if(!programa && !medio){ alert('Completá al menos Programa o Medio'); return; }
   const entry={
-    programa: document.getElementById('med-programa').value.trim(),
-    medio:    document.getElementById('med-medio').value.trim(),
-    periodista:document.getElementById('med-periodista').value.trim(),
-    formato:  document.getElementById('med-formato').value,
-    notas:    document.getElementById('med-notas').value.trim(),
+    programa, medio,
+    pais:        document.getElementById('med-pais').value.trim(),
+    formato:     _medState.formato,
+    periodistas: _medState.periLuego ? 'luego' : [..._medState.periodistas],
+    productores: _medState.prodLuego ? 'luego' : [..._medState.productores],
+    emision:     _medState.emisLuego ? 'luego' : document.getElementById('med-emision').value.trim(),
+    notas:       document.getElementById('med-notas').value.trim(),
   };
-  if(!entry.programa && !entry.medio){ alert('Completá al menos Programa o Medio'); return; }
   const list=_mediosGetAll();
   if(_medEditIdx!=null) list[_medEditIdx]=entry; else list.push(entry);
   _mediosSave(list); _medCloseModal(); _renderMediosDB();
