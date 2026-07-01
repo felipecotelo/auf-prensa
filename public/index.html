@@ -15161,12 +15161,18 @@ const _pwFmtColor = t=>({individual:'#1D4ED8',conferencia:'#7C3AED',standup:'#0F
 const _pwEstColor = s=>({pendiente:'#D97706',aceptada:'#16A34A',rechazada:'#DC2626',realizada:'#0F766E',cancelada:'#9CA3AF'}[s]||'#6B7280');
 const _pwFmtDate = d=>{ if(!d) return ''; const [y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; };
 
+// ── Base de datos de medios y programas ───────────────────────────────────
+const KMedios = 'auf4_medios';
+function _mediosGetAll(){ try{return JSON.parse(localStorage.getItem(KMedios)||'[]')}catch(_){return[]} }
+function _mediosSave(list){ localStorage.setItem(KMedios, JSON.stringify(list)); }
+
 // ── Estado de navegación interna de Prensa ─────────────────────────────────
-let _pwView = 'list';   // 'list' | 'ventana'
+let _pwView = 'list';   // 'list' | 'ventana' | 'medios'
 let _pwCurId = null;
 
 function renderPrensa(){
   if(_pwView==='ventana' && _pwCurId) _renderVentana(_pwCurId);
+  else if(_pwView==='medios') _renderMediosDB();
   else _renderListaPrensa();
 }
 
@@ -15205,7 +15211,12 @@ function _renderListaPrensa(){
 
   el.innerHTML = `
     <div style="max-width:700px;margin:0 auto;padding:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <!-- Tabs Ventanas / Medios -->
+      <div style="display:flex;gap:6px;margin-bottom:20px;background:var(--surface);border-radius:12px;padding:4px">
+        <button onclick="_pwSetTab('list')" style="flex:1;padding:8px;border:none;border-radius:9px;font-size:.82em;font-weight:800;cursor:pointer;background:var(--cel);color:#fff">Ventanas de prensa</button>
+        <button onclick="_pwSetTab('medios')" style="flex:1;padding:8px;border:none;border-radius:9px;font-size:.82em;font-weight:800;cursor:pointer;background:transparent;color:var(--muted)">Medios y programas</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div>
           <div style="font-size:1.1em;font-weight:900;color:var(--text)">Atención a prensa</div>
           <div style="font-size:.78em;color:var(--muted);margin-top:2px">Ventanas de prensa programadas</div>
@@ -15346,7 +15357,8 @@ function _renderVentana(id){
       <div style="flex:1;min-width:0">
         <div style="font-size:.88em;font-weight:800;color:var(--text)">${s.programa||'Sin programa'}</div>
         <div style="font-size:.75em;color:var(--muted);margin-top:1px">${s.medio||''}</div>
-        ${s.disponibilidad?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px">${s.disponibilidad}</div>`:''}
+        ${(s.diaSolicitado||s.disponibilidad)?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px"><i class="ti ti-calendar-question" style="font-size:.85em"></i> ${s.diaSolicitado||s.disponibilidad}</div>`:''}
+        ${s.formato?`<div style="font-size:.7em;font-weight:700;color:#1D4ED8;margin-top:3px">${s.formato}</div>`:''}
         ${s.estado==='confirmada'&&s.diaAsignado?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ Asignado: ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
@@ -15402,19 +15414,33 @@ function _renderVentana(id){
           <button onclick="_pwCloseSolModal()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
         </div>
 
-        <div style="margin-bottom:12px">
+        <div style="margin-bottom:12px;position:relative">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
-          <input id="pw-sol-programa" type="text" placeholder='ej: "La Mañana del Fútbol"' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <input id="pw-sol-programa" type="text" autocomplete="off" placeholder='ej: "Punto Penal"' oninput="_pwProgramaInput(this)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <div id="pw-prog-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:100;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:180px;overflow-y:auto"></div>
         </div>
 
         <div style="margin-bottom:12px">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
-          <input id="pw-sol-medio" type="text" placeholder="ej: El Espectador Deportes 810AM" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <input id="pw-sol-medio" type="text" placeholder="ej: Canal 10" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
 
-        <div style="margin-bottom:12px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DISPONIBILIDAD OFRECIDA</label>
-          <input id="pw-sol-disp" type="text" placeholder="ej: Viernes, lunes o martes, entre las 13 y las 14h" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DÍA SOLICITADO</label>
+            <input id="pw-sol-disp" type="text" placeholder="ej: lunes o martes" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
+            <select id="pw-sol-formato" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box">
+              <option value="">— Elegir —</option>
+              <option value="presencial">Presencial</option>
+              <option value="telefonica">Telefónica</option>
+              <option value="zoom">Zoom</option>
+              <option value="standup">Stand-up</option>
+              <option value="escrita">Nota escrita</option>
+            </select>
+          </div>
         </div>
 
         <div style="margin-bottom:12px">
@@ -15484,7 +15510,8 @@ function _pwOpenSolModal(id,si){
   document.getElementById('pw-sol-title').textContent=s?'Editar pedido':'Nuevo pedido';
   document.getElementById('pw-sol-programa').value=s?.programa||'';
   document.getElementById('pw-sol-medio').value=s?.medio||'';
-  document.getElementById('pw-sol-disp').value=s?.disponibilidad||'';
+  document.getElementById('pw-sol-disp').value=s?.diaSolicitado||s?.disponibilidad||'';
+  const fmtEl=document.getElementById('pw-sol-formato'); if(fmtEl) fmtEl.value=s?.formato||'';
   document.getElementById('pw-sol-notas').value=s?.notas||'';
   const diaEl=document.getElementById('pw-sol-dia'); if(diaEl) diaEl.value=s?.diaAsignado||'';
   const horaEl=document.getElementById('pw-sol-hora'); if(horaEl) horaEl.value=s?.horaAsignada||'';
@@ -15500,7 +15527,8 @@ function _pwGuardarSol(){
   const s={
     programa:document.getElementById('pw-sol-programa').value.trim(),
     medio:document.getElementById('pw-sol-medio').value.trim(),
-    disponibilidad:document.getElementById('pw-sol-disp').value.trim(),
+    diaSolicitado:document.getElementById('pw-sol-disp').value.trim(),
+    formato:document.getElementById('pw-sol-formato')?.value||'',
     estado,
     diaAsignado:estado==='confirmada'?(document.getElementById('pw-sol-dia')?.value||''):'',
     horaAsignada:estado==='confirmada'?(document.getElementById('pw-sol-hora')?.value||''):'',
@@ -15514,6 +15542,161 @@ function _pwDelSol(id,si){
   if(!confirm('¿Eliminar este pedido?')) return;
   const list=_pwGetAll(); const vw=list.find(v=>v.id===id); if(!vw) return;
   vw.solicitudes.splice(si,1); _pwSave(list); _renderVentana(id);
+}
+
+// ── Cambio de tab en Prensa ────────────────────────────────────────────────────
+function _pwSetTab(tab){
+  _pwView = tab;
+  renderPrensa();
+}
+
+// ── Autocomplete PROGRAMA desde medios DB ─────────────────────────────────────
+function _pwProgramaInput(el){
+  const q = el.value.trim().toLowerCase();
+  const sug = document.getElementById('pw-prog-suggest');
+  if(!sug) return;
+  if(q.length < 1){ sug.style.display='none'; return; }
+  const medios = _mediosGetAll();
+  const matches = medios.filter(m=>m.programa && m.programa.toLowerCase().includes(q));
+  if(!matches.length){ sug.style.display='none'; return; }
+  sug.innerHTML = matches.map((m,i)=>`
+    <div onclick="_pwSelectPrograma(${i},'${m.programa.replace(/'/g,"\\'")}','${(m.medio||'').replace(/'/g,"\\'")}',event)"
+      style="padding:9px 13px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:.86em"
+      onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background='#fff'">
+      <span style="font-weight:800">${m.programa}</span>
+      ${m.medio?`<span style="color:var(--muted);font-size:.88em"> · ${m.medio}</span>`:''}
+    </div>`).join('');
+  sug.style.display='block';
+}
+function _pwSelectPrograma(i, programa, medio, ev){
+  ev.stopPropagation();
+  const pEl=document.getElementById('pw-sol-programa'); if(pEl) pEl.value=programa;
+  const mEl=document.getElementById('pw-sol-medio');    if(mEl && medio) mEl.value=medio;
+  const sug=document.getElementById('pw-prog-suggest'); if(sug) sug.style.display='none';
+}
+document.addEventListener('click', ()=>{ const s=document.getElementById('pw-prog-suggest'); if(s) s.style.display='none'; });
+
+// ── Base de datos: Medios y programas ─────────────────────────────────────────
+let _medEditIdx = null;
+
+function _renderMediosDB(){
+  const el = document.getElementById('prensa-body');
+  if(!el) return;
+  const list = _mediosGetAll();
+
+  const rows = list.length ? list.map((m,i)=>`
+    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.9em;font-weight:800;color:var(--text)">${m.programa||'—'}</div>
+        <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.medio||''}</div>
+        ${m.periodista?`<div style="font-size:.75em;color:var(--text);margin-top:3px"><i class="ti ti-user" style="font-size:.85em"></i> ${m.periodista}</div>`:''}
+        ${m.notas?`<div style="font-size:.72em;color:var(--muted);margin-top:4px;background:var(--surface);border-radius:6px;padding:3px 8px">${m.notas}</div>`:''}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        ${m.formato?`<span style="font-size:.68em;font-weight:700;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:2px 9px;align-self:flex-start">${m.formato}</span>`:''}
+        <button onclick="_medEdit(${i})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
+        <button onclick="_medDel(${i})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('')
+  : `<div style="text-align:center;padding:48px 24px;color:var(--muted)">
+      <i class="ti ti-device-tv" style="font-size:2.5em;display:block;margin-bottom:12px;opacity:.3"></i>
+      <div style="font-weight:700;margin-bottom:4px">Sin medios cargados</div>
+      <div style="font-size:.82em">Tocá "+ Agregar" para crear la base de datos</div>
+    </div>`;
+
+  el.innerHTML = `
+    <div style="max-width:700px;margin:0 auto;padding:16px">
+      <!-- Tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:20px;background:var(--surface);border-radius:12px;padding:4px">
+        <button onclick="_pwSetTab('list')" style="flex:1;padding:8px;border:none;border-radius:9px;font-size:.82em;font-weight:800;cursor:pointer;background:transparent;color:var(--muted)">Ventanas de prensa</button>
+        <button onclick="_pwSetTab('medios')" style="flex:1;padding:8px;border:none;border-radius:9px;font-size:.82em;font-weight:800;cursor:pointer;background:var(--cel);color:#fff">Medios y programas</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:1.1em;font-weight:900;color:var(--text)">Medios y programas</div>
+          <div style="font-size:.78em;color:var(--muted);margin-top:2px">${list.length} entradas · usada para autocompletar pedidos</div>
+        </div>
+        <button onclick="_medNuevo()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:10px;background:var(--cel);color:#fff;font-size:.82em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">${rows}</div>
+    </div>
+
+    <!-- Modal medio -->
+    <div id="med-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_medCloseModal()">
+      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:20px 20px 32px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div id="med-modal-title" style="font-weight:900;font-size:1em">Nuevo medio / programa</div>
+          <button onclick="_medCloseModal()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
+            <input id="med-programa" type="text" placeholder='ej: "Punto Penal"' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
+            <input id="med-medio" type="text" placeholder='ej: "Canal 10"' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PERIODISTA / CONTACTO</label>
+            <input id="med-periodista" type="text" placeholder="Nombre" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO HABITUAL</label>
+            <select id="med-formato" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box">
+              <option value="">— Opcional —</option>
+              <option value="Presencial">Presencial</option>
+              <option value="Telefónica">Telefónica</option>
+              <option value="Zoom">Zoom</option>
+              <option value="Stand-up">Stand-up</option>
+              <option value="Nota escrita">Nota escrita</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
+          <textarea id="med-notas" rows="2" placeholder="Horario habitual, observaciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+        </div>
+
+        <button onclick="_medGuardar()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar</button>
+      </div>
+    </div>`;
+}
+
+function _medNuevo(){ _medEditIdx=null; _medOpenModal(null); }
+function _medEdit(i){ _medEditIdx=i; _medOpenModal(i); }
+function _medOpenModal(i){
+  const m = i!=null ? _mediosGetAll()[i] : null;
+  document.getElementById('med-modal-title').textContent = m ? 'Editar entrada' : 'Nuevo medio / programa';
+  document.getElementById('med-programa').value  = m?.programa||'';
+  document.getElementById('med-medio').value     = m?.medio||'';
+  document.getElementById('med-periodista').value= m?.periodista||'';
+  document.getElementById('med-formato').value   = m?.formato||'';
+  document.getElementById('med-notas').value     = m?.notas||'';
+  document.getElementById('med-modal').style.display='flex';
+}
+function _medCloseModal(){ document.getElementById('med-modal').style.display='none'; }
+function _medGuardar(){
+  const entry={
+    programa: document.getElementById('med-programa').value.trim(),
+    medio:    document.getElementById('med-medio').value.trim(),
+    periodista:document.getElementById('med-periodista').value.trim(),
+    formato:  document.getElementById('med-formato').value,
+    notas:    document.getElementById('med-notas').value.trim(),
+  };
+  if(!entry.programa && !entry.medio){ alert('Completá al menos Programa o Medio'); return; }
+  const list=_mediosGetAll();
+  if(_medEditIdx!=null) list[_medEditIdx]=entry; else list.push(entry);
+  _mediosSave(list); _medCloseModal(); _renderMediosDB();
+}
+function _medDel(i){
+  if(!confirm('¿Eliminar esta entrada?')) return;
+  const list=_mediosGetAll(); list.splice(i,1); _mediosSave(list); _renderMediosDB();
 }
 
 // ── ESTRUCTURA DE SELECCIÓN ───────────────────────────────────────────────────
