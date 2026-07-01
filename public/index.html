@@ -16904,23 +16904,39 @@ function _renderEstFicha(key){
         const edits=_estGetEdits();
         const periodos=edits[key]?.periodos||[];
         const rows=periodos.map((per,i)=>`
-          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:.5px solid var(--border)">
-            <i class="ti ti-calendar-event" style="color:var(--muted);font-size:.85em;flex-shrink:0"></i>
-            <span style="flex:1;font-size:.82em;font-weight:600;color:var(--text)">${per.desde}${per.hasta?' – '+per.hasta:''}</span>
-            <button onclick="_estRemovePeriodo('${key}',${i})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px 4px"><i class="ti ti-x"></i></button>
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:10px 0;border-bottom:.5px solid var(--border)">
+            <i class="ti ti-calendar-event" style="color:var(--muted);font-size:.85em;flex-shrink:0;margin-top:2px"></i>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.82em;font-weight:700;color:var(--text)">${per.desde}${per.hasta?' – '+per.hasta:' – Presente'}</div>
+              ${per.rol?`<div style="font-size:.75em;color:var(--muted);margin-top:2px">${per.rol}</div>`:''}
+            </div>
+            <button onclick="_estRemovePeriodo('${key}',${i})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px 4px;flex-shrink:0"><i class="ti ti-x"></i></button>
           </div>`).join('');
+        const fid='est-per-form-'+key.replace(/[^a-z0-9]/g,'');
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px">
           <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Período en la AUF</div>
           ${rows}
-          <div id="est-per-form-${key.replace(/[^a-z0-9]/g,'')}" style="display:none;margin-top:10px">
-            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <input id="est-per-desde" type="text" placeholder="Desde (ej: 2019)" maxlength="4" style="width:110px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
-              <span style="color:var(--muted);font-size:.8em">–</span>
-              <input id="est-per-hasta" type="text" placeholder="Hasta o Presente" maxlength="9" style="width:130px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
-              <button onclick="_estAddPeriodo('${key}')" style="padding:6px 12px;background:var(--cel);color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Guardar</button>
+          <div id="${fid}" style="display:none;margin-top:10px;background:var(--surface);border-radius:10px;padding:12px;display:none">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div>
+                <label style="font-size:.68em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">DESDE</label>
+                <input id="est-per-desde" type="text" placeholder="ej: 2019" maxlength="4" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
+              </div>
+              <div>
+                <label style="font-size:.68em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">HASTA</label>
+                <input id="est-per-hasta" type="text" placeholder="ej: 2022 o Presente" maxlength="9" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
+              </div>
+            </div>
+            <div style="margin-bottom:10px">
+              <label style="font-size:.68em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">FUNCIÓN / ÁREA</label>
+              <input id="est-per-rol" type="text" placeholder="ej: Entrenador de arqueros — CT Sub-20" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onclick="_estAddPeriodo('${key}')" style="flex:1;padding:7px;background:var(--cel);color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Guardar</button>
+              <button onclick="document.getElementById('${fid}').style.display='none'" style="padding:7px 12px;background:none;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer;color:var(--muted)">Cancelar</button>
             </div>
           </div>
-          <button onclick="(function(){var f=document.getElementById('est-per-form-${key.replace(/[^a-z0-9]/g,'')}');f.style.display=f.style.display==='none'?'block':'none'})()" style="margin-top:10px;padding:5px 10px;border:1.5px dashed var(--border);border-radius:8px;background:none;cursor:pointer;color:var(--muted);font-size:.75em;font-weight:700;width:100%"><i class="ti ti-plus" style="margin-right:4px"></i>Agregar período</button>
+          <button onclick="(function(){var f=document.getElementById('${fid}');f.style.display=f.style.display==='none'?'block':'none'})()" style="margin-top:10px;padding:5px 10px;border:1.5px dashed var(--border);border-radius:8px;background:none;cursor:pointer;color:var(--muted);font-size:.75em;font-weight:700;width:100%"><i class="ti ti-plus" style="margin-right:4px"></i>Agregar período</button>
         </div>`;
       })()}
 
@@ -16965,10 +16981,11 @@ window._estAddPeriodo=function(key){
   const desde=(document.getElementById('est-per-desde')?.value||'').trim();
   if(!desde) return;
   const hasta=(document.getElementById('est-per-hasta')?.value||'').trim();
+  const rol=(document.getElementById('est-per-rol')?.value||'').trim();
   const edits=_estGetEdits();
   if(!edits[key]) edits[key]={};
   if(!edits[key].periodos) edits[key].periodos=[];
-  edits[key].periodos.push({desde, hasta:hasta||''});
+  edits[key].periodos.push({desde, hasta:hasta||'', rol:rol||''});
   _estSaveEdits(edits);
   _renderEstFicha(key);
 };
