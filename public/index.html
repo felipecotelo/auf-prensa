@@ -15522,67 +15522,113 @@ const _DEPT_COLORS = [
   '#0F766E','#1D4ED8','#7C3AED','#B45309','#0284C7','#DC2626','#059669',
 ];
 
-const KEstEdits = 'auf4_est_edits';
+const KEstEdits    = 'auf4_est_edits';
+const KEstContract = 'auf4_est_contract';
 function _estGetEdits(){ try{return JSON.parse(localStorage.getItem(KEstEdits)||'{}')}catch(_){return{}} }
 function _estSaveEdits(obj){ localStorage.setItem(KEstEdits, JSON.stringify(obj)); }
+function _estGetContracts(){ try{return JSON.parse(localStorage.getItem(KEstContract)||'{}')}catch(_){return{}} }
+function _estSaveContracts(obj){ localStorage.setItem(KEstContract, JSON.stringify(obj)); }
+
+const _EST_CONTRATO = {
+  activo:      {label:'Activo',              bg:'#D1FAE5',color:'#065F46'},
+  finalizado:  {label:'Contrato finalizado', bg:'#FEF3C7',color:'#92400E'},
+  desvinculado:{label:'Desvinculado',        bg:'#FEE2E2',color:'#991B1B'},
+};
+
+// Construye todas las secciones: staff estático + CT Mayor + CT Juveniles
+function _estBuildAllSections(){
+  const sections = ESTRUCTURA_PERSONAS.map((d,i)=>({
+    dept:d.dept, color:_DEPT_COLORS[i%_DEPT_COLORS.length], personas:d.personas
+  }));
+
+  // CT Selección Mayor
+  const ctMayor=[]; const ctSeen=new Set();
+  (typeof BIELSA_CONVOCATORIAS!=='undefined'?BIELSA_CONVOCATORIAS:[]).forEach(c=>{
+    (c.ct||[]).forEach(m=>{
+      if(!ctSeen.has(m.name)){ ctSeen.add(m.name);
+        ctMayor.push({key:'ct:'+m.name, label:m.name, rol:m.rol||'Cuerpo técnico'});
+      }
+    });
+  });
+  if(ctMayor.length) sections.push({dept:'Cuerpo Técnico — Selección Mayor', color:'#1D4ED8', personas:ctMayor});
+
+  // CT Juveniles por categoría + año
+  if(typeof JUVENILES!=='undefined'){
+    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      const catLabel=catData.label||catKey;
+      Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
+        const ctJuv=(anoData.ct||[]).map(m=>({
+          key:`juv-ct:${catKey}:${yr}:${m.name}`,
+          label:m.name, rol:m.rol||'Cuerpo técnico'
+        }));
+        if(ctJuv.length) sections.push({dept:`CT ${catLabel} ${yr}`, color:'#7C3AED', personas:ctJuv});
+      });
+    });
+  }
+  return sections;
+}
 
 function _estGetPerson(key){
-  const edits = _estGetEdits();
-  for(const d of ESTRUCTURA_PERSONAS){
-    const base = d.personas.find(p=>p.key===key);
+  const edits=_estGetEdits();
+  for(const d of _estBuildAllSections()){
+    const base=d.personas.find(p=>p.key===key);
     if(base) return {...base, dept:d.dept, ...(edits[key]||{})};
   }
   return null;
 }
 
-let _estView = 'list', _estCurKey = null;
+let _estView='list', _estCurKey=null;
 
 function renderEstructura(){
-  if(_estView==='ficha' && _estCurKey) _renderEstFicha(_estCurKey);
+  if(_estView==='ficha'&&_estCurKey) _renderEstFicha(_estCurKey);
   else _renderEstLista();
 }
-window.renderEstructura = renderEstructura;
+window.renderEstructura=renderEstructura;
 
 function _renderEstLista(){
-  const el = document.getElementById('estructura-body');
+  const el=document.getElementById('estructura-body');
   if(!el) return;
-  const edits = _estGetEdits();
-  const cache = window._estPhotoCache||{};
+  const edits=_estGetEdits();
+  const contracts=_estGetContracts();
+  const cache=window._estPhotoCache||{};
+  const sections=_estBuildAllSections();
 
-  const blocks = ESTRUCTURA_PERSONAS.map((d,i)=>{
-    const color = _DEPT_COLORS[i % _DEPT_COLORS.length];
-    const rows = d.personas.map(p=>{
-      const label = edits[p.key]?.label||p.label;
-      const rol   = edits[p.key]?.rol||p.rol;
-      const photo = cache[p.key];
-      const initials = label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      const avatar = photo
-        ? `<img src="${photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-        : `<div style="width:36px;height:36px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.7em;font-weight:800;flex-shrink:0">${initials}</div>`;
+  const blocks=sections.map(d=>{
+    const rows=d.personas.map(p=>{
+      const label=edits[p.key]?.label||p.label;
+      const rol=edits[p.key]?.rol||p.rol;
+      const photo=cache[p.key];
+      const contrato=contracts[p.key]||'activo';
+      const initials=label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatar=photo
+        ?`<img src="${photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;${contrato!=='activo'?'opacity:.5':''}">`
+        :`<div style="width:36px;height:36px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.7em;font-weight:800;flex-shrink:0;${contrato!=='activo'?'opacity:.5':''}">${initials}</div>`;
+      const badge=contrato!=='activo'?`<span style="font-size:.65em;font-weight:700;background:${_EST_CONTRATO[contrato].bg};color:${_EST_CONTRATO[contrato].color};border-radius:20px;padding:1px 7px;white-space:nowrap">${_EST_CONTRATO[contrato].label}</span>`:'';
       return `<div onclick="_estOpenFicha('${p.key}')" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer">
         ${avatar}
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.88em;color:var(--text)">${label}</div>
+          <div style="font-weight:700;font-size:.88em;color:${contrato!=='activo'?'var(--muted)':'var(--text)'}">${label}</div>
           <div style="font-size:.72em;color:var(--muted)">${rol}</div>
         </div>
+        ${badge}
         <i class="ti ti-chevron-right" style="color:var(--hint);font-size:.85em;flex-shrink:0"></i>
       </div>`;
     }).join('');
     return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
-      <div style="padding:10px 14px;background:${color}12;border-bottom:1px solid ${color}25">
-        <span style="font-size:.7em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em">${d.dept}</span>
-        <span style="font-size:.68em;color:${color};opacity:.7;margin-left:6px">· ${d.personas.length}</span>
+      <div style="padding:10px 14px;background:${d.color}12;border-bottom:1px solid ${d.color}25">
+        <span style="font-size:.7em;font-weight:800;color:${d.color};text-transform:uppercase;letter-spacing:.07em">${d.dept}</span>
+        <span style="font-size:.68em;color:${d.color};opacity:.7;margin-left:6px">· ${d.personas.length}</span>
       </div>
       <div style="padding:0 14px">${rows}</div>
     </div>`;
   }).join('');
 
-  const total = ESTRUCTURA_PERSONAS.reduce((s,d)=>s+d.personas.length, 0);
-  el.innerHTML = `
+  const total=sections.reduce((s,d)=>s+d.personas.length,0);
+  el.innerHTML=`
     <div style="max-width:700px;margin:0 auto;padding:16px">
       <div style="margin-bottom:20px">
         <div style="font-size:1.1em;font-weight:900;color:var(--text)">Estructura de Selección</div>
-        <div style="font-size:.78em;color:var(--muted);margin-top:2px">${total} integrantes · ${ESTRUCTURA_PERSONAS.length} áreas</div>
+        <div style="font-size:.78em;color:var(--muted);margin-top:2px">${total} integrantes · ${sections.length} áreas</div>
       </div>
       ${blocks}
     </div>`;
@@ -15592,24 +15638,30 @@ function _estOpenFicha(key){ _estView='ficha'; _estCurKey=key; _renderEstFicha(k
 function _estBackLista(){ _estView='list'; _estCurKey=null; _renderEstLista(); }
 
 function _renderEstFicha(key){
-  const el = document.getElementById('estructura-body');
+  const el=document.getElementById('estructura-body');
   if(!el) return;
-  const p = _estGetPerson(key);
+  const p=_estGetPerson(key);
   if(!p){ _estBackLista(); return; }
-  const cache = window._estPhotoCache||{};
-  const photo = cache[key];
-  const initials = p.label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  const keyEnc = encodeURIComponent(key);
+  const cache=window._estPhotoCache||{};
+  const photo=cache[key];
+  const contracts=_estGetContracts();
+  const contrato=contracts[key]||'activo';
+  const initials=p.label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const keyEnc=encodeURIComponent(key);
 
-  const avatar = photo
-    ? `<img src="${photo}" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid var(--border)">`
-    : `<div style="width:88px;height:88px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:1.5em;font-weight:900;border:3px solid var(--border)">${initials}</div>`;
+  const avatar=photo
+    ?`<img src="${photo}" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid var(--border)">`
+    :`<div style="width:88px;height:88px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:1.5em;font-weight:900;border:3px solid var(--border)">${initials}</div>`;
 
-  el.innerHTML = `
+  const contratosBtns=Object.entries(_EST_CONTRATO).map(([k,v])=>`
+    <button onclick="_estSetContrato('${key}','${k}')" style="flex:1;padding:8px 4px;border-radius:10px;font-size:.75em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:${k===contrato?v.bg:'transparent'};color:${v.color};transition:background .15s">${v.label}</button>
+  `).join('');
+
+  el.innerHTML=`
     <div style="max-width:700px;margin:0 auto;padding:16px">
       <button onclick="_estBackLista()" style="display:flex;align-items:center;gap:5px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:.8em;font-weight:700;padding:0;margin-bottom:18px"><i class="ti ti-arrow-left"></i> Estructura de Selección</button>
 
-      <div style="background:#fff;border:1px solid var(--border);border-radius:16px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin-bottom:16px">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:16px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin-bottom:12px">
         <div style="position:relative">
           ${avatar}
           <label title="Cambiar foto" style="position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:var(--cel);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8em;border:2px solid #fff">
@@ -15621,34 +15673,45 @@ function _renderEstFicha(key){
           <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">${p.dept}</div>
           <input id="est-edit-label" value="${p.label}" style="width:100%;text-align:center;font-size:1.15em;font-weight:900;color:var(--text);border:none;border-bottom:2px solid transparent;background:transparent;outline:none;padding:2px 0;box-sizing:border-box" onfocus="this.style.borderBottomColor='var(--cel)'" onblur="this.style.borderBottomColor='transparent';_estSaveField('${key}','label',this.value)">
           <input id="est-edit-rol" value="${p.rol}" style="width:100%;text-align:center;font-size:.85em;color:var(--muted);border:none;border-bottom:2px solid transparent;background:transparent;outline:none;padding:2px 0;margin-top:4px;box-sizing:border-box" onfocus="this.style.borderBottomColor='var(--cel)'" onblur="this.style.borderBottomColor='transparent';_estSaveField('${key}','rol',this.value)">
-          <div style="font-size:.72em;color:var(--hint);margin-top:8px">Tocá nombre o cargo para editar</div>
+          <div style="font-size:.7em;color:var(--hint);margin-top:6px">Tocá nombre o cargo para editar</div>
         </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px">
+        <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Estado de contrato</div>
+        <div style="display:flex;gap:8px">${contratosBtns}</div>
       </div>
     </div>`;
 }
 
-function _estSaveField(key, field, value){
-  const edits = _estGetEdits();
+function _estSaveField(key,field,value){
+  const edits=_estGetEdits();
   if(!edits[key]) edits[key]={};
-  edits[key][field] = value.trim();
+  edits[key][field]=value.trim();
   _estSaveEdits(edits);
 }
 
-window._estPhotoSelected = function(keyEnc, input){
-  const file = input.files[0]; if(!file) return;
+function _estSetContrato(key,status){
+  const contracts=_estGetContracts();
+  contracts[key]=status;
+  _estSaveContracts(contracts);
+  _renderEstFicha(key);
+}
+
+window._estPhotoSelected=function(keyEnc,input){
+  const file=input.files[0]; if(!file) return;
   input.value='';
-  const reader = new FileReader();
-  reader.onload = ev => openPE('est:'+decodeURIComponent(keyEnc), ev.target.result);
+  const reader=new FileReader();
+  reader.onload=ev=>openPE('est:'+decodeURIComponent(keyEnc),ev.target.result);
   reader.readAsDataURL(file);
 };
 
-// Cargar fotos de estructura desde IDB al iniciar
 (async function _loadEstPhotoCache(){
   try{
-    const all = await getAllPhotosIDB();
-    const cache = {};
+    const all=await getAllPhotosIDB();
+    const cache={};
     Object.keys(all).forEach(k=>{ if(k.startsWith('est:')) cache[k.slice(4)]=all[k]; });
-    window._estPhotoCache = cache;
+    window._estPhotoCache=cache;
   }catch(_){ window._estPhotoCache={}; }
 })();
 </script>
