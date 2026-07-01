@@ -15275,6 +15275,35 @@ function _renderListaPrensa(){
       <div style="display:flex;flex-direction:column;gap:8px">${cards}</div>
     </div>
 
+    <!-- Modal evento de agenda -->
+    <div id="pw-ag-modal" style="display:none;position:fixed;inset:0;z-index:8100;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_pwAgendaCloseModal()">
+      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;padding:20px 20px 32px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div id="pw-ag-modal-title" style="font-weight:900;font-size:1em">Agregar evento</div>
+          <button onclick="_pwAgendaCloseModal()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
+        </div>
+        <div style="display:grid;grid-template-columns:90px 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
+            <input id="pw-ag-hora" type="text" placeholder="10:00" maxlength="5" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;font-size:.9em;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
+            <input id="pw-ag-date" type="date" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DESCRIPCIÓN</label>
+          <input id="pw-ag-txt" type="text" placeholder="ej: Rueda de prensa, Viaje a..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        </div>
+        <div style="margin-bottom:20px">
+          <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DETALLE (opcional)</label>
+          <input id="pw-ag-sub" type="text" placeholder="ej: Canal 10, sala de conferencias..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        </div>
+        <button onclick="_pwAgendaGuardar()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar</button>
+      </div>
+    </div>
+
     <!-- Modal nueva ventana -->
     <div id="pw-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_pwCloseModal()">
       <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding:20px 20px 32px">
@@ -15405,27 +15434,72 @@ function _renderVentana(id){
   const sols = vw.solicitudes||[];
 
   // ── Agenda por día ─────────────────────────────────────────────────────────
-  const agendaHtml = dias.map(dia=>{
-    const confirmados = sols
+  const TODAY_STR = new Date().toISOString().slice(0,10);
+  const agendaNotes = vw.agenda||{};
+
+  const agendaHtml = dias.length ? dias.map(dia=>{
+    const isToday = dia===TODAY_STR;
+    const isPast  = dia<TODAY_STR;
+
+    // Confirmadas de solicitudes
+    const solItems = sols
       .map((s,si)=>({s,si}))
       .filter(({s})=>s.diaAsignado===dia && s.estado==='confirmada')
-      .sort((a,b)=>(a.s.horaAsignada||'').localeCompare(b.s.horaAsignada||''));
-    const items = confirmados.length
-      ? confirmados.map(({s,si})=>`
-          <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
-            <span style="font-size:.72em;color:var(--muted);min-width:42px;flex-shrink:0;padding-top:1px">${s.horaAsignada||'—'}</span>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:.85em;font-weight:800;color:var(--text)">${s.programa||'—'}</div>
-              <div style="font-size:.72em;color:var(--muted)">${s.medio||''}</div>
-            </div>
-            <button onclick="_pwEditSol('${id}',${si})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px 4px"><i class="ti ti-pencil"></i></button>
-          </div>`).join('')
-      : `<div style="font-size:.78em;color:var(--hint);padding:6px 0">—</div>`;
-    return `<div style="margin-bottom:16px">
-      <div style="font-size:.78em;font-weight:800;color:var(--text);text-transform:capitalize;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--border)">${_pwFmtDiaLargo(dia)}</div>
-      ${items}
+      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, done:false}));
+
+    // Notas libres
+    const noteItems = (agendaNotes[dia]||[]).map((n,ni)=>({...n, tipo:'nota', ni}));
+
+    // Combinar y ordenar por hora
+    const allItems=[...solItems,...noteItems].sort((a,b)=>(a.hora||'ZZ').localeCompare(b.hora||'ZZ'));
+
+    const rows = allItems.map(item=>{
+      if(item.tipo==='sol'){
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:#F0FDF4;margin-bottom:6px">
+          <span style="font-size:.7em;color:#065F46;font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}</div>
+            ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
+          </div>
+          <span style="font-size:.65em;font-weight:700;background:#DCFCE7;color:#166534;border-radius:20px;padding:2px 7px;flex-shrink:0">Confirmada</span>
+          <button onclick="_pwEditSol('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#166534;font-size:.8em;padding:2px"><i class="ti ti-pencil"></i></button>
+        </div>`;
+      } else {
+        const done=item.done;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:${done?'var(--surface)':'#fff'};border:1px solid var(--border);margin-bottom:6px;${done?'opacity:.6':''}">
+          <span style="font-size:.7em;color:var(--muted);font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.82em;font-weight:700;color:var(--text);${done?'text-decoration:line-through':''}">${item.txt}</div>
+            ${item.sub?`<div style="font-size:.7em;color:var(--muted)">${item.sub}</div>`:''}
+          </div>
+          <button onclick="_pwAgendaToggle('${id}','${dia}',${item.ni})" title="${done?'Marcar pendiente':'Marcar hecho'}" style="border:none;background:none;cursor:pointer;color:${done?'var(--green)':'var(--hint)'};font-size:1em;padding:2px;flex-shrink:0"><i class="ti ti-${done?'circle-check-filled':'circle'}"></i></button>
+          <button onclick="_pwAgendaEdit('${id}','${dia}',${item.ni})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px;flex-shrink:0"><i class="ti ti-pencil"></i></button>
+          <button onclick="_pwAgendaDel('${id}','${dia}',${item.ni})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px;flex-shrink:0"><i class="ti ti-x"></i></button>
+        </div>`;
+      }
+    }).join('');
+
+    const emptyMsg = allItems.length===0 ? `<div style="font-size:.78em;color:var(--hint);padding:4px 0 6px">Día libre</div>` : '';
+
+    const dtObj=new Date(dia+'T00:00:00');
+    const dayName=_DIAS_ES[dtObj.getDay()].charAt(0).toUpperCase()+_DIAS_ES[dtObj.getDay()].slice(1);
+    const dayNum=dtObj.getDate();
+    const mesName=_MESES_ES[dtObj.getMonth()];
+
+    return `<div style="margin-bottom:10px;border-radius:12px;overflow:hidden;border:1.5px solid ${isToday?'var(--cel)':isPast?'var(--border)':'var(--border)'}">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:${isToday?'var(--cel)':'var(--surface)'};border-bottom:1px solid ${isToday?'rgba(255,255,255,.2)':'var(--border)'}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;flex-direction:column;align-items:center;background:${isToday?'rgba(255,255,255,.2)':'#fff'};border-radius:8px;padding:2px 7px;min-width:32px">
+            <span style="font-size:.6em;font-weight:800;color:${isToday?'rgba(255,255,255,.8)':'var(--muted)'};text-transform:uppercase;line-height:1.2">${dayName.slice(0,3)}</span>
+            <span style="font-size:1em;font-weight:900;color:${isToday?'#fff':'var(--text)'};line-height:1.2">${dayNum}</span>
+          </div>
+          <span style="font-size:.8em;font-weight:700;color:${isToday?'#fff':isPast?'var(--muted)':'var(--text)'}">${mesName.charAt(0).toUpperCase()+mesName.slice(1)}${isToday?' · Hoy':''}</span>
+        </div>
+        <button onclick="_pwAgendaAdd('${id}','${dia}')" style="border:none;background:${isToday?'rgba(255,255,255,.25)':'var(--border)'};border-radius:8px;padding:4px 8px;cursor:pointer;color:${isToday?'#fff':'var(--muted)'};font-size:.75em;font-weight:700"><i class="ti ti-plus"></i> Agregar</button>
+      </div>
+      <div style="padding:8px 10px;background:#fff">${rows}${emptyMsg}</div>
     </div>`;
-  }).join('') || `<div style="color:var(--muted);font-size:.85em;padding:12px 0">Sin período definido</div>`;
+  }).join('') : `<div style="color:var(--muted);font-size:.85em;padding:12px 0">Sin período definido</div>`;
 
   // ── Pedidos recibidos ──────────────────────────────────────────────────────
   const pedidosHtml = sols.length ? sols.map((s,si)=>{
@@ -15611,6 +15685,87 @@ function _pwToggleEst(k){
 }
 
 function _pwBackList(){ _pwView='list'; _pwCurId=null; _renderListaPrensa(); }
+
+// ── Agenda helpers ──────────────────────────────────────────────────────────
+let _pwAgendaCtx={id:null,date:null,ni:null};
+
+function _pwAgendaSaveData(vwId,date,items){
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  if(!vw.agenda) vw.agenda={};
+  vw.agenda[date]=items;
+  _pwSave(list);
+}
+window._pwAgendaToggle=function(vwId,date,ni){
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  const items=(vw.agenda?.[date]||[]);
+  if(items[ni]) items[ni].done=!items[ni].done;
+  _pwAgendaSaveData(vwId,date,items);
+  _renderVentana(vwId);
+};
+window._pwAgendaDel=function(vwId,date,ni){
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  const items=(vw.agenda?.[date]||[]);
+  items.splice(ni,1);
+  _pwAgendaSaveData(vwId,date,items);
+  _renderVentana(vwId);
+};
+window._pwAgendaAdd=function(vwId,date){
+  _pwAgendaCtx={id:vwId,date,ni:null};
+  document.getElementById('pw-ag-modal-title').textContent='Agregar evento';
+  document.getElementById('pw-ag-hora').value='';
+  document.getElementById('pw-ag-txt').value='';
+  document.getElementById('pw-ag-sub').value='';
+  document.getElementById('pw-ag-date').value=date;
+  document.getElementById('pw-ag-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('pw-ag-hora').focus(),80);
+};
+window._pwAgendaEdit=function(vwId,date,ni){
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  const item=(vw.agenda?.[date]||[])[ni]; if(!item) return;
+  _pwAgendaCtx={id:vwId,date,ni};
+  document.getElementById('pw-ag-modal-title').textContent='Editar evento';
+  document.getElementById('pw-ag-hora').value=item.hora||'';
+  document.getElementById('pw-ag-txt').value=item.txt||'';
+  document.getElementById('pw-ag-sub').value=item.sub||'';
+  document.getElementById('pw-ag-date').value=date;
+  document.getElementById('pw-ag-modal').style.display='flex';
+};
+window._pwAgendaCloseModal=function(){
+  document.getElementById('pw-ag-modal').style.display='none';
+};
+window._pwAgendaGuardar=function(){
+  const {id,date,ni}=_pwAgendaCtx;
+  const hora=document.getElementById('pw-ag-hora').value.trim();
+  const txt=document.getElementById('pw-ag-txt').value.trim();
+  const sub=document.getElementById('pw-ag-sub').value.trim();
+  const newDate=document.getElementById('pw-ag-date').value;
+  if(!txt) return;
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===id); if(!vw) return;
+  if(!vw.agenda) vw.agenda={};
+  // Si cambió la fecha (reprogramación), elimina del día original
+  const origDate=date;
+  if(ni!==null){
+    const origItems=vw.agenda[origDate]||[];
+    origItems.splice(ni,1);
+    vw.agenda[origDate]=origItems;
+  }
+  if(!vw.agenda[newDate]) vw.agenda[newDate]=[];
+  const item={hora,txt,sub,done:false};
+  if(ni!==null && newDate===origDate){
+    // mismo día: insert en posición original (ya fue spliced)
+    vw.agenda[newDate].push(item);
+  } else {
+    vw.agenda[newDate].push(item);
+  }
+  _pwSave(list);
+  _pwAgendaCloseModal();
+  _renderVentana(id);
+};
 
 function _pwDeleteVentana(id){
   if(!confirm('¿Eliminar esta ventana y todos sus pedidos?')) return;
