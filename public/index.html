@@ -15437,9 +15437,12 @@ function _renderVentana(id){
             <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
             <input id="pw-sol-recibido-hora" type="text" placeholder="ej: 14:30" maxlength="5" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;font-family:inherit">
           </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DÍA SOLICITADO</label>
-            <input id="pw-sol-disp" type="text" placeholder="ej: lunes o martes" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <div style="grid-column:span 2">
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">DÍA SOLICITADO</label>
+            <div style="display:flex;flex-wrap:wrap;gap:5px" id="pw-dias-sol-btns">
+              ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','Lun–Vie','A definir'].map(d=>`<button type="button" onclick="_pwToggleDiaSol('${d}')" id="pw-diasol-${d.replace(/[^a-zA-Z]/g,'')}" style="padding:5px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${d}</button>`).join('')}
+            </div>
+            <input type="hidden" id="pw-sol-disp">
           </div>
           <div>
             <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
@@ -15498,6 +15501,24 @@ function _renderVentana(id){
 }
 
 let _pwSolEstado = 'pendiente';
+let _pwDiasSol = [];
+const _PW_DIAS_SOL = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','Lun–Vie','A definir'];
+function _pwToggleDiaSol(d){
+  const i=_pwDiasSol.indexOf(d);
+  if(i>=0) _pwDiasSol.splice(i,1); else _pwDiasSol.push(d);
+  _pwRenderDiasSol();
+  document.getElementById('pw-sol-disp').value=_pwDiasSol.join(', ');
+}
+function _pwRenderDiasSol(){
+  _PW_DIAS_SOL.forEach(d=>{
+    const btn=document.getElementById('pw-diasol-'+d.replace(/[^a-zA-Z]/g,''));
+    if(!btn) return;
+    const on=_pwDiasSol.includes(d);
+    btn.style.background  = on ? 'var(--cel)' : 'transparent';
+    btn.style.color       = on ? '#fff'        : '#64748B';
+    btn.style.borderColor = on ? 'var(--cel)'  : '#CBD5E1';
+  });
+}
 function _pwToggleEst(k){
   _pwSolEstado = k;
   Object.keys(_pwEstConfig).forEach(e=>{
@@ -15532,7 +15553,9 @@ function _pwOpenSolModal(id,si){
   document.getElementById('pw-sol-recibido-hora').value=s?.recibidoHora||'';
   document.getElementById('pw-sol-programa').value=s?.programa||'';
   document.getElementById('pw-sol-medio').value=s?.medio||'';
-  document.getElementById('pw-sol-disp').value=s?.diaSolicitado||s?.disponibilidad||'';
+  _pwDiasSol = s?.diaSolicitado ? s.diaSolicitado.split(', ').filter(d=>_PW_DIAS_SOL.includes(d)) : [];
+  document.getElementById('pw-sol-disp').value=_pwDiasSol.join(', ');
+  setTimeout(_pwRenderDiasSol,0);
   const fmtEl=document.getElementById('pw-sol-formato'); if(fmtEl) fmtEl.value=s?.formato||'';
   document.getElementById('pw-sol-notas').value=s?.notas||'';
   document.getElementById('pw-sol-email-from').value=s?.emailFrom||'';
