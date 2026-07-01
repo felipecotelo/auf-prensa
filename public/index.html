@@ -5706,11 +5706,13 @@ async function savePE(){
     _juvPhotoCache[PE.num.slice(4)]=dataUrl;
     window.renderJuveniles?.();
     document.getElementById('sparr-grid') && renderSparrings();
+    window._savePhotoToServer?.(PE.num, dataUrl);
   } else {
     applyPhotoToCard(PE.num, dataUrl);
+    window._savePhotoToServer?.(String(PE.num), dataUrl);
   }
   closePE();
-  toast('📷 Foto actualizada');
+  toast('📷 Foto actualizada · sincronizando...');
 }
 function closePE(){document.getElementById('pe-modal').classList.remove('open')}
 
@@ -14189,10 +14191,30 @@ if(document.getElementById('sec-juveniles')?.classList.contains('active')) windo
 // con clave 'juv:<nombre>' para no chocar con los números de camiseta de la Mayor.
 let _juvPhotoCache = {};
 window._juvPhotoCache = _juvPhotoCache;
+async function _savePhotoToServer(key, dataUrl){
+  try{
+    await fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,dataUrl})});
+  }catch(_){}
+}
+window._savePhotoToServer = _savePhotoToServer;
 async function _loadJuvPhotoCache(){
   const all = await getAllPhotosIDB();
   const out = {};
   Object.keys(all).forEach(k=>{ if(typeof k==='string' && k.startsWith('juv:')) out[k.slice(4)]=all[k]; });
+  // Merge server photos (server wins — cross-device source of truth)
+  try{
+    const r = await fetch('/api/photos');
+    const j = await r.json();
+    if(j.ok && j.photos){
+      Object.entries(j.photos).forEach(([k,v])=>{
+        savePhotoIDB(k,v); // seed local cache for all keys
+        if(k.startsWith('juv:')){
+          out[k.slice(4)]=v;
+        }
+      });
+      invalidatePhotoCache(); // invalidate Mayor photo cache so it reloads
+    }
+  }catch(_){}
   _juvPhotoCache = out;
   window._juvPhotoCache = _juvPhotoCache;
   if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();

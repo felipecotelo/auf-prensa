@@ -49,10 +49,11 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Config ────────────────────────────────────────────
-const GH_TOKEN = process.env.GH_TOKEN || '';
-const GH_REPO  = 'felipecotelo/auf-prensa';
-const GH_FILE  = 'data/state.json';
-const GH_API   = 'api.github.com';
+const GH_TOKEN  = process.env.GH_TOKEN || '';
+const GH_REPO   = 'felipecotelo/auf-prensa';
+const GH_FILE   = 'data/state.json';
+const GH_PHOTOS = 'data/photos.json';
+const GH_API    = 'api.github.com';
 
 // ── GitHub helpers ────────────────────────────────────
 function ghRequest(method, path, body) {
@@ -75,6 +76,18 @@ function ghRequest(method, path, body) {
     if (data) req.write(data);
     req.end();
   });
+}
+
+async function ghLoadFile(file) {
+  const d = await ghRequest('GET', `/repos/${GH_REPO}/contents/${file}`);
+  if (!d.content) return { data: null, sha: null };
+  const json = Buffer.from(d.content.replace(/\n/g,''), 'base64').toString('utf8');
+  return { data: JSON.parse(json), sha: d.sha };
+}
+async function ghSaveFile(file, data, sha) {
+  const content = Buffer.from(JSON.stringify(data)).toString('base64');
+  const body = { message: 'sync: ' + new Date().toISOString().slice(0,16).replace('T',' '), content, sha };
+  return ghRequest('PUT', `/repos/${GH_REPO}/contents/${file}`, body);
 }
 
 async function ghLoad() {
@@ -121,6 +134,34 @@ app.post('/api/save', async (req, res) => {
   try {
     const { sha } = await ghLoad();
     await ghSave(req.body, sha);
+    res.json({ ok: true });
+  } catch(e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+// ── Fotos (cross-device, guardadas en GitHub) ─────────────────────────────
+app.get('/api/photos', async (req, res) => {
+  try {
+    const { data } = await ghLoadFile(GH_PHOTOS);
+    res.json({ ok: true, photos: data || {} });
+  } catch(e) {
+    res.json({ ok: true, photos: {} });
+  }
+});
+
+app.post('/api/photos', async (req, res) => {
+  try {
+    const { key, dataUrl } = req.body;
+    if (!key || !dataUrl) return res.json({ ok: false, error: 'missing key or dataUrl' });
+    let sha = null, current = {};
+    try {
+      const loaded = await ghLoadFile(GH_PHOTOS);
+      sha = loaded.sha;
+      current = loaded.data || {};
+    } catch(_) {}
+    current[key] = dataUrl;
+    await ghSaveFile(GH_PHOTOS, current, sha);
     res.json({ ok: true });
   } catch(e) {
     res.json({ ok: false, error: e.message });
