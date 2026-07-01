@@ -1164,6 +1164,7 @@ html.auf-gate body { display:none !important }
     <button class="nav-l0-section" data-section="mayor" onclick="showSection('mayor')"><i class="ti ti-shield"></i>Selección Mayor</button>
     <button class="nav-l0-section" data-section="juveniles" onclick="showSection('juveniles')"><i class="ti ti-users-group"></i>Selecciones Juveniles</button>
     <button class="nav-l0-section" data-section="prensa" onclick="showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
+    <button class="nav-l0-section" data-section="estructura" onclick="showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura</button>
     <div class="nav-l0-sep"></div>
     <button class="nav-l0-global" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
     <button class="nav-l0-global" data-tab="linkgen" onclick="showTab('linkgen')" style="color:#c4b5fd"><i class="ti ti-link"></i>Links</button>
@@ -1640,6 +1641,10 @@ html.auf-gate body { display:none !important }
 
 <div id="sec-prensa" class="section">
   <div id="prensa-body" style="padding-bottom:3rem"></div>
+</div>
+
+<div id="sec-estructura" class="section">
+  <div id="estructura-body" style="padding-bottom:3rem"></div>
 </div>
 
 </main>
@@ -3152,6 +3157,8 @@ function _updateNavState(id){
     document.querySelector('.nav-l0-section[data-section="juveniles"]')?.classList.add('active');
   } else if(id==='sec-prensa'){
     document.querySelector('.nav-l0-section[data-section="prensa"]')?.classList.add('active');
+  } else if(id==='sec-estructura'){
+    document.querySelector('.nav-l0-section[data-section="estructura"]')?.classList.add('active');
   } else if(inMayor){
     document.querySelector('.nav-l0-section[data-section="mayor"]')?.classList.add('active');
   }
@@ -3184,6 +3191,7 @@ function showSection(sec){
   }
   if(sec==='juveniles'){showTab('sec-juveniles');}
   if(sec==='prensa'){showTab('sec-prensa');}
+  if(sec==='estructura'){showTab('sec-estructura');}
 }
 
 function showTournament(id){
@@ -3218,6 +3226,7 @@ function showTab(id){
   if(id==='linkgen'){renderLinkGen()}
   if(id==='sec-juveniles'){window.renderJuveniles?.()}
   if(id==='sec-prensa'){renderPrensa?.()}
+  if(id==='sec-estructura'){renderEstructura?.()}
   if(id==='infogeneral'){renderInfoGeneral()}
   if(id==='grafica'){renderGrafica()}
   if(id==='periplo'){renderPeriplo()}
@@ -15239,6 +15248,88 @@ function _pwDelete(i){
   _pwSave(list);
   renderPrensa();
 }
+
+// ── ESTRUCTURA DE SELECCIÓN ───────────────────────────────────────────────────
+
+function renderEstructura(){
+  const el = document.getElementById('estructura-body');
+  if(!el) return;
+
+  function personCard(name, rol, extra){
+    const initials = name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:36px;height:36px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:800;flex-shrink:0">${initials}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.88em;color:var(--text)">${name}</div>
+        <div style="font-size:.72em;color:var(--muted)">${rol}${extra?` · ${extra}`:''}</div>
+      </div>
+    </div>`;
+  }
+
+  function groupBlock(title, color, items){
+    if(!items.length) return '';
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
+      <div style="padding:10px 14px;background:${color}12;border-bottom:1px solid ${color}30">
+        <div style="font-size:.7em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em">${title} · ${items.length}</div>
+      </div>
+      <div style="padding:0 14px">${items.join('')}</div>
+    </div>`;
+  }
+
+  // Dirección AUF
+  const dirCards = PRENSA_PERSONAS_EXTRA.map(p=>personCard(p.label, p.rol));
+
+  // CT Mayor
+  const ctSeen = new Set(); const ctCards = [];
+  (typeof BIELSA_CONVOCATORIAS!=='undefined'?BIELSA_CONVOCATORIAS:[]).forEach(c=>{
+    (c.ct||[]).forEach(m=>{ if(!ctSeen.has(m.name)){ ctSeen.add(m.name); ctCards.push(personCard(m.name, m.rol||'Cuerpo técnico', m.dt?'DT':'')); } });
+  });
+
+  // Jugadores Mayor por posición
+  const posOrder = {POR:0,DEF:1,MED:2,DEL:3};
+  const posLabel = {POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
+  const posColor = {POR:'#0284C7',DEF:'#16A34A',MED:'#7C3AED',DEL:'#DC2626'};
+  const byPos = {};
+  (typeof PLAYERS!=='undefined'?PLAYERS:[]).sort((a,b)=>(posOrder[a.pos]??9)-(posOrder[b.pos]??9)).forEach(p=>{
+    if(!byPos[p.pos]) byPos[p.pos]=[];
+    byPos[p.pos].push(personCard(p.name, p.pos, p.club));
+  });
+  const jugBlocks = Object.entries(posLabel).map(([pos,lbl])=>
+    byPos[pos]?.length ? groupBlock(lbl, posColor[pos], byPos[pos]) : ''
+  ).join('');
+
+  // CT Juveniles por categoría
+  const juvCtCards = [];
+  if(typeof JUVENILES!=='undefined'){
+    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      const catLabel = catData.label||catKey;
+      const catColor = '#7C3AED';
+      Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
+        (anoData.ct||[]).forEach(m=>{
+          juvCtCards.push(personCard(m.name, m.rol||'Cuerpo técnico', catLabel+' '+yr));
+        });
+      });
+    });
+  }
+
+  el.innerHTML = `
+    <div style="max-width:700px;margin:0 auto;padding:16px">
+      <div style="margin-bottom:20px">
+        <div style="font-size:1.1em;font-weight:900;color:var(--text)">Estructura de Selección</div>
+        <div style="font-size:.78em;color:var(--muted);margin-top:2px">Todos los integrantes de las selecciones uruguayas</div>
+      </div>
+
+      ${groupBlock('Dirección AUF', '#0F766E', dirCards)}
+
+      ${ctCards.length ? groupBlock('Cuerpo técnico — Selección Mayor', '#1D4ED8', ctCards) : ''}
+
+      <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:18px 0 10px">Selección Mayor — Jugadores</div>
+      ${jugBlocks}
+
+      ${juvCtCards.length ? groupBlock('Cuerpos técnicos — Selecciones Juveniles', '#7C3AED', juvCtCards) : ''}
+    </div>`;
+}
+window.renderEstructura = renderEstructura;
 </script>
 </body>
 </html>
