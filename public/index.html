@@ -16675,19 +16675,19 @@ function _estBuildAllSections(){
   }));
   if(ctAlonso.length) sections.push({dept:'CT Mayor — Ciclo Alonso', color:'#0891B2', personas:ctAlonso});
 
-  // CT Juveniles — personas únicas agrupadas en una sola sección
+  // CT Juveniles — una sección por categoría/año
   if(typeof JUVENILES!=='undefined'){
-    const seen=new Map(); // key -> {label, rol (primera aparición)}
+    const juvColors={'sub20':'#1D4ED8','sub18':'#7C3AED','sub17':'#15803d','sub16':'#b45309','sub15':'#0891B2','sub13':'#6b7280'};
     Object.entries(JUVENILES).forEach(([catKey,catData])=>{
       Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
-        (anoData.ct||[]).filter(m=>m.name&&!m.pendiente).forEach(m=>{
-          const k=_nameToKey(m.name);
-          if(!seen.has(k)) seen.set(k,{key:k, label:m.name, rol:m.rol||'Cuerpo técnico'});
-        });
+        const ct=(anoData.ct||[]).filter(m=>m.name&&!m.pendiente);
+        if(!ct.length) return;
+        const personas=ct.map(m=>({key:_nameToKey(m.name), label:m.name, rol:m.rol||'Cuerpo técnico'}));
+        const dept=`CT ${catData.label} — ${yr}`;
+        const color=juvColors[catKey]||'#7C3AED';
+        sections.push({dept, color, personas});
       });
     });
-    const juvPersonas=[...seen.values()];
-    if(juvPersonas.length) sections.push({dept:'Selecciones Juveniles', color:'#7C3AED', personas:juvPersonas});
   }
   return sections;
 }
