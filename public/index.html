@@ -14249,34 +14249,11 @@ window._clickJuvPhoto = function(nomEncoded){
   // No photo yet — open file picker immediately (must be sync from user gesture)
   document.getElementById('juv-photo-input-'+nomEncoded)?.click();
 };
-window._juvPhotoSelected = async function(nomEncoded, input){
+window._juvPhotoSelected = function(nomEncoded, input){
   const file = input.files[0]; if(!file) return;
   input.value='';
-  const nom = decodeURIComponent(nomEncoded);
-  const idbKey = 'juv:'+nom;
-  // Auto-compress and save immediately — no PE interaction needed
   const reader = new FileReader();
-  reader.onload = async ev => {
-    const img = new Image();
-    img.onload = async () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = PE_OUT; canvas.height = PE_OUT;
-      const ctx = canvas.getContext('2d');
-      // Center-crop to square
-      const side = Math.min(img.naturalWidth, img.naturalHeight);
-      const sx = (img.naturalWidth - side)/2, sy = (img.naturalHeight - side)/2;
-      ctx.drawImage(img, sx, sy, side, side, 0, 0, PE_OUT, PE_OUT);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-      await savePhotoIDB(idbKey, dataUrl);
-      _juvPhotoCache[nom] = dataUrl;
-      window._juvPhotoCache = _juvPhotoCache;
-      window.renderJuveniles?.();
-      document.getElementById('sparr-grid') && renderSparrings();
-      window._savePhotoToServer?.(idbKey, dataUrl);
-      toast('📷 Foto guardada · toca la foto para ajustar');
-    };
-    img.src = ev.target.result;
-  };
+  reader.onload = ev => openPE('juv:'+decodeURIComponent(nomEncoded), ev.target.result);
   reader.readAsDataURL(file);
 };
 
