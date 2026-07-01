@@ -15048,8 +15048,64 @@ function _buildJuvCompBody(compId, color, catData){
 
 const KPW = 'auf4_pw';
 
-const PRENSA_PERSONAS_EXTRA = [
-  {key:'giordano', label:'Jorge Giordano', rol:'Director de Selecciones', cat:'Dirección AUF'},
+const ESTRUCTURA_PERSONAS = [
+  {dept:'Gerencia Deportiva', personas:[
+    {key:'giordano',      label:'Jorge Giordano',     rol:'Director de Selecciones Nacionales'},
+    {key:'anuñez',        label:'Álvaro Núñez',        rol:'Gerencia'},
+    {key:'jananía',       label:'Jorge Ananía',        rol:'Gerente Deportivo de Juveniles'},
+    {key:'areynoso',      label:'Agustín Reynoso',     rol:'Gerencia Juveniles'},
+  ]},
+  {dept:'Sanidad', personas:[
+    {key:'eramos',        label:'Enrique Ramos',       rol:'Jefe del área médica'},
+    {key:'jcgarcía',      label:'Juan Carlos García',  rol:'Doctor Sub-20'},
+    {key:'srivoir',       label:'Santiago Rivoir',     rol:'Doctor Juveniles'},
+    {key:'fmansulino',    label:'Flavia Mansulino',    rol:'Doctor Juveniles'},
+    {key:'lpinasco',      label:'Luis Pinasco',        rol:'Fisio Selección Mayor'},
+    {key:'fantúnez',      label:'Federico Antúnez',    rol:'Fisio Selección Mayor'},
+    {key:'gcorral',       label:'Gastón Corral',       rol:'Fisio Juveniles'},
+    {key:'jabreu',        label:'Juan Abreu',          rol:'Fisio Juveniles'},
+    {key:'malza',         label:'Mathías Alza',        rol:'Fisio Juveniles'},
+    {key:'jmrodríguez',   label:'Juan Manuel Rodríguez',rol:'Fisio Juveniles'},
+  ]},
+  {dept:'Marketing y Comunicación', personas:[
+    {key:'mmendez',       label:'Marcos Méndez',       rol:'Gerente del área'},
+    {key:'fcotelo',       label:'Felipe Cotelo',       rol:'Encargado de comunicación y prensa'},
+    {key:'dcovucci',      label:'Diego Covucci',       rol:'Encargado de Comunicación'},
+    {key:'mmato',         label:'Martín Mato',         rol:'Encargado Comercial'},
+    {key:'mrisso',        label:'Mónica Risso',        rol:'Asistente de Marketing'},
+    {key:'rsordi',        label:'Ricardo Sordi',       rol:'Realizador audiovisual'},
+    {key:'matrodriguez',  label:'Mateo Rodríguez',     rol:'Realizador audiovisual'},
+    {key:'valvarez',      label:'Vicente Álvarez',     rol:'Editor y colaborador'},
+    {key:'jrazquin',      label:'Juan Razquin',        rol:'Fotógrafo Selección Mayor'},
+    {key:'joaquin',       label:'Joaquín',             rol:'Fotógrafo Selecciones Juveniles'},
+    {key:'mrosello',      label:'Mathías Roselló',     rol:'Prensa y comunicación'},
+  ]},
+  {dept:'Complejo Celeste', personas:[
+    {key:'mroldan',       label:'Miguel Roldán',       rol:'Conserjería'},
+    {key:'smeneses',      label:'Santo Meneses',       rol:'Mantenimiento'},
+  ]},
+  {dept:'Nutrición', personas:[
+    {key:'fpena',         label:'Florencia Pena',      rol:'Nutricionista'},
+    {key:'mcrocano',      label:'Mariana Crocano',     rol:'Nutricionista'},
+  ]},
+  {dept:'Utilería', personas:[
+    {key:'vbrites',       label:'Víctor Brites',       rol:'Jefe del área'},
+    {key:'ckobayashi',    label:'Chin Kobayashi',      rol:'Subjefe'},
+    {key:'edimayo',       label:'Edgardo Dimayo',      rol:'Utilero'},
+    {key:'sborges',       label:'Sebastián Borges',    rol:'Utilero'},
+    {key:'smarquez',      label:'Sebastián Marquez',   rol:'Utilero'},
+    {key:'mvivanco',      label:'Maximiliano Vivanco', rol:'Utilero'},
+    {key:'mblanco',       label:'Matías Blanco',       rol:'Utilero'},
+    {key:'lcabara',       label:'Lucas Cabara',        rol:'Utilero'},
+    {key:'abrites',       label:'Ana Brites',          rol:'Lavandería'},
+    {key:'msevero',       label:'María Severo',        rol:'Lavandería'},
+  ]},
+  {dept:'Cocina', personas:[
+    {key:'acauteruccio',  label:'Aldo Cauteruccio',    rol:'Encargado de cocina'},
+    {key:'acabrera',      label:'Agustín Cabrera',     rol:'Cocinero'},
+    {key:'mloza',         label:'Mauricio Loza',       rol:'Cocinero'},
+    {key:'mcasado',       label:'María Casado',        rol:'Cocinera'},
+  ]},
 ];
 
 function _pwGetAll(){
@@ -15060,11 +15116,14 @@ function _pwId(){ return Date.now().toString(36)+Math.random().toString(36).slic
 
 function _pwPersonOptions(){
   const opts = [];
-  PRENSA_PERSONAS_EXTRA.forEach(p=>opts.push({key:p.key, label:p.label, rol:p.rol, cat:p.cat}));
+  // Staff AUF (Estructura de Selección)
+  ESTRUCTURA_PERSONAS.forEach(d=>d.personas.forEach(p=>opts.push({key:p.key, label:p.label, rol:p.rol, cat:d.dept})));
+  // CT Mayor
   const ctSeen = new Set();
   (typeof BIELSA_CONVOCATORIAS!=='undefined'?BIELSA_CONVOCATORIAS:[]).forEach(c=>{
     (c.ct||[]).forEach(m=>{ if(!ctSeen.has(m.name)){ ctSeen.add(m.name); opts.push({key:'ct:'+m.name, label:m.name, rol:m.rol||'Cuerpo técnico Mayor', cat:'Cuerpo técnico Mayor'}); } });
   });
+  // CT Juveniles
   if(typeof JUVENILES!=='undefined'){
     const juvSeen = new Set();
     Object.entries(JUVENILES).forEach(([catKey,catData])=>{
@@ -15076,6 +15135,7 @@ function _pwPersonOptions(){
       });
     });
   }
+  // Jugadores Mayor
   (typeof PLAYERS!=='undefined'?PLAYERS:[]).forEach(p=>opts.push({key:'p:'+p.n, label:p.name, rol:p.pos+' · '+p.club, cat:'Jugadores Mayor'}));
   return opts;
 }
@@ -15377,82 +15437,46 @@ function _pwDelSol(id,si){
 
 // ── ESTRUCTURA DE SELECCIÓN ───────────────────────────────────────────────────
 
+const _DEPT_COLORS = [
+  '#0F766E','#1D4ED8','#7C3AED','#B45309','#0284C7','#DC2626','#059669',
+];
+
 function renderEstructura(){
   const el = document.getElementById('estructura-body');
   if(!el) return;
 
-  function personCard(name, rol, extra){
-    const initials = name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  function personCard(p){
+    const initials = p.label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
     return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
-      <div style="width:36px;height:36px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:800;flex-shrink:0">${initials}</div>
+      <div style="width:34px;height:34px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.7em;font-weight:800;flex-shrink:0">${initials}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:.88em;color:var(--text)">${name}</div>
-        <div style="font-size:.72em;color:var(--muted)">${rol}${extra?` · ${extra}`:''}</div>
+        <div style="font-weight:700;font-size:.88em;color:var(--text)">${p.label}</div>
+        <div style="font-size:.72em;color:var(--muted)">${p.rol}</div>
       </div>
     </div>`;
   }
 
-  function groupBlock(title, color, items){
-    if(!items.length) return '';
+  const blocks = ESTRUCTURA_PERSONAS.map((d,i)=>{
+    const color = _DEPT_COLORS[i % _DEPT_COLORS.length];
+    const rows = d.personas.map(personCard).join('');
     return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
-      <div style="padding:10px 14px;background:${color}12;border-bottom:1px solid ${color}30">
-        <div style="font-size:.7em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em">${title} · ${items.length}</div>
+      <div style="padding:10px 14px;background:${color}12;border-bottom:1px solid ${color}25">
+        <span style="font-size:.7em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em">${d.dept}</span>
+        <span style="font-size:.68em;color:${color};opacity:.7;margin-left:6px">· ${d.personas.length}</span>
       </div>
-      <div style="padding:0 14px">${items.join('')}</div>
+      <div style="padding:0 14px">${rows}</div>
     </div>`;
-  }
+  }).join('');
 
-  // Dirección AUF
-  const dirCards = PRENSA_PERSONAS_EXTRA.map(p=>personCard(p.label, p.rol));
-
-  // CT Mayor
-  const ctSeen = new Set(); const ctCards = [];
-  (typeof BIELSA_CONVOCATORIAS!=='undefined'?BIELSA_CONVOCATORIAS:[]).forEach(c=>{
-    (c.ct||[]).forEach(m=>{ if(!ctSeen.has(m.name)){ ctSeen.add(m.name); ctCards.push(personCard(m.name, m.rol||'Cuerpo técnico', m.dt?'DT':'')); } });
-  });
-
-  // Jugadores Mayor por posición
-  const posOrder = {POR:0,DEF:1,MED:2,DEL:3};
-  const posLabel = {POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
-  const posColor = {POR:'#0284C7',DEF:'#16A34A',MED:'#7C3AED',DEL:'#DC2626'};
-  const byPos = {};
-  (typeof PLAYERS!=='undefined'?PLAYERS:[]).sort((a,b)=>(posOrder[a.pos]??9)-(posOrder[b.pos]??9)).forEach(p=>{
-    if(!byPos[p.pos]) byPos[p.pos]=[];
-    byPos[p.pos].push(personCard(p.name, p.pos, p.club));
-  });
-  const jugBlocks = Object.entries(posLabel).map(([pos,lbl])=>
-    byPos[pos]?.length ? groupBlock(lbl, posColor[pos], byPos[pos]) : ''
-  ).join('');
-
-  // CT Juveniles por categoría
-  const juvCtCards = [];
-  if(typeof JUVENILES!=='undefined'){
-    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
-      const catLabel = catData.label||catKey;
-      const catColor = '#7C3AED';
-      Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
-        (anoData.ct||[]).forEach(m=>{
-          juvCtCards.push(personCard(m.name, m.rol||'Cuerpo técnico', catLabel+' '+yr));
-        });
-      });
-    });
-  }
+  const total = ESTRUCTURA_PERSONAS.reduce((s,d)=>s+d.personas.length, 0);
 
   el.innerHTML = `
     <div style="max-width:700px;margin:0 auto;padding:16px">
       <div style="margin-bottom:20px">
         <div style="font-size:1.1em;font-weight:900;color:var(--text)">Estructura de Selección</div>
-        <div style="font-size:.78em;color:var(--muted);margin-top:2px">Todos los integrantes de las selecciones uruguayas</div>
+        <div style="font-size:.78em;color:var(--muted);margin-top:2px">${total} integrantes · ${ESTRUCTURA_PERSONAS.length} áreas</div>
       </div>
-
-      ${groupBlock('Dirección AUF', '#0F766E', dirCards)}
-
-      ${ctCards.length ? groupBlock('Cuerpo técnico — Selección Mayor', '#1D4ED8', ctCards) : ''}
-
-      <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:18px 0 10px">Selección Mayor — Jugadores</div>
-      ${jugBlocks}
-
-      ${juvCtCards.length ? groupBlock('Cuerpos técnicos — Selecciones Juveniles', '#7C3AED', juvCtCards) : ''}
+      ${blocks}
     </div>`;
 }
 window.renderEstructura = renderEstructura;
