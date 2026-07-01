@@ -15364,6 +15364,7 @@ function _renderVentana(id){
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         <span style="font-size:.68em;font-weight:700;background:${est.bg};color:${est.color};border-radius:20px;padding:2px 9px;white-space:nowrap">${est.label}</span>
         <div style="display:flex;gap:4px">
+          ${s.emailPedido?`<button onclick="_pwVerEmail(${si})" style="border:none;background:#EFF6FF;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#1D4ED8"><i class="ti ti-mail"></i></button>`:''}
           <button onclick="_pwEditSol('${id}',${si})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
           <button onclick="_pwDelSol('${id}',${si})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
         </div>
@@ -15467,9 +15468,14 @@ function _renderVentana(id){
           </div>
         </div>
 
-        <div style="margin-bottom:20px">
+        <div style="margin-bottom:12px">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
           <textarea id="pw-sol-notas" rows="2" placeholder="Contexto, restricciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">EMAIL DEL PEDIDO <span style="font-weight:400;color:var(--hint)">(opcional — pegá el mail recibido)</span></label>
+          <textarea id="pw-sol-email" rows="5" placeholder="De: periodista@medio.com&#10;Asunto: Solicitud de nota&#10;&#10;Hola Felipe, quisiera saber si..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.82em;resize:vertical;box-sizing:border-box;font-family:monospace;color:var(--text);background:var(--surface);line-height:1.5"></textarea>
         </div>
 
         <button onclick="_pwGuardarSol()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar pedido</button>
@@ -15513,6 +15519,7 @@ function _pwOpenSolModal(id,si){
   document.getElementById('pw-sol-disp').value=s?.diaSolicitado||s?.disponibilidad||'';
   const fmtEl=document.getElementById('pw-sol-formato'); if(fmtEl) fmtEl.value=s?.formato||'';
   document.getElementById('pw-sol-notas').value=s?.notas||'';
+  document.getElementById('pw-sol-email').value=s?.emailPedido||'';
   const diaEl=document.getElementById('pw-sol-dia'); if(diaEl) diaEl.value=s?.diaAsignado||'';
   const horaEl=document.getElementById('pw-sol-hora'); if(horaEl) horaEl.value=s?.horaAsignada||'';
   _pwToggleEst(s?.estado||'pendiente');
@@ -15533,9 +15540,27 @@ function _pwGuardarSol(){
     diaAsignado:estado==='confirmada'?(document.getElementById('pw-sol-dia')?.value||''):'',
     horaAsignada:estado==='confirmada'?(document.getElementById('pw-sol-hora')?.value||''):'',
     notas:document.getElementById('pw-sol-notas').value.trim(),
+    emailPedido:document.getElementById('pw-sol-email').value.trim(),
   };
   if(_pwSolEditIdx!=null) vw.solicitudes[_pwSolEditIdx]=s; else vw.solicitudes.push(s);
   _pwSave(list); _pwCloseSolModal(); _renderVentana(_pwCurId);
+}
+
+function _pwVerEmail(si){
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===_pwCurId); if(!vw) return;
+  const s=(vw.solicitudes||[])[si]; if(!s?.emailPedido) return;
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML=`<div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:85vh;display:flex;flex-direction:column;padding:20px 20px 32px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0">
+      <div style="font-weight:900;font-size:.95em"><i class="ti ti-mail" style="color:#1D4ED8"></i> Email del pedido</div>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
+    </div>
+    <div style="font-size:.78em;font-weight:700;color:var(--muted);margin-bottom:6px;flex-shrink:0">${s.programa||''}${s.medio?' · '+s.medio:''}</div>
+    <pre style="white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:.82em;line-height:1.6;background:var(--surface);border-radius:10px;padding:14px;overflow-y:auto;flex:1;color:var(--text);margin:0">${s.emailPedido.replace(/</g,'&lt;')}</pre>
+  </div>`;
+  modal.addEventListener('click',e=>{ if(e.target===modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 function _pwDelSol(id,si){
