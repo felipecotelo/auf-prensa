@@ -16201,17 +16201,19 @@ function _estBuildAllSections(){
   }));
   if(ctAlonso.length) sections.push({dept:'CT Mayor — Ciclo Alonso', color:'#0891B2', personas:ctAlonso});
 
-  // CT Juveniles por categoría + año
+  // CT Juveniles — personas únicas agrupadas en una sola sección
   if(typeof JUVENILES!=='undefined'){
+    const seen=new Map(); // key -> {label, rol (primera aparición)}
     Object.entries(JUVENILES).forEach(([catKey,catData])=>{
-      const catLabel=catData.label||catKey;
       Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
-        const ctJuv=(anoData.ct||[]).filter(m=>m.name&&!m.pendiente).map(m=>({
-          key:_nameToKey(m.name), label:m.name, rol:m.rol||'Cuerpo técnico'
-        }));
-        if(ctJuv.length) sections.push({dept:`CT ${catLabel} ${yr}`, color:'#7C3AED', personas:ctJuv});
+        (anoData.ct||[]).filter(m=>m.name&&!m.pendiente).forEach(m=>{
+          const k=_nameToKey(m.name);
+          if(!seen.has(k)) seen.set(k,{key:k, label:m.name, rol:m.rol||'Cuerpo técnico'});
+        });
       });
     });
+    const juvPersonas=[...seen.values()];
+    if(juvPersonas.length) sections.push({dept:'Selecciones Juveniles', color:'#7C3AED', personas:juvPersonas});
   }
   return sections;
 }
