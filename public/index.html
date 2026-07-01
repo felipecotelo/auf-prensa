@@ -15605,7 +15605,7 @@ document.addEventListener('click', ()=>{ const s=document.getElementById('pw-pro
 // ── Base de datos: Medios y programas ─────────────────────────────────────────
 let _medEditIdx = null;
 // Estado en memoria del modal activo
-let _medState = { periodistas:[], productores:[], formato:'' };
+let _medState = { periodistas:[], productores:[], formato:'', emisDias:[], periLuego:false, prodLuego:false, emisLuego:false };
 
 const _MED_FORMATOS = ['TV','Radio','Prensa escrita','Streaming','Mixto'];
 const _MED_FORMATO_COLORS = {TV:'#1D4ED8',Radio:'#7C3AED','Prensa escrita':'#B45309',Streaming:'#0F766E',Mixto:'#6B7280'};
@@ -15645,7 +15645,7 @@ function _renderMediosDB(){
         <div style="font-size:.78em;font-weight:700;color:var(--muted)">${m.medio||''}</div>
         ${periStr?`<div style="font-size:.73em;color:var(--text);margin-top:5px"><span style="color:var(--muted)">Periodistas:</span> ${periStr}</div>`:''}
         ${prodStr?`<div style="font-size:.73em;color:var(--text);margin-top:2px"><span style="color:var(--muted)">Productores:</span> ${prodStr}</div>`:''}
-        ${m.emision&&m.emision!=='luego'?`<div style="font-size:.72em;color:var(--muted);margin-top:4px"><i class="ti ti-clock" style="font-size:.9em"></i> ${m.emision}</div>`:''}
+        ${_medEmisionStr(m.emision)?`<div style="font-size:.72em;color:var(--muted);margin-top:4px"><i class="ti ti-clock" style="font-size:.9em"></i> ${_medEmisionStr(m.emision)}</div>`:''}
         ${m.notas?`<div style="font-size:.72em;color:var(--muted);margin-top:4px;background:var(--surface);border-radius:6px;padding:3px 8px">${m.notas}</div>`:''}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;margin-top:2px">
@@ -15740,11 +15740,25 @@ function _renderMediosDB(){
 
         <!-- EMISIÓN -->
         <div style="margin-bottom:14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-            <label style="font-size:.72em;font-weight:700;color:var(--muted)">EMISIÓN (día y horario)</label>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <label style="font-size:.72em;font-weight:700;color:var(--muted)">EMISIÓN</label>
             <button type="button" id="med-emis-luego-btn" onclick="_medToggleLuego('emis')" style="font-size:.7em;font-weight:700;border:none;background:none;cursor:pointer;color:var(--hint);padding:0">Agregar luego</button>
           </div>
-          <input id="med-emision" type="text" placeholder='ej: Lunes y jueves, 21h' style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;box-sizing:border-box">
+          <div id="med-emis-wrap">
+            <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap" id="med-dias-btns">
+              ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d=>`<button type="button" onclick="_medToggleDia('${d}')" id="med-dia-${d}" style="padding:5px 10px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B;min-width:44px">${d}</button>`).join('')}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="font-size:.7em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">INICIO</label>
+                <input id="med-hora-inicio" type="time" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:.7em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">FIN</label>
+                <input id="med-hora-fin" type="time" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;box-sizing:border-box">
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- NOTAS -->
@@ -15775,7 +15789,14 @@ function _medOpenModal(i){
   document.getElementById('med-programa').value = m?.programa||'';
   document.getElementById('med-medio').value    = m?.medio||'';
   document.getElementById('med-pais').value     = m?.pais||'';
-  document.getElementById('med-emision').value  = (m?.emision && m.emision!=='luego') ? m.emision : '';
+  // Emisión: días + horarios
+  _medState.emisDias = (m?.emision && typeof m.emision==='object') ? (m.emision.dias||[]) : [];
+  const hor = (m?.emision && typeof m.emision==='object') ? m.emision : {};
+  setTimeout(()=>{
+    const hi=document.getElementById('med-hora-inicio'); if(hi) hi.value=hor.inicio||'';
+    const hf=document.getElementById('med-hora-fin');   if(hf) hf.value=hor.fin||'';
+    _medRenderDias();
+  },0);
   document.getElementById('med-notas').value    = m?.notas||'';
   _medRenderChips('peri'); _medRenderChips('prod');
   _medApplyFmt(_medState.formato);
@@ -15834,9 +15855,9 @@ function _medApplyLuego(field, on){
     if(btn)   { btn.style.color=on?'var(--cel)':'var(--hint)'; btn.textContent=on?'✓ Agregar luego':'Agregar luego'; }
   }
   if(field==='emis'){
-    const inp=document.getElementById('med-emision');
+    const wrap=document.getElementById('med-emis-wrap');
     const btn=document.getElementById('med-emis-luego-btn');
-    if(inp) inp.disabled=!!on; if(inp) inp.style.opacity=on?'.35':'1';
+    if(wrap){ wrap.style.opacity=on?'.35':'1'; wrap.querySelectorAll('input,button').forEach(el=>el.disabled=!!on); }
     if(btn) { btn.style.color=on?'var(--cel)':'var(--hint)'; btn.textContent=on?'✓ Agregar luego':'Agregar luego'; }
   }
 }
@@ -15898,18 +15919,49 @@ function _medMedioInput(el){
   sug.style.display='block';
 }
 
+// ── Días de emisión ────────────────────────────────────────────────────────────
+const _MED_DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+function _medToggleDia(d){
+  const i = _medState.emisDias.indexOf(d);
+  if(i>=0) _medState.emisDias.splice(i,1); else _medState.emisDias.push(d);
+  _medRenderDias();
+}
+function _medRenderDias(){
+  _MED_DIAS.forEach(d=>{
+    const btn=document.getElementById('med-dia-'+d); if(!btn) return;
+    const on=_medState.emisDias.includes(d);
+    btn.style.background = on ? 'var(--cel)' : 'transparent';
+    btn.style.color      = on ? '#fff'        : '#64748B';
+    btn.style.borderColor= on ? 'var(--cel)'  : '#CBD5E1';
+  });
+}
+function _medEmisionStr(emision){
+  if(!emision || emision==='luego') return '';
+  if(typeof emision==='string') return emision;
+  const dias=(emision.dias||[]).join(', ');
+  const h = emision.inicio && emision.fin ? `${emision.inicio}–${emision.fin}h`
+          : emision.inicio ? `desde ${emision.inicio}h`
+          : emision.fin    ? `hasta ${emision.fin}h` : '';
+  return [dias, h].filter(Boolean).join(' · ');
+}
+
 // ── Guardar ────────────────────────────────────────────────────────────────────
 function _medGuardar(){
   const programa = document.getElementById('med-programa').value.trim();
   const medio    = document.getElementById('med-medio').value.trim();
   if(!programa && !medio){ alert('Completá al menos Programa o Medio'); return; }
+  const emision = _medState.emisLuego ? 'luego' : {
+    dias:  [..._medState.emisDias],
+    inicio: document.getElementById('med-hora-inicio')?.value||'',
+    fin:    document.getElementById('med-hora-fin')?.value||'',
+  };
   const entry={
     programa, medio,
     pais:        document.getElementById('med-pais').value.trim(),
     formato:     _medState.formato,
     periodistas: _medState.periLuego ? 'luego' : [..._medState.periodistas],
     productores: _medState.prodLuego ? 'luego' : [..._medState.productores],
-    emision:     _medState.emisLuego ? 'luego' : document.getElementById('med-emision').value.trim(),
+    emision,
     notas:       document.getElementById('med-notas').value.trim(),
   };
   const list=_mediosGetAll();
