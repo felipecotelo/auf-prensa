@@ -15605,7 +15605,7 @@ document.addEventListener('click', ()=>{ const s=document.getElementById('pw-pro
 // ── Base de datos: Medios y programas ─────────────────────────────────────────
 let _medEditIdx = null;
 // Estado en memoria del modal activo
-let _medState = { periodistas:[], productores:[], formato:'', emisDias:[], periLuego:false, prodLuego:false, emisLuego:false };
+let _medState = { periodistas:[], productores:[], formatos:[], emisDias:[], periLuego:false, prodLuego:false, emisLuego:false };
 
 const _MED_FORMATOS = ['TV','Radio','Prensa escrita','Streaming','Mixto'];
 const _MED_FORMATO_COLORS = {TV:'#1D4ED8',Radio:'#7C3AED','Prensa escrita':'#B45309',Streaming:'#0F766E',Mixto:'#6B7280'};
@@ -15639,7 +15639,7 @@ function _renderMediosDB(){
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
           <span style="font-size:.92em;font-weight:900;color:var(--text)">${m.programa||'—'}</span>
-          ${m.formato?`<span style="font-size:.68em;font-weight:700;border-radius:20px;padding:2px 9px;background:${fmtColor(m.formato)}18;color:${fmtColor(m.formato)}">${m.formato}</span>`:''}
+          ${(m.formatos||[m.formato]).filter(Boolean).map(f=>`<span style="font-size:.68em;font-weight:700;border-radius:20px;padding:2px 9px;background:${fmtColor(f)}18;color:${fmtColor(f)}">${f}</span>`).join('')}
           ${m.pais?`<span style="font-size:.68em;color:var(--muted)">${m.pais}</span>`:''}
         </div>
         <div style="font-size:.78em;font-weight:700;color:var(--muted)">${m.medio||''}</div>
@@ -15780,7 +15780,7 @@ function _medOpenModal(i){
   _medState = {
     periodistas: Array.isArray(m?.periodistas) ? [...m.periodistas] : [],
     productores: Array.isArray(m?.productores) ? [...m.productores] : [],
-    formato: m?.formato||'',
+    formatos: Array.isArray(m?.formatos) ? [...m.formatos] : (m?.formato ? [m.formato] : []),
     periLuego: m?.periodistas==='luego',
     prodLuego: m?.productores==='luego',
     emisLuego: m?.emision==='luego',
@@ -15799,7 +15799,7 @@ function _medOpenModal(i){
   },0);
   document.getElementById('med-notas').value    = m?.notas||'';
   _medRenderChips('peri'); _medRenderChips('prod');
-  _medApplyFmt(_medState.formato);
+  _medApplyFmt(_medState.formatos);
   _medApplyLuego('peri', _medState.periLuego);
   _medApplyLuego('prod', _medState.prodLuego);
   _medApplyLuego('emis', _medState.emisLuego);
@@ -15815,17 +15815,20 @@ function _medCloseModal(){
 
 // ── Formato pills ──────────────────────────────────────────────────────────────
 function _medToggleFmt(f){
-  _medState.formato = _medState.formato===f ? '' : f;
-  _medApplyFmt(_medState.formato);
+  const i=_medState.formatos.indexOf(f);
+  if(i>=0) _medState.formatos.splice(i,1); else _medState.formatos.push(f);
+  _medApplyFmt(_medState.formatos);
 }
 function _medApplyFmt(sel){
+  const arr=Array.isArray(sel)?sel:(sel?[sel]:[]);
   _MED_FORMATOS.forEach(f=>{
     const btn=document.getElementById('med-fmt-'+f.replace(/ /g,'-'));
     if(!btn) return;
     const c=_MED_FORMATO_COLORS[f]||'#6B7280';
-    btn.style.background = f===sel ? c : 'transparent';
-    btn.style.color      = f===sel ? '#fff' : '#64748B';
-    btn.style.borderColor= f===sel ? c : '#CBD5E1';
+    const on=arr.includes(f);
+    btn.style.background = on ? c : 'transparent';
+    btn.style.color      = on ? '#fff' : '#64748B';
+    btn.style.borderColor= on ? c : '#CBD5E1';
   });
 }
 
@@ -15958,7 +15961,7 @@ function _medGuardar(){
   const entry={
     programa, medio,
     pais:        document.getElementById('med-pais').value.trim(),
-    formato:     _medState.formato,
+    formatos:    [..._medState.formatos],
     periodistas: _medState.periLuego ? 'luego' : [..._medState.periodistas],
     productores: _medState.prodLuego ? 'luego' : [..._medState.productores],
     emision,
