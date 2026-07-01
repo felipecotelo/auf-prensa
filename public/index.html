@@ -15357,7 +15357,7 @@ function _renderVentana(id){
       <div style="font-size:.78em;font-weight:900;color:var(--muted);min-width:22px;padding-top:2px">${si+1}.</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:.88em;font-weight:800;color:var(--text)">${s.programa||'Sin programa'}</div>
-        <div style="font-size:.75em;color:var(--muted);margin-top:1px">${s.medio||''}</div>
+        <div style="font-size:.75em;color:var(--muted);margin-top:1px">${s.medio||''}${s.recibido?` <span style="color:var(--hint);font-size:.9em">· recibido ${_pwFmtDate(s.recibido)}</span>`:''}</div>
         ${(s.diaSolicitado||s.disponibilidad)?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px"><i class="ti ti-calendar-question" style="font-size:.85em"></i> ${s.diaSolicitado||s.disponibilidad}</div>`:''}
         ${s.formato?`<div style="font-size:.7em;font-weight:700;color:#1D4ED8;margin-top:3px">${s.formato}</div>`:''}
         ${s.estado==='confirmada'&&s.diaAsignado?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ Asignado: ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}</div>`:''}
@@ -15427,7 +15427,11 @@ function _renderVentana(id){
           <input id="pw-sol-medio" type="text" placeholder="ej: Canal 10" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">RECIBIDO</label>
+            <input id="pw-sol-recibido" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
           <div>
             <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DÍA SOLICITADO</label>
             <input id="pw-sol-disp" type="text" placeholder="ej: lunes o martes" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
@@ -15515,6 +15519,7 @@ function _pwOpenSolModal(id,si){
   const list=_pwGetAll(); const vw=list.find(v=>v.id===id); if(!vw) return;
   const s=si!=null?(vw.solicitudes||[])[si]:null;
   document.getElementById('pw-sol-title').textContent=s?'Editar pedido':'Nuevo pedido';
+  document.getElementById('pw-sol-recibido').value=s?.recibido||'';
   document.getElementById('pw-sol-programa').value=s?.programa||'';
   document.getElementById('pw-sol-medio').value=s?.medio||'';
   document.getElementById('pw-sol-disp').value=s?.diaSolicitado||s?.disponibilidad||'';
@@ -15533,6 +15538,7 @@ function _pwGuardarSol(){
   if(!vw.solicitudes) vw.solicitudes=[];
   const estado=_pwSolEstado||'pendiente';
   const s={
+    recibido:document.getElementById('pw-sol-recibido').value,
     programa:document.getElementById('pw-sol-programa').value.trim(),
     medio:document.getElementById('pw-sol-medio').value.trim(),
     diaSolicitado:document.getElementById('pw-sol-disp').value.trim(),
