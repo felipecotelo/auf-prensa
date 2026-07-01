@@ -15056,58 +15056,85 @@ function _pwGetAll(){
   try{ return JSON.parse(localStorage.getItem(KPW)||'[]'); }catch(_){ return []; }
 }
 function _pwSave(list){ localStorage.setItem(KPW, JSON.stringify(list)); }
+function _pwId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 
 function _pwPersonOptions(){
   const opts = [];
-  // Directivos/staff extra
   PRENSA_PERSONAS_EXTRA.forEach(p=>opts.push({key:p.key, label:p.label, rol:p.rol, cat:p.cat}));
-  // CT Mayor (únicos)
   const ctSeen = new Set();
   (typeof BIELSA_CONVOCATORIAS!=='undefined'?BIELSA_CONVOCATORIAS:[]).forEach(c=>{
     (c.ct||[]).forEach(m=>{ if(!ctSeen.has(m.name)){ ctSeen.add(m.name); opts.push({key:'ct:'+m.name, label:m.name, rol:m.rol||'Cuerpo técnico Mayor', cat:'Cuerpo técnico Mayor'}); } });
   });
-  // Jugadores Mayor
+  if(typeof JUVENILES!=='undefined'){
+    const juvSeen = new Set();
+    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
+        (anoData.ct||[]).forEach(m=>{
+          const k='juv:'+m.name;
+          if(!juvSeen.has(k)){ juvSeen.add(k); opts.push({key:k, label:m.name, rol:m.rol||'Cuerpo técnico', cat:(catData.label||catKey)+' '+yr}); }
+        });
+      });
+    });
+  }
   (typeof PLAYERS!=='undefined'?PLAYERS:[]).forEach(p=>opts.push({key:'p:'+p.n, label:p.name, rol:p.pos+' · '+p.club, cat:'Jugadores Mayor'}));
   return opts;
 }
 
-function _pwTypeLabel(t){
-  return {individual:'Individual',conferencia:'Conferencia',standup:'Stand-up',mixta:'Mixta'}[t]||t;
-}
-function _pwStatusColor(s){
-  return {pendiente:'#D97706',realizada:'#16A34A',cancelada:'#DC2626'}[s]||'#6B7280';
+function _pwPersonSelect(selected=''){
+  const opts = _pwPersonOptions();
+  let lastCat='', html='<option value="">— Elegir persona —</option>';
+  opts.forEach(o=>{
+    if(o.cat!==lastCat){ html+=`<optgroup label="${o.cat}">`; lastCat=o.cat; }
+    html+=`<option value="${o.key}"${o.key===selected?' selected':''}>${o.label} · ${o.rol}</option>`;
+  });
+  return html;
 }
 
+const _pwFmtLabel = t=>({individual:'Individual',conferencia:'Conferencia de prensa',standup:'Stand-up',escrita:'Nota escrita',telefonica:'Telefónica'}[t]||t||'—');
+const _pwFmtColor = t=>({individual:'#1D4ED8',conferencia:'#7C3AED',standup:'#0F766E',escrita:'#B45309',telefonica:'#6B7280'}[t]||'#6B7280');
+const _pwEstColor = s=>({pendiente:'#D97706',aceptada:'#16A34A',rechazada:'#DC2626',realizada:'#0F766E',cancelada:'#9CA3AF'}[s]||'#6B7280');
+const _pwFmtDate = d=>{ if(!d) return ''; const [y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; };
+
+// ── Estado de navegación interna de Prensa ─────────────────────────────────
+let _pwView = 'list';   // 'list' | 'ventana'
+let _pwCurId = null;
+
 function renderPrensa(){
+  if(_pwView==='ventana' && _pwCurId) _renderVentana(_pwCurId);
+  else _renderListaPrensa();
+}
+
+function _renderListaPrensa(){
   const el = document.getElementById('prensa-body');
   if(!el) return;
   const list = _pwGetAll();
 
-  const cards = list.length ? list.map((pw,i)=>`
-    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-        <div>
-          <div style="font-size:.78em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${pw.cat||''}</div>
-          <div style="font-size:1.05em;font-weight:900;color:var(--text);margin-top:2px">${pw.personLabel}</div>
-          <div style="font-size:.78em;color:var(--muted)">${pw.personRol||''}</div>
-        </div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button onclick="_pwEdit(${i})" style="border:none;background:var(--surface);border-radius:8px;padding:5px 10px;font-size:.75em;font-weight:700;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
-          <button onclick="_pwDelete(${i})" style="border:none;background:#FEF2F2;border-radius:8px;padding:5px 10px;font-size:.75em;font-weight:700;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
-        </div>
+  const personOptStr = _pwPersonSelect();
+
+  const cards = list.length ? list.map(pw=>{
+    const solPend = (pw.solicitudes||[]).filter(s=>s.estado==='pendiente').length;
+    const solTotal = (pw.solicitudes||[]).length;
+    const desdeStr = _pwFmtDate(pw.desde);
+    const hastaStr = _pwFmtDate(pw.hasta);
+    const periodo = (desdeStr||hastaStr) ? `${desdeStr}${hastaStr&&hastaStr!==desdeStr?' → '+hastaStr:''}` : '';
+    return `
+    <div onclick="_pwOpenVentana('${pw.id}')" style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${pw.cat||''}</div>
+        <div style="font-size:.98em;font-weight:900;color:var(--text);margin-top:1px">${pw.personLabel}</div>
+        <div style="font-size:.75em;color:var(--muted);margin-top:2px">${periodo}</div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        <span style="font-size:.75em;font-weight:700;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:3px 10px">${_pwTypeLabel(pw.tipo)}</span>
-        <span style="font-size:.75em;font-weight:700;color:${_pwStatusColor(pw.status)};background:${_pwStatusColor(pw.status)}18;border-radius:20px;padding:3px 10px">${pw.status||'pendiente'}</span>
-        ${pw.fecha?`<span style="font-size:.75em;color:var(--muted)"><i class="ti ti-calendar" style="font-size:.9em"></i> ${pw.fecha}${pw.hora?' · '+pw.hora:''}</span>`:''}
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        <span style="font-size:.72em;font-weight:700;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:2px 9px">${_pwFmtLabel(pw.formato)}</span>
+        <span style="font-size:.72em;color:var(--muted)">${solTotal} solicitud${solTotal!==1?'es':''}${solPend?' · '+solPend+' pend.':''}</span>
       </div>
-      ${pw.medios?`<div style="font-size:.75em;color:var(--muted)"><i class="ti ti-building-broadcast-tower" style="font-size:.9em"></i> ${pw.medios}</div>`:''}
-      ${pw.notas?`<div style="font-size:.78em;color:var(--text);background:var(--surface);border-radius:8px;padding:8px 10px;margin-top:2px">${pw.notas}</div>`:''}
-    </div>`).join('')
+      <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.9em;flex-shrink:0"></i>
+    </div>`;
+  }).join('')
   : `<div style="text-align:center;padding:48px 24px;color:var(--muted)">
       <i class="ti ti-microphone-2" style="font-size:2.5em;display:block;margin-bottom:12px;opacity:.3"></i>
       <div style="font-weight:700;margin-bottom:4px">Sin ventanas de prensa</div>
-      <div style="font-size:.82em">Tocá "+ Nueva ventana" para agregar la primera</div>
+      <div style="font-size:.82em">Tocá "+ Agregar ventana" para crear la primera</div>
     </div>`;
 
   el.innerHTML = `
@@ -15117,136 +15144,235 @@ function renderPrensa(){
           <div style="font-size:1.1em;font-weight:900;color:var(--text)">Atención a prensa</div>
           <div style="font-size:.78em;color:var(--muted);margin-top:2px">Ventanas de prensa programadas</div>
         </div>
-        <button onclick="_pwOpenModal()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:10px;background:var(--cel);color:#fff;font-size:.82em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Nueva ventana</button>
+        <button onclick="_pwNuevaVentana()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:10px;background:var(--cel);color:#fff;font-size:.82em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar ventana</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:10px">${cards}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${cards}</div>
     </div>
 
-    <!-- Modal -->
+    <!-- Modal nueva ventana -->
     <div id="pw-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_pwCloseModal()">
-      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:20px 20px 32px">
+      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding:20px 20px 32px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-          <div id="pw-modal-title" style="font-weight:900;font-size:1em">Nueva ventana de prensa</div>
+          <div style="font-weight:900;font-size:1em">Agregar ventana de prensa</div>
           <button onclick="_pwCloseModal()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
         </div>
 
         <div style="margin-bottom:12px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PERSONA</label>
-          <select id="pw-person" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
-            <option value="">— Elegir persona —</option>
-            ${(()=>{
-              const opts = _pwPersonOptions();
-              let lastCat='';
-              return opts.map(o=>{
-                let prefix = o.cat!==lastCat ? (lastCat=o.cat, `<optgroup label="${o.cat}">`) : '';
-                return prefix+`<option value="${o.key}">${o.label} · ${o.rol}</option>`;
-              }).join('');
-            })()}
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROTAGONISTA</label>
+          <select id="pw-person" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">${personOptStr}</select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DESDE</label>
+            <input id="pw-desde" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HASTA</label>
+            <input id="pw-hasta" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO GENERAL</label>
+          <select id="pw-formato" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
+            <option value="">— Opcional —</option>
+            <option value="individual">Individual</option>
+            <option value="conferencia">Conferencia de prensa</option>
+            <option value="standup">Stand-up</option>
+            <option value="mixta">Mixta</option>
           </select>
+        </div>
+
+        <button onclick="_pwGuardarNueva()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Crear ventana</button>
+      </div>
+    </div>`;
+}
+
+function _pwNuevaVentana(){
+  document.getElementById('pw-modal').style.display='flex';
+}
+function _pwCloseModal(){
+  const m=document.getElementById('pw-modal'); if(m) m.style.display='none';
+}
+function _pwGuardarNueva(){
+  const personKey=document.getElementById('pw-person').value;
+  if(!personKey){alert('Elegí una persona');return;}
+  const opts=_pwPersonOptions();
+  const found=opts.find(o=>o.key===personKey);
+  const vw={
+    id:_pwId(),
+    personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'',
+    desde:document.getElementById('pw-desde').value,
+    hasta:document.getElementById('pw-hasta').value,
+    formato:document.getElementById('pw-formato').value,
+    solicitudes:[],
+  };
+  const list=_pwGetAll(); list.push(vw); _pwSave(list);
+  _pwCloseModal();
+  _pwOpenVentana(vw.id);
+}
+
+function _pwOpenVentana(id){
+  _pwView='ventana'; _pwCurId=id;
+  _renderVentana(id);
+}
+
+function _renderVentana(id){
+  const el=document.getElementById('prensa-body');
+  if(!el) return;
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===id);
+  if(!vw){_pwView='list';_pwCurId=null;_renderListaPrensa();return;}
+
+  const desdeStr=_pwFmtDate(vw.desde), hastaStr=_pwFmtDate(vw.hasta);
+  const periodo=(desdeStr||hastaStr)?`${desdeStr}${hastaStr&&hastaStr!==desdeStr?' → '+hastaStr:''}`:' — ';
+
+  const solRows=(vw.solicitudes||[]).map((s,si)=>`
+    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px">
+          <span style="font-size:.72em;font-weight:700;background:${_pwFmtColor(s.formato)}18;color:${_pwFmtColor(s.formato)};border-radius:20px;padding:2px 9px">${_pwFmtLabel(s.formato)}</span>
+          <span style="font-size:.72em;font-weight:700;background:${_pwEstColor(s.estado)}18;color:${_pwEstColor(s.estado)};border-radius:20px;padding:2px 9px">${s.estado||'pendiente'}</span>
+          ${s.fecha?`<span style="font-size:.72em;color:var(--muted)">${_pwFmtDate(s.fecha)}${s.hora?' · '+s.hora:''}</span>`:''}
+        </div>
+        <div style="font-size:.88em;font-weight:800;color:var(--text)">${s.medio||'Sin medio'}</div>
+        ${s.notas?`<div style="font-size:.75em;color:var(--muted);margin-top:3px">${s.notas}</div>`:''}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button onclick="_pwEditSol('${id}',${si})" style="border:none;background:var(--surface);border-radius:7px;padding:4px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
+        <button onclick="_pwDelSol('${id}',${si})" style="border:none;background:#FEF2F2;border-radius:7px;padding:4px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML=`
+    <div style="max-width:700px;margin:0 auto;padding:16px">
+      <button onclick="_pwBackList()" style="display:flex;align-items:center;gap:5px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:.8em;font-weight:700;padding:0;margin-bottom:14px"><i class="ti ti-arrow-left"></i> Ventanas de prensa</button>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:4px">
+        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">${vw.cat||''}</div>
+        <div style="font-size:1.1em;font-weight:900;color:var(--text)">${vw.personLabel}</div>
+        <div style="font-size:.78em;color:var(--muted)">${vw.personRol||''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center">
+          ${periodo?`<span style="font-size:.75em;color:var(--muted)"><i class="ti ti-calendar" style="font-size:.9em"></i> ${periodo}</span>`:''}
+          ${vw.formato?`<span style="font-size:.75em;font-weight:700;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:2px 9px">${_pwFmtLabel(vw.formato)}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+        <button onclick="_pwDeleteVentana('${id}')" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:.75em;padding:4px 0"><i class="ti ti-trash"></i> Eliminar ventana</button>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px">
+        <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Solicitudes · ${(vw.solicitudes||[]).length}</div>
+        <button onclick="_pwNuevaSol('${id}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:none;border-radius:9px;background:var(--cel);color:#fff;font-size:.78em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar solicitud</button>
+      </div>
+
+      ${(vw.solicitudes||[]).length ? `<div style="display:flex;flex-direction:column;gap:7px">${solRows}</div>`
+        : `<div style="text-align:center;padding:32px 16px;color:var(--muted);font-size:.85em">Ninguna solicitud todavía</div>`}
+    </div>
+
+    <!-- Modal solicitud -->
+    <div id="pw-sol-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_pwCloseSolModal()">
+      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding:20px 20px 32px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <div id="pw-sol-title" style="font-weight:900;font-size:1em">Nueva solicitud</div>
+          <button onclick="_pwCloseSolModal()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
+          <input id="pw-sol-medio" type="text" placeholder="ej: Canal 10, Ovación, GolTV…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
           <div>
             <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
-            <input id="pw-fecha" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+            <input id="pw-sol-fecha" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
           </div>
           <div>
             <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
-            <input id="pw-hora" type="time" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+            <input id="pw-sol-hora" type="time" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
           </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
           <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">TIPO</label>
-            <select id="pw-tipo" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
+            <select id="pw-sol-formato" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
               <option value="individual">Individual</option>
-              <option value="conferencia">Conferencia</option>
+              <option value="conferencia">Conferencia de prensa</option>
               <option value="standup">Stand-up</option>
-              <option value="mixta">Mixta</option>
+              <option value="escrita">Nota escrita</option>
+              <option value="telefonica">Telefónica</option>
             </select>
           </div>
           <div>
             <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">ESTADO</label>
-            <select id="pw-status" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
+            <select id="pw-sol-estado" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
               <option value="pendiente">Pendiente</option>
+              <option value="aceptada">Aceptada</option>
+              <option value="rechazada">Rechazada</option>
               <option value="realizada">Realizada</option>
               <option value="cancelada">Cancelada</option>
             </select>
           </div>
         </div>
 
-        <div style="margin-bottom:12px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIOS</label>
-          <input id="pw-medios" type="text" placeholder="ej: Canal 10, Ovación, GolTV…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
-        </div>
-
         <div style="margin-bottom:20px">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
-          <textarea id="pw-notas" rows="3" placeholder="Temas, restricciones, contexto…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+          <textarea id="pw-sol-notas" rows="3" placeholder="Temas, restricciones, contexto…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
         </div>
 
-        <button onclick="_pwSaveModal()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar ventana</button>
+        <button onclick="_pwGuardarSol()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar solicitud</button>
       </div>
     </div>`;
 }
 
-let _pwEditIdx = null;
+function _pwBackList(){ _pwView='list'; _pwCurId=null; _renderListaPrensa(); }
 
-function _pwOpenModal(idx){
-  _pwEditIdx = (idx!=null) ? idx : null;
-  const modal = document.getElementById('pw-modal');
-  if(!modal) return;
-  const list = _pwGetAll();
-  const pw = idx!=null ? list[idx] : null;
-  document.getElementById('pw-modal-title').textContent = pw ? 'Editar ventana' : 'Nueva ventana de prensa';
-  document.getElementById('pw-person').value = pw?.personKey||'';
-  document.getElementById('pw-fecha').value = pw?.fecha||'';
-  document.getElementById('pw-hora').value = pw?.hora||'';
-  document.getElementById('pw-tipo').value = pw?.tipo||'individual';
-  document.getElementById('pw-status').value = pw?.status||'pendiente';
-  document.getElementById('pw-medios').value = pw?.medios||'';
-  document.getElementById('pw-notas').value = pw?.notas||'';
-  modal.style.display='flex';
+function _pwDeleteVentana(id){
+  if(!confirm('¿Eliminar esta ventana y todas sus solicitudes?')) return;
+  const list=_pwGetAll().filter(v=>v.id!==id); _pwSave(list);
+  _pwBackList();
 }
 
-function _pwCloseModal(){
-  const modal = document.getElementById('pw-modal');
-  if(modal) modal.style.display='none';
-}
+let _pwSolEditIdx=null;
+function _pwNuevaSol(id){ _pwSolEditIdx=null; _pwOpenSolModal(id,null); }
+function _pwEditSol(id,si){ _pwSolEditIdx=si; _pwOpenSolModal(id,si); }
 
-function _pwSaveModal(){
-  const personKey = document.getElementById('pw-person').value;
-  if(!personKey){ alert('Elegí una persona'); return; }
-  const opts = _pwPersonOptions();
-  const found = opts.find(o=>o.key===personKey);
-  const pw = {
-    personKey,
-    personLabel: found?.label||personKey,
-    personRol: found?.rol||'',
-    cat: found?.cat||'',
-    fecha: document.getElementById('pw-fecha').value,
-    hora: document.getElementById('pw-hora').value,
-    tipo: document.getElementById('pw-tipo').value,
-    status: document.getElementById('pw-status').value,
-    medios: document.getElementById('pw-medios').value.trim(),
-    notas: document.getElementById('pw-notas').value.trim(),
+function _pwOpenSolModal(id,si){
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===id); if(!vw) return;
+  const s=si!=null?(vw.solicitudes||[])[si]:null;
+  document.getElementById('pw-sol-title').textContent=s?'Editar solicitud':'Nueva solicitud';
+  document.getElementById('pw-sol-medio').value=s?.medio||'';
+  document.getElementById('pw-sol-fecha').value=s?.fecha||'';
+  document.getElementById('pw-sol-hora').value=s?.hora||'';
+  document.getElementById('pw-sol-formato').value=s?.formato||'individual';
+  document.getElementById('pw-sol-estado').value=s?.estado||'pendiente';
+  document.getElementById('pw-sol-notas').value=s?.notas||'';
+  document.getElementById('pw-sol-modal').style.display='flex';
+}
+function _pwCloseSolModal(){ document.getElementById('pw-sol-modal').style.display='none'; }
+
+function _pwGuardarSol(){
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===_pwCurId); if(!vw) return;
+  if(!vw.solicitudes) vw.solicitudes=[];
+  const s={
+    medio:document.getElementById('pw-sol-medio').value.trim(),
+    fecha:document.getElementById('pw-sol-fecha').value,
+    hora:document.getElementById('pw-sol-hora').value,
+    formato:document.getElementById('pw-sol-formato').value,
+    estado:document.getElementById('pw-sol-estado').value,
+    notas:document.getElementById('pw-sol-notas').value.trim(),
   };
-  const list = _pwGetAll();
-  if(_pwEditIdx!=null) list[_pwEditIdx]=pw; else list.push(pw);
-  _pwSave(list);
-  _pwCloseModal();
-  renderPrensa();
+  if(_pwSolEditIdx!=null) vw.solicitudes[_pwSolEditIdx]=s; else vw.solicitudes.push(s);
+  _pwSave(list); _pwCloseSolModal(); _renderVentana(_pwCurId);
 }
 
-function _pwEdit(i){ _pwOpenModal(i); }
-
-function _pwDelete(i){
-  if(!confirm('¿Eliminar esta ventana?')) return;
-  const list = _pwGetAll();
-  list.splice(i,1);
-  _pwSave(list);
-  renderPrensa();
+function _pwDelSol(id,si){
+  if(!confirm('¿Eliminar esta solicitud?')) return;
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===id); if(!vw) return;
+  vw.solicitudes.splice(si,1); _pwSave(list); _renderVentana(id);
 }
 
 // ── ESTRUCTURA DE SELECCIÓN ───────────────────────────────────────────────────
