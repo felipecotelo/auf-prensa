@@ -16692,7 +16692,7 @@ function _estBuildAllSections(){
         const personas=ct.map(m=>({key:_nameToKey(m.name), label:m.name, rol:m.rol||'Cuerpo técnico'}));
         const dept=`CT ${catData.label} — ${yr}`;
         const color=juvColors[catKey]||'#7C3AED';
-        sections.push({dept, color, personas});
+        sections.push({dept, color, personas, showAll:true});
       });
     });
   }
@@ -16764,13 +16764,14 @@ function _renderEstLista(){
 
   if(_estTab==='activos'){
     sections.forEach(d=>{
-      const personas=d.personas.filter(p=>(contracts[p.key]||'activo')==='activo');
+      const personas=d.showAll ? d.personas : d.personas.filter(p=>(contracts[p.key]||'activo')==='activo');
       if(!personas.length) return;
       total+=personas.length;
       const rows=personas.map(p=>{
         const label=edits[p.key]?.label||p.label;
         const rol=edits[p.key]?.rolesEdit?.[d.dept]?.rol||p.rol;
-        return _renderEstPersonaRow(p,label,rol,cache[p.key],'activo');
+        const contrato=d.showAll?(contracts[p.key]||'activo'):'activo';
+        return _renderEstPersonaRow(p,label,rol,cache[p.key],contrato);
       }).join('');
       blocks+=`<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
         <div style="padding:10px 14px;background:${d.color}12;border-bottom:1px solid ${d.color}25">
