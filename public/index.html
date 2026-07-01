@@ -15706,9 +15706,10 @@ function _renderMediosDB(){
 
         <!-- PAÍS + FORMATO -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <div>
+          <div style="position:relative">
             <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PAÍS</label>
-            <input id="med-pais" type="text" placeholder='ej: Uruguay' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+            <input id="med-pais" type="text" autocomplete="off" placeholder='ej: Uruguay' oninput="_medPaisInput(this)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+            <div id="med-pais-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:180px;overflow-y:auto"></div>
           </div>
           <div>
             <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
@@ -15910,6 +15911,24 @@ function _medPersonaInput(el, field){
   if(!known.length){ sug.style.display='none'; return; }
   sug.innerHTML=known.map(p=>`<div onclick="_medAddChip('${field}','${p.replace(/'/g,"\\'")}');event.stopPropagation()"
     style="padding:8px 13px;cursor:pointer;font-size:.85em;border-bottom:0.5px solid var(--border)"
+    onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background='#fff'">${p}</div>`).join('');
+  sug.style.display='block';
+}
+
+// ── Autocomplete PAÍS ──────────────────────────────────────────────────────────
+const _MED_PAISES = ['Afganistán','Albania','Alemania','Andorra','Angola','Antigua y Barbuda','Arabia Saudita','Argelia','Argentina','Armenia','Australia','Austria','Azerbaiyán','Bahamas','Bangladés','Barbados','Baréin','Bélgica','Belice','Benín','Bielorrusia','Bolivia','Bosnia y Herzegovina','Botsuana','Brasil','Brunéi','Bulgaria','Burkina Faso','Burundi','Bután','Cabo Verde','Camboya','Camerún','Canadá','Catar','Chad','Chile','China','Chipre','Colombia','Comoras','Congo','Corea del Norte','Corea del Sur','Costa Rica','Croacia','Cuba','Dinamarca','Dominica','Ecuador','Egipto','El Salvador','Emiratos Árabes Unidos','Eritrea','Eslovaquia','Eslovenia','España','Estados Unidos','Estonia','Etiopía','Filipinas','Finlandia','Fiyi','Francia','Gabón','Gambia','Georgia','Ghana','Granada','Grecia','Guatemala','Guinea','Guinea-Bisáu','Guinea Ecuatorial','Guyana','Haití','Honduras','Hungría','India','Indonesia','Irak','Irán','Irlanda','Islandia','Islas Marshall','Islas Salomón','Israel','Italia','Jamaica','Japón','Jordania','Kazajistán','Kenia','Kirguistán','Kiribati','Kuwait','Laos','Lesoto','Letonia','Líbano','Liberia','Libia','Liechtenstein','Lituania','Luxemburgo','Madagascar','Malasia','Malaui','Maldivas','Malí','Malta','Marruecos','Mauricio','Mauritania','México','Micronesia','Moldavia','Mónaco','Mongolia','Montenegro','Mozambique','Myanmar','Namibia','Nauru','Nepal','Nicaragua','Níger','Nigeria','Noruega','Nueva Zelanda','Omán','Países Bajos','Pakistán','Palaos','Palestina','Panamá','Papúa Nueva Guinea','Paraguay','Perú','Polonia','Portugal','Reino Unido','República Centroafricana','República Checa','República del Congo','República Dominicana','Ruanda','Rumanía','Rusia','Samoa','San Cristóbal y Nieves','San Marino','San Vicente y las Granadinas','Santa Lucía','Santo Tomé y Príncipe','Senegal','Serbia','Seychelles','Sierra Leona','Singapur','Siria','Somalia','Sri Lanka','Suazilandia','Sudáfrica','Sudán','Sudán del Sur','Suecia','Suiza','Surinam','Tailandia','Tanzania','Tayikistán','Timor Oriental','Togo','Tonga','Trinidad y Tobago','Túnez','Turkmenistán','Turquía','Tuvalu','Ucrania','Uganda','Uruguay','Uzbekistán','Vanuatu','Venezuela','Vietnam','Yemen','Yibuti','Zambia','Zimbabue'];
+function _medPaisInput(el){
+  const q=el.value.trim().toLowerCase();
+  const sug=document.getElementById('med-pais-suggest');
+  if(!sug) return;
+  if(q.length<1){ sug.style.display='none'; return; }
+  // Primero los usados en la DB, luego del listado general
+  const usados=[...(new Set(_mediosGetAll().map(m=>m.pais).filter(Boolean)))];
+  const all=[...new Set([...usados,..._MED_PAISES])];
+  const matches=all.filter(p=>p.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){ sug.style.display='none'; return; }
+  sug.innerHTML=matches.map(p=>`<div onclick="document.getElementById('med-pais').value='${p.replace(/'/g,"\\'")}';document.getElementById('med-pais-suggest').style.display='none';event.stopPropagation()"
+    style="padding:8px 13px;cursor:pointer;font-size:.86em;border-bottom:0.5px solid var(--border)"
     onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background='#fff'">${p}</div>`).join('');
   sug.style.display='block';
 }
