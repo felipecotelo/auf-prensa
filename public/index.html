@@ -15632,6 +15632,44 @@ function _medGetMediosKnown(){
   return [...set].sort();
 }
 
+let _medQ = '';
+function _medSearch(el){ _medQ=el.value; _medRenderRows(); }
+function _medRenderRows(){
+  const q=_medQ.toLowerCase();
+  const list=_mediosGetAll();
+  const fmtColor = f => _MED_FORMATO_COLORS[f]||'#6B7280';
+  const filtered = q ? list.filter((m,i)=>{
+    const peris=(Array.isArray(m.periodistas)?m.periodistas:[]).join(' ');
+    const prods=(Array.isArray(m.productores)?m.productores:[]).join(' ');
+    return [m.programa,m.medio,m.pais,peris,prods].join(' ').toLowerCase().includes(q);
+  }) : list;
+  const rowsEl=document.getElementById('med-rows');
+  if(!rowsEl) return;
+  rowsEl.innerHTML = filtered.length ? filtered.map(m=>{ const i=list.indexOf(m);
+    const periStr=Array.isArray(m.periodistas)?m.periodistas.join(', '):(m.periodistas==='luego'?'Agregar luego':'');
+    const prodStr=Array.isArray(m.productores)?m.productores.join(', '):(m.productores==='luego'?'Agregar luego':'');
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
+          <span style="font-size:.92em;font-weight:900;color:var(--text)">${m.programa||'—'}</span>
+          ${(m.formatos||[m.formato]).filter(Boolean).map(f=>`<span style="font-size:.68em;font-weight:700;border-radius:20px;padding:2px 9px;background:${fmtColor(f)}18;color:${fmtColor(f)}">${f}</span>`).join('')}
+          ${m.pais?`<span style="font-size:.68em;color:var(--muted)">${m.pais}</span>`:''}
+        </div>
+        <div style="font-size:.78em;font-weight:700;color:var(--muted)">${m.medio||''}</div>
+        ${periStr?`<div style="font-size:.73em;color:var(--text);margin-top:5px"><span style="color:var(--muted)">Periodistas:</span> ${periStr}</div>`:''}
+        ${prodStr?`<div style="font-size:.73em;color:var(--text);margin-top:2px"><span style="color:var(--muted)">Productores:</span> ${prodStr}</div>`:''}
+        ${_medEmisionStr(m.emision)?`<div style="font-size:.72em;color:var(--muted);margin-top:4px"><i class="ti ti-clock" style="font-size:.9em"></i> ${_medEmisionStr(m.emision)}</div>`:''}
+        ${m.notas?`<div style="font-size:.72em;color:var(--muted);margin-top:4px;background:var(--surface);border-radius:6px;padding:3px 8px">${m.notas}</div>`:''}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0;margin-top:2px">
+        <button onclick="_medEdit(${i})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
+        <button onclick="_medDel(${i})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('')
+  : `<div style="text-align:center;padding:32px;color:var(--muted);font-size:.85em">Sin resultados para "${_medQ}"</div>`;
+}
+
 function _renderMediosDB(){
   const el = document.getElementById('prensa-body');
   if(!el) return;
@@ -15673,14 +15711,18 @@ function _renderMediosDB(){
         <button onclick="_pwSetTab('list')" style="padding:10px 20px;border:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:var(--muted);display:flex;align-items:center;gap:6px"><i class="ti ti-microphone-2" style="font-size:.95em"></i>Ventanas de prensa</button>
         <button onclick="_pwSetTab('medios')" style="padding:10px 20px;border:none;border-bottom:2.5px solid var(--cel);margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:var(--cel);display:flex;align-items:center;gap:6px"><i class="ti ti-device-tv" style="font-size:.95em"></i>Medios y programas</button>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div>
           <div style="font-size:1.1em;font-weight:900;color:var(--text)">Medios y programas</div>
           <div style="font-size:.78em;color:var(--muted);margin-top:2px">${list.length} entrada${list.length!==1?'s':''} · autocompleta al cargar pedidos</div>
         </div>
         <button onclick="_medNuevo()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:10px;background:var(--cel);color:#fff;font-size:.82em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px">${rows}</div>
+      <div style="position:relative;margin-bottom:16px">
+        <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9em;pointer-events:none"></i>
+        <input type="text" value="${_medQ}" oninput="_medSearch(this)" placeholder="Buscar por programa, medio, periodista…" style="width:100%;padding:9px 12px 9px 34px;border:1.5px solid var(--border);border-radius:11px;font-size:.86em;box-sizing:border-box;background:#fff">
+      </div>
+      <div id="med-rows" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
 
     <!-- Modal medio/programa -->
@@ -15777,6 +15819,7 @@ function _renderMediosDB(){
         <button onclick="_medGuardar()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar</button>
       </div>
     </div>`;
+  _medRenderRows();
 }
 
 function _medNuevo(){ _medEditIdx=null; _medOpenModal(null); }
