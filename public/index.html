@@ -16403,6 +16403,43 @@ function _renderEstFicha(key){
         </div>`;
       })()}
 
+      ${(()=>{
+        const edits=_estGetEdits();
+        const periodos=edits[key]?.periodos||[];
+        const rows=periodos.map((per,i)=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:.5px solid var(--border)">
+            <i class="ti ti-calendar-event" style="color:var(--muted);font-size:.85em;flex-shrink:0"></i>
+            <span style="flex:1;font-size:.82em;font-weight:600;color:var(--text)">${per.desde}${per.hasta?' – '+per.hasta:''}</span>
+            <button onclick="_estRemovePeriodo('${key}',${i})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px 4px"><i class="ti ti-x"></i></button>
+          </div>`).join('');
+        return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px">
+          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Período en la AUF</div>
+          ${rows}
+          <div id="est-per-form-${key.replace(/[^a-z0-9]/g,'')}" style="display:none;margin-top:10px">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <input id="est-per-desde" type="text" placeholder="Desde (ej: 2019)" maxlength="4" style="width:110px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
+              <span style="color:var(--muted);font-size:.8em">–</span>
+              <input id="est-per-hasta" type="text" placeholder="Hasta o Presente" maxlength="9" style="width:130px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
+              <button onclick="_estAddPeriodo('${key}')" style="padding:6px 12px;background:var(--cel);color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Guardar</button>
+            </div>
+          </div>
+          <button onclick="(function(){var f=document.getElementById('est-per-form-${key.replace(/[^a-z0-9]/g,'')}');f.style.display=f.style.display==='none'?'block':'none'})()" style="margin-top:10px;padding:5px 10px;border:1.5px dashed var(--border);border-radius:8px;background:none;cursor:pointer;color:var(--muted);font-size:.75em;font-weight:700;width:100%"><i class="ti ti-plus" style="margin-right:4px"></i>Agregar período</button>
+        </div>`;
+      })()}
+
+      ${(()=>{
+        const edits=_estGetEdits();
+        const wa=edits[key]?.whatsapp||'';
+        const waLink=wa?`https://wa.me/${wa.replace(/\D/g,'')}`:'';
+        return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px">
+          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">WhatsApp</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="est-wa-input" type="tel" placeholder="ej: 59899123456" value="${wa}" style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:10px;font-size:.82em;outline:none" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)';_estSaveField('${key}','whatsapp',this.value)">
+            ${waLink?`<a href="${waLink}" target="_blank" style="display:flex;align-items:center;gap:5px;padding:8px 12px;background:#25D366;color:#fff;border-radius:10px;text-decoration:none;font-size:.8em;font-weight:700;flex-shrink:0"><i class="ti ti-brand-whatsapp"></i> Abrir</a>`:''}
+          </div>
+        </div>`;
+      })()}
+
       <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px">
         <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Estado de contrato</div>
         <div style="display:flex;gap:8px">${contratosBtns}</div>
@@ -16416,6 +16453,24 @@ function _estSaveField(key,field,value){
   edits[key][field]=value.trim();
   _estSaveEdits(edits);
 }
+
+window._estAddPeriodo=function(key){
+  const desde=(document.getElementById('est-per-desde')?.value||'').trim();
+  if(!desde) return;
+  const hasta=(document.getElementById('est-per-hasta')?.value||'').trim();
+  const edits=_estGetEdits();
+  if(!edits[key]) edits[key]={};
+  if(!edits[key].periodos) edits[key].periodos=[];
+  edits[key].periodos.push({desde, hasta:hasta||''});
+  _estSaveEdits(edits);
+  _renderEstFicha(key);
+};
+window._estRemovePeriodo=function(key,idx){
+  const edits=_estGetEdits();
+  if(edits[key]?.periodos) edits[key].periodos.splice(idx,1);
+  _estSaveEdits(edits);
+  _renderEstFicha(key);
+};
 
 function _estSetContrato(key,status){
   const contracts=_estGetContracts();
