@@ -14221,10 +14221,12 @@ async function _loadJuvPhotoCache(){
   document.getElementById('sparr-grid') && renderSparrings();
 }
 _loadJuvPhotoCache();
-window._clickJuvPhoto = async function(nomEncoded){
+window._clickJuvPhoto = function(nomEncoded){
   const nom = decodeURIComponent(nomEncoded);
-  const existing = _juvPhotoCache[nom] || await getPhotoIDB('juv:'+nom);
-  if(existing){ openPE('juv:'+nom, existing); return; }
+  // Check cache synchronously first (no await — mobile blocks file picker after async break)
+  const cached = _juvPhotoCache[nom];
+  if(cached){ openPE('juv:'+nom, cached); return; }
+  // No photo yet — open file picker immediately (must be sync from user gesture)
   document.getElementById('juv-photo-input-'+nomEncoded)?.click();
 };
 window._juvPhotoSelected = async function(nomEncoded, input){
