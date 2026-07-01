@@ -15284,6 +15284,27 @@ function _pwOpenVentana(id){
   _renderVentana(id);
 }
 
+// Genera array de fechas YYYY-MM-DD entre desde y hasta (inclusive)
+function _pwDiasEnPeriodo(desde, hasta){
+  if(!desde||!hasta) return [];
+  const days=[], cur=new Date(desde+'T00:00:00');
+  const end=new Date(hasta+'T00:00:00');
+  while(cur<=end){ days.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
+  return days;
+}
+const _DIAS_ES=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const _MESES_ES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function _pwFmtDia(d){ const dt=new Date(d+'T00:00:00'); return _DIAS_ES[dt.getDay()]+' '+dt.getDate()+'/'+String(dt.getMonth()+1); }
+function _pwFmtDiaLargo(d){ const dt=new Date(d+'T00:00:00'); return _DIAS_ES[dt.getDay()].charAt(0).toUpperCase()+_DIAS_ES[dt.getDay()].slice(1)+' '+dt.getDate()+' de '+_MESES_ES[dt.getMonth()]; }
+
+const _pwEstConfig={
+  pendiente:{label:'Pendiente',bg:'#FEF3C7',color:'#92400E'},
+  confirmada:{label:'Confirmada',bg:'#D1FAE5',color:'#065F46'},
+  rechazada:{label:'Rechazada',bg:'#FEE2E2',color:'#991B1B'},
+  realizada:{label:'Realizada',bg:'#DBEAFE',color:'#1E40AF'},
+  cancelada:{label:'Cancelada',bg:'#F3F4F6',color:'#6B7280'},
+};
+
 function _renderVentana(id){
   const el=document.getElementById('prensa-body');
   if(!el) return;
@@ -15291,25 +15312,59 @@ function _renderVentana(id){
   const vw=list.find(v=>v.id===id);
   if(!vw){_pwView='list';_pwCurId=null;_renderListaPrensa();return;}
 
-  const desdeStr=_pwFmtDate(vw.desde), hastaStr=_pwFmtDate(vw.hasta);
-  const periodo=(desdeStr||hastaStr)?`${desdeStr}${hastaStr&&hastaStr!==desdeStr?' → '+hastaStr:''}`:' — ';
+  const dias = _pwDiasEnPeriodo(vw.desde, vw.hasta);
+  const sols = vw.solicitudes||[];
 
-  const solRows=(vw.solicitudes||[]).map((s,si)=>`
-    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
+  // ── Agenda por día ─────────────────────────────────────────────────────────
+  const agendaHtml = dias.map(dia=>{
+    const confirmados = sols
+      .map((s,si)=>({s,si}))
+      .filter(({s})=>s.diaAsignado===dia && s.estado==='confirmada')
+      .sort((a,b)=>(a.s.horaAsignada||'').localeCompare(b.s.horaAsignada||''));
+    const items = confirmados.length
+      ? confirmados.map(({s,si})=>`
+          <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)">
+            <span style="font-size:.72em;color:var(--muted);min-width:42px;flex-shrink:0;padding-top:1px">${s.horaAsignada||'—'}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.85em;font-weight:800;color:var(--text)">${s.programa||'—'}</div>
+              <div style="font-size:.72em;color:var(--muted)">${s.medio||''}</div>
+            </div>
+            <button onclick="_pwEditSol('${id}',${si})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px 4px"><i class="ti ti-pencil"></i></button>
+          </div>`).join('')
+      : `<div style="font-size:.78em;color:var(--hint);padding:6px 0">—</div>`;
+    return `<div style="margin-bottom:16px">
+      <div style="font-size:.78em;font-weight:800;color:var(--text);text-transform:capitalize;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid var(--border)">${_pwFmtDiaLargo(dia)}</div>
+      ${items}
+    </div>`;
+  }).join('') || `<div style="color:var(--muted);font-size:.85em;padding:12px 0">Sin período definido</div>`;
+
+  // ── Pedidos recibidos ──────────────────────────────────────────────────────
+  const pedidosHtml = sols.length ? sols.map((s,si)=>{
+    const est = _pwEstConfig[s.estado]||_pwEstConfig.pendiente;
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px">
+      <div style="font-size:.78em;font-weight:900;color:var(--muted);min-width:22px;padding-top:2px">${si+1}.</div>
       <div style="flex:1;min-width:0">
-        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px">
-          <span style="font-size:.72em;font-weight:700;background:${_pwFmtColor(s.formato)}18;color:${_pwFmtColor(s.formato)};border-radius:20px;padding:2px 9px">${_pwFmtLabel(s.formato)}</span>
-          <span style="font-size:.72em;font-weight:700;background:${_pwEstColor(s.estado)}18;color:${_pwEstColor(s.estado)};border-radius:20px;padding:2px 9px">${s.estado||'pendiente'}</span>
-          ${s.fecha?`<span style="font-size:.72em;color:var(--muted)">${_pwFmtDate(s.fecha)}${s.hora?' · '+s.hora:''}</span>`:''}
+        <div style="font-size:.88em;font-weight:800;color:var(--text)">${s.programa||'Sin programa'}</div>
+        <div style="font-size:.75em;color:var(--muted);margin-top:1px">${s.medio||''}</div>
+        ${s.disponibilidad?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px">${s.disponibilidad}</div>`:''}
+        ${s.estado==='confirmada'&&s.diaAsignado?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ Asignado: ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        <span style="font-size:.68em;font-weight:700;background:${est.bg};color:${est.color};border-radius:20px;padding:2px 9px;white-space:nowrap">${est.label}</span>
+        <div style="display:flex;gap:4px">
+          <button onclick="_pwEditSol('${id}',${si})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
+          <button onclick="_pwDelSol('${id}',${si})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
         </div>
-        <div style="font-size:.88em;font-weight:800;color:var(--text)">${s.medio||'Sin medio'}</div>
-        ${s.notas?`<div style="font-size:.75em;color:var(--muted);margin-top:3px">${s.notas}</div>`:''}
       </div>
-      <div style="display:flex;gap:4px;flex-shrink:0">
-        <button onclick="_pwEditSol('${id}',${si})" style="border:none;background:var(--surface);border-radius:7px;padding:4px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
-        <button onclick="_pwDelSol('${id}',${si})" style="border:none;background:#FEF2F2;border-radius:7px;padding:4px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
-      </div>
-    </div>`).join('');
+    </div>`;
+  }).join('')
+  : `<div style="text-align:center;padding:24px;color:var(--muted);font-size:.85em">Ningún pedido todavía</div>`;
+
+  const desdeStr=_pwFmtDate(vw.desde), hastaStr=_pwFmtDate(vw.hasta);
+  const periodo=(desdeStr||hastaStr)?`${desdeStr}${hastaStr&&hastaStr!==desdeStr?' al '+hastaStr:''}`:' — ';
+
+  // Opciones de días para el selector de asignación
+  const diaOpts = dias.map(d=>`<option value="${d}">${_pwFmtDiaLargo(d)}</option>`).join('');
 
   el.innerHTML=`
     <div style="max-width:700px;margin:0 auto;padding:16px">
@@ -15319,85 +15374,102 @@ function _renderVentana(id){
         <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">${vw.cat||''}</div>
         <div style="font-size:1.1em;font-weight:900;color:var(--text)">${vw.personLabel}</div>
         <div style="font-size:.78em;color:var(--muted)">${vw.personRol||''}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center">
-          ${periodo?`<span style="font-size:.75em;color:var(--muted)"><i class="ti ti-calendar" style="font-size:.9em"></i> ${periodo}</span>`:''}
-          ${vw.formato?`<span style="font-size:.75em;font-weight:700;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:2px 9px">${_pwFmtLabel(vw.formato)}</span>`:''}
-        </div>
+        <div style="font-size:.8em;color:var(--muted);margin-top:6px"><i class="ti ti-calendar" style="font-size:.9em"></i> ${periodo}</div>
       </div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:20px;margin-top:4px">
         <button onclick="_pwDeleteVentana('${id}')" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:.75em;padding:4px 0"><i class="ti ti-trash"></i> Eliminar ventana</button>
       </div>
 
-      <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px">
-        <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Solicitudes · ${(vw.solicitudes||[]).length}</div>
-        <button onclick="_pwNuevaSol('${id}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:none;border-radius:9px;background:var(--cel);color:#fff;font-size:.78em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar solicitud</button>
+      <!-- Agenda por día -->
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:20px">
+        <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">Agenda</div>
+        ${agendaHtml}
       </div>
 
-      ${(vw.solicitudes||[]).length ? `<div style="display:flex;flex-direction:column;gap:7px">${solRows}</div>`
-        : `<div style="text-align:center;padding:32px 16px;color:var(--muted);font-size:.85em">Ninguna solicitud todavía</div>`}
+      <!-- Pedidos recibidos -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Pedidos recibidos · ${sols.length}</div>
+        <button onclick="_pwNuevaSol('${id}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:none;border-radius:9px;background:var(--cel);color:#fff;font-size:.78em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar pedido</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px">${pedidosHtml}</div>
     </div>
 
-    <!-- Modal solicitud -->
+    <!-- Modal pedido -->
     <div id="pw-sol-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_pwCloseSolModal()">
-      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding:20px 20px 32px">
+      <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;padding:20px 20px 32px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-          <div id="pw-sol-title" style="font-weight:900;font-size:1em">Nueva solicitud</div>
+          <div id="pw-sol-title" style="font-weight:900;font-size:1em">Nuevo pedido</div>
           <button onclick="_pwCloseSolModal()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
         </div>
 
         <div style="margin-bottom:12px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
+          <input id="pw-sol-programa" type="text" placeholder='ej: "La Mañana del Fútbol"' style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        </div>
+
+        <div style="margin-bottom:12px">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
-          <input id="pw-sol-medio" type="text" placeholder="ej: Canal 10, Ovación, GolTV…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <input id="pw-sol-medio" type="text" placeholder="ej: El Espectador Deportes 810AM" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
-            <input id="pw-sol-fecha" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
-          </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
-            <input id="pw-sol-hora" type="time" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        <div style="margin-bottom:12px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DISPONIBILIDAD OFRECIDA</label>
+          <input id="pw-sol-disp" type="text" placeholder="ej: Viernes, lunes o martes, entre las 13 y las 14h" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">ESTADO</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px" id="pw-sol-est-btns">
+            ${Object.entries(_pwEstConfig).map(([k,v])=>`<button type="button" onclick="_pwToggleEst('${k}')" id="pw-est-btn-${k}" style="padding:5px 13px;border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:transparent;color:${v.color}">${v.label}</button>`).join('')}
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
-            <select id="pw-sol-formato" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
-              <option value="individual">Individual</option>
-              <option value="conferencia">Conferencia de prensa</option>
-              <option value="standup">Stand-up</option>
-              <option value="escrita">Nota escrita</option>
-              <option value="telefonica">Telefónica</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">ESTADO</label>
-            <select id="pw-sol-estado" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
-              <option value="pendiente">Pendiente</option>
-              <option value="aceptada">Aceptada</option>
-              <option value="rechazada">Rechazada</option>
-              <option value="realizada">Realizada</option>
-              <option value="cancelada">Cancelada</option>
-            </select>
+        <div id="pw-sol-confirm-fields" style="display:none;background:var(--surface);border-radius:12px;padding:12px;margin-bottom:12px">
+          <div style="font-size:.72em;font-weight:700;color:var(--muted);margin-bottom:10px">ASIGNAR A AGENDA</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DÍA</label>
+              <select id="pw-sol-dia" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.85em;background:#fff;color:var(--text)">
+                <option value="">— Sin asignar —</option>
+                ${diaOpts}
+              </select>
+            </div>
+            <div>
+              <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
+              <input id="pw-sol-hora" type="time" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.85em;box-sizing:border-box">
+            </div>
           </div>
         </div>
 
         <div style="margin-bottom:20px">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
-          <textarea id="pw-sol-notas" rows="3" placeholder="Temas, restricciones, contexto…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+          <textarea id="pw-sol-notas" rows="2" placeholder="Contexto, restricciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
         </div>
 
-        <button onclick="_pwGuardarSol()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar solicitud</button>
+        <button onclick="_pwGuardarSol()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar pedido</button>
       </div>
     </div>`;
+}
+
+let _pwSolEstado = 'pendiente';
+function _pwToggleEst(k){
+  _pwSolEstado = k;
+  Object.keys(_pwEstConfig).forEach(e=>{
+    const btn=document.getElementById('pw-est-btn-'+e);
+    if(!btn)return;
+    const v=_pwEstConfig[e];
+    btn.style.background = e===k ? v.bg : 'transparent';
+    btn.style.color = v.color;
+    btn.style.borderColor = v.color;
+  });
+  const cf=document.getElementById('pw-sol-confirm-fields');
+  if(cf) cf.style.display = k==='confirmada' ? 'block' : 'none';
 }
 
 function _pwBackList(){ _pwView='list'; _pwCurId=null; _renderListaPrensa(); }
 
 function _pwDeleteVentana(id){
-  if(!confirm('¿Eliminar esta ventana y todas sus solicitudes?')) return;
+  if(!confirm('¿Eliminar esta ventana y todos sus pedidos?')) return;
   const list=_pwGetAll().filter(v=>v.id!==id); _pwSave(list);
   _pwBackList();
 }
@@ -15409,13 +15481,14 @@ function _pwEditSol(id,si){ _pwSolEditIdx=si; _pwOpenSolModal(id,si); }
 function _pwOpenSolModal(id,si){
   const list=_pwGetAll(); const vw=list.find(v=>v.id===id); if(!vw) return;
   const s=si!=null?(vw.solicitudes||[])[si]:null;
-  document.getElementById('pw-sol-title').textContent=s?'Editar solicitud':'Nueva solicitud';
+  document.getElementById('pw-sol-title').textContent=s?'Editar pedido':'Nuevo pedido';
+  document.getElementById('pw-sol-programa').value=s?.programa||'';
   document.getElementById('pw-sol-medio').value=s?.medio||'';
-  document.getElementById('pw-sol-fecha').value=s?.fecha||'';
-  document.getElementById('pw-sol-hora').value=s?.hora||'';
-  document.getElementById('pw-sol-formato').value=s?.formato||'individual';
-  document.getElementById('pw-sol-estado').value=s?.estado||'pendiente';
+  document.getElementById('pw-sol-disp').value=s?.disponibilidad||'';
   document.getElementById('pw-sol-notas').value=s?.notas||'';
+  const diaEl=document.getElementById('pw-sol-dia'); if(diaEl) diaEl.value=s?.diaAsignado||'';
+  const horaEl=document.getElementById('pw-sol-hora'); if(horaEl) horaEl.value=s?.horaAsignada||'';
+  _pwToggleEst(s?.estado||'pendiente');
   document.getElementById('pw-sol-modal').style.display='flex';
 }
 function _pwCloseSolModal(){ document.getElementById('pw-sol-modal').style.display='none'; }
@@ -15423,12 +15496,14 @@ function _pwCloseSolModal(){ document.getElementById('pw-sol-modal').style.displ
 function _pwGuardarSol(){
   const list=_pwGetAll(); const vw=list.find(v=>v.id===_pwCurId); if(!vw) return;
   if(!vw.solicitudes) vw.solicitudes=[];
+  const estado=_pwSolEstado||'pendiente';
   const s={
+    programa:document.getElementById('pw-sol-programa').value.trim(),
     medio:document.getElementById('pw-sol-medio').value.trim(),
-    fecha:document.getElementById('pw-sol-fecha').value,
-    hora:document.getElementById('pw-sol-hora').value,
-    formato:document.getElementById('pw-sol-formato').value,
-    estado:document.getElementById('pw-sol-estado').value,
+    disponibilidad:document.getElementById('pw-sol-disp').value.trim(),
+    estado,
+    diaAsignado:estado==='confirmada'?(document.getElementById('pw-sol-dia')?.value||''):'',
+    horaAsignada:estado==='confirmada'?(document.getElementById('pw-sol-hora')?.value||''):'',
     notas:document.getElementById('pw-sol-notas').value.trim(),
   };
   if(_pwSolEditIdx!=null) vw.solicitudes[_pwSolEditIdx]=s; else vw.solicitudes.push(s);
@@ -15436,7 +15511,7 @@ function _pwGuardarSol(){
 }
 
 function _pwDelSol(id,si){
-  if(!confirm('¿Eliminar esta solicitud?')) return;
+  if(!confirm('¿Eliminar este pedido?')) return;
   const list=_pwGetAll(); const vw=list.find(v=>v.id===id); if(!vw) return;
   vw.solicitudes.splice(si,1); _pwSave(list); _renderVentana(id);
 }
