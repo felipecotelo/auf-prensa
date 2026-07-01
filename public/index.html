@@ -16389,16 +16389,22 @@ function _renderEstFicha(key){
       ${(()=>{
         const allRoles=_estGetAllRoles(key);
         if(allRoles.length===0) return '';
-        const rows=allRoles.map(r=>`
-          <div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:.5px solid var(--border)">
-            <span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0"></span>
-            <div style="flex:1">
-              <div style="font-size:.77em;font-weight:700;color:var(--text)">${r.rol}</div>
-              <div style="font-size:.68em;color:var(--muted)">${r.dept}</div>
+        const editsNow=_estGetEdits();
+        const rolesEdit=editsNow[key]?.rolesEdit||{};
+        const rows=allRoles.map((r,i)=>{
+          const dkey=encodeURIComponent(r.dept);
+          const displayRol=rolesEdit[r.dept]?.rol??r.rol;
+          const displayDept=rolesEdit[r.dept]?.dept??r.dept;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:.5px solid var(--border)">
+            <span style="width:8px;height:8px;border-radius:50%;background:${r.color};flex-shrink:0;margin-top:2px"></span>
+            <div style="flex:1;min-width:0">
+              <input value="${displayRol.replace(/"/g,'&quot;')}" style="width:100%;font-size:.77em;font-weight:700;color:var(--text);border:none;border-bottom:1.5px solid transparent;background:transparent;outline:none;padding:1px 0;box-sizing:border-box" onfocus="this.style.borderBottomColor='var(--cel)'" onblur="this.style.borderBottomColor='transparent';_estSaveRoleEdit('${key}','${dkey}','rol',this.value)">
+              <input value="${displayDept.replace(/"/g,'&quot;')}" style="width:100%;font-size:.68em;color:var(--muted);border:none;border-bottom:1.5px solid transparent;background:transparent;outline:none;padding:1px 0;box-sizing:border-box" onfocus="this.style.borderBottomColor='var(--cel)'" onblur="this.style.borderBottomColor='transparent';_estSaveRoleEdit('${key}','${dkey}','dept',this.value)">
             </div>
-          </div>`).join('');
+          </div>`;
+        }).join('');
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px">
-          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Roles en la AUF</div>
+          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Roles en la AUF <span style="font-weight:400;font-size:.85em;opacity:.6">· tocá para editar</span></div>
           ${rows}
         </div>`;
       })()}
@@ -16453,6 +16459,16 @@ function _estSaveField(key,field,value){
   edits[key][field]=value.trim();
   _estSaveEdits(edits);
 }
+
+window._estSaveRoleEdit=function(key,dkeyEnc,field,value){
+  const origDept=decodeURIComponent(dkeyEnc);
+  const edits=_estGetEdits();
+  if(!edits[key]) edits[key]={};
+  if(!edits[key].rolesEdit) edits[key].rolesEdit={};
+  if(!edits[key].rolesEdit[origDept]) edits[key].rolesEdit[origDept]={};
+  edits[key].rolesEdit[origDept][field]=value.trim();
+  _estSaveEdits(edits);
+};
 
 window._estAddPeriodo=function(key){
   const desde=(document.getElementById('est-per-desde')?.value||'').trim();
