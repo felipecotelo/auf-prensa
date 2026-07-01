@@ -3003,6 +3003,8 @@ function renderClosedBanner(){
   if(window._activeTournament&&window._activeTournament!=='cm2026')return;
   if(document.getElementById('tecnicos')?.classList.contains('active'))return;
   if(document.getElementById('sec-juveniles')?.classList.contains('active'))return;
+  if(document.getElementById('sec-prensa')?.classList.contains('active'))return;
+  if(document.getElementById('sec-estructura')?.classList.contains('active'))return;
   const banner=document.createElement('div');
   banner.id='tournament-closed-banner';
   banner.style.cssText='position:relative;z-index:100;background:#1a3a6b;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:7px 16px;font-size:12px;border-bottom:2px solid #e2e8f0;gap:10px;margin-bottom:4px';
@@ -5760,6 +5762,10 @@ async function savePE(){
     window.renderJuveniles?.();
     document.getElementById('sparr-grid') && renderSparrings();
     window._savePhotoToServer?.(PE.num, dataUrl);
+  } else if(typeof PE.num==='string' && PE.num.startsWith('est:')){
+    window._estPhotoCache = window._estPhotoCache||{};
+    window._estPhotoCache[PE.num.slice(4)] = dataUrl;
+    if(document.getElementById('sec-estructura')?.classList.contains('active')) window.renderEstructura?.();
   } else {
     applyPhotoToCard(PE.num, dataUrl);
     window._savePhotoToServer?.(String(PE.num), dataUrl);
@@ -15441,24 +15447,52 @@ const _DEPT_COLORS = [
   '#0F766E','#1D4ED8','#7C3AED','#B45309','#0284C7','#DC2626','#059669',
 ];
 
+const KEstEdits = 'auf4_est_edits';
+function _estGetEdits(){ try{return JSON.parse(localStorage.getItem(KEstEdits)||'{}')}catch(_){return{}} }
+function _estSaveEdits(obj){ localStorage.setItem(KEstEdits, JSON.stringify(obj)); }
+
+function _estGetPerson(key){
+  const edits = _estGetEdits();
+  for(const d of ESTRUCTURA_PERSONAS){
+    const base = d.personas.find(p=>p.key===key);
+    if(base) return {...base, dept:d.dept, ...(edits[key]||{})};
+  }
+  return null;
+}
+
+let _estView = 'list', _estCurKey = null;
+
 function renderEstructura(){
+  if(_estView==='ficha' && _estCurKey) _renderEstFicha(_estCurKey);
+  else _renderEstLista();
+}
+window.renderEstructura = renderEstructura;
+
+function _renderEstLista(){
   const el = document.getElementById('estructura-body');
   if(!el) return;
-
-  function personCard(p){
-    const initials = p.label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border)">
-      <div style="width:34px;height:34px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.7em;font-weight:800;flex-shrink:0">${initials}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:.88em;color:var(--text)">${p.label}</div>
-        <div style="font-size:.72em;color:var(--muted)">${p.rol}</div>
-      </div>
-    </div>`;
-  }
+  const edits = _estGetEdits();
+  const cache = window._estPhotoCache||{};
 
   const blocks = ESTRUCTURA_PERSONAS.map((d,i)=>{
     const color = _DEPT_COLORS[i % _DEPT_COLORS.length];
-    const rows = d.personas.map(personCard).join('');
+    const rows = d.personas.map(p=>{
+      const label = edits[p.key]?.label||p.label;
+      const rol   = edits[p.key]?.rol||p.rol;
+      const photo = cache[p.key];
+      const initials = label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatar = photo
+        ? `<img src="${photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<div style="width:36px;height:36px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.7em;font-weight:800;flex-shrink:0">${initials}</div>`;
+      return `<div onclick="_estOpenFicha('${p.key}')" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border);cursor:pointer">
+        ${avatar}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.88em;color:var(--text)">${label}</div>
+          <div style="font-size:.72em;color:var(--muted)">${rol}</div>
+        </div>
+        <i class="ti ti-chevron-right" style="color:var(--hint);font-size:.85em;flex-shrink:0"></i>
+      </div>`;
+    }).join('');
     return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
       <div style="padding:10px 14px;background:${color}12;border-bottom:1px solid ${color}25">
         <span style="font-size:.7em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em">${d.dept}</span>
@@ -15469,7 +15503,6 @@ function renderEstructura(){
   }).join('');
 
   const total = ESTRUCTURA_PERSONAS.reduce((s,d)=>s+d.personas.length, 0);
-
   el.innerHTML = `
     <div style="max-width:700px;margin:0 auto;padding:16px">
       <div style="margin-bottom:20px">
@@ -15479,7 +15512,70 @@ function renderEstructura(){
       ${blocks}
     </div>`;
 }
-window.renderEstructura = renderEstructura;
+
+function _estOpenFicha(key){ _estView='ficha'; _estCurKey=key; _renderEstFicha(key); }
+function _estBackLista(){ _estView='list'; _estCurKey=null; _renderEstLista(); }
+
+function _renderEstFicha(key){
+  const el = document.getElementById('estructura-body');
+  if(!el) return;
+  const p = _estGetPerson(key);
+  if(!p){ _estBackLista(); return; }
+  const cache = window._estPhotoCache||{};
+  const photo = cache[key];
+  const initials = p.label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const keyEnc = encodeURIComponent(key);
+
+  const avatar = photo
+    ? `<img src="${photo}" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid var(--border)">`
+    : `<div style="width:88px;height:88px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:1.5em;font-weight:900;border:3px solid var(--border)">${initials}</div>`;
+
+  el.innerHTML = `
+    <div style="max-width:700px;margin:0 auto;padding:16px">
+      <button onclick="_estBackLista()" style="display:flex;align-items:center;gap:5px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:.8em;font-weight:700;padding:0;margin-bottom:18px"><i class="ti ti-arrow-left"></i> Estructura de Selección</button>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:16px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin-bottom:16px">
+        <div style="position:relative">
+          ${avatar}
+          <label title="Cambiar foto" style="position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:var(--cel);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8em;border:2px solid #fff">
+            <i class="ti ti-camera"></i>
+            <input type="file" accept="image/*" style="display:none" onchange="_estPhotoSelected('${keyEnc}',this)">
+          </label>
+        </div>
+        <div style="width:100%">
+          <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">${p.dept}</div>
+          <input id="est-edit-label" value="${p.label}" style="width:100%;text-align:center;font-size:1.15em;font-weight:900;color:var(--text);border:none;border-bottom:2px solid transparent;background:transparent;outline:none;padding:2px 0;box-sizing:border-box" onfocus="this.style.borderBottomColor='var(--cel)'" onblur="this.style.borderBottomColor='transparent';_estSaveField('${key}','label',this.value)">
+          <input id="est-edit-rol" value="${p.rol}" style="width:100%;text-align:center;font-size:.85em;color:var(--muted);border:none;border-bottom:2px solid transparent;background:transparent;outline:none;padding:2px 0;margin-top:4px;box-sizing:border-box" onfocus="this.style.borderBottomColor='var(--cel)'" onblur="this.style.borderBottomColor='transparent';_estSaveField('${key}','rol',this.value)">
+          <div style="font-size:.72em;color:var(--hint);margin-top:8px">Tocá nombre o cargo para editar</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function _estSaveField(key, field, value){
+  const edits = _estGetEdits();
+  if(!edits[key]) edits[key]={};
+  edits[key][field] = value.trim();
+  _estSaveEdits(edits);
+}
+
+window._estPhotoSelected = function(keyEnc, input){
+  const file = input.files[0]; if(!file) return;
+  input.value='';
+  const reader = new FileReader();
+  reader.onload = ev => openPE('est:'+decodeURIComponent(keyEnc), ev.target.result);
+  reader.readAsDataURL(file);
+};
+
+// Cargar fotos de estructura desde IDB al iniciar
+(async function _loadEstPhotoCache(){
+  try{
+    const all = await getAllPhotosIDB();
+    const cache = {};
+    Object.keys(all).forEach(k=>{ if(k.startsWith('est:')) cache[k.slice(4)]=all[k]; });
+    window._estPhotoCache = cache;
+  }catch(_){ window._estPhotoCache={}; }
+})();
 </script>
 </body>
 </html>
