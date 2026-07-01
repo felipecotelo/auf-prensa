@@ -16711,8 +16711,9 @@ function _estGetPerson(key){
   return null;
 }
 
-let _estView='list', _estCurKey=null, _estTab='activos';
+let _estView='list', _estCurKey=null, _estTab='activos', _estExOpen={};
 function _estSetTab(t){ _estTab=t; _renderEstLista(); }
+window._estToggleExGroup=function(dkey){ _estExOpen[dkey]=(_estExOpen[dkey]===false)?true:false; _renderEstLista(); };
 window._estSetTab=_estSetTab;
 
 function renderEstructura(){
@@ -16777,28 +16778,44 @@ function _renderEstLista(){
   } else {
     // Ex integrantes: personas únicas (por clave) con contrato != activo
     const seen=new Set();
-    const exPersonas=[];
+    // Agrupar ex-personas por sección, deduplicando por key
+    const exBySection=[];
     sections.forEach(d=>{
+      const exInSection=[];
       d.personas.forEach(p=>{
         const c=contracts[p.key]||'activo';
         if(c!=='activo'&&!seen.has(p.key)){
           seen.add(p.key);
-          exPersonas.push({p,d,c});
+          total++;
+          exInSection.push({p,c});
         }
       });
+      if(exInSection.length) exBySection.push({dept:d.dept,color:d.color,personas:exInSection});
     });
-    total=exPersonas.length;
-    if(exPersonas.length){
-      const rows=exPersonas.map(({p,d,c})=>{
-        const label=edits[p.key]?.label||p.label;
-        // Collect primary rol (first section found)
-        const allRoles=_estGetAllRoles(p.key);
-        const rolDisplay=allRoles.map(r=>r.rol).join(' · ');
-        return _renderEstPersonaRow(p,label,rolDisplay,cache[p.key],c);
+    if(exBySection.length){
+      blocks=exBySection.map(({dept,color,personas})=>{
+        const dkey=encodeURIComponent(dept);
+        const open=_estExOpen[dkey]!==false; // abierto por defecto
+        const rows=personas.map(({p,c})=>{
+          const label=edits[p.key]?.label||p.label;
+          const allRoles=_estGetAllRoles(p.key);
+          const rolDisplay=allRoles.map(r=>r.rol).join(' · ');
+          return _renderEstPersonaRow(p,label,rolDisplay,cache[p.key],c);
+        }).join('');
+        return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
+          <button onclick="_estToggleExGroup('${dkey}')" style="
+            width:100%;display:flex;align-items:center;gap:10px;padding:13px 14px;
+            background:none;border:none;border-bottom:${open?'1px solid var(--border)':'none'};
+            cursor:pointer;text-align:left
+          ">
+            <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>
+            <span style="font-weight:800;font-size:.88em;color:var(--text);flex:1">${dept}</span>
+            <span style="font-size:.75em;color:var(--muted);margin-right:4px">${personas.length} persona${personas.length!==1?'s':''}</span>
+            <i class="ti ti-chevron-${open?'up':'down'}" style="color:var(--muted);font-size:.9em"></i>
+          </button>
+          ${open?`<div style="padding:0 14px">${rows}</div>`:''}
+        </div>`;
       }).join('');
-      blocks=`<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
-        <div style="padding:0 14px">${rows}</div>
-      </div>`;
     } else {
       blocks=`<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:.85em">Ningún integrante marcado como ex todavía.<br><span style="font-size:.9em">Abrí una ficha y cambiá el estado de contrato.</span></div>`;
     }
