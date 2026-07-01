@@ -154,6 +154,8 @@ app.post('/api/photos', async (req, res) => {
   try {
     const { key, dataUrl } = req.body;
     if (!key || !dataUrl) return res.json({ ok: false, error: 'missing key or dataUrl' });
+    // Validate minimum plausible size for a real compressed photo (>500 chars)
+    if (dataUrl.length < 500) return res.json({ ok: false, error: 'dataUrl too short, likely invalid' });
     let sha = null, current = {};
     try {
       const loaded = await ghLoadFile(GH_PHOTOS);

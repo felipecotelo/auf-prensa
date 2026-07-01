@@ -2887,6 +2887,14 @@ async function getPhotoIDB(num){
     req.onerror=()=>res(null);
   });
 }
+async function deletePhotoIDB(num){
+  const db=await openIDB();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).delete(num);
+    tx.oncomplete=res; tx.onerror=rej;
+  });
+}
 
 async function getAllPhotosIDB(){
   const db=await openIDB();
@@ -5591,6 +5599,18 @@ const PE_OUT=300;  // output px
 function openPE(num, src){
   PE.num=num;
   const imgEl=document.getElementById('pe-img');
+  imgEl.onerror=()=>{
+    // Bad/corrupt image — clear it and fall back to file picker if juv photo
+    imgEl.onerror=null; imgEl.src='';
+    if(typeof num==='string' && num.startsWith('juv:')){
+      const nom=num.slice(4);
+      delete _juvPhotoCache[nom];
+      window._juvPhotoCache=_juvPhotoCache;
+      deletePhotoIDB(num);
+      const enc=encodeURIComponent(nom);
+      document.getElementById('juv-photo-input-'+enc)?.click();
+    }
+  };
   imgEl.onload=()=>{
     PE.img=imgEl;
     PE.minScale=Math.max(PE_SIZE/imgEl.naturalWidth, PE_SIZE/imgEl.naturalHeight);
