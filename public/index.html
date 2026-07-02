@@ -13694,23 +13694,11 @@ window._clickLocalPhoto = function(photoKeyEnc){
 };
 window._localPhotoSelected = function(photoKeyEnc, input){
   const file = input.files[0]; if(!file) return;
-  input.value='';
   const photoKey = decodeURIComponent(photoKeyEnc);
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = () => {
-    URL.revokeObjectURL(url);
-    const MAX = 800;
-    if(img.naturalWidth <= MAX && img.naturalHeight <= MAX){
-      const r = new FileReader(); r.onload=e=>openPE('est:'+photoKey,e.target.result); r.readAsDataURL(file); return;
-    }
-    const ratio = Math.min(MAX/img.naturalWidth, MAX/img.naturalHeight);
-    const c = document.createElement('canvas');
-    c.width = Math.round(img.naturalWidth*ratio); c.height = Math.round(img.naturalHeight*ratio);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    openPE('est:'+photoKey, c.toDataURL('image/jpeg', 0.85));
-  };
-  img.src = url;
+  const reader = new FileReader();
+  reader.onload = ev => openPE('est:'+photoKey, ev.target.result);
+  reader.readAsDataURL(file);
+  input.value='';
 };
 
 function _showLocalJugModal(nom){
