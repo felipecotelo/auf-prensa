@@ -15659,27 +15659,33 @@ function _renderJuvenilesSafe(el){
   const color = catColor[_juvCat]||'#1D4ED8';
 
   // ── L1: Categorías ──
-  const ACTIVA_COLOR = '#15803d';
   const catPills = CAT_ORDER.map(k=>{
     const d = JUVENILES[k];
-    const active = k===_juvCat;
-    const cc = d.activa ? ACTIVA_COLOR : 'var(--muted)';
-    const dot = d.activa
-      ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cc};box-shadow:0 0 0 2px ${cc}33"></span>`
+    const sel = k===_juvCat;
+    const c = catColor[k]||'#1D4ED8';
+    // seleccionada: fondo sólido color, texto blanco
+    // activa (en competencia): fondo tenue, texto color, pequeño punto
+    // inactiva: gris muy suave, texto apagado
+    let bg, tc, border, shadow;
+    if(sel){
+      bg=c; tc='#fff'; border=`2px solid ${c}`; shadow='0 2px 10px '+c+'55';
+    } else if(d.activa){
+      bg=c+'18'; tc=c; border=`1.5px solid ${c}`; shadow='none';
+    } else {
+      bg='var(--card)'; tc='var(--muted)'; border='1.5px solid var(--border)'; shadow='none';
+    }
+    const dot = d.activa && !sel
+      ? `<span style="display:block;width:5px;height:5px;border-radius:50%;background:${c};margin:0 auto;margin-top:4px"></span>`
       : '';
-    // Categorías "activa" (con Mundial este año) quedan siempre en verde, estén seleccionadas o no.
-    // La seleccionada suma un anillo que titila para indicar cuál se está viendo.
-    return `<button onclick="_setJuvCat('${k}')" class="${active?'juv-cat-sel':''}" style="
-      --juv-glow:${cc}73;
-      display:flex;align-items:center;gap:6px;justify-content:center;
-      padding:12px 10px;border-radius:14px;cursor:pointer;font-size:.95em;font-weight:900;
-      border:2px solid ${d.activa?cc:(active?'var(--cel)':'var(--border)')};
-      background:${d.activa?cc+'1c':(active?'var(--cel-lt)':'var(--card)')};
-      color:${d.activa?cc:(active?'var(--cel-dk)':'var(--text)')};
-      box-shadow:${active?'0 2px 8px rgba(0,0,0,.12)':'0 1px 3px rgba(0,0,0,.06)'};
-      opacity:${d.activa||active?1:.6};
-      transition:all .15s
-    ">${d.label}${dot}</button>`;
+    return `<button onclick="_setJuvCat('${k}')" style="
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      min-width:64px;padding:9px 8px 7px;border-radius:14px;cursor:pointer;
+      font-size:.82em;font-weight:900;letter-spacing:.01em;
+      border:${border};background:${bg};color:${tc};
+      box-shadow:${shadow};
+      opacity:${sel||d.activa?1:.55};
+      transition:all .18s;flex-shrink:0
+    ">${d.icon||''} ${d.label}${dot}</button>`;
   }).join('');
 
   // ── L2: Años ──
@@ -15939,7 +15945,7 @@ function _renderJuvenilesSafe(el){
         display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
         color:var(--muted);font-size:.78em;font-weight:700;padding:0 0 10px;margin-left:auto
       "><i class="ti ti-id-badge-2"></i> Ver todos los jugadores de Juveniles</button>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(85px,1fr));gap:8px;margin-bottom:12px">${catPills}</div>
+      <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:0 0 2px;margin-bottom:12px">${catPills}</div>
       <div style="display:flex;gap:6px;margin-bottom:8px">${yrPills}</div>
       <div style="display:flex;gap:0;overflow-x:auto;scrollbar-width:none">${tabBtns}</div>
     </div>
