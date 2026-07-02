@@ -5769,7 +5769,9 @@ async function savePE(){
   } else if(typeof PE.num==='string' && PE.num.startsWith('est:')){
     window._estPhotoCache = window._estPhotoCache||{};
     window._estPhotoCache[PE.num.slice(4)] = dataUrl;
-    if(document.getElementById('sec-estructura')?.classList.contains('active')) window.renderEstructura?.();
+    window.renderEstructura?.();
+    window.renderJuveniles?.();
+    window.renderSecLocal?.();
   } else {
     applyPhotoToCard(PE.num, dataUrl);
     window._savePhotoToServer?.(String(PE.num), dataUrl);
@@ -15510,6 +15512,23 @@ window._juvPhotoSelected = function(nomEncoded, input){
   reader.readAsDataURL(file);
 };
 
+// Foto unificada para CT/staff — usa est:ct-p:slug, compartida en toda la web
+function _nameSlug(nom){ return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); }
+window._clickCtPhoto = function(nomEncoded){
+  const nom = decodeURIComponent(nomEncoded);
+  const key = _nameSlug(nom);
+  const cached = (window._estPhotoCache||{})[key];
+  if(cached){ openPE('est:'+key, cached); return; }
+  document.getElementById('ct-photo-input-'+nomEncoded)?.click();
+};
+window._ctPhotoSelected = function(nomEncoded, input){
+  const file = input.files[0]; if(!file) return;
+  input.value='';
+  const reader = new FileReader();
+  reader.onload = ev => openPE('est:'+_nameSlug(decodeURIComponent(nomEncoded)), ev.target.result);
+  reader.readAsDataURL(file);
+};
+
 // Puesto de jugadores Juveniles — el usuario lo carga a mano y queda guardado en el navegador
 function getJuvPos(){ return stor.get('auf4_juvPos', {}); }
 window._setJuvPos = function(nom,pos){
@@ -15852,10 +15871,10 @@ function _renderJuvenilesSafe(el){
           : `<span>${initials}</span>`;
         const photoBlock = m.pendiente
           ? `<div style="width:28px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-dots" style="color:var(--muted);font-size:.9em"></i></div>`
-          : `<div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
+          : `<div onclick="_clickCtPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
               <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
               <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
-              <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
+              <input type="file" accept="image/*" id="ct-photo-input-${nomEnc}" style="display:none" onchange="_ctPhotoSelected('${nomEnc}',this)">
             </div>`;
         return `
         <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;${m.pendiente?'opacity:.55':''}" >
