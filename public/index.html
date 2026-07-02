@@ -1233,6 +1233,22 @@ html.auf-gate body { display:none !important }
   var allowed=r.split(',');
   var map=['inicio','disponibilidad','calendario','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','periplo','registro','linkgen'];
   document.querySelectorAll('.tab').forEach(function(tab,i){ if(!allowed.includes(map[i])) tab.style.display='none'; });
+  // Ocultar secciones globales (nav-l0) que no estén en el link
+  var seccionesGlobales=['prensa','estructura','juveniles','local'];
+  document.querySelectorAll('.nav-l0-section[data-section]').forEach(function(btn){
+    var sec=btn.getAttribute('data-section');
+    if(seccionesGlobales.includes(sec) && !allowed.includes(sec)) btn.style.display='none';
+  });
+  // Si ningún tab de Mayor está permitido, ocultar también el botón de Mayor
+  var mayorTabs=['inicio','disponibilidad','calendario','pizarra','fixture','partidos','plantel','estadisticas','grafica','infogeneral','periplo','registro','linkgen'];
+  var hayMayor=mayorTabs.some(function(t){return allowed.includes(t);});
+  if(!hayMayor){
+    var btnMayor=document.querySelector('.nav-l0-global[data-tab="inicio"],.nav-l1-btn[data-tab="mayor"]');
+    if(btnMayor) btnMayor.style.display='none';
+    // Ir directo a la primera sección permitida
+    var primera=seccionesGlobales.find(function(s){return allowed.includes(s);});
+    if(primera) document.addEventListener('DOMContentLoaded',function(){showSection(primera);},false);
+  }
   document.documentElement.setAttribute('data-dmode','1');
   if(window.__AUF_RO==='1') document.documentElement.setAttribute('data-readonly','1');
 })();
@@ -12694,6 +12710,10 @@ const LINK_TABS_DEF=[
   {id:'jugadores',    label:'Jugadores',           icon:'ti-user-star'},
   {id:'periplo',      label:'Mi periplo',          icon:'ti-map-pin'},
   {id:'linkgen',      label:'Links',               icon:'ti-link'},
+  {id:'prensa',       label:'Prensa',              icon:'ti-microphone-2',  seccion:true},
+  {id:'estructura',   label:'Estructura',          icon:'ti-sitemap',       seccion:true},
+  {id:'juveniles',    label:'Selecciones Juveniles',icon:'ti-users-group',  seccion:true},
+  {id:'local',        label:'Selección Local',     icon:'ti-home-shield',   seccion:true},
 ];
 
 let _lgEdit=null; // id del perfil en edición
