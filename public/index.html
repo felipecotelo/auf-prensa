@@ -5810,10 +5810,16 @@ async function savePE(){
     window._savePhotoToServer?.(PE.num, dataUrl);
   } else if(typeof PE.num==='string' && PE.num.startsWith('est:')){
     window._estPhotoCache = window._estPhotoCache||{};
-    window._estPhotoCache[PE.num.slice(4)] = dataUrl;
+    const estKey = PE.num.slice(4);
+    window._estPhotoCache[estKey] = dataUrl;
+    // Actualización quirúrgica: solo toca los avatares de Local sin re-renderizar toda la grilla
+    const enc = encodeURIComponent(estKey);
+    const imgTag = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    document.getElementById('loc-av-'+enc)?.innerHTML !== undefined && (document.getElementById('loc-av-'+enc).innerHTML = imgTag);
+    const modalAv = document.getElementById('loc-av-modal-'+enc);
+    if(modalAv) modalAv.innerHTML = `<img src="${dataUrl}" style="width:64px;height:64px;border-radius:50%;object-fit:cover">`;
     window.renderEstructura?.();
     window.renderJuveniles?.();
-    window.renderSecLocal?.();
     window._savePhotoToServer?.(PE.num, dataUrl);
   } else {
     applyPhotoToCard(PE.num, dataUrl);
@@ -13711,9 +13717,21 @@ window._localPhotoSelected = function(photoKeyEnc, input){
   const file = input.files[0]; if(!file) return;
   input.value='';
   const photoKey = decodeURIComponent(photoKeyEnc);
-  const reader = new FileReader();
-  reader.onload = ev => openPE('est:'+photoKey, ev.target.result);
-  reader.readAsDataURL(file);
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const MAX = 800;
+    if(img.naturalWidth <= MAX && img.naturalHeight <= MAX){
+      const r = new FileReader(); r.onload=e=>openPE('est:'+photoKey,e.target.result); r.readAsDataURL(file); return;
+    }
+    const ratio = Math.min(MAX/img.naturalWidth, MAX/img.naturalHeight);
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth*ratio); c.height = Math.round(img.naturalHeight*ratio);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    openPE('est:'+photoKey, c.toDataURL('image/jpeg', 0.85));
+  };
+  img.src = url;
 };
 
 function _showLocalJugModal(nom){
@@ -13728,7 +13746,7 @@ function _showLocalJugModal(nom){
     ? `<img src="${photo}" style="width:64px;height:64px;border-radius:50%;object-fit:cover">`
     : `<div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.3em;font-weight:900">${initials}</div>`;
   const avatar = `<div style="position:relative;flex-shrink:0;cursor:pointer" onclick="_clickLocalPhoto('${photoKeyEnc}')" title="Cambiar foto">
-    ${avatarInner}
+    <div id="loc-av-modal-${photoKeyEnc}" style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;overflow:hidden">${avatarInner}</div>
     <div style="position:absolute;bottom:0;right:0;width:20px;height:20px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;border:1.5px solid rgba(255,255,255,.4)">📷</div>
     <input type="file" accept="image/*" id="loc-modal-inp-${photoKeyEnc}" style="display:none" onchange="_localPhotoSelected('${photoKeyEnc}',this)">
   </div>`;
@@ -13862,7 +13880,7 @@ function _renderLocalHome(){
       : `<span style="font-size:.9em;font-weight:900;color:#fff">${initials}</span>`;
     return `<div onclick="_localOpenJug('${nomSafe}')" style="cursor:pointer;background:var(--card,#fff);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
       <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" title="Cambiar foto" style="position:relative;flex-shrink:0;cursor:pointer">
-        <div style="width:50px;height:50px;border-radius:50%;background:${posColor};display:flex;align-items:center;justify-content:center;overflow:hidden">
+        <div id="loc-av-${photoKeyEnc}" style="width:50px;height:50px;border-radius:50%;background:${posColor};display:flex;align-items:center;justify-content:center;overflow:hidden">
           ${avatarInner}
         </div>
         <div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>
