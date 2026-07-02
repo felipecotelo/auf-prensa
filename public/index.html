@@ -17840,6 +17840,21 @@ function _renderEstFicha(key){
       })()}
 
       ${(()=>{
+        const edits=_estGetEdits();
+        const selCats=edits[key]?.categJuv||[];
+        const cats=typeof CAT_ORDER!=='undefined'?CAT_ORDER:['sub23','sub20','sub18','sub17','sub16','sub15','sub13'];
+        const catLbl={sub23:'Sub-23',sub20:'Sub-20',sub18:'Sub-18',sub17:'Sub-17',sub16:'Sub-16',sub15:'Sub-15',sub13:'Sub-13'};
+        const pills=cats.map(c=>{
+          const on=selCats.includes(c);
+          return `<button onclick="_estToggleCategJuv('${key}','${c}')" style="padding:6px 12px;border-radius:20px;font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;border:1.5px solid ${on?'#0EA5E9':'var(--border)'};background:${on?'#0EA5E9':'transparent'};color:${on?'#fff':'var(--muted)'};transition:all .15s">${catLbl[c]||c}</button>`;
+        }).join('');
+        return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px">
+          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Categorías Juveniles</div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px">${pills}</div>
+        </div>`;
+      })()}
+
+      ${(()=>{
         if(typeof SELECCION_LOCAL==='undefined') return '';
         const nombre=p.label;
         const participaciones=[];
@@ -17903,6 +17918,17 @@ window._estSaveRoleEdit=function(key,dkeyEnc,field,value){
   if(!edits[key].rolesEdit[origDept]) edits[key].rolesEdit[origDept]={};
   edits[key].rolesEdit[origDept][field]=value.trim();
   _estSaveEdits(edits);
+};
+
+window._estToggleCategJuv=function(key,cat){
+  const edits=_estGetEdits();
+  if(!edits[key]) edits[key]={};
+  const arr=edits[key].categJuv||[];
+  const idx=arr.indexOf(cat);
+  if(idx>=0) arr.splice(idx,1); else arr.push(cat);
+  edits[key].categJuv=arr;
+  _estSaveEdits(edits);
+  _renderEstFicha(key);
 };
 
 window._estAddPeriodo=function(key){
