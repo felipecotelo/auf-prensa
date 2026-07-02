@@ -16927,7 +16927,7 @@ function _pwEnsureModal(){
           <input id="pw-hasta" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
       </div>
-      <div style="margin-bottom:20px">
+      <div style="margin-bottom:12px">
         <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO GENERAL</label>
         <select id="pw-formato" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)">
           <option value="">— Opcional —</option>
@@ -16936,6 +16936,20 @@ function _pwEnsureModal(){
           <option value="standup">Stand-up</option>
           <option value="mixta">Mixta</option>
         </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">ENVIADO A PRENSA</label>
+          <input id="pw-envio" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LÍMITE PEDIDOS</label>
+          <input id="pw-limite" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LINK NOTICIA / COMUNICADO</label>
+        <input id="pw-link" type="url" placeholder="https://..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
       </div>
       <button id="pw-modal-btn" onclick="_pwGuardarNueva()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Crear ventana</button>
     </div>
@@ -16962,6 +16976,9 @@ function _pwEditVentana(id){
   const ds=document.getElementById('pw-desde');   if(ds) ds.value=vw.desde||'';
   const hs=document.getElementById('pw-hasta');   if(hs) hs.value=vw.hasta||'';
   const fs=document.getElementById('pw-formato'); if(fs) fs.value=vw.formato||'';
+  const ev=document.getElementById('pw-envio');   if(ev) ev.value=vw.fechaEnvio||'';
+  const lm=document.getElementById('pw-limite');  if(lm) lm.value=vw.fechaLimite||'';
+  const lk=document.getElementById('pw-link');    if(lk) lk.value=vw.linkNoticia||'';
   document.getElementById('pw-modal').style.display='flex';
 }
 function _pwCloseModal(){
@@ -16976,11 +16993,14 @@ function _pwGuardarNueva(){
   const desde=document.getElementById('pw-desde').value;
   const hasta=document.getElementById('pw-hasta').value;
   const formato=document.getElementById('pw-formato').value;
+  const fechaEnvio=document.getElementById('pw-envio').value;
+  const fechaLimite=document.getElementById('pw-limite').value;
+  const linkNoticia=document.getElementById('pw-link').value.trim();
   const list=_pwGetAll();
   if(_pwEditingId){
     const idx=list.findIndex(v=>v.id===_pwEditingId);
     if(idx>=0){
-      list[idx]={...list[idx], personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'', desde, hasta, formato};
+      list[idx]={...list[idx], personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'', desde, hasta, formato, fechaEnvio, fechaLimite, linkNoticia};
       _pwSave(list);
     }
     _pwCloseModal();
@@ -16990,7 +17010,7 @@ function _pwGuardarNueva(){
   const vw={
     id:_pwId(),
     personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'',
-    desde, hasta, formato, solicitudes:[],
+    desde, hasta, formato, fechaEnvio, fechaLimite, linkNoticia, solicitudes:[],
   };
   list.push(vw); _pwSave(list);
   _pwCloseModal();
@@ -17141,6 +17161,11 @@ function _renderVentana(id){
         <div style="font-size:1.1em;font-weight:900;color:var(--text)">${vw.personLabel}</div>
         <div style="font-size:.78em;color:var(--muted)">${vw.personRol||''}</div>
         <div style="font-size:.8em;color:var(--muted);margin-top:6px"><i class="ti ti-calendar" style="font-size:.9em"></i> ${periodo}</div>
+        ${vw.fechaEnvio||vw.fechaLimite?`<div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
+          ${vw.fechaEnvio?`<div style="font-size:.75em;color:var(--muted)"><span style="font-weight:700;color:var(--text)">Enviado a prensa:</span> ${_pwFmtDate(vw.fechaEnvio)}</div>`:''}
+          ${vw.fechaLimite?`<div style="font-size:.75em;color:var(--muted)"><span style="font-weight:700;color:var(--text)">Límite pedidos:</span> ${_pwFmtDate(vw.fechaLimite)}</div>`:''}
+        </div>`:''}
+        ${vw.linkNoticia?`<div style="margin-top:8px"><a href="${vw.linkNoticia}" target="_blank" rel="noopener" style="font-size:.75em;color:var(--cel);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-external-link" style="font-size:.9em"></i> Ver noticia / comunicado</a></div>`:''}
       </div>
       <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:20px;margin-top:4px">
         <button onclick="_pwEditVentana('${id}')" style="border:none;background:none;cursor:pointer;color:var(--cel);font-size:.75em;font-weight:700;padding:4px 0"><i class="ti ti-pencil"></i> Editar ventana</button>
