@@ -17841,16 +17841,40 @@ function _renderEstFicha(key){
 
       ${(()=>{
         const edits=_estGetEdits();
-        const selCats=edits[key]?.categJuv||[];
+        const vinculos=edits[key]?.juvVinculos||[];
         const cats=typeof CAT_ORDER!=='undefined'?CAT_ORDER:['sub23','sub20','sub18','sub17','sub16','sub15','sub13'];
         const catLbl={sub23:'Sub-23',sub20:'Sub-20',sub18:'Sub-18',sub17:'Sub-17',sub16:'Sub-16',sub15:'Sub-15',sub13:'Sub-13'};
-        const pills=cats.map(c=>{
-          const on=selCats.includes(c);
-          return `<button onclick="_estToggleCategJuv('${key}','${c}')" style="padding:6px 12px;border-radius:20px;font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;border:1.5px solid ${on?'#0EA5E9':'var(--border)'};background:${on?'#0EA5E9':'transparent'};color:${on?'#fff':'var(--muted)'};transition:all .15s">${catLbl[c]||c}</button>`;
+        const catColor2={sub23:'#92400e',sub20:'#1D4ED8',sub18:'#7C3AED',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626'};
+        const rows=vinculos.map((v,i)=>{
+          const c=catColor2[v.cat]||'#6B7280';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:.5px solid var(--border)">
+            <span style="padding:3px 9px;border-radius:20px;font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:${c}18;color:${c};white-space:nowrap">${catLbl[v.cat]||v.cat}</span>
+            <div style="flex:1;font-size:.82em;font-weight:600;color:var(--text)">${v.rol}</div>
+            <button onclick="_estRemoveJuvVinculo('${key}',${i})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px 4px"><i class="ti ti-x"></i></button>
+          </div>`;
         }).join('');
+        const fid='juv-vnc-'+key.replace(/[^a-z0-9]/g,'');
+        const catOpts=cats.map(c=>`<option value="${c}">${catLbl[c]||c}</option>`).join('');
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px">
-          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Categorías Juveniles</div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px">${pills}</div>
+          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:${vinculos.length?'4px':'10px'}">Juveniles — roles por categoría</div>
+          ${rows}
+          <div id="${fid}" style="display:none;margin-top:10px;background:var(--surface);border-radius:10px;padding:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div>
+                <label style="font-size:.68em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">CATEGORÍA</label>
+                <select id="${fid}-cat" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none;box-sizing:border-box;background:#fff">${catOpts}</select>
+              </div>
+              <div>
+                <label style="font-size:.68em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">ROL</label>
+                <input id="${fid}-rol" type="text" placeholder="ej: Ayudante técnico" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onclick="_estAddJuvVinculo('${key}','${fid}')" style="flex:1;padding:7px;background:var(--cel);color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Guardar</button>
+              <button onclick="document.getElementById('${fid}').style.display='none'" style="padding:7px 12px;background:none;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer;color:var(--muted)">Cancelar</button>
+            </div>
+          </div>
+          <button onclick="(function(){var f=document.getElementById('${fid}');f.style.display=f.style.display==='none'?'block':'none'})()" style="margin-top:10px;padding:5px 10px;border:1.5px dashed var(--border);border-radius:8px;background:none;cursor:pointer;color:var(--muted);font-size:.75em;font-weight:700;width:100%"><i class="ti ti-plus" style="margin-right:4px"></i>Agregar vínculo</button>
         </div>`;
       })()}
 
@@ -17920,13 +17944,21 @@ window._estSaveRoleEdit=function(key,dkeyEnc,field,value){
   _estSaveEdits(edits);
 };
 
-window._estToggleCategJuv=function(key,cat){
+window._estAddJuvVinculo=function(key,fid){
+  const cat=(document.getElementById(fid+'-cat')?.value||'').trim();
+  const rol=(document.getElementById(fid+'-rol')?.value||'').trim();
+  if(!cat||!rol) return;
   const edits=_estGetEdits();
   if(!edits[key]) edits[key]={};
-  const arr=edits[key].categJuv||[];
-  const idx=arr.indexOf(cat);
-  if(idx>=0) arr.splice(idx,1); else arr.push(cat);
-  edits[key].categJuv=arr;
+  if(!edits[key].juvVinculos) edits[key].juvVinculos=[];
+  edits[key].juvVinculos.push({cat,rol});
+  _estSaveEdits(edits);
+  _renderEstFicha(key);
+};
+window._estRemoveJuvVinculo=function(key,idx){
+  const edits=_estGetEdits();
+  if(!edits[key]?.juvVinculos) return;
+  edits[key].juvVinculos.splice(idx,1);
   _estSaveEdits(edits);
   _renderEstFicha(key);
 };
