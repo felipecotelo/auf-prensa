@@ -2430,12 +2430,28 @@ const getJugPos=()=>stor.get(KJugPos,{});
 const setJugPos=(nom,pos)=>{const d=getJugPos();d[nom]=pos;stor.set(KJugPos,d);};
 const clearJugPos=(nom)=>{const d=getJugPos();delete d[nom];stor.set(KJugPos,d);};
 const KJugClub='auf4_jugclub';
+const KJugExClubs='auf4_jug_exclubs';
 const getJugClub=()=>stor.get(KJugClub,{});
-const setJugClub=(nom,club)=>{const d=getJugClub();d[nom]=club;stor.set(KJugClub,d);};
+const getJugExClubs=()=>stor.get(KJugExClubs,{});
+const setJugClub=(nom,club)=>{
+  const d=getJugClub();
+  const prev=(d[nom]||'').trim();
+  const ex=getJugExClubs();
+  const exList=ex[nom]||[];
+  if(prev&&prev!=='—'&&prev!==club&&!exList.includes(prev)){exList.push(prev);ex[nom]=exList;stor.set(KJugExClubs,ex);}
+  d[nom]=club;stor.set(KJugClub,d);
+};
 const clearJugClub=(nom)=>{const d=getJugClub();delete d[nom];stor.set(KJugClub,d);};
 const KJuvClub='auf4_juv_club';
 const getJuvClub=()=>stor.get(KJuvClub,{});
-const setJuvClub=(nom,club)=>{const d=getJuvClub();d[nom]=club;stor.set(KJuvClub,d);};
+const setJuvClub=(nom,club)=>{
+  const d=getJuvClub();
+  const prev=(d[nom]?.actual||d[nom]||'').trim();
+  const exClubs=d[nom]?.exClubs||[];
+  if(prev&&prev!==club&&!exClubs.includes(prev)) exClubs.push(prev);
+  d[nom]={actual:club,exClubs};
+  stor.set(KJuvClub,d);
+};
 const clearJuvClub=(nom)=>{const d=getJuvClub();delete d[nom];stor.set(KJuvClub,d);};
 const getYellows=()=>stor.get(KYellow,{});
 const setYellows=v=>stor.set(KYellow,v);
@@ -7936,6 +7952,7 @@ function showJugador(nom){
   const customPais=getJugClub()[nom+'__pais'];
   const club=customClub!==undefined?customClub:(auf.club||'—');
   const pais=customPais!==undefined?customPais:(auf.pais||'');
+  const jugExClubs=getJugExClubs()[nom]||[];
   const initials=nom.split(' ').filter(w=>/^[A-ZÁÉÍÓÚÑÜ]/.test(w)).slice(0,2).map(w=>w[0]).join('');
   const callups=BIELSA_CONVOCATORIAS.filter(c=>c.jugadores.some(j=>j.nom===nom));
 
@@ -7954,6 +7971,7 @@ function showJugador(nom){
         <div style="flex:1;min-width:0">
           <div style="font-size:1.1em;font-weight:900;color:#fff;line-height:1.2;letter-spacing:-.2px">${nom}</div>
           <div style="font-size:.78em;color:rgba(255,255,255,.65);margin-top:3px">${pais} ${club}</div>
+          ${jugExClubs.length?`<div style="font-size:.65em;color:rgba(255,255,255,.38);margin-top:1px">${jugExClubs.map(c=>`ex ${c}`).join(' · ')}</div>`:''}
           <div style="margin-top:6px;display:flex;gap:7px;flex-wrap:wrap;align-items:center">
             <span style="background:${col};border:1.5px solid rgba(255,255,255,.25);border-radius:6px;padding:2px 9px;font-size:.68em;font-weight:800;color:#fff">${posLbl[pos]||pos}</span>
             <span style="font-size:.7em;color:rgba(255,255,255,.55);font-weight:600">${callups.length} conv.</span>
@@ -15833,7 +15851,7 @@ function _isChampSub20(nom){
 
 window._editJuvClub = function(nom, el){
   const nomSafe = nom.replace(/'/g,"\\'");
-  const cur = getJuvClub()[nom] || '';
+  const _e = getJuvClub()[nom]; const cur = (_e?.actual ?? (typeof _e==='string'?_e:'')) || '';
   const id = 'juv-club-inp-'+nom.replace(/[^a-z0-9]/gi,'');
   el.outerHTML = `<div style="display:flex;align-items:center;gap:4px;margin-top:2px">
     <input id="${id}" value="${cur}" placeholder="Club actual..." style="flex:1;font-size:.72em;padding:2px 6px;border:1.5px solid var(--cel);border-radius:6px;outline:none;min-width:0">
@@ -15853,9 +15871,11 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const avatar = photo
     ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
     : `<span>${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}</span>`;
-  const clubOverride = getJuvClub()[p.nom];
+  const _juvClubEntry = getJuvClub()[p.nom];
+  const clubOverride = _juvClubEntry?.actual ?? (_juvClubEntry && typeof _juvClubEntry==='string' ? _juvClubEntry : undefined);
   const clubShow = clubOverride !== undefined ? clubOverride : (p.club||'');
   const clubEdited = clubOverride !== undefined;
+  const juvExClubs = _juvClubEntry?.exClubs||[];
   return `<div style="background:var(--card);border:1px solid ${isChamp?'#F59E0B':'var(--border)'};border-radius:12px;padding:12px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
       <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid ${isChamp?'#F59E0B':'var(--border)'};cursor:pointer;overflow:visible">
@@ -15873,6 +15893,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
           <img src="https://flagcdn.com/w20/uy.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">
           ${clubShow||'— sin club —'}${clubEdited?' ✎':''}
         </div>
+        ${juvExClubs.length?`<div style="font-size:.62em;color:var(--muted);margin-top:1px;opacity:.65">${juvExClubs.map(c=>`ex ${c}`).join(' · ')}</div>`:''}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
