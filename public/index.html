@@ -2433,6 +2433,10 @@ const KJugClub='auf4_jugclub';
 const getJugClub=()=>stor.get(KJugClub,{});
 const setJugClub=(nom,club)=>{const d=getJugClub();d[nom]=club;stor.set(KJugClub,d);};
 const clearJugClub=(nom)=>{const d=getJugClub();delete d[nom];stor.set(KJugClub,d);};
+const KJuvClub='auf4_juv_club';
+const getJuvClub=()=>stor.get(KJuvClub,{});
+const setJuvClub=(nom,club)=>{const d=getJuvClub();d[nom]=club;stor.set(KJuvClub,d);};
+const clearJuvClub=(nom)=>{const d=getJuvClub();delete d[nom];stor.set(KJuvClub,d);};
 const getYellows=()=>stor.get(KYellow,{});
 const setYellows=v=>stor.set(KYellow,v);
 function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y); _luPhotos=null; renderPizarra(_pizMatch); }
@@ -15637,32 +15641,60 @@ const JUV_POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
 window.JUV_POS_BG = JUV_POS_BG; window.JUV_POS_FG = JUV_POS_FG;
 // Ficha de jugador Juveniles — mismo layout que las cards de la Mayor (avatar, nombre,
 // club con bandera, puesto + stats en una fila). Tocar el puesto lo va ciclando.
+// Conjunto de campeones Sub-20 2023 (comparación case-insensitive)
+const _SUB20_2023_CHAMPS = new Set(
+  (typeof MUNDIAL_SUB20_2023!=='undefined' ? MUNDIAL_SUB20_2023.convocados : [])
+    .map(j=>j.nom.toLowerCase())
+);
+function _isChampSub20(nom){ return _SUB20_2023_CHAMPS.has(nom.toLowerCase()); }
+
+window._editJuvClub = function(nom, el){
+  const nomSafe = nom.replace(/'/g,"\\'");
+  const cur = getJuvClub()[nom] || '';
+  const id = 'juv-club-inp-'+nom.replace(/[^a-z0-9]/gi,'');
+  el.outerHTML = `<div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+    <input id="${id}" value="${cur}" placeholder="Club actual..." style="flex:1;font-size:.72em;padding:2px 6px;border:1.5px solid var(--cel);border-radius:6px;outline:none;min-width:0">
+    <button onclick="(function(){var v=document.getElementById('${id}').value.trim();if(v)setJuvClub('${nomSafe}',v);else clearJuvClub('${nomSafe}');window.renderJuveniles?.()})()" style="border:none;background:var(--cel);color:#fff;border-radius:5px;padding:2px 6px;font-size:.68em;font-weight:700;cursor:pointer">✓</button>
+    <button onclick="window.renderJuveniles?.()" style="border:none;background:none;color:var(--muted);font-size:.75em;cursor:pointer">✕</button>
+  </div>`;
+  setTimeout(()=>document.getElementById(id)?.focus(),50);
+};
+
 function _juvFichaCard(p, hist, off, extraIcon){
   const hasOficial = off.conv>0;
+  const isChamp = _isChampSub20(p.nom);
   const posLabel = p.pos||'—';
   const nomEnc = encodeURIComponent(p.nom);
+  const nomSafe = p.nom.replace(/'/g,"\\'");
   const photo = _juvPhotoCache[p.nom];
   const avatar = photo
     ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
     : `<span>${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}</span>`;
-  return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
+  const clubOverride = getJuvClub()[p.nom];
+  const clubShow = clubOverride !== undefined ? clubOverride : (p.club||'');
+  const clubEdited = clubOverride !== undefined;
+  return `<div style="background:var(--card);border:1px solid ${isChamp?'#F59E0B':'var(--border)'};border-radius:12px;padding:12px">
+    ${isChamp?`<div style="display:flex;align-items:center;gap:5px;background:#FEF3C7;border-radius:8px;padding:4px 10px;margin-bottom:8px;font-size:.68em;font-weight:800;color:#92400E">🏆 Campeón Mundial Sub-20 · Argentina 2023</div>`:''}
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
-      <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
+      <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid ${isChamp?'#F59E0B':'var(--border)'};cursor:pointer;overflow:visible">
         <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
         <span style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
         <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:.88em;display:flex;align-items:center;gap:4px">
-          ${hasOficial?'<span title="Tiene convocatorias oficiales">🏆</span>':''}
+          ${hasOficial&&!isChamp?'<span title="Tiene convocatorias oficiales">🏆</span>':''}
           ${extraIcon||''}
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nom}</span>
         </div>
-        ${p.club?`<div style="font-size:.72em;color:var(--muted);display:flex;align-items:center;gap:4px"><img src="https://flagcdn.com/w20/uy.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">${p.club}</div>`:''}
+        <div onclick="_editJuvClub('${nomSafe}',this)" title="Tocar para editar club" style="font-size:.72em;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;margin-top:2px">
+          <img src="https://flagcdn.com/w20/uy.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">
+          ${clubShow||'— sin club —'}${clubEdited?' ✎':''}
+        </div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <span onclick="_cycleJuvPos('${p.nom.replace(/'/g,"\\'")}',this)" title="Click para cambiar el puesto" style="font-size:.68em;font-weight:800;color:${p.pos?JUV_POS_FG[p.pos]:'var(--muted)'};background:${p.pos?JUV_POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?JUV_POS_FG[p.pos]+'55':'var(--border)'};border-radius:6px;padding:2px 7px;cursor:pointer">${posLabel}</span>
+      <span onclick="_cycleJuvPos('${nomSafe}',this)" title="Click para cambiar el puesto" style="font-size:.68em;font-weight:800;color:${p.pos?JUV_POS_FG[p.pos]:'var(--muted)'};background:${p.pos?JUV_POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?JUV_POS_FG[p.pos]+'55':'var(--border)'};border-radius:6px;padding:2px 7px;cursor:pointer">${posLabel}</span>
       <span style="font-size:.78em;font-weight:700">${off.conv} <span style="font-weight:500;color:var(--muted);font-size:.85em">conv.</span></span>
       <span style="font-size:.78em;font-weight:700">${off.pj} <span style="font-weight:500;color:var(--muted);font-size:.85em">PJ</span></span>
     </div>
