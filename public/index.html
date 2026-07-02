@@ -1258,17 +1258,6 @@ html.auf-gate body { display:none !important }
 
 <!-- ═══════════ INICIO ═══════════ -->
 <div id="inicio" class="section active">
-  <div class="sec-hdr">
-    <div class="sec-icon"><i class="ti ti-layout-grid"></i></div>
-    <div>
-      <div class="sec-title">Panel de control — FWC26</div>
-      <div class="sec-desc">Tu biblia de prensa durante el torneo · Verificado contra reglamento oficial FIFA</div>
-    </div>
-  </div>
-  <div class="grid4" id="stats-grid">
-    <div class="stat-card"><div class="stat-n gold">3</div><div class="stat-l">Partidos fase grupos</div></div>
-    <div class="stat-card"><div class="stat-n" id="st-reg">0</div><div class="stat-l">Entradas en bitácora</div></div>
-  </div>
   <div id="inicio-body" style="padding:0 0 2rem"></div>
 </div>
 
@@ -3307,78 +3296,68 @@ function countDone(matchId,items){
 }
 
 function renderInicio(){
-  document.getElementById('st-reg').textContent=getLog().length;
   const el=document.getElementById('inicio-body');
   if(!el)return;
 
-  // ── Actividades de hoy ──────────────────────────────────────────────────
-  const todayDay=CALENDAR_DAYS.find(d=>d.date===TODAY);
-  const evStatus=getEvStatus();
-  const todayEvs=(todayDay?.eventos||[]).filter(e=>
-    e.tipo!=='viaje'&&!e.esTrain&&!e.noParts&&e.tipo!=='sched'&&e.tipo!=='team'&&e.tipo!=='partido-fifa'&&e.tipo!=='info'
-  );
-  const todayHtml=todayEvs.length?todayEvs.map((e,idx)=>{
-    const st=evStatus[evKey(TODAY,idx)]||'pending';
-    const dot=st==='done'?'#22C55E':st==='paused'?'#F59E0B':'#94A3B8';
-    const isOblig=e.tipo==='oblig'||e.oblig===true;
-    return`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <span style="font-size:11px;color:var(--muted);min-width:40px;flex-shrink:0;padding-top:1px">${e.h||''}</span>
-      <span style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0;margin-top:4px"></span>
-      <span style="font-size:12.5px;color:var(--text);flex:1;line-height:1.4">${e.txt||''}${isOblig?'<span style="font-size:9px;font-weight:700;background:#FEF2F2;color:#DC2626;padding:1px 5px;border-radius:4px;margin-left:6px">OBLIG</span>':''}</span>
-    </div>`;
-  }).join(''):`<div style="color:var(--muted);font-size:12px;padding:12px 0">Sin actividades programadas para hoy</div>`;
+  function secBtn(label, icon, color, onclick){
+    return `<button onclick="${onclick}" style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:11px;border:1px solid var(--border);background:var(--white);cursor:pointer;text-align:left;width:100%;transition:background .12s" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='var(--white)'">
+      <span style="width:32px;height:32px;border-radius:8px;background:${color}18;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ${icon}" style="font-size:16px;color:${color}"></i>
+      </span>
+      <span style="font-size:13px;font-weight:700;color:var(--text)">${label}</span>
+      <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--hint);font-size:13px;flex-shrink:0"></i>
+    </button>`;
+  }
 
-  // ── Próximo partido Uruguay ─────────────────────────────────────────────
-  const matches=[
-    {id:'uru-ksa',date:'2026-06-15',label:'vs. Arabia Saudita',iso:'sa',sede:'Hard Rock Stadium · Miami'},
-    {id:'uru-cpv',date:'2026-06-21',label:'vs. Cabo Verde',iso:'cv',sede:'Hard Rock Stadium · Miami'},
-    {id:'uru-esp',date:'2026-06-26',label:'vs. España',iso:'es',sede:'Estadio Akron · Guadalajara'},
-  ];
-  const nextMatch=matches.find(m=>m.date>=TODAY);
-  const lastMatch=[...matches].reverse().find(m=>m.date<TODAY);
-  const nextMatchHtml=nextMatch?(()=>{
-    const diff=Math.ceil((new Date(nextMatch.date+'T12:00:00')-new Date(TODAY+'T12:00:00'))/(1000*60*60*24));
-    return`<div style="background:var(--navy);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px">
-      ${flagImg(nextMatch.iso,36)}
-      <div style="flex:1">
-        <div style="font-size:14px;font-weight:800;color:#fff">${nextMatch.label}</div>
-        <div style="font-size:11px;color:#7ABEE6;margin-top:2px">${nextMatch.sede}</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:22px;font-weight:900;color:var(--cel-lt);line-height:1">${diff}</div>
-        <div style="font-size:10px;color:#7ABEE6;font-weight:600">${diff===1?'día':'días'}</div>
-      </div>
-    </div>`;
-  })():`<div style="background:var(--surface);border-radius:12px;padding:12px 16px;color:var(--muted);font-size:12px">Fase de grupos finalizada</div>`;
+  function tabBtn(label, icon, color, tab){
+    return `<button onclick="showTab('${tab}')" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--white);cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='var(--white)'">
+      <i class="ti ${icon}" style="font-size:18px;color:${color}"></i>
+      <span style="font-size:10px;font-weight:700;color:var(--text);text-align:center;line-height:1.2">${label}</span>
+    </button>`;
+  }
 
-  // ── Accesos rápidos ─────────────────────────────────────────────────────
-  const shortcuts=[
-    {id:'calendario',icon:'ti-calendar',label:'Calendario',color:'var(--cel)'},
-    {id:'disponibilidad',icon:'ti-list-check',label:'Disponibilidad',color:'#22C55E'},
-    {id:'plantel',icon:'ti-users',label:'Convocados',color:'#8B5CF6'},
-    {id:'pizarra',icon:'ti-ball-football',label:'Pizarra',color:'#F59E0B'},
-    {id:'fixture',icon:'ti-tournament',label:'Fixture',color:'#06B6D4'},
-    {id:'registro',icon:'ti-clipboard-list',label:'Registro',color:'#94A3B8'},
-  ];
-  const shortcutsHtml=shortcuts.map(s=>`
-    <button onclick="showTab('${s.id}')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:var(--white);cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor='${s.color}'" onmouseout="this.style.borderColor='var(--border)'">
-      <i class="ti ${s.icon}" style="font-size:20px;color:${s.color}"></i>
-      <span style="font-size:10.5px;font-weight:700;color:var(--text)">${s.label}</span>
-    </button>`).join('');
+  function group(title, html){
+    return `<div style="margin-bottom:20px">
+      <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${title}</div>
+      ${html}
+    </div>`;
+  }
+
+  // ── Selecciones ─────────────────────────────────────────────────────────
+  const selecciones = [
+    secBtn('Selección Mayor', 'ti-shield', '#1A56C4', "showSection('mayor')"),
+    secBtn('Selección Local', 'ti-home-shield', '#0EA5E9', "showSection('local')"),
+    secBtn('Selecciones Juveniles', 'ti-users-group', '#8B5CF6', "showSection('juveniles')"),
+    secBtn('Prensa', 'ti-microphone-2', '#F59E0B', "showSection('prensa')"),
+    secBtn('Estructura AUF', 'ti-sitemap', '#22C55E', "showSection('estructura')"),
+  ].join('');
+
+  // ── Copa Mundial 2026 ────────────────────────────────────────────────────
+  const fwcTabs = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:7px">
+    ${tabBtn('Jugadores','ti-users','#1A56C4','jugadores')}
+    ${tabBtn('Técnicos','ti-clipboard-list','#0EA5E9','tecnicos')}
+    ${tabBtn('Stats','ti-chart-bar','#8B5CF6','estadisticas')}
+    ${tabBtn('Convocados','ti-user-check','#22C55E','plantel')}
+    ${tabBtn('Pizarra','ti-ball-football','#F59E0B','pizarra')}
+    ${tabBtn('Fixture','ti-tournament','#06B6D4','fixture')}
+    ${tabBtn('Partidos','ti-world','#64748B','partidos')}
+    ${tabBtn('Calendario','ti-calendar','#E11D48','calendario')}
+    ${tabBtn('Disponib.','ti-list-check','#10B981','disponibilidad')}
+    ${tabBtn('Info','ti-info-circle','#94A3B8','infogeneral')}
+    ${tabBtn('Diseño','ti-photo','#EC4899','grafica')}
+  </div>`;
+
+  // ── Herramientas ─────────────────────────────────────────────────────────
+  const tools = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+    ${secBtn('Mi Periplo', 'ti-map-2', '#F59E0B', "showTab('periplo')")}
+    ${secBtn('Links', 'ti-link', '#8B5CF6', "showTab('linkgen')")}
+  </div>`;
 
   el.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;margin-bottom:1.5rem">
-      ${shortcutsHtml}
-    </div>
-
-    <div style="margin-bottom:1.5rem">
-      <div style="font-size:9px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">⚽ Próximo partido</div>
-      ${nextMatchHtml}
-    </div>
-
-    <div>
-      <div style="font-size:9px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">📅 Hoy — ${todayDay?todayDay.label:TODAY}</div>
-      ${todayHtml}
+    <div style="padding:0 0 2px">
+      ${group('Selecciones', `<div style="display:flex;flex-direction:column;gap:6px">${selecciones}</div>`)}
+      ${group('Copa Mundial 2026', fwcTabs)}
+      ${group('Herramientas', tools)}
     </div>`;
 }
 
