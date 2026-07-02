@@ -17855,6 +17855,10 @@ function _renderEstFicha(key){
         }).join('');
         const fid='juv-vnc-'+key.replace(/[^a-z0-9]/g,'');
         const catOpts=cats.map(c=>`<option value="${c}">${catLbl[c]||c}</option>`).join('');
+        const allEdits=_estGetEdits();
+        const rolesVistos=new Set();
+        Object.values(allEdits).forEach(e=>(e.juvVinculos||[]).forEach(v=>v.rol&&rolesVistos.add(v.rol)));
+        const datalist=`<datalist id="${fid}-roles">${[...rolesVistos].map(r=>`<option value="${r}">`).join('')}</datalist>`;
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px">
           <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:${vinculos.length?'4px':'10px'}">Roles en selecciones</div>
           ${rows}
@@ -17866,7 +17870,7 @@ function _renderEstFicha(key){
               </div>
               <div>
                 <label style="font-size:.68em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">ROL</label>
-                <input id="${fid}-rol" type="text" placeholder="ej: Ayudante técnico" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
+                <input id="${fid}-rol" type="text" list="${fid}-roles" placeholder="ej: Ayudante técnico" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none;box-sizing:border-box" onfocus="this.style.borderColor='var(--cel)'" onblur="this.style.borderColor='var(--border)'">
               </div>
             </div>
             <div style="display:flex;gap:8px">
@@ -17875,6 +17879,7 @@ function _renderEstFicha(key){
             </div>
           </div>
           <button onclick="(function(){var f=document.getElementById('${fid}');f.style.display=f.style.display==='none'?'block':'none'})()" style="margin-top:10px;padding:5px 10px;border:1.5px dashed var(--border);border-radius:8px;background:none;cursor:pointer;color:var(--muted);font-size:.75em;font-weight:700;width:100%"><i class="ti ti-plus" style="margin-right:4px"></i>Agregar vínculo</button>
+          ${datalist}
         </div>`;
       })()}
 
