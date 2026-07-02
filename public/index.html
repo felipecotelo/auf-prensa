@@ -13549,24 +13549,55 @@ const SELECCION_LOCAL = {
 };
 
 let _localPartidoId = null;
+let _localTab = 'partidos'; // 'partidos' | 'jugadores'
+let _localJugNom = null;
+
+function _getLocalStats(){
+  const stats = {};
+  SELECCION_LOCAL.partidos.forEach(p=>{
+    p.convocados.forEach(c=>{
+      if(!c.nom) return;
+      if(!stats[c.nom]) stats[c.nom] = {nom:c.nom, pj:0, g:0, a:0, partidos:[], clubActual:c.club};
+      if(c.titular || c.entro){
+        stats[c.nom].pj++;
+        stats[c.nom].g += (c.goles||0);
+        stats[c.nom].a += (c.asistencias||0);
+        stats[c.nom].partidos.push({rival:p.rival, rivalBandera:p.rivalBandera, fecha:p.fecha, resultado:p.resultado, titular:!!c.titular, goles:c.goles||0, asistencias:c.asistencias||0});
+        stats[c.nom].clubActual = c.club; // último club registrado
+      }
+    });
+  });
+  return stats;
+}
 
 function renderSecLocal(){
   const el = document.getElementById('sec-local');
   if(!el) return;
-  if(_localPartidoId){
+  if(_localJugNom){
+    el.innerHTML = _renderLocalFicha(_localJugNom);
+  } else if(_localPartidoId){
     el.innerHTML = _renderLocalPartido(_localPartidoId);
   } else {
     el.innerHTML = _renderLocalHome();
   }
 }
 
-window._localBack = function(){ _localPartidoId=null; renderSecLocal(); };
+window._localBack = function(){
+  if(_localJugNom){ _localJugNom=null; }
+  else { _localPartidoId=null; }
+  renderSecLocal();
+};
 window._localOpenPartido = function(id){ _localPartidoId=id; renderSecLocal(); };
+window._localSetTab = function(t){ _localTab=t; renderSecLocal(); };
+window._localOpenJug = function(nom){ _localJugNom=nom; renderSecLocal(); };
 
 function _renderLocalHome(){
   const r = SELECCION_LOCAL.resumen;
   const gl = SELECCION_LOCAL.goleadores.map(g=>`${g.nom} (${g.g})`).join(' · ');
   const partidos = [...SELECCION_LOCAL.partidos].reverse();
+
+  const tabStyle = (t) => `cursor:pointer;padding:8px 14px;font-size:12px;font-weight:700;border-radius:8px;border:none;${_localTab===t?'background:var(--navy);color:#fff':'background:#f1f5f9;color:var(--muted)'}`;
+
   const cards = partidos.map(p=>{
     const [gf,gc] = p.resultado.split('-').map(Number);
     const res = gf>gc?'G':gf<gc?'P':'E';
@@ -13583,24 +13614,104 @@ function _renderLocalHome(){
     </div>`;
   }).join('');
 
-  return `<div style="padding:20px 16px 40px">
-    <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Selección Local · 2024–2025</div>
-    <div style="font-size:22px;font-weight:900;color:#1e293b;margin-bottom:16px">Selección Local</div>
+  const stats = _getLocalStats();
+  const jugadores = Object.values(stats).sort((a,b)=>b.pj-a.pj||b.g-a.g);
+  const jugRows = jugadores.map(j=>`
+    <div onclick="_localOpenJug('${j.nom.replace(/'/g,"\\'")}' )" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${j.nom}</div>
+        <div style="font-size:11px;color:var(--muted)">${j.clubActual}</div>
+      </div>
+      <div style="display:flex;gap:12px;font-size:12px;text-align:center">
+        <div><div style="font-weight:800;color:#1e293b">${j.pj}</div><div style="font-size:10px;color:var(--muted)">PJ</div></div>
+        <div><div style="font-weight:800;color:#1e293b">${j.g}</div><div style="font-size:10px;color:var(--muted)">G</div></div>
+        <div><div style="font-weight:800;color:#1e293b">${j.a}</div><div style="font-size:10px;color:var(--muted)">A</div></div>
+      </div>
+      <i class="ti ti-chevron-right" style="color:var(--muted);font-size:12px"></i>
+    </div>`).join('');
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px">
-      ${[['PJ',r.pj],['Victorias',r.g],['Empates',r.e],['Derrotas',r.p]].map(([l,v])=>`
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center">
-        <div style="font-size:20px;font-weight:900;color:#1e293b">${v}</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:600">${l}</div>
-      </div>`).join('')}
+  return `<div style="padding:0 0 40px">
+    <div style="background:var(--navy);padding:20px 16px 16px">
+      <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">2024–2025</div>
+      <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:14px">Selección Local</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        ${[['PJ',r.pj],['G',r.g],['E',r.e],['P',r.p]].map(([l,v])=>`
+        <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:18px;font-weight:900;color:#fff">${v}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.55);font-weight:600">${l}</div>
+        </div>`).join('')}
+      </div>
     </div>
 
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;margin-bottom:20px;font-size:12.5px">
-      <span style="font-weight:700;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.07em">Goleadores · </span>${gl}
+    <div style="display:flex;gap:8px;padding:14px 16px 6px">
+      <button onclick="_localSetTab('partidos')" style="${tabStyle('partidos')}"><i class="ti ti-calendar-event"></i> Partidos</button>
+      <button onclick="_localSetTab('jugadores')" style="${tabStyle('jugadores')}"><i class="ti ti-users"></i> Jugadores</button>
     </div>
 
-    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Partidos</div>
-    ${cards}
+    <div style="padding:10px 16px 0">
+      ${_localTab==='partidos' ? cards : `
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:4px 14px">
+          <div style="display:flex;gap:10px;padding:6px 0 4px;border-bottom:1px solid #e5e7eb">
+            <div style="flex:1;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">Jugador</div>
+            <div style="display:flex;gap:12px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;text-align:center">
+              <div style="width:24px">PJ</div><div style="width:16px">G</div><div style="width:16px">A</div>
+            </div>
+            <div style="width:14px"></div>
+          </div>
+          ${jugRows}
+        </div>
+      `}
+    </div>
+  </div>`;
+}
+
+function _renderLocalFicha(nom){
+  const stats = _getLocalStats();
+  const s = stats[nom];
+  if(!s) return '';
+
+  const partidoRows = s.partidos.map(p=>{
+    const [gf,gc] = p.resultado.split('-').map(Number);
+    const res = gf>gc?'G':gf<gc?'P':'E';
+    const resColor = res==='G'?'#15803d':res==='P'?'#dc2626':'#92400e';
+    const resBg   = res==='G'?'#f0fdf4':res==='P'?'#fef2f2':'#fefce8';
+    const badges = [
+      p.goles?`⚽ ${p.goles}`:'',
+      p.asistencias?`🅰️ ${p.asistencias}`:'',
+    ].filter(Boolean).join(' ');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9">
+      <div style="width:28px;height:28px;border-radius:50%;background:${resBg};color:${resColor};font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${res}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${p.rivalBandera} vs. ${p.rival}</div>
+        <div style="font-size:11px;color:var(--muted)">${p.fecha} · ${p.titular?'Titular':'Ingresó'}</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#1e293b">${p.resultado}</div>
+      ${badges?`<div style="font-size:11px;color:#92400e">${badges}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return `<div style="padding:0 0 40px">
+    <div style="background:var(--navy);padding:20px 16px 18px;position:sticky;top:0;z-index:10">
+      <button onclick="_localBack()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:12px;cursor:pointer;padding:0;margin-bottom:10px;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-left"></i> Jugadores</button>
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.09em;margin-bottom:4px">Selección Local</div>
+      <div style="font-size:22px;font-weight:900;color:#fff">${s.nom}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.65);margin-top:2px">${s.clubActual}</div>
+    </div>
+
+    <div style="padding:16px 16px 0">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px">
+        ${[['PJ',s.pj],['Goles',s.g],['Asist.',s.a]].map(([l,v])=>`
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:24px;font-weight:900;color:#1e293b">${v}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600">${l}</div>
+        </div>`).join('')}
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Partidos</div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:4px 14px">
+        ${partidoRows || '<div style="padding:12px 0;color:var(--muted);font-size:13px">Sin partidos jugados</div>'}
+      </div>
+    </div>
   </div>`;
 }
 
@@ -13622,7 +13733,7 @@ function _renderLocalPartido(id){
     ].filter(Boolean).join(' ');
     return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f1f5f9">
       <span style="width:22px;text-align:right;font-size:11px;color:var(--muted);font-weight:700">${c.num}</span>
-      <span style="flex:1;font-size:13px;font-weight:600">${c.nom}${c.pos?' <span style="font-size:10px;color:var(--muted)">('+c.pos+')</span>':''}</span>
+      <span onclick="_localOpenJug('${c.nom.replace(/'/g,"\\'")}' )" style="flex:1;font-size:13px;font-weight:600;cursor:pointer;color:var(--navy)">${c.nom}${c.pos?' <span style="font-size:10px;color:var(--muted)">('+c.pos+')</span>':''}</span>
       <span style="font-size:11px;color:var(--muted)">${c.club}</span>
       ${badges}
     </div>`;
