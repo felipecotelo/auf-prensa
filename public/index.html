@@ -15533,6 +15533,25 @@ window._juvPhotoSelected = function(nomEncoded, input){
 
 // Foto unificada para CT/staff — usa est:ct-p:slug, compartida en toda la web
 function _nameSlug(nom){ return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); }
+
+// Busca la foto de una persona por nombre en todos los caches posibles
+window._getPersonPhoto = function(name){
+  const est = window._estPhotoCache||{};
+  const juv = window._juvPhotoCache||{};
+  // 1. Clave slug unificada (ct-p:...)
+  const slug = _nameSlug(name);
+  if(est[slug]) return est[slug];
+  // 2. Cache de juveniles por nombre
+  if(juv[name]) return juv[name];
+  // 3. Clave corta de Estructura (iguzmán, dperezjuv, etc.)
+  if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
+    for(const dept of ESTRUCTURA_PERSONAS){
+      const p=dept.personas.find(p=>p.label===name);
+      if(p && est[p.key]) return est[p.key];
+    }
+  }
+  return null;
+};
 window._clickCtPhoto = function(nomEncoded){
   const nom = decodeURIComponent(nomEncoded);
   const key = _nameSlug(nom);
@@ -15882,8 +15901,7 @@ function _renderJuvenilesSafe(el){
       const ctCoord = ct.filter(m=>m.coord);
       body = estructuraNota + ctMain.map(m=>{
         const nomEnc = encodeURIComponent(m.name);
-        const _estKey = typeof _nameToKey==='function' ? _nameToKey(m.name) : ('ct-p:'+m.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''));
-        const photo = !m.pendiente && (window._juvPhotoCache?.[m.name] || window._estPhotoCache?.[_estKey]);
+        const photo = !m.pendiente && window._getPersonPhoto?.(m.name);
         const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
         const avatar = photo
           ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
