@@ -13717,7 +13717,7 @@ function _showLocalJugModal(nom){
   const s = stats[nom];
   if(!s) return;
   const photoKey = _localNameToKey(nom);
-  const photo = (window._estPhotoCache||{})[photoKey];
+  const photo = _localGetPhoto(nom);
   const initials = nom.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const photoKeyEnc = encodeURIComponent(photoKey);
   const avatarInner = photo
@@ -13848,7 +13848,7 @@ function _renderLocalHome(){
   const posColors = {POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
   const jugCards = jugadores.map(j=>{
     const photoKey = _localNameToKey(j.nom);
-    const photo = (window._estPhotoCache||{})[photoKey];
+    const photo = _localGetPhoto(j.nom);
     const initials = j.nom.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
     const posColor = posColors[j.pos] || '#334155';
     const nomSafe = j.nom.replace(/'/g,"\\'");
@@ -13905,8 +13905,22 @@ function _renderLocalHome(){
 }
 
 function _localNameToKey(nom){
-  // misma lógica que _nameToKey — para compartir fotos con Estructura/Juveniles
   return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+}
+function _localGetPhoto(nom){
+  const key = _localNameToKey(nom);
+  const fromEst = (window._estPhotoCache||{})[key];
+  if(fromEst) return fromEst;
+  // Fallback: buscar en IDB/Mayor por número de jersey
+  if(_idbPhotos && typeof BIELSA_CONVOCATORIAS!=='undefined'){
+    for(let i=BIELSA_CONVOCATORIAS.length-1;i>=0;i--){
+      const j=BIELSA_CONVOCATORIAS[i].jugadores.find(j=>j.nom===nom);
+      if(j?.num && _idbPhotos[j.num]) return _idbPhotos[j.num];
+    }
+  }
+  // Fallback: foto estática de la sección Mayor
+  if(typeof JUGADORES!=='undefined' && JUGADORES[nom]?.foto) return JUGADORES[nom].foto;
+  return null;
 }
 
 function _renderLocalFicha(nom){
@@ -13914,9 +13928,8 @@ function _renderLocalFicha(nom){
   const s = stats[nom];
   if(!s) return '';
 
-  // Foto compartida con el resto de la app (sin mezclar stats)
   const photoKey = _localNameToKey(nom);
-  const photo = (window._estPhotoCache||{})[photoKey];
+  const photo = _localGetPhoto(nom);
   const initials = nom.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const avatar = photo
     ? `<img src="${photo}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.3);flex-shrink:0">`
