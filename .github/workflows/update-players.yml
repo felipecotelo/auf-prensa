@@ -1,0 +1,36 @@
+name: Actualizar clubes desde Transfermarkt
+
+on:
+  schedule:
+    - cron: '0 8,14,20 * * *'   # 8am, 2pm, 8pm UTC
+  workflow_dispatch:              # disparo manual desde GitHub
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install requests beautifulsoup4
+
+      - name: Actualizar datos de jugadores
+        run: python scripts/update_players.py
+
+      - name: Commit y push si hubo cambios
+        run: |
+          git config user.name "auf-prensa-bot"
+          git config user.email "bot@auf-prensa.app"
+          if git diff --quiet; then
+            echo "Sin cambios."
+          else
+            git add public/index.html
+            git commit -m "🤖 Auto-update: clubes actualizados desde Transfermarkt"
+            git push
+          fi
