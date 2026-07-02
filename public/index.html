@@ -4855,7 +4855,7 @@ async function renderPlantel(searchVal){
       }).join('');
 
       // Photo — IDB first, then default path
-      const photoSrc=idbPhotos[p.n]||p.photo||'';
+      const photoSrc=idbPhotos[p.n]||p.photo||window._getPhotoByName?.(p.name)||'';
 
       // Stats — clickable → estadísticas tab
       const s=p.stats;
@@ -13907,23 +13907,26 @@ function _renderLocalHome(){
 function _localNameToKey(nom){
   return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
 }
-function _localGetPhoto(nom){
-  const key = _localNameToKey(nom);
-  const fromEst = (window._estPhotoCache||{})[key];
-  if(fromEst) return fromEst;
-  // Fallback: Juveniles
+// Foto universal por nombre — busca en todos los sistemas de fotos
+window._getPhotoByName = function(nom){
+  // 1. Juveniles (keyed by name)
   if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
-  // Fallback: Mayor IDB
+  // 2. Local/Estructura (keyed by slug)
+  const slug = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+  const fromEst = (window._estPhotoCache||{})['ct-p:'+slug];
+  if(fromEst) return fromEst;
+  // 3. Mayor IDB (busca jersey num en convocatorias)
   if(_idbPhotos && typeof BIELSA_CONVOCATORIAS!=='undefined'){
     for(let i=BIELSA_CONVOCATORIAS.length-1;i>=0;i--){
       const j=BIELSA_CONVOCATORIAS[i].jugadores.find(j=>j.nom===nom);
       if(j?.num && _idbPhotos[j.num]) return _idbPhotos[j.num];
     }
   }
-  // Fallback: foto estática Mayor
+  // 4. Foto estática Mayor
   if(typeof JUGADORES!=='undefined' && JUGADORES[nom]?.foto) return JUGADORES[nom].foto;
   return null;
-}
+};
+function _localGetPhoto(nom){ return window._getPhotoByName(nom); }
 
 function _renderLocalFicha(nom){
   const stats = _getLocalStats();
@@ -15889,7 +15892,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const posLabel = p.pos||'—';
   const nomEnc = encodeURIComponent(p.nom);
   const nomSafe = p.nom.replace(/'/g,"\\'");
-  const photo = _juvPhotoCache[p.nom];
+  const photo = _juvPhotoCache[p.nom] || window._getPhotoByName?.(p.nom);
   const avatar = photo
     ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
     : `<span>${p.nom.split(' ').map(s=>s[0]).slice(0,2).join('')}</span>`;
