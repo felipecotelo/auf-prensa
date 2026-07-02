@@ -2444,12 +2444,12 @@ const setJugClub=(nom,club)=>{
 const clearJugClub=(nom)=>{const d=getJugClub();delete d[nom];stor.set(KJugClub,d);};
 const KJuvClub='auf4_juv_club';
 const getJuvClub=()=>stor.get(KJuvClub,{});
-const setJuvClub=(nom,club)=>{
+const setJuvClub=(nom,club,pais)=>{
   const d=getJuvClub();
   const prev=(d[nom]?.actual||d[nom]||'').trim();
   const exClubs=d[nom]?.exClubs||[];
   if(prev&&prev!==club&&!exClubs.includes(prev)) exClubs.push(prev);
-  d[nom]={actual:club,exClubs};
+  d[nom]={actual:club,pais:pais||(d[nom]?.pais||'uy'),exClubs};
   stor.set(KJuvClub,d);
 };
 const clearJuvClub=(nom)=>{const d=getJuvClub();delete d[nom];stor.set(KJuvClub,d);};
@@ -13615,12 +13615,12 @@ const KLocalClub = 'auf4_local_club';
 const getLocalPos  = ()=>stor.get(KLocalPos,{});
 const getLocalClub = ()=>stor.get(KLocalClub,{});
 const setLocalPos  = (nom,pos)=>{const d=getLocalPos();if(pos==null)delete d[nom];else d[nom]=pos;stor.set(KLocalPos,d);};
-const setLocalClubActual = (nom,club)=>{
+const setLocalClubActual = (nom,club,pais)=>{
   const d=getLocalClub();
   const prev=(d[nom]?.actual||'').trim();
   const exClubs=d[nom]?.exClubs||[];
   if(prev&&prev!==club&&!exClubs.includes(prev)) exClubs.push(prev);
-  d[nom]={actual:club,exClubs};
+  d[nom]={actual:club,pais:pais||(d[nom]?.pais||'uy'),exClubs};
   stor.set(KLocalClub,d);
 };
 const LOCAL_POS_CYCLE = ['POR','DEF','MED','DEL',null];
@@ -13638,11 +13638,14 @@ window._cycleLocalPos = function(nomSafe,ev){
 window._localEditClub = function(nom,el){
   const d=getLocalClub();
   const cur=(d[nom]?.actual||'').trim();
+  const curPais=d[nom]?.pais||'uy';
   const nomSafe=nom.replace(/'/g,"\\'");
   const iid='loc-club-inp-'+nom.replace(/[^a-z0-9]/gi,'');
+  const iidP='loc-pais-inp-'+nom.replace(/[^a-z0-9]/gi,'');
   el.outerHTML=`<div style="display:flex;align-items:center;gap:4px;margin-top:4px">
+    <input id="${iidP}" value="${curPais}" maxlength="2" placeholder="uy" title="Código de país (uy, br, es…)" style="width:28px;font-size:.78em;padding:3px 4px;border:1.5px solid var(--cel);border-radius:6px;outline:none;text-align:center">
     <input id="${iid}" value="${cur}" placeholder="Club actual..." style="flex:1;font-size:.78em;padding:3px 8px;border:1.5px solid var(--cel);border-radius:6px;outline:none;min-width:0">
-    <button onclick="(function(){var v=document.getElementById('${iid}').value.trim();if(v){setLocalClubActual('${nomSafe}',v);}window._showLocalJugModal('${nomSafe}');})()" style="border:none;background:var(--cel);color:#fff;border-radius:5px;padding:3px 8px;font-size:.72em;font-weight:700;cursor:pointer">✓</button>
+    <button onclick="(function(){var v=document.getElementById('${iid}').value.trim();var p=document.getElementById('${iidP}').value.trim()||'uy';if(v){setLocalClubActual('${nomSafe}',v,p);}window._showLocalJugModal('${nomSafe}');})()" style="border:none;background:var(--cel);color:#fff;border-radius:5px;padding:3px 8px;font-size:.72em;font-weight:700;cursor:pointer">✓</button>
     <button onclick="window._showLocalJugModal('${nomSafe}')" style="border:none;background:none;color:var(--muted);font-size:.8em;cursor:pointer">✕</button>
   </div>`;
   setTimeout(()=>document.getElementById(iid)?.focus(),50);
@@ -13670,6 +13673,7 @@ function _getLocalStats(){
   Object.values(stats).forEach(s=>{
     if(posOvr[s.nom]!==undefined) s.pos = posOvr[s.nom];
     if(clubOvr[s.nom]?.actual) s.clubActual = clubOvr[s.nom].actual;
+    s.clubPais = clubOvr[s.nom]?.pais||'uy';
     s.exClubs = clubOvr[s.nom]?.exClubs||[];
   });
   return stats;
@@ -13770,7 +13774,7 @@ function _showLocalJugModal(nom){
           <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Selección Local</div>
           <div style="font-size:20px;font-weight:900;color:#fff;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nom}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">
-            <img src="https://flagcdn.com/w20/uy.png" style="height:11px;border-radius:2px">
+            <img src="https://flagcdn.com/w20/${s.clubPais||'uy'}.png" style="height:11px;border-radius:2px">
             <span onclick="_localEditClub('${nomSafe}',this)" title="Tocar para editar club" style="font-size:12px;color:rgba(255,255,255,.75);cursor:pointer;text-decoration:underline dotted">${s.clubActual||'— tocar para agregar club'}</span>
             <span onclick="event.stopPropagation();_cycleLocalPos('${nomSafe}',event)" title="Tocar para cambiar puesto" style="background:${posColor||'rgba(255,255,255,.15)'};color:#fff;border-radius:5px;padding:1px 7px;font-size:10px;font-weight:800;cursor:pointer">${s.pos||'—'}</span>
           </div>
@@ -13867,7 +13871,7 @@ function _renderLocalHome(){
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:.9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.nom}</div>
         <div style="font-size:.73em;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-          <img src="https://flagcdn.com/w20/uy.png" style="height:9px;border-radius:1px;vertical-align:middle;margin-right:3px" onerror="this.style.display='none'">${j.clubActual||'—'}
+          <img src="https://flagcdn.com/w20/${j.clubPais||'uy'}.png" style="height:9px;border-radius:1px;vertical-align:middle;margin-right:3px" onerror="this.style.display='none'">${j.clubActual||'—'}
         </div>
         <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">
           <span onclick="event.stopPropagation();_cycleLocalPos('${nomSafe}',event)" title="Tocar para cambiar puesto" style="background:${posColor};color:#fff;border-radius:4px;padding:1px 6px;font-size:.65em;font-weight:800;cursor:pointer">${j.pos||'—'}</span>
@@ -15876,11 +15880,15 @@ function _isChampSub20(nom){
 
 window._editJuvClub = function(nom, el){
   const nomSafe = nom.replace(/'/g,"\\'");
-  const _e = getJuvClub()[nom]; const cur = (_e?.actual ?? (typeof _e==='string'?_e:'')) || '';
+  const _e = getJuvClub()[nom];
+  const cur = (_e?.actual ?? (typeof _e==='string'?_e:'')) || '';
+  const curPais = _e?.pais || 'uy';
   const id = 'juv-club-inp-'+nom.replace(/[^a-z0-9]/gi,'');
+  const idP = 'juv-pais-inp-'+nom.replace(/[^a-z0-9]/gi,'');
   el.outerHTML = `<div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+    <input id="${idP}" value="${curPais}" maxlength="2" placeholder="uy" title="Código de país (uy, br, es…)" style="width:26px;font-size:.72em;padding:2px 4px;border:1.5px solid var(--cel);border-radius:6px;outline:none;text-align:center">
     <input id="${id}" value="${cur}" placeholder="Club actual..." style="flex:1;font-size:.72em;padding:2px 6px;border:1.5px solid var(--cel);border-radius:6px;outline:none;min-width:0">
-    <button onclick="(function(){var v=document.getElementById('${id}').value.trim();if(v)setJuvClub('${nomSafe}',v);else clearJuvClub('${nomSafe}');window.renderJuveniles?.()})()" style="border:none;background:var(--cel);color:#fff;border-radius:5px;padding:2px 6px;font-size:.68em;font-weight:700;cursor:pointer">✓</button>
+    <button onclick="(function(){var v=document.getElementById('${id}').value.trim();var p=document.getElementById('${idP}').value.trim()||'uy';if(v)setJuvClub('${nomSafe}',v,p);else clearJuvClub('${nomSafe}');window.renderJuveniles?.()})()" style="border:none;background:var(--cel);color:#fff;border-radius:5px;padding:2px 6px;font-size:.68em;font-weight:700;cursor:pointer">✓</button>
     <button onclick="window.renderJuveniles?.()" style="border:none;background:none;color:var(--muted);font-size:.75em;cursor:pointer">✕</button>
   </div>`;
   setTimeout(()=>document.getElementById(id)?.focus(),50);
@@ -15901,6 +15909,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const clubShow = clubOverride !== undefined ? clubOverride : (p.club||'');
   const clubEdited = clubOverride !== undefined;
   const juvExClubs = _juvClubEntry?.exClubs||[];
+  const juvPais = _juvClubEntry?.pais || 'uy';
   return `<div style="background:var(--card);border:1px solid ${isChamp?'#F59E0B':'var(--border)'};border-radius:12px;padding:12px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
       <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid ${isChamp?'#F59E0B':'var(--border)'};cursor:pointer;overflow:visible">
@@ -15915,7 +15924,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
           ${isChamp?`<span title="Campeón Mundial Sub-20 · Argentina 2023" style="flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:800">🏆</span>`:''}
         </div>
         <div onclick="_editJuvClub('${nomSafe}',this)" title="Tocar para editar club" style="font-size:.72em;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;margin-top:2px">
-          <img src="https://flagcdn.com/w20/uy.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">
+          <img src="https://flagcdn.com/w20/${juvPais}.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">
           ${clubShow||'— sin club —'}${clubEdited?' ✎':''}
         </div>
         ${juvExClubs.length?`<div style="font-size:.62em;color:var(--muted);margin-top:1px;opacity:.65">${juvExClubs.map(c=>`ex ${c}`).join(' · ')}</div>`:''}
