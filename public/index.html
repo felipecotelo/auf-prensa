@@ -13592,13 +13592,14 @@ function _getLocalStats(){
   SELECCION_LOCAL.partidos.forEach(p=>{
     p.convocados.forEach(c=>{
       if(!c.nom) return;
-      if(!stats[c.nom]) stats[c.nom] = {nom:c.nom, pj:0, g:0, a:0, partidos:[], clubActual:c.club};
+      if(!stats[c.nom]) stats[c.nom] = {nom:c.nom, pj:0, g:0, a:0, partidos:[], clubActual:c.club, pos:c.pos||null};
+      if(c.pos) stats[c.nom].pos = c.pos;
       if(c.titular || c.entro){
         stats[c.nom].pj++;
         stats[c.nom].g += (c.goles||0);
         stats[c.nom].a += (c.asistencias||0);
         stats[c.nom].partidos.push({rival:p.rival, rivalBandera:p.rivalBandera, fecha:p.fecha, resultado:p.resultado, titular:!!c.titular, goles:c.goles||0, asistencias:c.asistencias||0});
-        stats[c.nom].clubActual = c.club; // último club registrado
+        stats[c.nom].clubActual = c.club;
       }
     });
   });
@@ -13625,7 +13626,95 @@ window._localBack = function(){
 };
 window._localOpenPartido = function(id){ _localPartidoId=id; renderSecLocal(); };
 window._localSetTab = function(t){ _localTab=t; renderSecLocal(); };
-window._localOpenJug = function(nom){ _localJugNom=nom; renderSecLocal(); };
+window._localOpenJug = function(nom){ _showLocalJugModal(nom); };
+
+function _showLocalJugModal(nom){
+  const stats = _getLocalStats();
+  const s = stats[nom];
+  if(!s) return;
+  const photoKey = _localNameToKey(nom);
+  const photo = (window._estPhotoCache||{})[photoKey];
+  const initials = nom.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const avatar = photo
+    ? `<img src="${photo}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.3);flex-shrink:0">`
+    : `<div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.3em;font-weight:900;flex-shrink:0">${initials}</div>`;
+  const posColors = {POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
+  const posColor = posColors[s.pos] || null;
+  const statChips = [
+    ['PJ',s.pj,'#EFF6FF','#1D4ED8'],
+    ['Goles',s.g,'#F0FDF4','#15803D'],
+    ['Asist.',s.a,'#F3F0FF','#6D28D9'],
+  ].map(([l,v,bg,col])=>`<div style="background:${bg};border-radius:10px;padding:10px 14px;text-align:center;flex:1">
+    <div style="font-size:22px;font-weight:900;color:${col}">${v}</div>
+    <div style="font-size:10px;color:${col};font-weight:700;opacity:.7">${l}</div>
+  </div>`).join('');
+  const partidoRows = s.partidos.map(p=>{
+    const [gf,gc] = p.resultado.split('-').map(Number);
+    const res = gf>gc?'G':gf<gc?'P':'E';
+    const resColor = res==='G'?'#15803d':res==='P'?'#dc2626':'#92400e';
+    const resBg   = res==='G'?'#f0fdf4':res==='P'?'#fef2f2':'#fefce8';
+    const badges = [
+      p.goles?`<span style="background:#fef9c3;color:#92400e;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700">⚽ ${p.goles}</span>`:'',
+      p.asistencias?`<span style="background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700">🅰️ ${p.asistencias}</span>`:'',
+    ].filter(Boolean).join(' ');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9">
+      <div style="width:28px;height:28px;border-radius:50%;background:${resBg};color:${resColor};font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${res}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${p.rivalBandera} vs. ${p.rival}</div>
+        <div style="font-size:11px;color:var(--muted)">${p.fecha} · ${p.titular?'Titular':'Ingresó'}</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#1e293b">${p.resultado}</div>
+      ${badges?`<div style="display:flex;gap:3px;flex-shrink:0">${badges}</div>`:''}
+    </div>`;
+  }).join('');
+
+  const body = `
+    <div style="background:linear-gradient(135deg,#0f2744 0%,#1e3a5f 100%);padding:20px 16px 18px">
+      <div style="display:flex;align-items:center;gap:14px">
+        ${avatar}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px">Selección Local</div>
+          <div style="font-size:20px;font-weight:900;color:#fff;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nom}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <img src="https://flagcdn.com/w20/uy.png" style="height:11px;border-radius:2px">
+            <span style="font-size:12px;color:rgba(255,255,255,.65)">${s.clubActual||'—'}</span>
+            ${posColor?`<span style="background:${posColor};color:#fff;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:800">${s.pos}</span>`:''}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:16px 16px 32px">
+      <div style="display:flex;gap:8px;margin-bottom:20px">${statChips}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Partidos</div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:0 14px">
+        ${partidoRows||'<div style="padding:14px 0;color:var(--muted);font-size:13px">Sin partidos jugados</div>'}
+      </div>
+    </div>`;
+
+  let overlay = document.getElementById('local-jug-overlay');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'local-jug-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;justify-content:flex-end;pointer-events:none;opacity:0;transition:opacity .22s';
+    overlay.innerHTML = `
+      <div id="local-jug-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px)"></div>
+      <div id="local-jug-sheet" style="position:relative;background:var(--surface2,#f8fafc);border-radius:20px 20px 0 0;max-height:85vh;overflow-y:auto;pointer-events:auto;-webkit-overflow-scrolling:touch">
+        <div style="display:flex;justify-content:center;padding:10px 0 0"><div style="width:36px;height:4px;border-radius:2px;background:#cbd5e1"></div></div>
+        <div id="local-jug-body"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#local-jug-backdrop').addEventListener('click', ()=>window._closeLocalJugModal());
+  }
+  document.getElementById('local-jug-body').innerHTML = body;
+  overlay.style.pointerEvents = 'auto';
+  requestAnimationFrame(()=>{ overlay.style.opacity='1'; });
+}
+window._closeLocalJugModal = function(){
+  const o = document.getElementById('local-jug-overlay');
+  if(!o) return;
+  o.style.opacity = '0';
+  o.style.pointerEvents = 'none';
+};
 
 function _renderLocalHome(){
   const r = SELECCION_LOCAL.resumen;
@@ -13652,22 +13741,36 @@ function _renderLocalHome(){
 
   const stats = _getLocalStats();
   const jugadores = Object.values(stats).sort((a,b)=>b.pj-a.pj||b.g-a.g);
-  const jugRows = jugadores.map(j=>`
-    <div onclick="_localOpenJug('${j.nom.replace(/'/g,"\\'")}' )" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9">
+  const posColors = {POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
+  const jugCards = jugadores.map(j=>{
+    const photoKey = _localNameToKey(j.nom);
+    const photo = (window._estPhotoCache||{})[photoKey];
+    const initials = j.nom.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const avatar = photo
+      ? `<img src="${photo}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+      : `<div style="width:44px;height:44px;border-radius:50%;background:#e2e8f0;color:#64748b;display:flex;align-items:center;justify-content:center;font-size:.85em;font-weight:800;flex-shrink:0">${initials}</div>`;
+    const posColor = posColors[j.pos] || null;
+    const nomSafe = j.nom.replace(/'/g,"\\'");
+    return `<div onclick="_localOpenJug('${nomSafe}')" style="cursor:pointer;background:var(--card,#fff);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px">
+      ${avatar}
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700">${j.nom}</div>
-        <div style="font-size:11px;color:var(--muted)">${j.clubActual}</div>
+        <div style="font-weight:800;font-size:.86em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:4px">
+          ${posColor?`<span style="background:${posColor};color:#fff;border-radius:4px;padding:0 4px;font-size:.68em;font-weight:800;flex-shrink:0">${j.pos}</span>`:''}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.nom}</span>
+        </div>
+        <div style="font-size:.72em;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.clubActual||'—'}</div>
+        <div style="display:flex;gap:5px;margin-top:5px">
+          <span style="background:#EFF6FF;color:#1D4ED8;border-radius:5px;padding:1px 6px;font-size:.65em;font-weight:700">${j.pj} PJ</span>
+          ${j.g?`<span style="background:#F0FDF4;color:#15803D;border-radius:5px;padding:1px 6px;font-size:.65em;font-weight:700">⚽ ${j.g}</span>`:''}
+          ${j.a?`<span style="background:#F3F0FF;color:#6D28D9;border-radius:5px;padding:1px 6px;font-size:.65em;font-weight:700">🅰️ ${j.a}</span>`:''}
+        </div>
       </div>
-      <div style="display:flex;gap:12px;font-size:12px;text-align:center">
-        <div><div style="font-weight:800;color:#1e293b">${j.pj}</div><div style="font-size:10px;color:var(--muted)">PJ</div></div>
-        <div><div style="font-weight:800;color:#1e293b">${j.g}</div><div style="font-size:10px;color:var(--muted)">G</div></div>
-        <div><div style="font-weight:800;color:#1e293b">${j.a}</div><div style="font-size:10px;color:var(--muted)">A</div></div>
-      </div>
-      <i class="ti ti-chevron-right" style="color:var(--muted);font-size:12px"></i>
-    </div>`).join('');
+      <i class="ti ti-chevron-right" style="color:var(--muted);font-size:14px"></i>
+    </div>`;
+  }).join('');
 
   return `<div style="padding:0 0 40px">
-    <div style="background:var(--navy);padding:20px 16px 16px">
+    <div style="background:linear-gradient(135deg,#0f2744 0%,#1e3a5f 100%);padding:20px 16px 16px">
       <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">2024–2025</div>
       <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:14px">Selección Local</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
@@ -13685,18 +13788,7 @@ function _renderLocalHome(){
     </div>
 
     <div style="padding:10px 16px 0">
-      ${_localTab==='partidos' ? cards : `
-        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:4px 14px">
-          <div style="display:flex;gap:10px;padding:6px 0 4px;border-bottom:1px solid #e5e7eb">
-            <div style="flex:1;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase">Jugador</div>
-            <div style="display:flex;gap:12px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;text-align:center">
-              <div style="width:24px">PJ</div><div style="width:16px">G</div><div style="width:16px">A</div>
-            </div>
-            <div style="width:14px"></div>
-          </div>
-          ${jugRows}
-        </div>
-      `}
+      ${_localTab==='partidos' ? cards : `<div style="display:flex;flex-direction:column;gap:8px">${jugCards}</div>`}
     </div>
   </div>`;
 }
@@ -15683,7 +15775,6 @@ function _juvFichaCard(p, hist, off, extraIcon){
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:.88em;display:flex;align-items:center;gap:4px">
-          ${hasOficial&&!isChamp?'<span title="Tiene convocatorias oficiales">🏆</span>':''}
           ${extraIcon||''}
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nom}</span>
         </div>
