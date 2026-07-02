@@ -17865,6 +17865,31 @@ function _renderEstFicha(key){
         const cats=['mayor',...(typeof CAT_ORDER!=='undefined'?CAT_ORDER:['sub23','sub20','sub18','sub17','sub16','sub15','sub13']),'local'];
         const catLbl={mayor:'Selección Mayor',sub23:'Sub-23',sub20:'Sub-20',sub18:'Sub-18',sub17:'Sub-17',sub16:'Sub-16',sub15:'Sub-15',sub13:'Sub-13',local:'Selección Local'};
         const catColor2={mayor:'#1a3a6b',sub23:'#92400e',sub20:'#1D4ED8',sub18:'#7C3AED',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626',local:'#0F766E'};
+
+        // Auto-derivados de JUVENILES: escanea todos los ct buscando el nombre
+        const autoVinculos=[];
+        if(typeof JUVENILES!=='undefined'){
+          const seen=new Set();
+          Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+            Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
+              (anoData.ct||[]).forEach(m=>{
+                if(m.name===p.label && !m.pendiente){
+                  const dedupeKey=catKey+'|'+m.rol;
+                  if(!seen.has(dedupeKey)){seen.add(dedupeKey);autoVinculos.push({cat:catKey,rol:m.rol,yr});}
+                }
+              });
+            });
+          });
+        }
+
+        const rowsAuto=autoVinculos.map(v=>{
+          const c=catColor2[v.cat]||'#6B7280';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid var(--border)">
+            <span style="padding:3px 9px;border-radius:20px;font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:${c}18;color:${c};white-space:nowrap">${catLbl[v.cat]||v.cat}</span>
+            <div style="flex:1;font-size:.82em;font-weight:600;color:var(--text)">${v.rol}</div>
+            <span style="font-size:.65em;color:var(--hint);white-space:nowrap">auto</span>
+          </div>`;
+        }).join('');
         const rows=vinculos.map((v,i)=>{
           const c=catColor2[v.cat]||'#6B7280';
           return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:.5px solid var(--border)">
@@ -17873,6 +17898,7 @@ function _renderEstFicha(key){
             <button onclick="_estRemoveJuvVinculo('${key}',${i})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:.8em;padding:2px 4px"><i class="ti ti-x"></i></button>
           </div>`;
         }).join('');
+        const allRows=rowsAuto+rows;
         const fid='juv-vnc-'+key.replace(/[^a-z0-9]/g,'');
         const catOpts=cats.map(c=>`<option value="${c}">${catLbl[c]||c}</option>`).join('');
         const allEdits=_estGetEdits();
@@ -17880,8 +17906,8 @@ function _renderEstFicha(key){
         Object.values(allEdits).forEach(e=>(e.juvVinculos||[]).forEach(v=>v.rol&&rolesVistos.add(v.rol)));
         const datalist=`<datalist id="${fid}-roles">${[...rolesVistos].map(r=>`<option value="${r}">`).join('')}</datalist>`;
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px">
-          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:${vinculos.length?'4px':'10px'}">Roles en selecciones</div>
-          ${rows}
+          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:${allRows?'4px':'10px'}">Roles en selecciones</div>
+          ${allRows}
           <div id="${fid}" style="display:none;margin-top:10px;background:var(--surface);border-radius:10px;padding:12px">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
               <div>
