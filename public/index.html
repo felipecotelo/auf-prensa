@@ -15559,6 +15559,39 @@ window._clickCtPhoto = function(nomEncoded){
   if(cached){ openPE('est:'+key, cached); return; }
   document.getElementById('ct-photo-input-'+nomEncoded)?.click();
 };
+// CT dinámico por categoría/año
+const K_JUV_CT = 'auf4_juv_ct';
+function _getJuvCTOverrides(){ try{return JSON.parse(localStorage.getItem(K_JUV_CT)||'{}')}catch(_){return{}} }
+function _saveJuvCTOverrides(o){ localStorage.setItem(K_JUV_CT, JSON.stringify(o)); }
+function _getJuvCT(catKey, year){
+  const ov=_getJuvCTOverrides(); const k=catKey+'/'+year;
+  if(ov[k]) return ov[k];
+  return JUVENILES[catKey]?.anos?.[year]?.ct||[];
+}
+let _juvCtEdit=false;
+window._juvCTToggleEdit=function(){ _juvCtEdit=!_juvCtEdit; window.renderJuveniles?.(); };
+window._juvCTRemove=function(ctKey,idx){
+  const ov=_getJuvCTOverrides();
+  if(!ov[ctKey]) ov[ctKey]=[..._getJuvCT(...ctKey.split('/'))];
+  ov[ctKey].splice(idx,1);
+  _saveJuvCTOverrides(ov); window.renderJuveniles?.();
+};
+window._juvCTAdd=function(ctKey,fid){
+  const nom=(document.getElementById(fid+'-nom')?.value||'').trim();
+  const rol=(document.getElementById(fid+'-rol')?.value||'').trim();
+  if(!nom||!rol) return;
+  const dt=document.getElementById(fid+'-dt')?.checked||false;
+  const ov=_getJuvCTOverrides();
+  if(!ov[ctKey]) ov[ctKey]=[..._getJuvCT(...ctKey.split('/'))];
+  ov[ctKey].push({name:nom, rol, iso:'uy', dt});
+  _saveJuvCTOverrides(ov); window.renderJuveniles?.();
+};
+window._juvCTReset=function(ctKey){
+  const ov=_getJuvCTOverrides();
+  delete ov[ctKey];
+  _saveJuvCTOverrides(ov); _juvCtEdit=false; window.renderJuveniles?.();
+};
+
 window._ctPhotoSelected = function(nomEncoded, input){
   const file = input.files[0]; if(!file) return;
   input.value='';
@@ -15882,60 +15915,102 @@ function _renderJuvenilesSafe(el){
   }
 
   else if(_juvTab==='ct'){
-    const ct = anoData.ct||[];
-    const estructuraNota = `
-      <div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start">
-        <i class="ti ti-info-circle" style="color:#0284C7;margin-top:1px;flex-shrink:0"></i>
-        <div style="font-size:.78em;color:#0369A1;line-height:1.5">
-          <strong>Estructura de Juveniles AUF</strong> — El cuerpo técnico trabaja de forma transversal entre categorías, colaborando en distintas selecciones según las necesidades del ciclo.
+    const ct = _getJuvCT(_juvCat, _juvYear);
+    const hasOverride = !!_getJuvCTOverrides()[_juvCat+'/'+_juvYear];
+    const ctKey = _juvCat+'/'+_juvYear;
+    const fid = 'juv-ct-add-'+_juvCat+_juvYear;
+
+    // Selector de activos en Estructura para agregar
+    const contracts = _estGetContracts();
+    const estructuraActivos = (typeof ESTRUCTURA_PERSONAS!=='undefined' ? ESTRUCTURA_PERSONAS : [])
+      .flatMap(d=>d.personas.filter(p=>(contracts[p.key]||'activo')==='activo').map(p=>p.label))
+      .filter((n,i,a)=>a.indexOf(n)===i)
+      .sort();
+    const rolesUsados = new Set(ct.map(m=>m.rol));
+    const rolesDatalist = [...new Set([...rolesUsados,'Director técnico','Ayudante técnico','Preparador físico','Entrenador de arqueros','Videoanalista','Coordinador'])];
+
+    const ctMain = ct.filter(m=>!m.coord);
+    const ctCoord = ct.filter(m=>m.coord);
+
+    const memberRow = (m, idx) => {
+      const nomEnc = encodeURIComponent(m.name);
+      const photo = !m.pendiente && window._getPersonPhoto?.(m.name);
+      const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatar = photo
+        ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : `<span>${initials}</span>`;
+      const photoBlock = m.pendiente
+        ? `<div style="width:28px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-dots" style="color:var(--muted);font-size:.9em"></i></div>`
+        : `<div onclick="_clickCtPhoto('${nomEnc}')" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
+            <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
+            <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
+            <input type="file" accept="image/*" id="ct-photo-input-${nomEnc}" style="display:none" onchange="_ctPhotoSelected('${nomEnc}',this)">
+          </div>`;
+      return `
+      <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;${m.pendiente?'opacity:.55':''}">
+        ${photoBlock}
+        <div style="flex:1">
+          <div style="font-weight:${m.pendiente?'600':'800'};font-size:.9em;${m.pendiente?'font-style:italic;color:var(--muted)':''}">${m.name}</div>
+          <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.rol}</div>
         </div>
+        ${m.dt?`<span style="font-size:.65em;font-weight:800;color:${color};background:${color}18;border-radius:8px;padding:2px 8px;text-transform:uppercase;letter-spacing:.05em">DT</span>`:''}
+        ${_juvCtEdit?`<button onclick="_juvCTRemove('${ctKey}',${idx})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px;flex-shrink:0"><i class="ti ti-x"></i></button>`:''}
       </div>`;
-    if(ct.length===0){
-      body = estructuraNota + `<div style="text-align:center;padding:32px 16px;color:var(--muted)">
-        <i class="ti ti-id-badge" style="font-size:2.5rem;display:block;margin-bottom:10px;opacity:.3"></i>
-        <div style="font-weight:700;margin-bottom:4px">Sin datos del cuerpo técnico</div>
-        <div style="font-size:.8em">La información se cargará aquí</div>
-      </div>`;
-    } else {
-      const ctMain = ct.filter(m=>!m.coord);
-      const ctCoord = ct.filter(m=>m.coord);
-      body = estructuraNota + ctMain.map(m=>{
-        const nomEnc = encodeURIComponent(m.name);
-        const photo = !m.pendiente && window._getPersonPhoto?.(m.name);
-        const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-        const avatar = photo
-          ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-          : `<span>${initials}</span>`;
-        const photoBlock = m.pendiente
-          ? `<div style="width:28px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><i class="ti ti-dots" style="color:var(--muted);font-size:.9em"></i></div>`
-          : `<div onclick="_clickCtPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
-              <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
-              <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
-              <input type="file" accept="image/*" id="ct-photo-input-${nomEnc}" style="display:none" onchange="_ctPhotoSelected('${nomEnc}',this)">
-            </div>`;
-        return `
-        <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;${m.pendiente?'opacity:.55':''}" >
-          ${photoBlock}
-          <div style="flex:1">
-            <div style="font-weight:${m.pendiente?'600':'800'};font-size:.9em;${m.pendiente?'font-style:italic;color:var(--muted)':''}">${m.name}</div>
-            <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.rol}</div>
+    };
+
+    const editBtn = `<button onclick="_juvCTToggleEdit()" style="
+      display:flex;align-items:center;gap:5px;border:1.5px solid ${_juvCtEdit?color:'var(--border)'};
+      background:${_juvCtEdit?color+'18':'transparent'};color:${_juvCtEdit?color:'var(--muted)'};
+      border-radius:8px;padding:5px 10px;font-size:.72em;font-weight:700;cursor:pointer;margin-left:auto
+    "><i class="ti ti-pencil"></i>${_juvCtEdit?'Listo':'Editar CT'}</button>`;
+
+    const addForm = _juvCtEdit ? `
+      <div style="background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;padding:12px;margin-top:4px">
+        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Agregar integrante</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">PERSONA</label>
+            <select id="${fid}-nom" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;background:#fff;box-sizing:border-box">
+              <option value="">— elegir —</option>
+              ${estructuraActivos.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')}
+            </select>
           </div>
-          ${m.dt?`<span style="font-size:.65em;font-weight:800;color:${color};background:${color}18;border-radius:8px;padding:2px 8px;text-transform:uppercase;letter-spacing:.05em">DT</span>`:''}
-        </div>`;
-      }).join('');
-      if(ctCoord.length){
-        body += `
-          <div style="font-size:.68em;font-weight:800;color:#9333EA;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px">Coordinación transversal de Juveniles</div>
-          ${ctCoord.map(m=>`
-            <div style="display:flex;align-items:center;gap:12px;background:#FAF5FF;border:1px solid #E9D5FF;border-radius:10px;padding:12px 14px;margin-bottom:8px">
-              <img src="https://flagcdn.com/w40/${m.iso}.png" style="width:28px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">
-              <div style="flex:1">
-                <div style="font-weight:800;font-size:.9em;color:#6B21A8">${m.name}</div>
-                <div style="font-size:.75em;color:#9333EA;margin-top:1px">${m.rol}</div>
-              </div>
-            </div>`).join('')}`;
-      }
-    }
+          <div>
+            <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">ROL</label>
+            <input id="${fid}-rol" list="${fid}-roles" type="text" placeholder="ej: Preparador físico" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
+            <datalist id="${fid}-roles">${rolesDatalist.map(r=>`<option value="${r}">`).join('')}</datalist>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="display:flex;align-items:center;gap:5px;font-size:.75em;color:var(--muted);cursor:pointer">
+            <input type="checkbox" id="${fid}-dt"> DT
+          </label>
+          <button onclick="_juvCTAdd('${ctKey}','${fid}')" style="flex:1;padding:7px;background:${color};color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Agregar</button>
+        </div>
+      </div>` : '';
+
+    const resetBtn = hasOverride && _juvCtEdit ? `
+      <button onclick="_juvCTReset('${ctKey}')" style="margin-top:8px;width:100%;padding:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;border-radius:8px;font-size:.72em;font-weight:700;cursor:pointer">
+        <i class="ti ti-refresh"></i> Restaurar CT original
+      </button>` : '';
+
+    body = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="font-size:.72em;color:#0369A1;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;padding:6px 10px;flex:1;line-height:1.4">
+          <strong>Estructura transversal</strong> — El CT trabaja entre categorías según las necesidades del ciclo.
+        </div>
+        ${editBtn}
+      </div>
+      ${ctMain.map((m,i)=>memberRow(m,i)).join('')}
+      ${ctCoord.length?`
+        <div style="font-size:.68em;font-weight:800;color:#9333EA;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px">Coordinación transversal</div>
+        ${ctCoord.map((m,i)=>`
+          <div style="display:flex;align-items:center;gap:12px;background:#FAF5FF;border:1px solid #E9D5FF;border-radius:10px;padding:12px 14px;margin-bottom:8px">
+            <img src="https://flagcdn.com/w40/${m.iso}.png" style="width:28px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">
+            <div style="flex:1"><div style="font-weight:800;font-size:.9em;color:#6B21A8">${m.name}</div><div style="font-size:.75em;color:#9333EA">${m.rol}</div></div>
+            ${_juvCtEdit?`<button onclick="_juvCTRemove('${ctKey}',${ctMain.length+i})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px"><i class="ti ti-x"></i></button>`:''}
+          </div>`).join('')}`:'' }
+      ${addForm}${resetBtn}`;
   }
 
   else if(_juvTab==='info'){
