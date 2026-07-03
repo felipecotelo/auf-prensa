@@ -17151,15 +17151,19 @@ function _pwFmtDia(d){ const dt=new Date(d+'T00:00:00'); return _DIAS_ES[dt.getD
 function _pwFmtDiaLargo(d){ const dt=new Date(d+'T00:00:00'); return _DIAS_ES[dt.getDay()].charAt(0).toUpperCase()+_DIAS_ES[dt.getDay()].slice(1)+' '+dt.getDate()+' de '+_MESES_ES[dt.getMonth()]; }
 
 const _pwEstConfig={
-  recibida:   {label:'Recibida',   bg:'#F3E8FF',color:'#7C3AED'},
-  pendiente:  {label:'Pendiente',  bg:'#FEF3C7',color:'#92400E'},
-  agendada:   {label:'Agendada',   bg:'#D1FAE5',color:'#065F46'},
-  confirmada: {label:'Confirmada', bg:'#DCFCE7',color:'#14532D'},
-  rechazada:  {label:'Rechazada',  bg:'#FEE2E2',color:'#991B1B'},
-  realizada:  {label:'Realizada',  bg:'#DBEAFE',color:'#1E40AF'},
-  cancelada:  {label:'Cancelada',  bg:'#F3F4F6',color:'#6B7280'},
-  descartada: {label:'Descartada', bg:'#F3F4F6',color:'#9CA3AF'},
+  // Primarios
+  recibida:     {label:'Recibida',     bg:'#F3E8FF',color:'#7C3AED', primary:true},
+  aprobada:     {label:'Aprobada',     bg:'#FEF3C7',color:'#92400E', primary:true},
+  agendada:     {label:'Agendada',     bg:'#D1FAE5',color:'#065F46', primary:true},
+  rechazada:    {label:'Rechazada',    bg:'#FEE2E2',color:'#991B1B', primary:true},
+  descartada:   {label:'Descartada',   bg:'#F3F4F6',color:'#9CA3AF', primary:true},
+  // Post-agendada
+  realizada:    {label:'Realizada',    bg:'#DBEAFE',color:'#1E40AF', secondary:true},
+  reagendada:   {label:'Reagendada',   bg:'#FEF9C3',color:'#854D0E', secondary:true},
+  no_realizada: {label:'No realizada', bg:'#FEE2E2',color:'#7F1D1D', secondary:true},
 };
+const _pwEstSecundarios=new Set(['realizada','reagendada','no_realizada']);
+const _pwEstExcluidos=new Set(['rechazada','descartada']);
 
 function _renderVentana(id){
   const el=document.getElementById('prensa-body');
@@ -17183,8 +17187,8 @@ function _renderVentana(id){
     // Confirmadas de solicitudes
     const solItems = sols
       .map((s,si)=>({s,si}))
-      .filter(({s})=>s.diaAsignado===dia && s.estado==='confirmada'||s.estado==='agendada')
-      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, done:false}));
+      .filter(({s})=>s.diaAsignado===dia && (s.estado==='agendada'||_pwEstSecundarios.has(s.estado)))
+      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, done:false}));
 
     // Notas libres
     const noteItems = (agendaNotes[dia]||[]).map((n,ni)=>({...n, tipo:'nota', ni}));
@@ -17200,7 +17204,8 @@ function _renderVentana(id){
             <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}</div>
             ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
           </div>
-          <span style="font-size:.65em;font-weight:700;background:#DCFCE7;color:#166534;border-radius:20px;padding:2px 7px;flex-shrink:0">Confirmada</span>
+          <button onclick="_pwAgSolHora('${id}',${item.si},this)" style="border:none;background:none;cursor:pointer;color:#065F46;font-size:.9em;padding:2px;flex-shrink:0" title="Cambiar hora"><i class="ti ti-clock"></i></button>
+          <span style="font-size:.65em;font-weight:700;background:${(_pwEstConfig[item.estSol]||_pwEstConfig.agendada).bg};color:${(_pwEstConfig[item.estSol]||_pwEstConfig.agendada).color};border-radius:20px;padding:2px 7px;flex-shrink:0">${(_pwEstConfig[item.estSol]||_pwEstConfig.agendada).label}</span>
           <button onclick="_pwEditSol('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#166534;font-size:.8em;padding:2px"><i class="ti ti-pencil"></i></button>
         </div>`;
       } else {
@@ -17247,7 +17252,7 @@ function _renderVentana(id){
     return ta<tb?-1:ta>tb?1:0;
   });
   // Calcular qué índices originales están en conflicto
-  const _activasIdx = sols.map((s,i)=>({s,i})).filter(({s})=>s.estado!=='cancelada'&&s.estado!=='descartada');
+  const _activasIdx = sols.map((s,i)=>({s,i})).filter(({s})=>!_pwEstExcluidos.has(s.estado));
   const _conflictoIdxs = new Set();
   const _mc={}; _activasIdx.forEach(({s,i})=>{if(s.medio)(_mc[s.medio]=_mc[s.medio]||[]).push(i);});
   Object.values(_mc).filter(a=>a.length>1).forEach(a=>a.forEach(i=>_conflictoIdxs.add(i)));
@@ -17277,7 +17282,7 @@ function _renderVentana(id){
         <div style="position:relative">
           <button onclick="_pwToggleEstPicker('${id}',${origSi},this)" style="font-size:.68em;font-weight:700;background:${est.bg};color:${est.color};border:none;border-radius:20px;padding:3px 9px;white-space:nowrap;cursor:pointer">${est.label} <i class="ti ti-chevron-down" style="font-size:.8em"></i></button>
           <div id="pw-estpick-${origSi}" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;padding:5px;min-width:130px">
-            ${Object.entries(_pwEstConfig).map(([k,v])=>`<button onclick="_pwSetEstRapido('${id}',${origSi},'${k}')" style="display:block;width:100%;text-align:left;padding:6px 10px;border:none;border-radius:8px;background:${s.estado===k?v.bg:'transparent'};color:${v.color};font-size:.78em;font-weight:700;cursor:pointer">${v.label}</button>`).join('')}
+            ${Object.entries(_pwEstConfig).filter(([k,v])=>v.primary||(v.secondary&&(s.estado==='agendada'||_pwEstSecundarios.has(s.estado)))).map(([k,v])=>`<button onclick="_pwSetEstRapido('${id}',${origSi},'${k}')" style="display:block;width:100%;text-align:left;padding:6px 10px;border:none;border-radius:8px;background:${s.estado===k?v.bg:'transparent'};color:${v.color};font-size:.78em;font-weight:700;cursor:pointer">${v.label}</button>`).join('')}
           </div>
         </div>
         <div style="display:flex;gap:4px">
@@ -17332,7 +17337,7 @@ function _renderVentana(id){
 
       <!-- Pedidos recibidos -->
       ${(()=>{
-        const activas=sols.filter(s=>s.estado!=='cancelada'&&s.estado!=='descartada');
+        const activas=sols.filter(s=>!_pwEstExcluidos.has(s.estado));
         // Duplicados por medio
         const medioCount={};
         activas.forEach(s=>{if(s.medio)medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
@@ -17427,7 +17432,7 @@ function _renderVentana(id){
         <div style="margin-bottom:12px">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">ESTADO</label>
           <div style="display:flex;flex-wrap:wrap;gap:6px" id="pw-sol-est-btns">
-            ${Object.entries(_pwEstConfig).map(([k,v])=>`<button type="button" onclick="_pwToggleEst('${k}')" id="pw-est-btn-${k}" style="padding:5px 13px;border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:transparent;color:${v.color}">${v.label}</button>`).join('')}
+            ${Object.entries(_pwEstConfig).filter(([k,v])=>v.primary).map(([k,v])=>`<button type="button" onclick="_pwToggleEst('${k}')" id="pw-est-btn-${k}" style="padding:5px 13px;border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:transparent;color:${v.color}">${v.label}</button>`).join('')}
           </div>
         </div>
 
@@ -17653,7 +17658,7 @@ window._pwAgendaAdd=function(vwId,date){
   _pwAgSelSi=null;
   const pick=document.getElementById('pw-ag-sol-pick');
   if(pick){
-    const visible=sols.map((s,i)=>({s,i})).filter(({s})=>s.estado!=='cancelada'&&s.estado!=='descartada');
+    const visible=sols.map((s,i)=>({s,i})).filter(({s})=>!_pwEstExcluidos.has(s.estado));
     const estOrd=['pendiente','recibida','confirmada','realizada','rechazada'];
     visible.sort((a,b)=>(estOrd.indexOf(a.s.estado)-estOrd.indexOf(b.s.estado)));
     const estLabel={pendiente:'🕐 Pendiente',recibida:'📩 Recibida',confirmada:'✅ Confirmada',realizada:'✔️ Realizada',rechazada:'❌ Rechazada'};
@@ -17670,7 +17675,7 @@ window._pwAgendaAdd=function(vwId,date){
       : '<div style="padding:12px;color:var(--muted);font-size:.85em;text-align:center">Sin solicitudes</div>';
   }
   // Mostrar tab sol si hay solicitudes, si no ir a nota
-  const hasPend=sols.some(s=>s.estado!=='cancelada'&&s.estado!=='descartada');
+  const hasPend=sols.some(s=>!_pwEstExcluidos.has(s.estado));
   _pwAgMode=''; _pwAgTab(hasPend?'sol':'nota');
   document.getElementById('pw-ag-modal').style.display='flex';
   setTimeout(()=>document.getElementById('pw-ag-hora').focus(),80);
@@ -17726,6 +17731,18 @@ window._pwAgendaGuardar=function(){
   _renderVentana(id);
 };
 
+window._pwAgSolHora=function(vwId, si, btn){
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  const s=vw.solicitudes?.[si]; if(!s) return;
+  const actual=s.horaAsignada||'';
+  const nueva=prompt('Hora (ej: 10:30):', actual);
+  if(nueva===null) return;
+  vw.solicitudes[si].horaAsignada=nueva.trim();
+  _pwSave(list);
+  _renderVentana(vwId);
+};
+
 function _pwShareText(text, title){
   if(navigator.share){
     navigator.share({title, text}).catch(()=>{});
@@ -17751,18 +17768,18 @@ function _pwBuildSolsText(id, waMarkdown){
   }
   txt+='\n';
   const grupos={
-    agendada:  '📅 Agendadas',
-    confirmada:'✅ Confirmadas',
-    pendiente: '🕐 Pendientes de ver-agendar',
-    recibida:  '📩 Recibidas',
-    rechazada: '❌ Rechazadas',
-    cancelada: '🚫 Canceladas',
-    realizada: '✔️ Realizadas',
-    descartada:'🚷 Descartadas luego de hablar con el medio',
+    agendada:     '📅 Agendadas',
+    realizada:    '✅ Realizadas',
+    reagendada:   '🔄 Reagendadas',
+    no_realizada: '❌ No realizadas',
+    aprobada:     '👍 Aprobadas',
+    recibida:     '📩 Recibidas',
+    rechazada:    '🚫 Rechazadas',
+    descartada:   '🚷 Descartadas luego de hablar con el medio',
   };
   // detect conflicts: medio duplicado entre activas
   const medioCount={};
-  sols.filter(s=>s.estado!=='cancelada'&&s.estado!=='descartada').forEach(s=>{if(s.medio)medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
+  sols.filter(s=>!_pwEstExcluidos.has(s.estado)).forEach(s=>{if(s.medio)medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
   Object.keys(grupos).forEach(est=>{
     const grupo=sols.filter(s=>s.estado===est);
     if(!grupo.length) return;
