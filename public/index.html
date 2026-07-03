@@ -17192,7 +17192,7 @@ function _renderVentana(id){
       <div style="flex:1;min-width:0">
         <div style="font-size:.88em;font-weight:800;color:var(--text)">${s.programa||'Sin programa'}</div>
         <div style="font-size:.75em;color:var(--muted);margin-top:1px">${s.medio||''}${s.recibido?` <span style="color:var(--hint);font-size:.9em">· recibido ${_pwFmtDate(s.recibido)}${s.recibidoHora?' '+s.recibidoHora+'h':''}</span>`:''}</div>
-        ${(s.diaSolicitado||s.disponibilidad)?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px"><i class="ti ti-calendar-question" style="font-size:.85em"></i> ${s.diaSolicitado||s.disponibilidad}</div>`:''}
+        ${(s.diaSolicitado||s.disponibilidad||s.franja)?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px"><i class="ti ti-calendar-question" style="font-size:.85em"></i> ${[s.diaSolicitado||s.disponibilidad,s.franja?({'mañana':'🌅 Mañana','mediodía':'☀️ Mediodía','tarde':'🌇 Tarde','noche':'🌙 Noche'}[s.franja]||s.franja):null].filter(Boolean).join(' · ')}</div>`:''}
         ${s.formato?`<div style="font-size:.7em;font-weight:700;color:#1D4ED8;margin-top:3px">${s.formato}</div>`:''}
         ${s.estado==='confirmada'&&s.diaAsignado?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}${s.formatoFinal?' · <span style="text-transform:capitalize">'+s.formatoFinal+'</span>':''}</div>`:''}
       </div>
@@ -17303,6 +17303,13 @@ function _renderVentana(id){
               ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','Lun–Vie','A definir'].map(d=>`<button type="button" onclick="_pwToggleDiaSol('${d}')" id="pw-diasol-${d.replace(/[^a-zA-Z]/g,'')}" style="padding:5px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${d}</button>`).join('')}
             </div>
             <input type="hidden" id="pw-sol-disp">
+          </div>
+          <div style="grid-column:span 2">
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FRANJA HORARIA</label>
+            <div style="display:flex;flex-wrap:wrap;gap:5px">
+              ${[['mañana','🌅'],['mediodía','☀️'],['tarde','🌇'],['noche','🌙']].map(([f,e])=>`<button type="button" onclick="_pwToggleFranja('${f}')" id="pw-franja-${f}" style="padding:5px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${e} ${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
+            </div>
+            <input type="hidden" id="pw-sol-franja">
           </div>
           <div>
             <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
@@ -17427,6 +17434,20 @@ function _pwRenderDiasSol(){
     btn.style.color       = on ? '#fff'        : '#64748B';
     btn.style.borderColor = on ? 'var(--cel)'  : '#CBD5E1';
   });
+}
+const _PW_FRANJAS = ['mañana','mediodía','tarde','noche'];
+let _pwFranjaSol = '';
+function _pwToggleFranja(f){
+  _pwFranjaSol = _pwFranjaSol===f ? '' : f;
+  _PW_FRANJAS.forEach(k=>{
+    const btn=document.getElementById('pw-franja-'+k);
+    if(!btn) return;
+    const on=_pwFranjaSol===k;
+    btn.style.background  = on ? 'var(--cel)' : 'transparent';
+    btn.style.color       = on ? '#fff'        : '#64748B';
+    btn.style.borderColor = on ? 'var(--cel)'  : '#CBD5E1';
+  });
+  document.getElementById('pw-sol-franja').value=_pwFranjaSol;
 }
 function _pwToggleEst(k){
   _pwSolEstado = k;
@@ -17660,6 +17681,7 @@ function _pwOpenSolModal(id,si){
   const diaEl=document.getElementById('pw-sol-dia'); if(diaEl) diaEl.value=s?.diaAsignado||'';
   const horaEl=document.getElementById('pw-sol-hora'); if(horaEl) horaEl.value=s?.horaAsignada||'';
   _pwFmtFinal=''; setTimeout(()=>_pwToggleFmtFinal(s?.formatoFinal||''),0);
+  _pwFranjaSol=''; setTimeout(()=>_pwToggleFranja(s?.franja||''),0);
   _pwToggleEst(s?.estado||'pendiente');
   document.getElementById('pw-sol-modal').style.display='flex';
 }
@@ -17675,6 +17697,7 @@ function _pwGuardarSol(){
     programa:document.getElementById('pw-sol-programa').value.trim(),
     medio:document.getElementById('pw-sol-medio').value.trim(),
     diaSolicitado:document.getElementById('pw-sol-disp').value.trim(),
+    franja:document.getElementById('pw-sol-franja').value.trim(),
     formato:document.getElementById('pw-sol-formato')?.value||'',
     estado,
     diaAsignado:estado==='confirmada'?(document.getElementById('pw-sol-dia')?.value||''):'',
