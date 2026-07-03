@@ -5797,6 +5797,9 @@ async function savePE(){
     document.getElementById('loc-av-'+enc)?.innerHTML !== undefined && (document.getElementById('loc-av-'+enc).innerHTML = imgTag);
     const modalAv = document.getElementById('loc-av-modal-'+enc);
     if(modalAv) modalAv.innerHTML = `<img src="${dataUrl}" style="width:64px;height:64px;border-radius:50%;object-fit:cover">`;
+    // Mayor grid card surgical update
+    const mayorAv = document.getElementById('mayor-av-'+enc);
+    if(mayorAv) mayorAv.innerHTML = `<img src="${dataUrl}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;object-position:top center">`;
     window.renderEstructura?.();
     window.renderJuveniles?.();
     window._savePhotoToServer?.(PE.num, dataUrl);
@@ -7755,11 +7758,20 @@ function renderJugadores(){
     const isRetirado=!!retirados[nom];
     const borderStyle=isLeyenda?'2px solid #F59E0B':'1px solid var(--border)';
     const cardBg=isRetirado?'var(--surface)':'var(--surface2)';
+    const mayorKey='mayor:'+_nameSlug(nom);
+    const mayorKeyEnc=encodeURIComponent(mayorKey);
+    const cachedPhoto=(window._estPhotoCache||{})[mayorKey]||photo;
     return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px;position:relative;${isRetirado?'opacity:.55':''}" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
       ${isRetirado?`<div style="position:absolute;top:8px;left:8px;background:#94A3B8;color:#fff;font-size:7.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`:''}
       <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:7px;right:8px;background:none;border:none;cursor:pointer;font-size:14px;padding:0;line-height:1;opacity:${isLeyenda?1:.25};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
       <div style="display:flex;align-items:center;gap:10px;${isRetirado?'margin-top:6px':''}">
-        <div style="flex-shrink:0;filter:${isRetirado?'grayscale(1)':''}">${avatar(nom, pos, photo, 42)}</div>
+        <div onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${isRetirado?'grayscale(1)':''}">
+          <div id="mayor-av-${mayorKeyEnc}">${avatar(nom, pos, cachedPhoto, 42)}</div>
+          ${cachedPhoto
+            ? `<div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>`
+            : `<div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 4px;font-size:7.5px;font-weight:800;white-space:nowrap;pointer-events:none;border:1px solid #fff">+ foto</div>`}
+          <input type="file" accept="image/*" id="mayor-inp-${mayorKeyEnc}" style="display:none" onchange="_mayorPhotoSelected('${mayorKeyEnc}',this)">
+        </div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:800;font-size:.88em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}</div>
           <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:1px;cursor:pointer" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
@@ -13418,7 +13430,7 @@ const SUB20_LISTA_LARGA = [
 // ── SELECCIÓN LOCAL ──────────────────────────────────────────────────────────
 const SELECCION_LOCAL = {
   resumen: {pj:3, g:1, e:2, p:0, gf:3, gc:2},
-  goleadores: [{nom:'Bruno Damiani',g:2},{nom:'Lucas Pino',g:1}],
+  goleadores: [{nom:'Bruno Damiani',g:2, tmId:1110360},{nom:'Lucas Pino',g:1, tmId:1072711}],
   partidos: [
     {
       id:'local-costa-rica-2024',
@@ -13446,29 +13458,29 @@ const SELECCION_LOCAL = {
         {name:'Sebastián Borges', rol:'Utilero'},
       ],
       convocados:[
-        {num:1,  nom:'Randall Rodríguez', club:'Peñarol',                  titular:true,  pos:'POR'},
-        {num:2,  nom:'Mauro Brasil',      club:'Cerro Largo',              titular:true},
+        {num:1,  nom:'Randall Rodríguez', club:'Peñarol',                  titular:true,  pos:'POR', tmId:657751},
+        {num:2,  nom:'Mauro Brasil',      club:'Cerro Largo',              titular:true, tmId:440835},
         {num:3,  nom:'Gian Allala',       club:'Boston River',             titular:true,  cap:true},
-        {num:4,  nom:'Agustín Amado',     club:'Boston River',             titular:true},
-        {num:5,  nom:'Franco Pizzichillo',club:'Montevideo City Torque',   titular:true},
+        {num:4,  nom:'Agustín Amado',     club:'Boston River',             titular:true, tmId:902024},
+        {num:5,  nom:'Franco Pizzichillo',club:'Montevideo City Torque',   titular:true, tmId:294889},
         {num:6,  nom:'Juan Rodríguez',    club:'Boston River', pais:'uy',   titular:true, tmId:1228231},
-        {num:7,  nom:'Emiliano Gómez',    club:'Boston River',             titular:true},
-        {num:8,  nom:'Facundo Bernal',    club:'Defensor Sporting',        titular:true},
-        {num:9,  nom:'Bruno Damiani',     club:'Boston River',             titular:true},
-        {num:10, nom:'Matías Fonseca',    club:'Montevideo Wanderers',     titular:true},
-        {num:11, nom:'Leandro Suhr',      club:'Boston River',             titular:true},
+        {num:7,  nom:'Emiliano Gómez',    club:'Boston River',             titular:true, tmId:577489},
+        {num:8,  nom:'Facundo Bernal',    club:'Defensor Sporting',        titular:true, tmId:898350},
+        {num:9,  nom:'Bruno Damiani',     club:'Boston River',             titular:true, tmId:1110360},
+        {num:10, nom:'Matías Fonseca',    club:'Montevideo Wanderers',     titular:true, tmId:538919},
+        {num:11, nom:'Leandro Suhr',      club:'Boston River',             titular:true, tmId:463444},
         {num:12, nom:'Mauro Silveira',    club:'Wanderers', pais:'uy',       titular:false, pos:'POR', tmId:465682},
-        {num:13, nom:'Nahuel Furtado',    club:'Cerro Largo',              titular:false},
-        {num:14, nom:'Francisco Ginella', club:'Nacional',                 titular:false},
-        {num:15, nom:'Guillermo Pereira', club:'Fénix',                    titular:false},
-        {num:16, nom:'Santiago Cartagena',club:'Deportivo Maldonado',      titular:false},
+        {num:13, nom:'Nahuel Furtado',    club:'Cerro Largo',              titular:false, tmId:653191},
+        {num:14, nom:'Francisco Ginella', club:'Nacional',                 titular:false, tmId:538091},
+        {num:15, nom:'Guillermo Pereira', club:'Fénix',                    titular:false, tmId:881652},
+        {num:16, nom:'Santiago Cartagena',club:'Deportivo Maldonado',      titular:false, tmId:657747},
         {num:17, nom:'',                  club:'',                         titular:false},
-        {num:18, nom:'Nahuel Acosta',     club:'Peñarol',                  titular:false},
-        {num:19, nom:'José Neris',        club:'Peñarol',                  titular:false},
-        {num:20, nom:'Walter Domínguez',  club:'Soriano OFI',              titular:false},
-        {num:21, nom:'Rodrigo Chagas',    club:'Nacional',                 titular:false},
-        {num:22, nom:'Andrew Teuten',     club:'Montevideo City Torque',   titular:false},
-        {num:23, nom:'Federico Bonilla',  club:'Nacional',                 titular:false, pos:'POR'},
+        {num:18, nom:'Nahuel Acosta',     club:'Peñarol',                  titular:false, tmId:678966},
+        {num:19, nom:'José Neris',        club:'Peñarol',                  titular:false, tmId:492315},
+        {num:20, nom:'Walter Domínguez',  club:'Soriano OFI',              titular:false, tmId:1269721},
+        {num:21, nom:'Rodrigo Chagas',    club:'Nacional',                 titular:false, tmId:1030317},
+        {num:22, nom:'Andrew Teuten',     club:'Montevideo City Torque',   titular:false, tmId:564735},
+        {num:23, nom:'Federico Bonilla',  club:'Nacional',                 titular:false, pos:'POR', tmId:1247306},
       ],
       noPrestaron:[],
     },
@@ -13481,7 +13493,7 @@ const SELECCION_LOCAL = {
       estadio:'Chase Stadium, Miami',
       arbitro:'Fernando Hernández (México)',
       tipo:'Amistoso',
-      goles:[{nom:'Lucas Pino',min:''}],
+      goles:[{nom:'Lucas Pino',min:'', tmId:1072711}],
       ct:[
         {name:'Diego Pérez',       rol:'Director técnico', dt:true},
         {name:'Ignacio González',  rol:'Ayudante técnico'},
@@ -13503,30 +13515,30 @@ const SELECCION_LOCAL = {
       ],
       convocados:[
         {num:1,  nom:'Mauro Silveira',        club:'Wanderers', pais:'uy',      titular:false, pos:'POR', tmId:465682},
-        {num:2,  nom:'Hugo Magallanes',       club:'Racing',                  titular:true},
-        {num:3,  nom:'Lucas Monzón',          club:'Racing',                  titular:true},
-        {num:4,  nom:'Tomás Viera',           club:'Nacional',                titular:false, nuevo:true},
-        {num:5,  nom:'Franco Pizzichillo',    club:'Montevideo City Torque',  titular:true},
-        {num:6,  nom:'Lucas Morales',         club:'Wanderers',               titular:false},
-        {num:7,  nom:'Winston Fernández',     club:'Fénix',                   titular:false},
-        {num:8,  nom:'Santiago Cartagena',    club:'Deportivo Maldonado',     titular:true},
-        {num:9,  nom:'Lucas Villalba',        club:'Montevideo City Torque',  titular:false},
-        {num:10, nom:'Nicolás Schiappacasse', club:'Miramar Misiones',        titular:false},
-        {num:11, nom:'Matías Fonseca',        club:'Wanderers',               titular:true},
-        {num:12, nom:'Guillermo De Amores',   club:'Peñarol',                 titular:true,  pos:'POR'},
-        {num:13, nom:'Guillermo Pereira',     club:'Fénix',                   titular:false},
-        {num:14, nom:'Agustín Alfaro',        club:'Fénix',                   titular:false},
-        {num:15, nom:'Facundo Pérez',         club:'Juventud de las Piedras', titular:false, nuevo:true},
-        {num:16, nom:'Lucas Pino',            club:'Montevideo City Torque',  titular:true,  nuevo:true, goles:1},
-        {num:17, nom:'Luciano Cosentino',     club:'Cerro Largo',             titular:true},
-        {num:18, nom:'Franco Catarozzi',      club:'Montevideo City Torque',  titular:true},
-        {num:19, nom:'Nicolás Fernández',     club:'Progreso',                titular:false},
-        {num:20, nom:'Gonzalo Larrazabal',    club:'Deportivo Maldonado',     titular:true},
-        {num:21, nom:'Diego Romero',          club:'Deportivo Maldonado',     titular:true},
-        {num:22, nom:'Alexander Machado',     club:'Miramar Misiones',        titular:false},
-        {num:23, nom:'Kevin Martínez',        club:'Danubio',                 titular:false, nuevo:true},
+        {num:2,  nom:'Hugo Magallanes',       club:'Racing',                  titular:true, tmId:340102},
+        {num:3,  nom:'Lucas Monzón',          club:'Racing',                  titular:true, tmId:796973},
+        {num:4,  nom:'Tomás Viera',           club:'Nacional',                titular:false, nuevo:true, tmId:1310240},
+        {num:5,  nom:'Franco Pizzichillo',    club:'Montevideo City Torque',  titular:true, tmId:294889},
+        {num:6,  nom:'Lucas Morales',         club:'Wanderers',               titular:false, tmId:809082},
+        {num:7,  nom:'Winston Fernández',     club:'Fénix',                   titular:false, tmId:402082},
+        {num:8,  nom:'Santiago Cartagena',    club:'Deportivo Maldonado',     titular:true, tmId:657747},
+        {num:9,  nom:'Lucas Villalba',        club:'Montevideo City Torque',  titular:false, tmId:874844},
+        {num:10, nom:'Nicolás Schiappacasse', club:'Miramar Misiones',        titular:false, tmId:345473},
+        {num:11, nom:'Matías Fonseca',        club:'Wanderers',               titular:true, tmId:538919},
+        {num:12, nom:'Guillermo De Amores',   club:'Peñarol',                 titular:true,  pos:'POR', tmId:189425},
+        {num:13, nom:'Guillermo Pereira',     club:'Fénix',                   titular:false, tmId:881652},
+        {num:14, nom:'Agustín Alfaro',        club:'Fénix',                   titular:false, tmId:745241},
+        {num:15, nom:'Facundo Pérez',         club:'Juventud de las Piedras', titular:false, nuevo:true, tmId:1066536},
+        {num:16, nom:'Lucas Pino',            club:'Montevideo City Torque',  titular:true,  nuevo:true, goles:1, tmId:1072711},
+        {num:17, nom:'Luciano Cosentino',     club:'Cerro Largo',             titular:true, tmId:1022058},
+        {num:18, nom:'Franco Catarozzi',      club:'Montevideo City Torque',  titular:true, tmId:833886},
+        {num:19, nom:'Nicolás Fernández',     club:'Progreso',                titular:false, tmId:400677},
+        {num:20, nom:'Gonzalo Larrazabal',    club:'Deportivo Maldonado',     titular:true, tmId:1115964},
+        {num:21, nom:'Diego Romero',          club:'Deportivo Maldonado',     titular:true, tmId:855489},
+        {num:22, nom:'Alexander Machado',     club:'Miramar Misiones',        titular:false, tmId:657755},
+        {num:23, nom:'Kevin Martínez',        club:'Danubio',                 titular:false, nuevo:true, tmId:1236474},
       ],
-      bajaron:[{nom:'Erik De Los Santos', club:'Racing'}],
+      bajaron:[{nom:'Erik De Los Santos', club:'Racing', tmId:577261}],
       noPrestaron:[],
     },
     {
@@ -13538,7 +13550,7 @@ const SELECCION_LOCAL = {
       estadio:'Estadio Atilio Paiva Olivera',
       arbitro:'Nicolás Varela',
       tipo:'Amistoso',
-      goles:[{nom:'Bruno Damiani',g:2},{nom:'Leandro Suhr',asistencia:true}],
+      goles:[{nom:'Bruno Damiani',g:2, tmId:1110360},{nom:'Leandro Suhr',asistencia:true, tmId:463444}],
       ct:[
         {name:'Diego Pérez',       rol:'Director técnico', dt:true},
         {name:'Álvaro Fernández',  rol:'Ayudante técnico'},
@@ -13560,32 +13572,32 @@ const SELECCION_LOCAL = {
       convocados:[
         {num:1,  nom:'Mauro Silveira',      club:'Wanderers', pais:'uy',     titular:true,  pos:'POR', tmId:465682},
         {num:2,  nom:'Leandro Costa',       club:'Boston River',           titular:true},
-        {num:3,  nom:'Lucas Monzón',        club:'Racing',                 titular:true},
-        {num:4,  nom:'Emiliano Ancheta',    club:'Danubio',                titular:false, entro:true},
-        {num:5,  nom:'Franco Pizzichillo',  club:'Montevideo City Torque', titular:true},
-        {num:6,  nom:'Mateo Acosta',        club:'Wanderers',              titular:false, entro:true},
-        {num:7,  nom:'Gonzalo Larrazabal',  club:'Deportivo Maldonado',    titular:true},
-        {num:8,  nom:'Diego Romero',        club:'Deportivo Maldonado',    titular:true},
-        {num:9,  nom:'Bruno Damiani',       club:'Boston River',           titular:true,  goles:2},
-        {num:10, nom:'Agustín Amado',       club:'Boston River',           titular:true},
-        {num:11, nom:'Leandro Suhr',        club:'Boston River',           titular:true,  asistencias:1},
+        {num:3,  nom:'Lucas Monzón',        club:'Racing',                 titular:true, tmId:796973},
+        {num:4,  nom:'Emiliano Ancheta',    club:'Danubio',                titular:false, entro:true, tmId:577406},
+        {num:5,  nom:'Franco Pizzichillo',  club:'Montevideo City Torque', titular:true, tmId:294889},
+        {num:6,  nom:'Mateo Acosta',        club:'Wanderers',              titular:false, entro:true, tmId:1332383},
+        {num:7,  nom:'Gonzalo Larrazabal',  club:'Deportivo Maldonado',    titular:true, tmId:1115964},
+        {num:8,  nom:'Diego Romero',        club:'Deportivo Maldonado',    titular:true, tmId:855489},
+        {num:9,  nom:'Bruno Damiani',       club:'Boston River',           titular:true,  goles:2, tmId:1110360},
+        {num:10, nom:'Agustín Amado',       club:'Boston River',           titular:true, tmId:902024},
+        {num:11, nom:'Leandro Suhr',        club:'Boston River',           titular:true,  asistencias:1, tmId:463444},
         {num:12, nom:'Santiago Silva Azambuja', club:'Boston River', pais:'uy', titular:false, pos:'POR', entro:true, tmId:733323},
-        {num:13, nom:'Ramiro Brazionis',    club:'Danubio',                titular:false, entro:true},
-        {num:14, nom:'Facundo Kidd',        club:'Plaza Colonia',          titular:false, entro:true},
-        {num:15, nom:'Lucas Morales',       club:'Wanderers',              titular:false, entro:true},
-        {num:16, nom:'Erik De Los Santos',  club:'Racing',                 titular:true},
-        {num:17, nom:'Luciano Cosentino',   club:'Cerro Largo',            titular:false, entro:true},
-        {num:18, nom:'Franco Catarozzi',    club:'Montevideo City Torque', titular:true,  cap:true},
-        {num:19, nom:'Nicolás Fernández',   club:'Progreso',               titular:false, entro:true},
-        {num:20, nom:'Juan De Los Santos',  club:'River Plate',            titular:false, entro:true},
-        {num:22, nom:'Alexander Machado',   club:'Miramar Misiones',       titular:false, entro:true},
-        {num:23, nom:'Francisco Tinaglini', club:'Montevideo City Torque', titular:false, pos:'POR'},
+        {num:13, nom:'Ramiro Brazionis',    club:'Danubio',                titular:false, entro:true, tmId:1102014},
+        {num:14, nom:'Facundo Kidd',        club:'Plaza Colonia',          titular:false, entro:true, tmId:458766},
+        {num:15, nom:'Lucas Morales',       club:'Wanderers',              titular:false, entro:true, tmId:809082},
+        {num:16, nom:'Erik De Los Santos',  club:'Racing',                 titular:true, tmId:577261},
+        {num:17, nom:'Luciano Cosentino',   club:'Cerro Largo',            titular:false, entro:true, tmId:1022058},
+        {num:18, nom:'Franco Catarozzi',    club:'Montevideo City Torque', titular:true,  cap:true, tmId:833886},
+        {num:19, nom:'Nicolás Fernández',   club:'Progreso',               titular:false, entro:true, tmId:400677},
+        {num:20, nom:'Juan De Los Santos',  club:'River Plate',            titular:false, entro:true, tmId:988662},
+        {num:22, nom:'Alexander Machado',   club:'Miramar Misiones',       titular:false, entro:true, tmId:657755},
+        {num:23, nom:'Francisco Tinaglini', club:'Montevideo City Torque', titular:false, pos:'POR', tmId:368693},
       ],
       noPrestaron:[
-        {nom:'Guzmán Rodríguez',  club:'Peñarol'},
-        {nom:'Damián García',     club:'Peñarol'},
-        {nom:'Leonardo Fernández',club:'Peñarol'},
-        {nom:'Maximiliano Silvera',club:'Peñarol'},
+        {nom:'Guzmán Rodríguez',  club:'Peñarol', tmId:732899},
+        {nom:'Damián García',     club:'Peñarol', tmId:1521054},
+        {nom:'Leonardo Fernández',club:'Peñarol', tmId:375610},
+        {nom:'Maximiliano Silvera',club:'Peñarol', tmId:365827},
       ],
     },
   ],
@@ -13702,6 +13714,20 @@ window._localOpenPartido = function(id){ _localPartidoId=id; renderSecLocal(); }
 window._localSetTab = function(t){ _localTab=t; renderSecLocal(); };
 window._localOpenJug = function(nom){ _showLocalJugModal(nom); };
 
+window._clickMayorPhoto = function(mayorKeyEnc){
+  const key=decodeURIComponent(mayorKeyEnc);
+  const existing=(window._estPhotoCache||{})[key];
+  if(existing){ openPE('est:'+key, existing); return; }
+  document.getElementById('mayor-inp-'+mayorKeyEnc)?.click();
+};
+window._mayorPhotoSelected = function(mayorKeyEnc, input){
+  const file=input.files[0]; if(!file) return;
+  const key=decodeURIComponent(mayorKeyEnc);
+  const reader=new FileReader();
+  reader.onload=ev=>openPE('est:'+key, ev.target.result);
+  reader.readAsDataURL(file);
+  input.value='';
+};
 window._clickLocalPhoto = function(photoKeyEnc){
   const photoKey = decodeURIComponent(photoKeyEnc);
   const existing = (window._estPhotoCache||{})[photoKey];
