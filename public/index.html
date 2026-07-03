@@ -16890,10 +16890,16 @@ function _renderListaPrensa(){
     <!-- Modal evento de agenda -->
     <div id="pw-ag-modal" style="display:none;position:fixed;inset:0;z-index:8100;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_pwAgendaCloseModal()">
       <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;padding:20px 20px 32px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-          <div id="pw-ag-modal-title" style="font-weight:900;font-size:1em">Agregar evento</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div id="pw-ag-modal-title" style="font-weight:900;font-size:1em">Agregar</div>
           <button onclick="_pwAgendaCloseModal()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
         </div>
+        <!-- Tipo toggle -->
+        <div style="display:flex;gap:4px;background:var(--surface);border-radius:10px;padding:3px;margin-bottom:14px">
+          <button id="pw-ag-tab-sol" onclick="_pwAgTab('sol')" style="flex:1;padding:7px;border:none;border-radius:8px;font-size:.82em;font-weight:800;cursor:pointer;background:var(--cel);color:#fff">📋 Solicitud</button>
+          <button id="pw-ag-tab-nota" onclick="_pwAgTab('nota')" style="flex:1;padding:7px;border:none;border-radius:8px;font-size:.82em;font-weight:800;cursor:pointer;background:transparent;color:var(--muted)">📝 Nota libre</button>
+        </div>
+        <!-- Hora + Fecha (siempre visible) -->
         <div style="display:grid;grid-template-columns:90px 1fr;gap:10px;margin-bottom:12px">
           <div>
             <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
@@ -16904,15 +16910,31 @@ function _renderListaPrensa(){
             <input id="pw-ag-date" type="date" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
           </div>
         </div>
-        <div style="margin-bottom:12px">
-          <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DESCRIPCIÓN</label>
-          <input id="pw-ag-txt" type="text" placeholder="ej: Rueda de prensa, Viaje a..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        <!-- Sección solicitud -->
+        <div id="pw-ag-sec-sol">
+          <div style="margin-bottom:12px">
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">SOLICITUD</label>
+            <select id="pw-ag-sol-pick" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box"></select>
+          </div>
+          <div>
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FORMATO</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap" id="pw-ag-fmt-btns">
+              ${['Presencial','Telefónica','Zoom','Móvil'].map(f=>`<button type="button" onclick="_pwAgFmt('${f}')" id="pw-agfmt-${f.toLowerCase().replace('ó','o')}" style="padding:6px 14px;border-radius:20px;font-size:.8em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${f}</button>`).join('')}
+            </div>
+          </div>
         </div>
-        <div style="margin-bottom:20px">
-          <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DETALLE (opcional)</label>
-          <input id="pw-ag-sub" type="text" placeholder="ej: Canal 10, sala de conferencias..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        <!-- Sección nota libre -->
+        <div id="pw-ag-sec-nota" style="display:none">
+          <div style="margin-bottom:12px">
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DESCRIPCIÓN</label>
+            <input id="pw-ag-txt" type="text" placeholder="ej: Rueda de prensa, Viaje a..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DETALLE (opcional)</label>
+            <input id="pw-ag-sub" type="text" placeholder="ej: Canal 10, sala de conferencias..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
         </div>
-        <button onclick="_pwAgendaGuardar()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar</button>
+        <button onclick="_pwAgendaGuardar()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer;margin-top:16px">Guardar</button>
       </div>
     </div>
 
@@ -17149,7 +17171,7 @@ function _renderVentana(id){
         <div style="font-size:.75em;color:var(--muted);margin-top:1px">${s.medio||''}${s.recibido?` <span style="color:var(--hint);font-size:.9em">· recibido ${_pwFmtDate(s.recibido)}${s.recibidoHora?' '+s.recibidoHora+'h':''}</span>`:''}</div>
         ${(s.diaSolicitado||s.disponibilidad)?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px"><i class="ti ti-calendar-question" style="font-size:.85em"></i> ${s.diaSolicitado||s.disponibilidad}</div>`:''}
         ${s.formato?`<div style="font-size:.7em;font-weight:700;color:#1D4ED8;margin-top:3px">${s.formato}</div>`:''}
-        ${s.estado==='confirmada'&&s.diaAsignado?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ Asignado: ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}</div>`:''}
+        ${s.estado==='confirmada'&&s.diaAsignado?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}${s.formatoFinal?' · <span style="text-transform:capitalize">'+s.formatoFinal+'</span>':''}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         <span style="font-size:.68em;font-weight:700;background:${est.bg};color:${est.color};border-radius:20px;padding:2px 9px;white-space:nowrap">${est.label}</span>
@@ -17260,7 +17282,7 @@ function _renderVentana(id){
 
         <div id="pw-sol-confirm-fields" style="display:none;background:var(--surface);border-radius:12px;padding:12px;margin-bottom:12px">
           <div style="font-size:.72em;font-weight:700;color:var(--muted);margin-bottom:10px">ASIGNAR A AGENDA</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
             <div>
               <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DÍA</label>
               <select id="pw-sol-dia" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.85em;background:#fff;color:var(--text)">
@@ -17271,6 +17293,12 @@ function _renderVentana(id){
             <div>
               <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
               <input id="pw-sol-hora" type="time" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.85em;box-sizing:border-box">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FORMATO</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap" id="pw-sol-fmt-btns">
+              ${['Presencial','Telefónica','Zoom','Móvil'].map(f=>`<button type="button" onclick="_pwToggleFmtFinal('${f}')" id="pw-fmt-${f.toLowerCase().replace('ó','o')}" style="padding:5px 12px;border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${f}</button>`).join('')}
             </div>
           </div>
         </div>
@@ -17295,7 +17323,20 @@ function _renderVentana(id){
 }
 
 let _pwSolEstado = 'pendiente';
+let _pwFmtFinal = '';
 let _pwDiasSol = [];
+const _PW_FMTS = ['presencial','telefónica','zoom','móvil'];
+function _pwToggleFmtFinal(f){
+  _pwFmtFinal = _pwFmtFinal===f?'':f;
+  _PW_FMTS.forEach(k=>{
+    const btn=document.getElementById('pw-fmt-'+k.replace(/[áéíóú]/g,c=>({á:'a',é:'e',í:'i',ó:'o',ú:'u'})[c]));
+    if(!btn)return;
+    const on=_pwFmtFinal===k;
+    btn.style.background=on?'var(--cel)':'transparent';
+    btn.style.color=on?'#fff':'#64748B';
+    btn.style.borderColor=on?'var(--cel)':'#CBD5E1';
+  });
+}
 const _PW_DIAS_SOL = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','Lun–Vie','A definir'];
 function _pwToggleDiaSol(d){
   const i=_pwDiasSol.indexOf(d);
@@ -17331,6 +17372,27 @@ function _pwBackList(){ _pwView='list'; _pwCurId=null; _renderListaPrensa(); }
 
 // ── Agenda helpers ──────────────────────────────────────────────────────────
 let _pwAgendaCtx={id:null,date:null,ni:null};
+let _pwAgMode='sol'; // 'sol' | 'nota'
+let _pwAgFmtVal='';
+function _pwAgTab(mode){
+  _pwAgMode=mode;
+  const isSol=mode==='sol';
+  document.getElementById('pw-ag-tab-sol').style.cssText=`flex:1;padding:7px;border:none;border-radius:8px;font-size:.82em;font-weight:800;cursor:pointer;background:${isSol?'var(--cel)':'transparent'};color:${isSol?'#fff':'var(--muted)'}`;
+  document.getElementById('pw-ag-tab-nota').style.cssText=`flex:1;padding:7px;border:none;border-radius:8px;font-size:.82em;font-weight:800;cursor:pointer;background:${!isSol?'var(--cel)':'transparent'};color:${!isSol?'#fff':'var(--muted)'}`;
+  document.getElementById('pw-ag-sec-sol').style.display=isSol?'block':'none';
+  document.getElementById('pw-ag-sec-nota').style.display=isSol?'none':'block';
+}
+function _pwAgFmt(f){
+  _pwAgFmtVal=_pwAgFmtVal===f?'':f;
+  ['Presencial','Telefónica','Zoom','Móvil'].forEach(k=>{
+    const btn=document.getElementById('pw-agfmt-'+k.toLowerCase().replace('ó','o'));
+    if(!btn)return;
+    const on=_pwAgFmtVal===k;
+    btn.style.background=on?'var(--cel)':'transparent';
+    btn.style.color=on?'#fff':'#64748B';
+    btn.style.borderColor=on?'var(--cel)':'#CBD5E1';
+  });
+}
 
 function _pwAgendaSaveData(vwId,date,items){
   const list=_pwGetAll();
@@ -17357,11 +17419,25 @@ window._pwAgendaDel=function(vwId,date,ni){
 };
 window._pwAgendaAdd=function(vwId,date){
   _pwAgendaCtx={id:vwId,date,ni:null};
-  document.getElementById('pw-ag-modal-title').textContent='Agregar evento';
+  _pwAgFmtVal='';
+  document.getElementById('pw-ag-modal-title').textContent='Agregar';
   document.getElementById('pw-ag-hora').value='';
   document.getElementById('pw-ag-txt').value='';
   document.getElementById('pw-ag-sub').value='';
   document.getElementById('pw-ag-date').value=date;
+  // Poblar picker de solicitudes sin confirmar
+  const vw=_pwGetAll().find(v=>v.id===vwId);
+  const sols=(vw?.solicitudes||[]);
+  const pick=document.getElementById('pw-ag-sol-pick');
+  if(pick){
+    const unconf=sols.map((s,i)=>({s,i})).filter(({s})=>s.estado!=='confirmada');
+    pick.innerHTML=unconf.length
+      ? unconf.map(({s,i})=>`<option value="${i}">${s.programa||'Sin nombre'}${s.medio?' — '+s.medio:''}</option>`).join('')
+      : '<option value="">— Sin pedidos pendientes —</option>';
+  }
+  // Mostrar tab sol si hay pendientes, si no ir a nota
+  const hasPend=sols.some(s=>s.estado!=='confirmada');
+  _pwAgMode=''; _pwAgTab(hasPend?'sol':'nota');
   document.getElementById('pw-ag-modal').style.display='flex';
   setTimeout(()=>document.getElementById('pw-ag-hora').focus(),80);
 };
@@ -17383,14 +17459,27 @@ window._pwAgendaCloseModal=function(){
 window._pwAgendaGuardar=function(){
   const {id,date,ni}=_pwAgendaCtx;
   const hora=document.getElementById('pw-ag-hora').value.trim();
-  const txt=document.getElementById('pw-ag-txt').value.trim();
-  const sub=document.getElementById('pw-ag-sub').value.trim();
   const newDate=document.getElementById('pw-ag-date').value;
-  if(!txt) return;
   const list=_pwGetAll();
   const vw=list.find(v=>v.id===id); if(!vw) return;
+
+  if(_pwAgMode==='sol'){
+    // Asignar solicitud existente como confirmada
+    const pick=document.getElementById('pw-ag-sol-pick');
+    const si=pick?parseInt(pick.value):NaN;
+    if(isNaN(si)||!vw.solicitudes?.[si]) return;
+    vw.solicitudes[si]={...vw.solicitudes[si], estado:'confirmada', diaAsignado:newDate, horaAsignada:hora, formatoFinal:_pwAgFmtVal};
+    _pwSave(list);
+    _pwAgendaCloseModal();
+    _renderVentana(id);
+    return;
+  }
+
+  // Nota libre
+  const txt=document.getElementById('pw-ag-txt').value.trim();
+  const sub=document.getElementById('pw-ag-sub').value.trim();
+  if(!txt) return;
   if(!vw.agenda) vw.agenda={};
-  // Si cambió la fecha (reprogramación), elimina del día original
   const origDate=date;
   if(ni!==null){
     const origItems=vw.agenda[origDate]||[];
@@ -17398,13 +17487,7 @@ window._pwAgendaGuardar=function(){
     vw.agenda[origDate]=origItems;
   }
   if(!vw.agenda[newDate]) vw.agenda[newDate]=[];
-  const item={hora,txt,sub,done:false};
-  if(ni!==null && newDate===origDate){
-    // mismo día: insert en posición original (ya fue spliced)
-    vw.agenda[newDate].push(item);
-  } else {
-    vw.agenda[newDate].push(item);
-  }
+  vw.agenda[newDate].push({hora,txt,sub,done:false});
   _pwSave(list);
   _pwAgendaCloseModal();
   _renderVentana(id);
@@ -17437,6 +17520,7 @@ function _pwOpenSolModal(id,si){
   document.getElementById('pw-sol-email').value=s?.emailPedido||'';
   const diaEl=document.getElementById('pw-sol-dia'); if(diaEl) diaEl.value=s?.diaAsignado||'';
   const horaEl=document.getElementById('pw-sol-hora'); if(horaEl) horaEl.value=s?.horaAsignada||'';
+  _pwFmtFinal=''; setTimeout(()=>_pwToggleFmtFinal(s?.formatoFinal||''),0);
   _pwToggleEst(s?.estado||'pendiente');
   document.getElementById('pw-sol-modal').style.display='flex';
 }
@@ -17456,6 +17540,7 @@ function _pwGuardarSol(){
     estado,
     diaAsignado:estado==='confirmada'?(document.getElementById('pw-sol-dia')?.value||''):'',
     horaAsignada:estado==='confirmada'?(document.getElementById('pw-sol-hora')?.value||''):'',
+    formatoFinal:estado==='confirmada'?_pwFmtFinal:'',
     notas:document.getElementById('pw-sol-notas').value.trim(),
     emailFrom:document.getElementById('pw-sol-email-from').value.trim(),
     emailPedido:document.getElementById('pw-sol-email').value.trim(),
