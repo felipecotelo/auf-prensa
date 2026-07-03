@@ -17179,7 +17179,13 @@ function _renderVentana(id){
   }).join('') : `<div style="color:var(--muted);font-size:.85em;padding:12px 0">Sin período definido</div>`;
 
   // ── Pedidos recibidos ──────────────────────────────────────────────────────
-  const pedidosHtml = sols.length ? sols.map((s,si)=>{
+  const solsOrdenadas = [...sols].map((s,i)=>({...s,_origIdx:i})).sort((a,b)=>{
+    const ta=(a.recibido||'9999-99-99')+'T'+(a.recibidoHora||'00:00');
+    const tb=(b.recibido||'9999-99-99')+'T'+(b.recibidoHora||'00:00');
+    return ta<tb?-1:ta>tb?1:0;
+  });
+  const pedidosHtml = sols.length ? solsOrdenadas.map((s,si)=>{
+    const origSi=s._origIdx;
     const est = _pwEstConfig[s.estado]||_pwEstConfig.pendiente;
     return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px">
       <div style="font-size:.78em;font-weight:900;color:var(--muted);min-width:22px;padding-top:2px">${si+1}.</div>
@@ -17193,9 +17199,9 @@ function _renderVentana(id){
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         <span style="font-size:.68em;font-weight:700;background:${est.bg};color:${est.color};border-radius:20px;padding:2px 9px;white-space:nowrap">${est.label}</span>
         <div style="display:flex;gap:4px">
-          ${s.emailPedido?`<button onclick="_pwVerEmail(${si})" style="border:none;background:#EFF6FF;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#1D4ED8"><i class="ti ti-mail"></i></button>`:''}
-          <button onclick="_pwEditSol('${id}',${si})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
-          <button onclick="_pwDelSol('${id}',${si})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
+          ${s.emailPedido?`<button onclick="_pwVerEmail(${origSi})" style="border:none;background:#EFF6FF;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#1D4ED8"><i class="ti ti-mail"></i></button>`:''}
+          <button onclick="_pwEditSol('${id}',${origSi})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
+          <button onclick="_pwDelSol('${id}',${origSi})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
         </div>
       </div>
     </div>`;
