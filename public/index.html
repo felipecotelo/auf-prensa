@@ -17249,13 +17249,30 @@ function _renderVentana(id){
 
       <!-- Pedidos recibidos -->
       ${(()=>{
+        const activas=sols.filter(s=>s.estado!=='cancelada');
+        // Duplicados por medio
         const medioCount={};
-        sols.forEach(s=>{if(s.medio&&s.estado!=='cancelada')medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
-        const dupes=Object.entries(medioCount).filter(([,c])=>c>1);
-        if(!dupes.length) return '';
+        activas.forEach(s=>{if(s.medio)medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
+        const dupesMedio=Object.entries(medioCount).filter(([,c])=>c>1);
+        // Coincidencias de día+franja entre distintos medios
+        const franjaMap={};
+        activas.forEach(s=>{
+          if(!s.franja) return;
+          const dias=(s.diaSolicitado||'').split(',').map(d=>d.trim()).filter(Boolean);
+          if(!dias.length) dias.push('?');
+          dias.forEach(d=>{
+            const k=d+'|'+s.franja;
+            if(!franjaMap[k]) franjaMap[k]={dia:d,franja:s.franja,medios:[]};
+            if(s.medio&&!franjaMap[k].medios.includes(s.medio)) franjaMap[k].medios.push(s.medio);
+          });
+        });
+        const dupesHorario=Object.values(franjaMap).filter(v=>v.medios.length>1);
+        const franjaLabel={'mañana':'🌅 Mañana','mediodía':'☀️ Mediodía','tarde':'🌇 Tarde','noche':'🌙 Noche'};
+        if(!dupesMedio.length&&!dupesHorario.length) return '';
         return `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:10px 14px;margin-bottom:12px">
           <div style="font-size:.75em;font-weight:800;color:#B91C1C;margin-bottom:4px"><i class="ti ti-alert-triangle"></i> SITUACIÓN A RESOLVER</div>
-          ${dupes.map(([m,c])=>`<div style="font-size:.78em;color:#991B1B;margin-top:2px">• <strong>${m}</strong> tiene ${c} solicitudes — el medio debe seleccionar 1</div>`).join('')}
+          ${dupesMedio.map(([m,c])=>`<div style="font-size:.78em;color:#991B1B;margin-top:2px">• <strong>${m}</strong> tiene ${c} solicitudes — debe seleccionar 1</div>`).join('')}
+          ${dupesHorario.map(v=>`<div style="font-size:.78em;color:#991B1B;margin-top:2px">• Coinciden el <strong>${v.dia}</strong> a la <strong>${franjaLabel[v.franja]||v.franja}</strong>: ${v.medios.join(', ')}</div>`).join('')}
         </div>`;
       })()}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
