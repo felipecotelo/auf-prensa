@@ -16979,11 +16979,17 @@ function _pwEnsureModal(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
         <div>
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">ENVIADO A PRENSA</label>
-          <input id="pw-envio" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <div style="display:grid;grid-template-columns:1fr auto;gap:6px">
+            <input id="pw-envio" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+            <input id="pw-envio-hora" type="time" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
         </div>
         <div>
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LÍMITE PEDIDOS</label>
-          <input id="pw-limite" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <div style="display:grid;grid-template-columns:1fr auto;gap:6px">
+            <input id="pw-limite" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+            <input id="pw-limite-hora" type="time" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          </div>
         </div>
       </div>
       <div style="margin-bottom:12px">
@@ -17020,8 +17026,10 @@ function _pwEditVentana(id){
   const ds=document.getElementById('pw-desde');   if(ds) ds.value=vw.desde||'';
   const hs=document.getElementById('pw-hasta');   if(hs) hs.value=vw.hasta||'';
   const fs=document.getElementById('pw-formato'); if(fs) fs.value=vw.formato||'';
-  const ev=document.getElementById('pw-envio');   if(ev) ev.value=vw.fechaEnvio||'';
-  const lm=document.getElementById('pw-limite');  if(lm) lm.value=vw.fechaLimite||'';
+  const ev=document.getElementById('pw-envio');       if(ev) ev.value=vw.fechaEnvio||'';
+  const evh=document.getElementById('pw-envio-hora'); if(evh) evh.value=vw.horaEnvio||'';
+  const lm=document.getElementById('pw-limite');      if(lm) lm.value=vw.fechaLimite||'';
+  const lmh=document.getElementById('pw-limite-hora');if(lmh) lmh.value=vw.horaLimite||'';
   const lk=document.getElementById('pw-link');    if(lk) lk.value=vw.linkNoticia||'';
   setTimeout(()=>_pwRenderReglasPills(Array.isArray(vw.reglas)?vw.reglas:[]),0);
   document.getElementById('pw-modal').style.display='flex';
@@ -17039,14 +17047,16 @@ function _pwGuardarNueva(){
   const hasta=document.getElementById('pw-hasta').value;
   const formato=document.getElementById('pw-formato').value;
   const fechaEnvio=document.getElementById('pw-envio').value;
+  const horaEnvio=document.getElementById('pw-envio-hora').value;
   const fechaLimite=document.getElementById('pw-limite').value;
+  const horaLimite=document.getElementById('pw-limite-hora').value;
   const linkNoticia=document.getElementById('pw-link').value.trim();
   const reglas=[..._pwReglasSelected];
   const list=_pwGetAll();
   if(_pwEditingId){
     const idx=list.findIndex(v=>v.id===_pwEditingId);
     if(idx>=0){
-      list[idx]={...list[idx], personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'', desde, hasta, formato, fechaEnvio, fechaLimite, linkNoticia, reglas};
+      list[idx]={...list[idx], personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'', desde, hasta, formato, fechaEnvio, horaEnvio, fechaLimite, horaLimite, linkNoticia, reglas};
       _pwSave(list);
     }
     _pwCloseModal();
@@ -17208,8 +17218,8 @@ function _renderVentana(id){
         <div style="font-size:.78em;color:var(--muted)">${vw.personRol||''}</div>
         <div style="font-size:.8em;color:var(--muted);margin-top:6px"><i class="ti ti-calendar" style="font-size:.9em"></i> ${periodo}</div>
         ${vw.fechaEnvio||vw.fechaLimite?`<div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap">
-          ${vw.fechaEnvio?`<div style="font-size:.75em;color:var(--muted)"><span style="font-weight:700;color:var(--text)">Enviado a prensa:</span> ${_pwFmtDate(vw.fechaEnvio)}</div>`:''}
-          ${vw.fechaLimite?`<div style="font-size:.75em;color:var(--muted)"><span style="font-weight:700;color:var(--text)">Límite pedidos:</span> ${_pwFmtDate(vw.fechaLimite)}</div>`:''}
+          ${vw.fechaEnvio?`<div style="font-size:.75em;color:var(--muted)"><span style="font-weight:700;color:var(--text)">Enviado a prensa:</span> ${_pwFmtDate(vw.fechaEnvio)}${vw.horaEnvio?' '+vw.horaEnvio+'h':''}</div>`:''}
+          ${vw.fechaLimite?`<div style="font-size:.75em;color:var(--muted)"><span style="font-weight:700;color:var(--text)">Límite pedidos:</span> ${_pwFmtDate(vw.fechaLimite)}${vw.horaLimite?' '+vw.horaLimite+'h':''}</div>`:''}
         </div>`:''}
         ${vw.linkNoticia?`<div style="margin-top:8px"><a href="${vw.linkNoticia}" target="_blank" rel="noopener" style="font-size:.75em;color:var(--cel);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-external-link" style="font-size:.9em"></i> Ver noticia / comunicado</a></div>`:''}
         ${(()=>{const rs=Array.isArray(vw.reglas)?vw.reglas:(vw.reglas?[vw.reglas]:[]);if(!rs.length)return'';const labels=rs.map(id=>_PW_REGLAS_DEF.find(r=>r.id===id)?.label||id);return`<div style="margin-top:10px;background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:7px 10px;font-size:.75em;color:#713F12"><i class="ti ti-shield-check" style="font-size:.9em;margin-right:4px"></i><strong>Reglas:</strong> ${labels.join(' · ')}</div>`;})()}
