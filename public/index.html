@@ -7341,64 +7341,73 @@ function jTogglePosEdit(nom,el){
   setTimeout(()=>document.addEventListener('click',function h(){picker.remove();document.removeEventListener('click',h);},{once:true}),0);
 }
 function jToggleClubEdit(nom,el){
-  const existing=document.getElementById('jclubpicker-'+nom.replace(/[^a-zA-Z]/g,'_'));
-  if(existing){existing.remove();return;}
+  // Si ya hay un editor abierto en este elemento, lo cierra
+  const pid='jclubpicker-'+nom.replace(/[^a-zA-Z]/g,'_');
+  if(document.getElementById(pid)){document.getElementById(pid).remove();return;}
   document.querySelectorAll('.jclub-picker').forEach(x=>x.remove());
   const jd=JUGADORES[nom]||{};
   const savedClub=getJugClub()[nom];
   const savedPais=getJugClub()[nom+'__pais'];
   const curClub=savedClub!==undefined?savedClub:(jd.club||'');
   const curPais=savedPais!==undefined?savedPais:(jd.pais||'');
-  const flags=['🇺🇾','🇧🇷','🇦🇷','🇪🇸','🇮🇹','🇬🇧','🏴󠁧󠁢󠁥󠁮󠁧󠁿','🇩🇪','🇫🇷','🇵🇹','🇲🇽','🇺🇸','🇸🇦','🇷🇺','🇹🇷','🇯🇵','🇳🇱','🇧🇪','🇨🇱','🇨🇴'];
-  const picker=document.createElement('div');
-  picker.id='jclubpicker-'+nom.replace(/[^a-zA-Z]/g,'_');
-  picker.className='jclub-picker';
-  picker.style.cssText='position:absolute;z-index:999;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:10px;display:flex;flex-direction:column;gap:8px;min-width:220px;left:0;top:100%;margin-top:3px';
-  let selFlag=curPais;
-  const flagGrid=document.createElement('div');
-  flagGrid.style.cssText='display:flex;flex-wrap:wrap;gap:3px';
-  flags.forEach(f=>{
-    const btn=document.createElement('button');
-    btn.textContent=f;btn.dataset.flag=f;
-    btn.style.cssText=`font-size:16px;padding:2px 4px;border-radius:5px;cursor:pointer;border:1.5px solid ${f===selFlag?'var(--cel-dk,#1E4D8C)':'transparent'};background:${f===selFlag?'#EFF6FF':'transparent'}`;
-    btn.onclick=e=>{e.stopPropagation();selFlag=f;flagGrid.querySelectorAll('button').forEach(b=>{b.style.borderColor=b.dataset.flag===f?'var(--cel-dk,#1E4D8C)':'transparent';b.style.background=b.dataset.flag===f?'#EFF6FF':'transparent';});};
-    flagGrid.appendChild(btn);
+
+  // Editor inline: reemplaza el elemento de texto
+  const row=document.createElement('div');
+  row.id=pid; row.className='jclub-picker';
+  row.style.cssText='display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:2px';
+  row.onclick=e=>e.stopPropagation();
+
+  const COUNTRIES=[
+    {flag:'🇺🇾',iso:'uy'},{flag:'🇧🇷',iso:'br'},{flag:'🇦🇷',iso:'ar'},
+    {flag:'🇪🇸',iso:'es'},{flag:'🇮🇹',iso:'it'},{flag:'🇬🇧',iso:'gb'},
+    {flag:'🇩🇪',iso:'de'},{flag:'🇫🇷',iso:'fr'},{flag:'🇵🇹',iso:'pt'},
+    {flag:'🇲🇽',iso:'mx'},{flag:'🇺🇸',iso:'us'},{flag:'🇸🇦',iso:'sa'},
+    {flag:'🇷🇺',iso:'ru'},{flag:'🇹🇷',iso:'tr'},{flag:'🇳🇱',iso:'nl'},
+    {flag:'🇧🇪',iso:'be'},{flag:'🇨🇱',iso:'cl'},{flag:'🇨🇴',iso:'co'},
+    {flag:'🇵🇾',iso:'py'},{flag:'🇯🇵',iso:'jp'},{flag:'🇶🇦',iso:'qa'},
+  ];
+  const sel=document.createElement('select');
+  sel.style.cssText='font-size:13px;border:1px solid var(--border);border-radius:6px;padding:3px 4px;background:var(--surface);cursor:pointer;max-width:54px';
+  COUNTRIES.forEach(c=>{
+    const o=document.createElement('option');
+    o.value=c.flag; o.textContent=c.flag;
+    if(c.flag===curPais) o.selected=true;
+    sel.appendChild(o);
   });
-  picker.appendChild(flagGrid);
+
   const inp=document.createElement('input');
   inp.value=curClub==='—'?'':curClub;
-  inp.placeholder='Nombre del club…';
-  inp.style.cssText='border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;font-family:inherit;outline:none;width:100%;box-sizing:border-box';
-  picker.appendChild(inp);
-  const btns=document.createElement('div');
-  btns.style.cssText='display:flex;gap:4px';
+  inp.placeholder='Club…';
+  inp.style.cssText='flex:1;min-width:80px;border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:11px;font-family:inherit;outline:none';
+
   const save=document.createElement('button');
-  save.textContent='Guardar';
-  save.style.cssText='flex:1;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:var(--cel-dk,#1E4D8C);color:#fff;font-family:inherit';
+  save.textContent='✓';
+  save.style.cssText='border:none;background:var(--cel-dk,#1E4D8C);color:#fff;border-radius:5px;padding:3px 7px;font-size:11px;font-weight:700;cursor:pointer';
   save.onclick=e=>{
     e.stopPropagation();
     setJugClub(nom,inp.value.trim()||'—');
-    if(selFlag) setJugClub(nom+'__pais',selFlag);
-    picker.remove();renderJugadores();
+    setJugClub(nom+'__pais',sel.value);
+    row.remove(); renderJugadores();
   };
-  const noclub=document.createElement('button');
-  noclub.textContent='Sin club';
-  noclub.style.cssText='padding:5px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
-  noclub.onclick=e=>{e.stopPropagation();setJugClub(nom,'—');setJugClub(nom+'__pais','');picker.remove();renderJugadores();};
-  btns.appendChild(save);btns.appendChild(noclub);
+
+  const cancel=document.createElement('button');
+  cancel.textContent='✕';
+  cancel.style.cssText='border:none;background:none;color:var(--muted);font-size:11px;cursor:pointer;padding:2px 4px';
+  cancel.onclick=e=>{e.stopPropagation();row.remove();};
+
+  row.appendChild(sel); row.appendChild(inp); row.appendChild(save); row.appendChild(cancel);
+
   if(getJugClub()[nom]!==undefined){
     const reset=document.createElement('button');
-    reset.textContent='↺';reset.title='Restaurar original';
-    reset.style.cssText='padding:5px 7px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
-    reset.onclick=e=>{e.stopPropagation();clearJugClub(nom);clearJugClub(nom+'__pais');picker.remove();renderJugadores();};
-    btns.appendChild(reset);
+    reset.textContent='↺'; reset.title='Restaurar original';
+    reset.style.cssText='border:none;background:none;color:var(--muted);font-size:11px;cursor:pointer;padding:2px 4px';
+    reset.onclick=e=>{e.stopPropagation();clearJugClub(nom);clearJugClub(nom+'__pais');row.remove();renderJugadores();};
+    row.appendChild(reset);
   }
-  picker.appendChild(btns);
-  el.style.position='relative';
-  el.appendChild(picker);
-  inp.focus();inp.select();
-  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();save.click();}if(e.key==='Escape'){picker.remove();}});
-  setTimeout(()=>document.addEventListener('click',function h(ev){if(!picker.contains(ev.target)){picker.remove();document.removeEventListener('click',h);}},{once:false,capture:true}),0);
+
+  el.insertAdjacentElement('afterend', row);
+  inp.focus(); inp.select();
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();save.click();}if(e.key==='Escape'){row.remove();}});
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // TÉCNICOS
