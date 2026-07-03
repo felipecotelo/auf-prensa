@@ -17187,7 +17187,7 @@ function _renderVentana(id){
   const pedidosHtml = sols.length ? solsOrdenadas.map((s,si)=>{
     const origSi=s._origIdx;
     const est = _pwEstConfig[s.estado]||_pwEstConfig.pendiente;
-    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px">
+    return `<div data-buscar="${(s.programa||'').toLowerCase()} ${(s.medio||'').toLowerCase()}" style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px">
       <div style="font-size:.78em;font-weight:900;color:var(--muted);min-width:22px;padding-top:2px">${si+1}.</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:.88em;font-weight:800;color:var(--text)">${s.programa||'Sin programa'}</div>
@@ -17262,7 +17262,11 @@ function _renderVentana(id){
         <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Pedidos recibidos · ${sols.length}</div>
         <button onclick="_pwNuevaSol('${id}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:none;border-radius:9px;background:var(--cel);color:#fff;font-size:.78em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar pedido</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:7px">${pedidosHtml}</div>
+      ${sols.length>4?`<div style="position:relative;margin-bottom:10px">
+        <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85em;pointer-events:none"></i>
+        <input id="pw-sol-buscar" oninput="_pwFiltrarSols()" placeholder="Buscar por programa o medio…" style="width:100%;padding:8px 12px 8px 30px;border:1.5px solid var(--border);border-radius:10px;font-size:.84em;box-sizing:border-box;outline:none">
+      </div>`:''}
+      <div id="pw-sols-list" style="display:flex;flex-direction:column;gap:7px">${pedidosHtml}</div>
     </div>
 
     <!-- Modal pedido -->
@@ -17384,6 +17388,12 @@ function _pwRenderReglasPills(selected){
       <span style="font-size:.84em;color:${on?'var(--cel)':'#475569'};font-weight:${on?'700':'400'}">${r.label}</span>
     </div>`;
   }).join('');
+}
+function _pwFiltrarSols(){
+  const q=(document.getElementById('pw-sol-buscar')?.value||'').toLowerCase().trim();
+  document.querySelectorAll('#pw-sols-list [data-buscar]').forEach(el=>{
+    el.style.display=(!q||el.dataset.buscar.includes(q))?'':'none';
+  });
 }
 function _pwToggleRegla(id){
   if(_pwReglasSelected.includes(id)) _pwReglasSelected=_pwReglasSelected.filter(x=>x!==id);
