@@ -17228,16 +17228,28 @@ function _renderVentana(id){
 
     const rows = allItems.map(item=>{
       if(item.tipo==='sol'){
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:#F0FDF4;margin-bottom:6px">
-          <span style="font-size:.7em;color:#065F46;font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}</div>
-            ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
-            ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
+        const estCfg=_pwEstConfig[item.estSol]||_pwEstConfig.recibida;
+        const rowId=`pw-agrow-${id}-${item.si}`;
+        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:#F0FDF4;margin-bottom:6px;cursor:pointer">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:.7em;color:#065F46;font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}</div>
+              ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
+              ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
+            </div>
+            <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${estCfg.label}</span>
+            <button onclick="event.stopPropagation();_pwAgSolQuit('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:2px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
           </div>
-          <button onclick="_pwAgSolHora('${id}',${item.si},this)" style="border:none;background:none;cursor:pointer;color:#065F46;font-size:.9em;padding:2px;flex-shrink:0" title="Cambiar hora"><i class="ti ti-clock"></i></button>
-          <span style="font-size:.65em;font-weight:700;background:${(_pwEstConfig[item.estSol]||_pwEstConfig.recibida).bg};color:${(_pwEstConfig[item.estSol]||_pwEstConfig.recibida).color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${(_pwEstConfig[item.estSol]||_pwEstConfig.recibida).label}</span>
-          <button onclick="_pwAgSolQuit('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:2px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
+          <div id="${rowId}-edit" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #BBF7D0" onclick="event.stopPropagation()">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <input id="${rowId}-hora" type="text" value="${item.hora||''}" placeholder="10:00" maxlength="5" style="width:62px;padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.82em;text-align:center;outline:none" onclick="event.stopPropagation()">
+              <select id="${rowId}-est" style="flex:1;min-width:100px;padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;background:#fff;outline:none">
+                ${Object.entries(_pwEstConfig).filter(([k,v])=>v.primary||(v.secondary&&(_pwEstSecundarios.has(item.estSol)||item.estSol==='agendada'))).map(([k,v])=>`<option value="${k}" ${k===item.estSol?'selected':''}>${v.label}</option>`).join('')}
+              </select>
+              <button onclick="event.stopPropagation();_pwAgRowSave('${id}',${item.si},'${rowId}')" style="border:none;background:#065F46;color:#fff;border-radius:7px;padding:5px 10px;font-size:.78em;font-weight:700;cursor:pointer">✓ Guardar</button>
+            </div>
+          </div>
         </div>`;
       } else {
         const done=item.done;
@@ -17798,6 +17810,24 @@ window._pwConflictNotaDel=function(id,i){
   vw.conflictNotas?.splice(i,1);
   _pwSave(list);
   _renderVentana(id);
+};
+
+window._pwAgRowToggle=function(vwId, si, rowId){
+  const edit=document.getElementById(rowId+'-edit');
+  if(!edit) return;
+  const open=edit.style.display==='none';
+  edit.style.display=open?'block':'none';
+  if(open) setTimeout(()=>document.getElementById(rowId+'-hora')?.focus(),30);
+};
+window._pwAgRowSave=function(vwId, si, rowId){
+  const hora=(document.getElementById(rowId+'-hora')?.value||'').trim();
+  const estado=document.getElementById(rowId+'-est')?.value||'';
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  if(!vw.solicitudes?.[si]) return;
+  vw.solicitudes[si]={...vw.solicitudes[si], horaAsignada:hora};
+  if(estado) vw.solicitudes[si].estado=estado;
+  _pwSave(list);
+  _renderVentana(vwId);
 };
 
 window._pwAgSolQuit=function(vwId, si){
