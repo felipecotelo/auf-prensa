@@ -17390,12 +17390,11 @@ function _renderVentana(id){
         activas.forEach(s=>{
           if(!s.franja) return;
           const dias=(s.diaSolicitado||'').split(',').map(d=>d.trim()).filter(Boolean);
-          if(!dias.length) dias.push('?');
-          dias.forEach(d=>{
-            const k=d+'|'+s.franja;
-            if(!franjaMap[k]) franjaMap[k]={dia:d,franja:s.franja,medios:[]};
-            if(s.medio&&!franjaMap[k].medios.includes(s.medio)) franjaMap[k].medios.push(s.medio);
-          });
+          // Solo es conflicto si pidió un único día (sin opciones alternativas)
+          if(dias.length!==1) return;
+          const k=dias[0]+'|'+s.franja;
+          if(!franjaMap[k]) franjaMap[k]={dia:dias[0],franja:s.franja,medios:[]};
+          if(s.medio&&!franjaMap[k].medios.includes(s.medio)) franjaMap[k].medios.push(s.medio);
         });
         const dupesHorario=Object.values(franjaMap).filter(v=>v.medios.length>1);
         const franjaLabel={'mañana':'🌅 Mañana','mediodía':'☀️ Mediodía','tarde':'🌇 Tarde','noche':'🌙 Noche'};
