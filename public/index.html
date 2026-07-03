@@ -13597,6 +13597,9 @@ let _localJugNom = null;
 
 const KLocalPos  = 'auf4_local_pos';
 const KLocalClub = 'auf4_local_club';
+const KLocalTmId = 'auf4_local_tmid';
+const getLocalTmId = ()=>stor.get(KLocalTmId,{});
+const setLocalTmId = (nom,id)=>{const d=getLocalTmId();if(id)d[nom]=id;else delete d[nom];stor.set(KLocalTmId,d);};
 const getLocalPos  = ()=>stor.get(KLocalPos,{});
 const getLocalClub = ()=>stor.get(KLocalClub,{});
 const setLocalPos  = (nom,pos)=>{const d=getLocalPos();if(pos==null)delete d[nom];else d[nom]=pos;stor.set(KLocalPos,d);};
@@ -13620,6 +13623,17 @@ window._cycleLocalPos = function(nomSafe,ev){
   const ov = document.getElementById('local-jug-overlay');
   if(ov && parseFloat(ov.style.opacity)>0) _showLocalJugModal(nomSafe);
 };
+window._localEditTmId = function(nom, photoKeyEnc){
+  const cur = getLocalTmId()[nom]||'';
+  const row = document.getElementById('loc-tm-row-'+photoKeyEnc);
+  if(!row) return;
+  row.innerHTML=`<div style="display:flex;align-items:center;gap:6px;width:100%">
+    <input id="loc-tm-inp" value="${cur}" placeholder="ID de Transfermarkt (ej: 465682)" style="flex:1;font-size:.82em;padding:7px 10px;border:1.5px solid var(--cel);border-radius:8px;outline:none">
+    <button onclick="(function(){var v=document.getElementById('loc-tm-inp').value.trim().replace(/\\D/g,'');setLocalTmId('${nom}',v);window._showLocalJugModal('${nom}');})()" style="border:none;background:var(--cel);color:#fff;border-radius:7px;padding:7px 11px;font-size:.78em;font-weight:700;cursor:pointer">✓</button>
+    <button onclick="window._showLocalJugModal('${nom}')" style="border:none;background:none;color:var(--muted);font-size:.9em;cursor:pointer">✕</button>
+  </div>`;
+  setTimeout(()=>document.getElementById('loc-tm-inp')?.focus(),30);
+};
 window._localEditClub = function(nom,el){
   const d=getLocalClub();
   const cur=(d[nom]?.actual||'').trim();
@@ -13641,7 +13655,7 @@ function _getLocalStats(){
   SELECCION_LOCAL.partidos.forEach(p=>{
     p.convocados.forEach(c=>{
       if(!c.nom) return;
-      if(!stats[c.nom]) stats[c.nom] = {nom:c.nom, pj:0, g:0, a:0, partidos:[], clubActual:c.club, pos:c.pos||null};
+      if(!stats[c.nom]) stats[c.nom] = {nom:c.nom, pj:0, g:0, a:0, partidos:[], clubActual:c.club, pos:c.pos||null, tmId:c.tmId||null};
       if(c.pos) stats[c.nom].pos = c.pos;
       if(c.titular || c.entro){
         stats[c.nom].pj++;
@@ -13660,6 +13674,8 @@ function _getLocalStats(){
     if(clubOvr[s.nom]?.actual) s.clubActual = clubOvr[s.nom].actual;
     s.clubPais = clubOvr[s.nom]?.pais||'uy';
     s.exClubs = clubOvr[s.nom]?.exClubs||[];
+    const tmOvr = getLocalTmId();
+    if(tmOvr[s.nom]) s.tmId = tmOvr[s.nom];
   });
   return stats;
 }
@@ -13751,6 +13767,18 @@ function _showLocalJugModal(nom){
   const exClubsHtml = s.exClubs?.length
     ? `<div style="font-size:.68em;color:rgba(255,255,255,.45);margin-top:2px">${s.exClubs.map(c=>`ex ${c}`).join(' · ')}</div>`
     : '';
+  const tmId = s.tmId;
+  const tmLink = tmId ? `https://www.transfermarkt.es/x/profil/spieler/${tmId}` : null;
+  const tmHtml = `<div id="loc-tm-row-${photoKeyEnc}" style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;display:flex;align-items:center;gap:8px">
+    ${tmLink
+      ? `<a href="${tmLink}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;gap:7px;text-decoration:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:8px 11px">
+           <img src="https://www.transfermarkt.es/favicon.ico" style="width:16px;height:16px;border-radius:3px" onerror="this.style.display='none'">
+           <span style="font-size:.78em;font-weight:700;color:#1D4ED8">Ver en Transfermarkt</span>
+           <i class="ti ti-external-link" style="font-size:.8em;color:#94a3b8;margin-left:auto"></i>
+         </a>`
+      : `<span style="flex:1;font-size:.78em;color:var(--muted)">Sin link de Transfermarkt</span>`}
+    <button onclick="_localEditTmId('${nomSafe}','${photoKeyEnc}')" style="border:none;background:var(--surface);border-radius:8px;padding:7px 10px;font-size:.75em;cursor:pointer;color:var(--muted);flex-shrink:0"><i class="ti ti-pencil"></i></button>
+  </div>`;
   const body = `
     <div style="background:linear-gradient(135deg,#0f2744 0%,#1e3a5f 100%);padding:20px 16px 18px">
       <div style="display:flex;align-items:center;gap:14px">
@@ -13768,8 +13796,9 @@ function _showLocalJugModal(nom){
       </div>
     </div>
     <div style="padding:16px 16px 32px">
-      <div style="display:flex;gap:8px;margin-bottom:20px">${statChips}</div>
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Partidos</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">${statChips}</div>
+      ${tmHtml}
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;margin-top:16px">Partidos</div>
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:0 14px">
         ${partidoRows||'<div style="padding:14px 0;color:var(--muted);font-size:13px">Sin partidos jugados</div>'}
       </div>
@@ -13846,11 +13875,13 @@ function _renderLocalHome(){
       ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
       : `<span style="font-size:.9em;font-weight:900;color:#fff">${initials}</span>`;
     return `<div onclick="_localOpenJug('${nomSafe}')" style="cursor:pointer;background:var(--card,#fff);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-      <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" title="Cambiar foto" style="position:relative;flex-shrink:0;cursor:pointer">
-        <div id="loc-av-${photoKeyEnc}" style="width:50px;height:50px;border-radius:50%;background:${posColor};display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" title="Agregar foto" style="position:relative;flex-shrink:0;cursor:pointer">
+        <div id="loc-av-${photoKeyEnc}" style="width:50px;height:50px;border-radius:50%;background:${posColor};display:flex;align-items:center;justify-content:center;overflow:hidden;${!photo?'border:2px dashed rgba(255,255,255,.4)':''}">
           ${avatarInner}
         </div>
-        <div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>
+        ${photo
+          ? `<div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>`
+          : `<div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#1D4ED8;color:#fff;border-radius:6px;padding:1px 5px;font-size:8px;font-weight:800;white-space:nowrap;pointer-events:none;border:1.5px solid #fff">+ foto</div>`}
         <input type="file" accept="image/*" id="loc-inp-${photoKeyEnc}" style="display:none" onchange="_localPhotoSelected('${photoKeyEnc}',this)">
       </div>
       <div style="flex:1;min-width:0">
