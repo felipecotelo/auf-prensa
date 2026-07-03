@@ -17188,7 +17188,7 @@ function _renderVentana(id){
     const solItems = sols
       .map((s,si)=>({s,si}))
       .filter(({s})=>s.diaAsignado===dia && (s.estado==='agendada'||_pwEstSecundarios.has(s.estado)))
-      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, done:false}));
+      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', done:false}));
 
     // Notas libres
     const noteItems = (agendaNotes[dia]||[]).map((n,ni)=>({...n, tipo:'nota', ni}));
@@ -17203,10 +17203,11 @@ function _renderVentana(id){
           <div style="flex:1;min-width:0">
             <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}</div>
             ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
+            ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
           </div>
           <button onclick="_pwAgSolHora('${id}',${item.si},this)" style="border:none;background:none;cursor:pointer;color:#065F46;font-size:.9em;padding:2px;flex-shrink:0" title="Cambiar hora"><i class="ti ti-clock"></i></button>
-          <span style="font-size:.65em;font-weight:700;background:${(_pwEstConfig[item.estSol]||_pwEstConfig.agendada).bg};color:${(_pwEstConfig[item.estSol]||_pwEstConfig.agendada).color};border-radius:20px;padding:2px 7px;flex-shrink:0">${(_pwEstConfig[item.estSol]||_pwEstConfig.agendada).label}</span>
-          <button onclick="_pwEditSol('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#166534;font-size:.8em;padding:2px"><i class="ti ti-pencil"></i></button>
+          <span style="font-size:.65em;font-weight:700;background:${(_pwEstConfig[item.estSol]||_pwEstConfig.recibida).bg};color:${(_pwEstConfig[item.estSol]||_pwEstConfig.recibida).color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${(_pwEstConfig[item.estSol]||_pwEstConfig.recibida).label}</span>
+          <button onclick="_pwAgSolQuit('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:2px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
         </div>`;
       } else {
         const done=item.done;
@@ -17703,10 +17704,10 @@ window._pwAgendaGuardar=function(){
   const vw=list.find(v=>v.id===id); if(!vw) return;
 
   if(_pwAgMode==='sol'){
-    // Asignar solicitud existente como confirmada
+    // Asignar solicitud a día (sin cambiar estado)
     const si=_pwAgSelSi;
     if(si===null||si===undefined||!vw.solicitudes?.[si]) return;
-    vw.solicitudes[si]={...vw.solicitudes[si], estado:'agendada', diaAsignado:newDate, horaAsignada:hora, formatoFinal:_pwAgFmtVal};
+    vw.solicitudes[si]={...vw.solicitudes[si], diaAsignado:newDate, horaAsignada:hora, formatoFinal:_pwAgFmtVal};
     _pwSave(list);
     _pwAgendaCloseModal();
     _renderVentana(id);
@@ -17729,6 +17730,15 @@ window._pwAgendaGuardar=function(){
   _pwSave(list);
   _pwAgendaCloseModal();
   _renderVentana(id);
+};
+
+window._pwAgSolQuit=function(vwId, si){
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  if(!vw.solicitudes?.[si]) return;
+  vw.solicitudes[si]={...vw.solicitudes[si], diaAsignado:'', horaAsignada:'', formatoFinal:''};
+  _pwSave(list);
+  _renderVentana(vwId);
 };
 
 window._pwAgSolHora=function(vwId, si, btn){
