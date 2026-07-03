@@ -17372,10 +17372,17 @@ function _renderVentana(id){
       </div>
 
       <!-- Compartir -->
-      <div style="display:flex;gap:8px;margin-bottom:6px">
-        <button onclick="_pwShareSolsWA('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid #25D366;border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:#25D366"><i class="ti ti-brand-whatsapp" style="font-size:1.1em"></i>WhatsApp</button>
-        <button onclick="_pwShareSolsMail('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid #1D8ECD;border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:#1D8ECD"><i class="ti ti-mail" style="font-size:1.1em"></i>Mail</button>
-        <button onclick="_pwShareAgenda('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:var(--muted)"><i class="ti ti-calendar" style="font-size:1em"></i>Agenda</button>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px">Compartir solicitudes</div>
+        <div style="display:flex;gap:7px">
+          <button onclick="_pwShareSolsWA('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border:1.5px solid #25D366;border-radius:9px;background:#fff;cursor:pointer;font-size:.78em;font-weight:800;color:#25D366"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>
+          <button onclick="_pwShareSolsMail('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border:1.5px solid #1D8ECD;border-radius:9px;background:#fff;cursor:pointer;font-size:.78em;font-weight:800;color:#1D8ECD"><i class="ti ti-mail"></i>Mail</button>
+        </div>
+        <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:10px;margin-bottom:7px">Compartir agenda</div>
+        <div style="display:flex;gap:7px">
+          <button onclick="_pwShareAgendaWA('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border:1.5px solid #25D366;border-radius:9px;background:#fff;cursor:pointer;font-size:.78em;font-weight:800;color:#25D366"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>
+          <button onclick="_pwShareAgendaMail('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border:1.5px solid #1D8ECD;border-radius:9px;background:#fff;cursor:pointer;font-size:.78em;font-weight:800;color:#1D8ECD"><i class="ti ti-mail"></i>Mail</button>
+        </div>
       </div>
 
       <!-- Pedidos recibidos -->
@@ -17921,31 +17928,39 @@ window._pwShareSolsMail=function(id){
   window.open('mailto:?subject='+subject+'&body='+encodeURIComponent(txt),'_blank');
 };
 
-window._pwShareAgenda=function(id){
-  const vw=_pwGetAll().find(v=>v.id===id); if(!vw) return;
+function _pwBuildAgendaText(id, waMarkdown){
+  const vw=_pwGetAll().find(v=>v.id===id); if(!vw) return '';
   const dias=_pwDiasEnPeriodo(vw.desde,vw.hasta);
   const sols=vw.solicitudes||[];
   const agNotes=vw.agenda||{};
   const desdeStr=_pwFmtDate(vw.desde), hastaStr=_pwFmtDate(vw.hasta);
   const periodo=(desdeStr||hastaStr)?`${desdeStr}${hastaStr&&hastaStr!==desdeStr?' al '+hastaStr:''}`:'';
-  let txt=`📅 Agenda — ${vw.personLabel}\n`;
-  if(periodo) txt+=`${periodo}\n\n`;
+  let txt = waMarkdown ? `📅 *Agenda — ${vw.personLabel}*\n` : `📅 Agenda — ${vw.personLabel}\n`;
+  if(periodo) txt += waMarkdown ? `_${periodo}_\n\n` : `${periodo}\n\n`;
+  let hasContent=false;
   dias.forEach(dia=>{
-    const solItems=sols.filter(s=>s.diaAsignado===dia&&s.estado==='confirmada'||s.estado==='agendada').map(s=>({hora:s.horaAsignada||'',txt:s.programa||'Solicitud',sub:(s.medio?s.medio:'')+(s.formatoFinal?' · '+s.formatoFinal:''),tipo:'sol'}));
+    const solItems=sols.filter(s=>s.diaAsignado===dia && !_pwEstExcluidos.has(s.estado))
+      .map(s=>({hora:s.horaAsignada||'',txt:s.programa||'Solicitud',sub:(s.medio||'')+(s.formatoFinal?' · '+s.formatoFinal:''),tipo:'sol'}));
     const noteItems=(agNotes[dia]||[]).map(n=>({hora:n.hora||'',txt:n.txt||'',sub:n.sub||'',tipo:'nota'}));
     const all=[...solItems,...noteItems].sort((a,b)=>(a.hora||'ZZ').localeCompare(b.hora||'ZZ'));
     if(!all.length) return;
-    txt+=`${_pwFmtDiaLargo(dia).toUpperCase()}\n`;
+    hasContent=true;
+    txt += waMarkdown ? `\n*${_pwFmtDiaLargo(dia).toUpperCase()}*\n` : `\n${_pwFmtDiaLargo(dia).toUpperCase()}\n`;
     all.forEach(item=>{
-      let line=`  ${item.hora?item.hora+' ':''} ${item.tipo==='sol'?'🎙️':'📌'} ${item.txt}`;
-      if(item.sub) line+=` (${item.sub})`;
+      let line=`  ${item.hora?item.hora+' ':''}${item.tipo==='sol'?'🎙️':'📌'} `;
+      line += waMarkdown && item.tipo==='sol' ? `*${item.txt}*` : item.txt;
+      if(item.sub) line += waMarkdown ? ` _${item.sub}_` : ` (${item.sub})`;
       txt+=line+'\n';
     });
-    txt+='\n';
   });
-  if(!dias.some(dia=>(sols.some(s=>s.diaAsignado===dia&&s.estado==='confirmada'||s.estado==='agendada')||(agNotes[dia]||[]).length)))
-    txt+='Sin eventos agendados todavía.\n';
-  _pwShareText(txt.trim(), `Agenda — ${vw.personLabel}`);
+  if(!hasContent) txt+='Sin eventos agendados todavía.\n';
+  return txt.trim();
+}
+window._pwShareAgenda=function(id){ window.open('mailto:?subject='+encodeURIComponent('Agenda')+'&body='+encodeURIComponent(_pwBuildAgendaText(id,false)),'_blank'); };
+window._pwShareAgendaWA=function(id){ window.open('whatsapp://send?text='+encodeURIComponent(_pwBuildAgendaText(id,true)),'_blank'); };
+window._pwShareAgendaMail=function(id){
+  const vw=_pwGetAll().find(v=>v.id===id); if(!vw) return;
+  window.open('mailto:?subject='+encodeURIComponent(`Agenda — ${vw.personLabel}`)+'&body='+encodeURIComponent(_pwBuildAgendaText(id,false)),'_blank');
 };
 
 function _pwDeleteVentana(id){
