@@ -16986,9 +16986,13 @@ function _pwEnsureModal(){
           <input id="pw-limite" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
       </div>
-      <div style="margin-bottom:20px">
+      <div style="margin-bottom:12px">
         <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LINK NOTICIA / COMUNICADO</label>
         <input id="pw-link" type="url" placeholder="https://..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">REGLAS <span style="font-weight:400;color:var(--hint)">(opcional)</span></label>
+        <textarea id="pw-reglas" rows="2" placeholder="ej: 1 sola nota por medio · Sin preguntas sobre Copa América" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
       </div>
       <button id="pw-modal-btn" onclick="_pwGuardarNueva()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Crear ventana</button>
     </div>
@@ -17018,6 +17022,7 @@ function _pwEditVentana(id){
   const ev=document.getElementById('pw-envio');   if(ev) ev.value=vw.fechaEnvio||'';
   const lm=document.getElementById('pw-limite');  if(lm) lm.value=vw.fechaLimite||'';
   const lk=document.getElementById('pw-link');    if(lk) lk.value=vw.linkNoticia||'';
+  const rg=document.getElementById('pw-reglas');  if(rg) rg.value=vw.reglas||'';
   document.getElementById('pw-modal').style.display='flex';
 }
 function _pwCloseModal(){
@@ -17035,11 +17040,12 @@ function _pwGuardarNueva(){
   const fechaEnvio=document.getElementById('pw-envio').value;
   const fechaLimite=document.getElementById('pw-limite').value;
   const linkNoticia=document.getElementById('pw-link').value.trim();
+  const reglas=document.getElementById('pw-reglas').value.trim();
   const list=_pwGetAll();
   if(_pwEditingId){
     const idx=list.findIndex(v=>v.id===_pwEditingId);
     if(idx>=0){
-      list[idx]={...list[idx], personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'', desde, hasta, formato, fechaEnvio, fechaLimite, linkNoticia};
+      list[idx]={...list[idx], personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'', desde, hasta, formato, fechaEnvio, fechaLimite, linkNoticia, reglas};
       _pwSave(list);
     }
     _pwCloseModal();
@@ -17049,7 +17055,7 @@ function _pwGuardarNueva(){
   const vw={
     id:_pwId(),
     personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'',
-    desde, hasta, formato, fechaEnvio, fechaLimite, linkNoticia, solicitudes:[],
+    desde, hasta, formato, fechaEnvio, fechaLimite, linkNoticia, reglas, solicitudes:[],
   };
   list.push(vw); _pwSave(list);
   _pwCloseModal();
@@ -17205,6 +17211,7 @@ function _renderVentana(id){
           ${vw.fechaLimite?`<div style="font-size:.75em;color:var(--muted)"><span style="font-weight:700;color:var(--text)">Límite pedidos:</span> ${_pwFmtDate(vw.fechaLimite)}</div>`:''}
         </div>`:''}
         ${vw.linkNoticia?`<div style="margin-top:8px"><a href="${vw.linkNoticia}" target="_blank" rel="noopener" style="font-size:.75em;color:var(--cel);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px"><i class="ti ti-external-link" style="font-size:.9em"></i> Ver noticia / comunicado</a></div>`:''}
+        ${vw.reglas?`<div style="margin-top:10px;background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:7px 10px;font-size:.75em;color:#713F12"><i class="ti ti-shield-check" style="font-size:.9em;margin-right:4px"></i><strong>Reglas:</strong> ${vw.reglas}</div>`:''}
       </div>
       <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:20px;margin-top:4px">
         <button onclick="_pwEditVentana('${id}')" style="border:none;background:none;cursor:pointer;color:var(--cel);font-size:.75em;font-weight:700;padding:4px 0"><i class="ti ti-pencil"></i> Editar ventana</button>
@@ -17217,7 +17224,23 @@ function _renderVentana(id){
         ${agendaHtml}
       </div>
 
+      <!-- Compartir -->
+      <div style="display:flex;gap:8px;margin-bottom:20px">
+        <button onclick="_pwShareSols('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:var(--text)"><i class="ti ti-share" style="font-size:1em;color:var(--cel)"></i>Solicitudes</button>
+        <button onclick="_pwShareAgenda('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:var(--text)"><i class="ti ti-share" style="font-size:1em;color:#22C55E"></i>Agenda</button>
+      </div>
+
       <!-- Pedidos recibidos -->
+      ${(()=>{
+        const medioCount={};
+        sols.forEach(s=>{if(s.medio&&s.estado!=='cancelada')medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
+        const dupes=Object.entries(medioCount).filter(([,c])=>c>1);
+        if(!dupes.length) return '';
+        return `<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:10px 14px;margin-bottom:12px">
+          <div style="font-size:.75em;font-weight:800;color:#B91C1C;margin-bottom:4px"><i class="ti ti-alert-triangle"></i> SITUACIÓN A RESOLVER</div>
+          ${dupes.map(([m,c])=>`<div style="font-size:.78em;color:#991B1B;margin-top:2px">• <strong>${m}</strong> tiene ${c} solicitudes — el medio debe seleccionar 1</div>`).join('')}
+        </div>`;
+      })()}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Pedidos recibidos · ${sols.length}</div>
         <button onclick="_pwNuevaSol('${id}')" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border:none;border-radius:9px;background:var(--cel);color:#fff;font-size:.78em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Agregar pedido</button>
@@ -17491,6 +17514,71 @@ window._pwAgendaGuardar=function(){
   _pwSave(list);
   _pwAgendaCloseModal();
   _renderVentana(id);
+};
+
+function _pwShareText(text, title){
+  if(navigator.share){
+    navigator.share({title, text}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(text).then(()=>toast('📋 Copiado al portapapeles')).catch(()=>{
+      const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('📋 Copiado al portapapeles');
+    });
+  }
+}
+
+window._pwShareSols=function(id){
+  const vw=_pwGetAll().find(v=>v.id===id); if(!vw) return;
+  const sols=vw.solicitudes||[];
+  const desdeStr=_pwFmtDate(vw.desde), hastaStr=_pwFmtDate(vw.hasta);
+  const periodo=(desdeStr||hastaStr)?`${desdeStr}${hastaStr&&hastaStr!==desdeStr?' al '+hastaStr:''}`:'';
+  let txt=`📋 Solicitudes — ${vw.personLabel}\n`;
+  if(periodo) txt+=`📅 ${periodo}\n`;
+  if(vw.reglas) txt+=`📌 Reglas: ${vw.reglas}\n`;
+  txt+=`\n`;
+  const grupos={confirmada:'✅ Confirmadas',pendiente:'🕐 Pendientes',recibida:'📩 Recibidas',rechazada:'❌ Rechazadas',cancelada:'🚫 Canceladas',realizada:'✔️ Realizadas'};
+  const medioCount={};
+  sols.forEach(s=>{if(s.medio&&s.estado!=='cancelada')medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
+  Object.keys(grupos).forEach(est=>{
+    const grupo=sols.filter(s=>s.estado===est);
+    if(!grupo.length) return;
+    txt+=`${grupos[est]} (${grupo.length})\n`;
+    grupo.forEach(s=>{
+      const dupe=s.medio&&medioCount[s.medio]>1?' ⚠️':'';
+      let line=`• ${s.programa||'Sin nombre'}`;
+      if(s.medio) line+=` — ${s.medio}${dupe}`;
+      if(s.estado==='confirmada'&&s.diaAsignado) line+=` · ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' '+s.horaAsignada:''}${s.formatoFinal?' · '+s.formatoFinal:''}`;
+      txt+=line+'\n';
+    });
+    txt+='\n';
+  });
+  _pwShareText(txt.trim(), `Solicitudes — ${vw.personLabel}`);
+};
+
+window._pwShareAgenda=function(id){
+  const vw=_pwGetAll().find(v=>v.id===id); if(!vw) return;
+  const dias=_pwDiasEnPeriodo(vw.desde,vw.hasta);
+  const sols=vw.solicitudes||[];
+  const agNotes=vw.agenda||{};
+  const desdeStr=_pwFmtDate(vw.desde), hastaStr=_pwFmtDate(vw.hasta);
+  const periodo=(desdeStr||hastaStr)?`${desdeStr}${hastaStr&&hastaStr!==desdeStr?' al '+hastaStr:''}`:'';
+  let txt=`📅 Agenda — ${vw.personLabel}\n`;
+  if(periodo) txt+=`${periodo}\n\n`;
+  dias.forEach(dia=>{
+    const solItems=sols.filter(s=>s.diaAsignado===dia&&s.estado==='confirmada').map(s=>({hora:s.horaAsignada||'',txt:s.programa||'Solicitud',sub:(s.medio?s.medio:'')+(s.formatoFinal?' · '+s.formatoFinal:''),tipo:'sol'}));
+    const noteItems=(agNotes[dia]||[]).map(n=>({hora:n.hora||'',txt:n.txt||'',sub:n.sub||'',tipo:'nota'}));
+    const all=[...solItems,...noteItems].sort((a,b)=>(a.hora||'ZZ').localeCompare(b.hora||'ZZ'));
+    if(!all.length) return;
+    txt+=`${_pwFmtDiaLargo(dia).toUpperCase()}\n`;
+    all.forEach(item=>{
+      let line=`  ${item.hora?item.hora+' ':''} ${item.tipo==='sol'?'🎙️':'📌'} ${item.txt}`;
+      if(item.sub) line+=` (${item.sub})`;
+      txt+=line+'\n';
+    });
+    txt+='\n';
+  });
+  if(!dias.some(dia=>(sols.some(s=>s.diaAsignado===dia&&s.estado==='confirmada')||(agNotes[dia]||[]).length)))
+    txt+='Sin eventos agendados todavía.\n';
+  _pwShareText(txt.trim(), `Agenda — ${vw.personLabel}`);
 };
 
 function _pwDeleteVentana(id){
