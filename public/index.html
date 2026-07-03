@@ -16975,7 +16975,7 @@ function _pwEnsureAgModal(){
       <div id="pw-ag-sec-sol">
         <div style="margin-bottom:12px">
           <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">SOLICITUD</label>
-          <select id="pw-ag-sol-pick" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box"></select>
+          <div id="pw-ag-sol-pick" style="max-height:200px;overflow-y:auto;border:1.5px solid var(--border);border-radius:10px;background:#fff"></div>
         </div>
         <div>
           <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FORMATO</label>
@@ -17587,6 +17587,14 @@ function _pwBackList(){ _pwView='list'; _pwCurId=null; _renderListaPrensa(); }
 let _pwAgendaCtx={id:null,date:null,ni:null};
 let _pwAgMode='sol'; // 'sol' | 'nota'
 let _pwAgFmtVal='';
+let _pwAgSelSi=null;
+window._pwAgSelSol=function(si,el){
+  _pwAgSelSi=si;
+  document.querySelectorAll('#pw-ag-sol-pick [data-si]').forEach(r=>{
+    r.style.background=r.dataset.si==si?'#EFF6FF':'';
+    r.style.fontWeight=r.dataset.si==si?'800':'';
+  });
+};
 function _pwAgTab(mode){
   _pwAgMode=mode;
   const isSol=mode==='sol';
@@ -17638,18 +17646,30 @@ window._pwAgendaAdd=function(vwId,date){
   document.getElementById('pw-ag-txt').value='';
   document.getElementById('pw-ag-sub').value='';
   document.getElementById('pw-ag-date').value=date;
-  // Poblar picker de solicitudes sin confirmar
+  // Poblar lista de solicitudes
   const vw=_pwGetAll().find(v=>v.id===vwId);
   const sols=(vw?.solicitudes||[]);
+  _pwAgSelSi=null;
   const pick=document.getElementById('pw-ag-sol-pick');
   if(pick){
-    const unconf=sols.map((s,i)=>({s,i})).filter(({s})=>s.estado!=='confirmada');
-    pick.innerHTML=unconf.length
-      ? unconf.map(({s,i})=>`<option value="${i}">${s.programa||'Sin nombre'}${s.medio?' — '+s.medio:''}</option>`).join('')
-      : '<option value="">— Sin pedidos pendientes —</option>';
+    const visible=sols.map((s,i)=>({s,i})).filter(({s})=>s.estado!=='cancelada'&&s.estado!=='descartada');
+    const estOrd=['pendiente','recibida','confirmada','realizada','rechazada'];
+    visible.sort((a,b)=>(estOrd.indexOf(a.s.estado)-estOrd.indexOf(b.s.estado)));
+    const estLabel={pendiente:'🕐 Pendiente',recibida:'📩 Recibida',confirmada:'✅ Confirmada',realizada:'✔️ Realizada',rechazada:'❌ Rechazada'};
+    const estColor={pendiente:'#92400e',recibida:'#1D4ED8',confirmada:'#166534',realizada:'#4B5563',rechazada:'#991B1B'};
+    const estBg={pendiente:'#FEF3C7',recibida:'#DBEAFE',confirmada:'#DCFCE7',realizada:'#F3F4F6',rechazada:'#FEE2E2'};
+    pick.innerHTML=visible.length ? visible.map(({s,i})=>`
+      <div onclick="_pwAgSelSol(${i},this)" data-si="${i}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.85em;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.programa||'Sin nombre'}</div>
+          ${s.medio?`<div style="font-size:.72em;color:var(--muted)">${s.medio}</div>`:''}
+        </div>
+        <span style="font-size:.68em;font-weight:700;background:${estBg[s.estado]||'#F3F4F6'};color:${estColor[s.estado]||'#4B5563'};border-radius:20px;padding:2px 8px;white-space:nowrap">${estLabel[s.estado]||s.estado}</span>
+      </div>`).join('')
+      : '<div style="padding:12px;color:var(--muted);font-size:.85em;text-align:center">Sin solicitudes</div>';
   }
-  // Mostrar tab sol si hay pendientes, si no ir a nota
-  const hasPend=sols.some(s=>s.estado!=='confirmada');
+  // Mostrar tab sol si hay solicitudes, si no ir a nota
+  const hasPend=sols.some(s=>s.estado!=='cancelada'&&s.estado!=='descartada');
   _pwAgMode=''; _pwAgTab(hasPend?'sol':'nota');
   document.getElementById('pw-ag-modal').style.display='flex';
   setTimeout(()=>document.getElementById('pw-ag-hora').focus(),80);
@@ -17678,9 +17698,8 @@ window._pwAgendaGuardar=function(){
 
   if(_pwAgMode==='sol'){
     // Asignar solicitud existente como confirmada
-    const pick=document.getElementById('pw-ag-sol-pick');
-    const si=pick?parseInt(pick.value):NaN;
-    if(isNaN(si)||!vw.solicitudes?.[si]) return;
+    const si=_pwAgSelSi;
+    if(si===null||si===undefined||!vw.solicitudes?.[si]) return;
     vw.solicitudes[si]={...vw.solicitudes[si], estado:'confirmada', diaAsignado:newDate, horaAsignada:hora, formatoFinal:_pwAgFmtVal};
     _pwSave(list);
     _pwAgendaCloseModal();
