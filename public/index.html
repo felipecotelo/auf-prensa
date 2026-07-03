@@ -17153,7 +17153,8 @@ function _pwFmtDiaLargo(d){ const dt=new Date(d+'T00:00:00'); return _DIAS_ES[dt
 const _pwEstConfig={
   recibida:   {label:'Recibida',   bg:'#F3E8FF',color:'#7C3AED'},
   pendiente:  {label:'Pendiente',  bg:'#FEF3C7',color:'#92400E'},
-  confirmada: {label:'Confirmada', bg:'#D1FAE5',color:'#065F46'},
+  agendada:   {label:'Agendada',   bg:'#D1FAE5',color:'#065F46'},
+  confirmada: {label:'Confirmada', bg:'#DCFCE7',color:'#14532D'},
   rechazada:  {label:'Rechazada',  bg:'#FEE2E2',color:'#991B1B'},
   realizada:  {label:'Realizada',  bg:'#DBEAFE',color:'#1E40AF'},
   cancelada:  {label:'Cancelada',  bg:'#F3F4F6',color:'#6B7280'},
@@ -17182,7 +17183,7 @@ function _renderVentana(id){
     // Confirmadas de solicitudes
     const solItems = sols
       .map((s,si)=>({s,si}))
-      .filter(({s})=>s.diaAsignado===dia && s.estado==='confirmada')
+      .filter(({s})=>s.diaAsignado===dia && s.estado==='confirmada'||s.estado==='agendada')
       .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, done:false}));
 
     // Notas libres
@@ -17270,7 +17271,7 @@ function _renderVentana(id){
         <div style="font-size:.75em;color:var(--muted);margin-top:1px">${s.medio||''}${s.recibido?` <span style="color:var(--hint);font-size:.9em">· recibido ${_pwFmtDate(s.recibido)}${s.recibidoHora?' '+s.recibidoHora+'h':''}</span>`:''}</div>
         ${(!isDesc&&(s.diaSolicitado||s.disponibilidad||s.franja))?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px"><i class="ti ti-calendar-question" style="font-size:.85em"></i> ${[s.diaSolicitado||s.disponibilidad,s.franja?({'mañana':'🌅 Mañana','mediodía':'☀️ Mediodía','tarde':'🌇 Tarde','noche':'🌙 Noche'}[s.franja]||s.franja):null].filter(Boolean).join(' · ')}</div>`:''}
         ${(!isDesc&&s.formato)?`<div style="font-size:.7em;font-weight:700;color:#1D4ED8;margin-top:3px">${s.formato}</div>`:''}
-        ${(!isDesc&&s.estado==='confirmada'&&s.diaAsignado)?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}${s.formatoFinal?' · <span style="text-transform:capitalize">'+s.formatoFinal+'</span>':''}</div>`:''}
+        ${(!isDesc&&s.estado==='confirmada'||s.estado==='agendada'&&s.diaAsignado)?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}${s.formatoFinal?' · <span style="text-transform:capitalize">'+s.formatoFinal+'</span>':''}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         <div style="position:relative">
@@ -17700,7 +17701,7 @@ window._pwAgendaGuardar=function(){
     // Asignar solicitud existente como confirmada
     const si=_pwAgSelSi;
     if(si===null||si===undefined||!vw.solicitudes?.[si]) return;
-    vw.solicitudes[si]={...vw.solicitudes[si], estado:'confirmada', diaAsignado:newDate, horaAsignada:hora, formatoFinal:_pwAgFmtVal};
+    vw.solicitudes[si]={...vw.solicitudes[si], estado:'agendada', diaAsignado:newDate, horaAsignada:hora, formatoFinal:_pwAgFmtVal};
     _pwSave(list);
     _pwAgendaCloseModal();
     _renderVentana(id);
@@ -17750,12 +17751,13 @@ function _pwBuildSolsText(id, waMarkdown){
   }
   txt+='\n';
   const grupos={
+    agendada:  '📅 Agendadas',
     confirmada:'✅ Confirmadas',
-    pendiente:'🕐 Pendientes de ver-agendar',
-    recibida:'📩 Recibidas',
-    rechazada:'❌ Rechazadas',
-    cancelada:'🚫 Canceladas',
-    realizada:'✔️ Realizadas',
+    pendiente: '🕐 Pendientes de ver-agendar',
+    recibida:  '📩 Recibidas',
+    rechazada: '❌ Rechazadas',
+    cancelada: '🚫 Canceladas',
+    realizada: '✔️ Realizadas',
     descartada:'🚷 Descartadas luego de hablar con el medio',
   };
   // detect conflicts: medio duplicado entre activas
@@ -17769,7 +17771,7 @@ function _pwBuildSolsText(id, waMarkdown){
       const dupe=s.medio&&medioCount[s.medio]>1?' ⚠️':'';
       let line=`• ${s.programa||'Sin nombre'}`;
       if(s.medio) line+=` — ${s.medio}${dupe}`;
-      if(s.estado==='confirmada'&&s.diaAsignado) line+=` · ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' '+s.horaAsignada:''}${s.formatoFinal?' · '+s.formatoFinal:''}`;
+      if(s.estado==='confirmada'||s.estado==='agendada'&&s.diaAsignado) line+=` · ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' '+s.horaAsignada:''}${s.formatoFinal?' · '+s.formatoFinal:''}`;
       txt+=line+'\n';
     });
     txt+='\n';
@@ -17805,7 +17807,7 @@ window._pwShareAgenda=function(id){
   let txt=`📅 Agenda — ${vw.personLabel}\n`;
   if(periodo) txt+=`${periodo}\n\n`;
   dias.forEach(dia=>{
-    const solItems=sols.filter(s=>s.diaAsignado===dia&&s.estado==='confirmada').map(s=>({hora:s.horaAsignada||'',txt:s.programa||'Solicitud',sub:(s.medio?s.medio:'')+(s.formatoFinal?' · '+s.formatoFinal:''),tipo:'sol'}));
+    const solItems=sols.filter(s=>s.diaAsignado===dia&&s.estado==='confirmada'||s.estado==='agendada').map(s=>({hora:s.horaAsignada||'',txt:s.programa||'Solicitud',sub:(s.medio?s.medio:'')+(s.formatoFinal?' · '+s.formatoFinal:''),tipo:'sol'}));
     const noteItems=(agNotes[dia]||[]).map(n=>({hora:n.hora||'',txt:n.txt||'',sub:n.sub||'',tipo:'nota'}));
     const all=[...solItems,...noteItems].sort((a,b)=>(a.hora||'ZZ').localeCompare(b.hora||'ZZ'));
     if(!all.length) return;
@@ -17817,7 +17819,7 @@ window._pwShareAgenda=function(id){
     });
     txt+='\n';
   });
-  if(!dias.some(dia=>(sols.some(s=>s.diaAsignado===dia&&s.estado==='confirmada')||(agNotes[dia]||[]).length)))
+  if(!dias.some(dia=>(sols.some(s=>s.diaAsignado===dia&&s.estado==='confirmada'||s.estado==='agendada')||(agNotes[dia]||[]).length)))
     txt+='Sin eventos agendados todavía.\n';
   _pwShareText(txt.trim(), `Agenda — ${vw.personLabel}`);
 };
