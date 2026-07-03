@@ -16851,6 +16851,14 @@ function _pwGetAll(){
 }
 function _pwSave(list){ localStorage.setItem(KPW, JSON.stringify(list)); }
 function _pwId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+// Migración de estados obsoletos → nuevos
+(function _pwMigrateEstados(){
+  const MAP={'pendiente':'recibida','confirmada':'agendada','cancelada':'descartada','aceptada':'aprobada'};
+  const list=_pwGetAll();
+  let changed=false;
+  list.forEach(vw=>(vw.solicitudes||[]).forEach(s=>{if(MAP[s.estado]){s.estado=MAP[s.estado];changed=true;}}));
+  if(changed) _pwSave(list);
+})();
 
 function _pwPersonOptions(){
   const opts = [];
