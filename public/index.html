@@ -13662,6 +13662,17 @@ window._localEditClub = function(nom,el){
   </div>`;
   setTimeout(()=>document.getElementById(iid)?.focus(),50);
 };
+window._localEditClubInline = function(nom, defaultPais, btnEl){
+  const d=getLocalClub();
+  const cur=(d[nom]?.actual||'').trim();
+  const curPais=d[nom]?.pais||defaultPais||'uy';
+  const nomSafe=nom.replace(/'/g,"\\'");
+  const uid='li-'+nom.replace(/[^a-z0-9]/gi,'');
+  const card=btnEl.closest('[data-local-card]')||btnEl.parentElement.parentElement;
+  const container=btnEl.parentElement;
+  container.innerHTML=`<input id="${uid}-p" value="${curPais}" maxlength="2" placeholder="uy" style="width:24px;font-size:.7em;padding:2px 3px;border:1px solid var(--cel);border-radius:4px;outline:none;text-align:center"><input id="${uid}" value="${cur}" placeholder="Club..." style="flex:1;min-width:0;font-size:.7em;padding:2px 5px;border:1px solid var(--cel);border-radius:4px;outline:none"><button onclick="(function(){var v=document.getElementById('${uid}').value.trim();var p=document.getElementById('${uid}-p').value.trim()||'uy';if(v)setLocalClubActual('${nomSafe}',v,p);renderSecLocal&&renderSecLocal();})()" style="border:none;background:var(--cel);color:#fff;border-radius:4px;padding:2px 5px;font-size:.7em;font-weight:700;cursor:pointer">✓</button><button onclick="(function(){renderSecLocal&&renderSecLocal();})()" style="border:none;background:none;color:var(--muted);font-size:.8em;cursor:pointer">✕</button>`;
+  setTimeout(()=>document.getElementById(uid)?.focus(),30);
+};
 
 function _getLocalStats(){
   const stats = {};
@@ -13913,8 +13924,10 @@ function _renderLocalHome(){
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:.9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.nom}</div>
-        <div style="font-size:.73em;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-          <img src="https://flagcdn.com/w20/${j.clubPais||'uy'}.png" style="height:9px;border-radius:1px;vertical-align:middle;margin-right:3px" onerror="this.style.display='none'">${j.clubActual||'—'}
+        <div style="font-size:.73em;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:4px">
+          <img src="https://flagcdn.com/w20/${j.clubPais||'uy'}.png" style="height:9px;border-radius:1px;vertical-align:middle" onerror="this.style.display='none'">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${j.clubActual||'—'}</span>
+          <button onclick="event.stopPropagation();_localEditClubInline('${nomSafe}','${j.clubPais||'uy'}',this)" title="Editar club" style="border:none;background:none;cursor:pointer;padding:0;color:var(--hint);font-size:10px;flex-shrink:0;line-height:1"><i class="ti ti-pencil"></i></button>
         </div>
         <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">
           <span onclick="event.stopPropagation();_cycleLocalPos('${nomSafe}',event)" title="Tocar para cambiar puesto" style="background:${posColor};color:#fff;border-radius:4px;padding:1px 6px;font-size:.65em;font-weight:800;cursor:pointer">${j.pos||'—'}</span>
