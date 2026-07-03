@@ -17320,9 +17320,10 @@ function _renderVentana(id){
       </div>
 
       <!-- Compartir -->
-      <div style="display:flex;gap:8px;margin-bottom:20px">
-        <button onclick="_pwShareSols('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:var(--text)"><i class="ti ti-share" style="font-size:1em;color:var(--cel)"></i>Solicitudes</button>
-        <button onclick="_pwShareAgenda('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:var(--text)"><i class="ti ti-share" style="font-size:1em;color:#22C55E"></i>Agenda</button>
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <button onclick="_pwShareSolsWA('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid #25D366;border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:#25D366"><i class="ti ti-brand-whatsapp" style="font-size:1.1em"></i>WhatsApp</button>
+        <button onclick="_pwShareSolsMail('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid #1D8ECD;border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:#1D8ECD"><i class="ti ti-mail" style="font-size:1.1em"></i>Mail</button>
+        <button onclick="_pwShareAgenda('${id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:.8em;font-weight:800;color:var(--muted)"><i class="ti ti-calendar" style="font-size:1em"></i>Agenda</button>
       </div>
 
       <!-- Pedidos recibidos -->
@@ -17712,18 +17713,32 @@ function _pwShareText(text, title){
   }
 }
 
-window._pwShareSols=function(id){
-  const vw=_pwGetAll().find(v=>v.id===id); if(!vw) return;
+function _pwBuildSolsText(id, waMarkdown){
+  const vw=_pwGetAll().find(v=>v.id===id); if(!vw) return '';
   const sols=vw.solicitudes||[];
   const desdeStr=_pwFmtDate(vw.desde), hastaStr=_pwFmtDate(vw.hasta);
   const periodo=(desdeStr||hastaStr)?`${desdeStr}${hastaStr&&hastaStr!==desdeStr?' al '+hastaStr:''}`:'';
-  let txt=`📋 Solicitudes — ${vw.personLabel}\n`;
-  if(periodo) txt+=`📅 ${periodo}\n`;
-  if(vw.reglas&&vw.reglas.length){const rs=Array.isArray(vw.reglas)?vw.reglas:[vw.reglas];const labels=rs.map(id=>_PW_REGLAS_DEF.find(r=>r.id===id)?.label||id);txt+=`📌 Reglas: ${labels.join(' · ')}\n`;}
-  txt+=`\n`;
-  const grupos={confirmada:'✅ Confirmadas',pendiente:'🕐 Pendientes',recibida:'📩 Recibidas',rechazada:'❌ Rechazadas',cancelada:'🚫 Canceladas',realizada:'✔️ Realizadas',descartada:'🚷 Descartadas'};
+  const titulo=`Solicitudes — ${vw.personLabel}`;
+  let txt = waMarkdown ? `📋 *${titulo}*\n` : `📋 ${titulo}\n`;
+  if(periodo) txt += waMarkdown ? `_${periodo}_\n` : `${periodo}\n`;
+  if(vw.reglas&&vw.reglas.length){
+    const rs=Array.isArray(vw.reglas)?vw.reglas:[vw.reglas];
+    const labels=rs.map(r=>_PW_REGLAS_DEF.find(d=>d.id===r)?.label||r);
+    txt+=`\n📌 Reglas: ${labels.join(' · ')}\n`;
+  }
+  txt+='\n';
+  const grupos={
+    confirmada:'✅ Confirmadas',
+    pendiente:'🕐 Pendientes de ver-agendar',
+    recibida:'📩 Recibidas',
+    rechazada:'❌ Rechazadas',
+    cancelada:'🚫 Canceladas',
+    realizada:'✔️ Realizadas',
+    descartada:'🚷 Descartadas luego de hablar con el medio',
+  };
+  // detect conflicts: medio duplicado entre activas
   const medioCount={};
-  sols.forEach(s=>{if(s.medio&&s.estado!=='cancelada')medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
+  sols.filter(s=>s.estado!=='cancelada'&&s.estado!=='descartada').forEach(s=>{if(s.medio)medioCount[s.medio]=(medioCount[s.medio]||0)+1;});
   Object.keys(grupos).forEach(est=>{
     const grupo=sols.filter(s=>s.estado===est);
     if(!grupo.length) return;
@@ -17737,7 +17752,25 @@ window._pwShareSols=function(id){
     });
     txt+='\n';
   });
-  _pwShareText(txt.trim(), `Solicitudes — ${vw.personLabel}`);
+  return txt.trim();
+}
+
+window._pwShareSols=function(id){
+  const txt=_pwBuildSolsText(id,false);
+  const vw=_pwGetAll().find(v=>v.id===id);
+  _pwShareText(txt, `Solicitudes — ${vw?.personLabel||''}`);
+};
+
+window._pwShareSolsWA=function(id){
+  const txt=_pwBuildSolsText(id,true);
+  window.open('whatsapp://send?text='+encodeURIComponent(txt),'_blank');
+};
+
+window._pwShareSolsMail=function(id){
+  const vw=_pwGetAll().find(v=>v.id===id);
+  const txt=_pwBuildSolsText(id,false);
+  const subject=encodeURIComponent(`Solicitudes — ${vw?.personLabel||''}`);
+  window.open('mailto:?subject='+subject+'&body='+encodeURIComponent(txt),'_blank');
 };
 
 window._pwShareAgenda=function(id){
