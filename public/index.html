@@ -17199,7 +17199,12 @@ function _renderVentana(id){
         ${(!isDesc&&s.estado==='confirmada'&&s.diaAsignado)?`<div style="font-size:.72em;font-weight:700;color:#065F46;margin-top:4px">✓ ${_pwFmtDia(s.diaAsignado)}${s.horaAsignada?' · '+s.horaAsignada:''}${s.formatoFinal?' · <span style="text-transform:capitalize">'+s.formatoFinal+'</span>':''}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        <span style="font-size:.68em;font-weight:700;background:${est.bg};color:${est.color};border-radius:20px;padding:2px 9px;white-space:nowrap">${est.label}</span>
+        <div style="position:relative">
+          <button onclick="_pwToggleEstPicker('${id}',${origSi},this)" style="font-size:.68em;font-weight:700;background:${est.bg};color:${est.color};border:none;border-radius:20px;padding:3px 9px;white-space:nowrap;cursor:pointer">${est.label} <i class="ti ti-chevron-down" style="font-size:.8em"></i></button>
+          <div id="pw-estpick-${origSi}" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;padding:5px;min-width:130px">
+            ${Object.entries(_pwEstConfig).map(([k,v])=>`<button onclick="_pwSetEstRapido('${id}',${origSi},'${k}')" style="display:block;width:100%;text-align:left;padding:6px 10px;border:none;border-radius:8px;background:${s.estado===k?v.bg:'transparent'};color:${v.color};font-size:.78em;font-weight:700;cursor:pointer">${v.label}</button>`).join('')}
+          </div>
+        </div>
         <div style="display:flex;gap:4px">
           ${s.emailPedido?`<button onclick="_pwVerEmail(${origSi})" style="border:none;background:#EFF6FF;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#1D4ED8"><i class="ti ti-mail"></i></button>`:''}
           <button onclick="_pwEditSol('${id}',${origSi})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
@@ -17414,6 +17419,25 @@ function _pwRenderReglasPills(selected){
       <span style="font-size:.84em;color:${on?'var(--cel)':'#475569'};font-weight:${on?'700':'400'}">${r.label}</span>
     </div>`;
   }).join('');
+}
+function _pwToggleEstPicker(id,si,btn){
+  const picker=document.getElementById('pw-estpick-'+si);
+  if(!picker) return;
+  const open=picker.style.display!=='none';
+  // Cerrar cualquier otro picker abierto
+  document.querySelectorAll('[id^="pw-estpick-"]').forEach(el=>el.style.display='none');
+  if(!open){ picker.style.display='block'; }
+  // Cerrar al click fuera
+  if(!open) setTimeout(()=>document.addEventListener('click',function h(e){
+    if(!picker.contains(e.target)&&e.target!==btn){picker.style.display='none';document.removeEventListener('click',h);}
+  }),0);
+}
+function _pwSetEstRapido(id,si,nuevoEst){
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===id); if(!vw||!vw.solicitudes[si]) return;
+  vw.solicitudes[si].estado=nuevoEst;
+  _pwSave(list);
+  document.querySelectorAll('[id^="pw-estpick-"]').forEach(el=>el.style.display='none');
+  _renderVentana(id);
 }
 function _pwFiltrarSols(){
   const q=(document.getElementById('pw-sol-buscar')?.value||'').toLowerCase().trim();
