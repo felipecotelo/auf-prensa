@@ -17218,7 +17218,7 @@ function _renderVentana(id){
     const solItems = sols
       .map((s,si)=>({s,si}))
       .filter(({s})=>s.diaAsignado===dia && !_pwEstExcluidos.has(s.estado))
-      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', done:false}));
+      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', linked:!!s.linkedToNext, done:false}));
 
     // Notas libres
     const noteItems = (agendaNotes[dia]||[]).map((n,ni)=>({...n, tipo:'nota', ni}));
@@ -17226,11 +17226,19 @@ function _renderVentana(id){
     // Combinar y ordenar por hora
     const allItems=[...solItems,...noteItems].sort((a,b)=>(a.hora||'ZZ').localeCompare(b.hora||'ZZ'));
 
-    const rows = allItems.map(item=>{
+    const rows = allItems.map((item,idx)=>{
       if(item.tipo==='sol'){
         const estCfg=_pwEstConfig[item.estSol]||_pwEstConfig.recibida;
         const rowId=`pw-agrow-${id}-${item.si}`;
-        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:#F0FDF4;margin-bottom:6px;cursor:pointer">
+        const nextIsSol = allItems[idx+1]?.tipo==='sol';
+        // Este item está vinculado al siguiente, o el anterior estaba vinculado a este
+        const prevLinked = idx>0 && allItems[idx-1]?.tipo==='sol' && allItems[idx-1]?.linked;
+        const borderTop = prevLinked ? 'border-top-left-radius:0;border-top-right-radius:0;border-top:2px dashed #6EE7B7;' : '';
+        const borderBot = item.linked && nextIsSol ? 'border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;' : 'margin-bottom:6px;';
+        const connector = item.linked && nextIsSol ? `<div style="display:flex;align-items:center;gap:6px;padding:3px 10px;background:#DCFCE7;border-left:2px dashed #6EE7B7;border-right:2px dashed #6EE7B7">
+          <span style="font-size:.65em;color:#065F46;font-weight:700;flex:1;text-align:center">+ conjunto</span>
+        </div>` : '';
+        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:#F0FDF4;${borderBot}${borderTop}cursor:pointer">
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:.7em;color:#065F46;font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
             <div style="flex:1;min-width:0">
@@ -17239,6 +17247,7 @@ function _renderVentana(id){
               ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
             </div>
             <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${estCfg.label}</span>
+            <button onclick="event.stopPropagation();_pwAgToggleLinked('${id}',${item.si})" title="${item.linked?'Desvincular':'Vincular con siguiente'}" style="border:none;background:none;cursor:pointer;color:${item.linked?'#059669':'#9CA3AF'};font-size:.9em;padding:2px;flex-shrink:0"><i class="ti ti-link"></i></button>
             <button onclick="event.stopPropagation();_pwAgSolQuit('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:2px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
           </div>
           <div id="${rowId}-edit" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #BBF7D0" onclick="event.stopPropagation()">
@@ -17250,7 +17259,7 @@ function _renderVentana(id){
               <button onclick="event.stopPropagation();_pwAgRowSave('${id}',${item.si},'${rowId}')" style="border:none;background:#065F46;color:#fff;border-radius:7px;padding:5px 10px;font-size:.78em;font-weight:700;cursor:pointer">✓ Guardar</button>
             </div>
           </div>
-        </div>`;
+        </div>${connector}`;
       } else {
         const done=item.done;
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:${done?'var(--surface)':'#fff'};border:1px solid var(--border);margin-bottom:6px;${done?'opacity:.6':''}">
@@ -17814,6 +17823,12 @@ window._pwConflictNotaDel=function(id,i){
   _renderVentana(id);
 };
 
+window._pwAgToggleLinked=function(vwId, si){
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  if(!vw.solicitudes?.[si]) return;
+  vw.solicitudes[si].linkedToNext=!vw.solicitudes[si].linkedToNext;
+  _pwSave(list); _renderVentana(vwId);
+};
 window._pwAgRowToggle=function(vwId, si, rowId){
   const edit=document.getElementById(rowId+'-edit');
   if(!edit) return;
