@@ -17218,7 +17218,7 @@ function _renderVentana(id){
     const solItems = sols
       .map((s,si)=>({s,si}))
       .filter(({s})=>s.diaAsignado===dia && !_pwEstExcluidos.has(s.estado))
-      .map(({s,si})=>({hora:s.horaAsignada||'', diaAsig:s.diaAsignado||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', conjuntoId:s.conjuntoId||'', done:false}));
+      .map(({s,si})=>({hora:s.horaAsignada||'', diaAsig:s.diaAsignado||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', conjuntoId:s.conjuntoId||'', fmtTipo:s.fmtTipo||'', fmtLugar:s.fmtLugar||'', done:false}));
 
     // Notas libres
     const noteItems = (agendaNotes[dia]||[]).map((n,ni)=>({...n, tipo:'nota', ni}));
@@ -17246,6 +17246,7 @@ function _renderVentana(id){
               <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}${conjuntoBadge}</div>
               ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
               ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
+              ${item.fmtTipo?`<div style="font-size:.68em;color:#065F46;margin-top:2px;display:flex;align-items:center;gap:3px"><i class="ti ti-${item.fmtTipo==='presencial'?'map-pin':'video'}" style="font-size:.9em"></i>${item.fmtTipo==='presencial'?'Presencial':'No presencial'}${item.fmtLugar?' · <strong>'+item.fmtLugar+'</strong>':''}</div>`:''}
             </div>
             <button onclick="event.stopPropagation();_pwAgConjuntoOpen('${id}',${item.si},'${rowId}','${encodeURIComponent(otrosSiData)}')" title="Agrupar en conjunto" style="border:1px solid ${inGrupo?'#10B981':'transparent'};background:${inGrupo?'#D1FAE5':'transparent'};border-radius:6px;cursor:pointer;color:${inGrupo?'#059669':'#BBF7D0'};font-size:.68em;font-weight:700;padding:2px 6px;flex-shrink:0;line-height:1.4">${inGrupo?'conjunto':'+ junto'}</button>
             <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${estCfg.label}</span>
@@ -17259,6 +17260,19 @@ function _renderVentana(id){
                 ${Object.entries(_pwEstConfig).filter(([k,v])=>v.primary||(v.secondary&&(_pwEstSecundarios.has(item.estSol)||item.estSol==='agendada'))).map(([k,v])=>`<option value="${k}" ${k===item.estSol?'selected':''}>${v.label}</option>`).join('')}
               </select>
               <button onclick="event.stopPropagation();_pwAgRowSave('${id}',${item.si},'${rowId}')" style="border:none;background:#065F46;color:#fff;border-radius:7px;padding:5px 10px;font-size:.78em;font-weight:700;cursor:pointer">✓ Guardar</button>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">
+              <select id="${rowId}-fmttipo" onchange="_pwAgFmtTipoChange('${rowId}')" style="padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;background:#fff;outline:none">
+                <option value="">— Formato —</option>
+                <option value="presencial" ${item.fmtTipo==='presencial'?'selected':''}>📍 Presencial</option>
+                <option value="nopresencial" ${item.fmtTipo==='nopresencial'?'selected':''}>💻 No presencial</option>
+              </select>
+              <select id="${rowId}-fmtsub" style="padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;background:#fff;outline:none;display:${item.fmtTipo?'block':'none'}">
+                ${item.fmtTipo==='presencial'?
+                  `<option value="movil" ${item.fmtLugar==='móvil'?'selected':''}>🚐 Móvil</option><option value="piso" ${item.fmtLugar==='piso'?'selected':''}>🏢 En piso</option>`:
+                  `<option value="telefonica" ${item.fmtLugar==='telefónica'?'selected':''}>📞 Telefónica</option><option value="zoom" ${item.fmtLugar==='zoom'?'selected':''}>🎥 Zoom/Video</option>`}
+              </select>
+              <input id="${rowId}-fmtlugar" type="text" value="${item.fmtTipo==='presencial'?'':''}" placeholder="Lugar / detalle…" style="flex:1;min-width:80px;padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;outline:none;display:${item.fmtTipo==='presencial'?'block':'none'}">
             </div>
           </div>
           <div id="${rowId}-conjunto" style="display:none;margin-top:8px;padding:8px;background:#ECFDF5;border-radius:8px;border:1px solid #6EE7B7" onclick="event.stopPropagation()">
@@ -17937,15 +17951,33 @@ window._pwAgRowToggle=function(vwId, si, rowId){
   edit.style.display=open?'block':'none';
   if(open) setTimeout(()=>document.getElementById(rowId+'-hora')?.focus(),30);
 };
+window._pwAgFmtTipoChange=function(rowId){
+  const tipo=document.getElementById(rowId+'-fmttipo')?.value||'';
+  const subEl=document.getElementById(rowId+'-fmtsub');
+  const lugarEl=document.getElementById(rowId+'-fmtlugar');
+  if(subEl){
+    subEl.style.display=tipo?'block':'none';
+    subEl.innerHTML=tipo==='presencial'
+      ?'<option value="movil">🚐 Móvil</option><option value="piso">🏢 En piso</option>'
+      :'<option value="telefonica">📞 Telefónica</option><option value="zoom">🎥 Zoom/Video</option>';
+  }
+  if(lugarEl) lugarEl.style.display=tipo==='presencial'?'block':'none';
+};
 window._pwAgRowSave=function(vwId, si, rowId){
   const hora=(document.getElementById(rowId+'-hora')?.value||'').trim();
   const estado=document.getElementById(rowId+'-est')?.value||'';
   const dia=(document.getElementById(rowId+'-dia')?.value||'').trim();
+  const fmtTipo=document.getElementById(rowId+'-fmttipo')?.value||'';
+  const fmtSubVal=document.getElementById(rowId+'-fmtsub')?.value||'';
+  const fmtSubMap={movil:'móvil',piso:'piso',telefonica:'telefónica',zoom:'zoom'};
+  const fmtLugarInput=(document.getElementById(rowId+'-fmtlugar')?.value||'').trim();
+  const fmtLugar=fmtTipo==='presencial'?(fmtLugarInput||fmtSubMap[fmtSubVal]||''):fmtSubMap[fmtSubVal]||'';
   const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId); if(!vw) return;
   if(!vw.solicitudes?.[si]) return;
   vw.solicitudes[si]={...vw.solicitudes[si], horaAsignada:hora};
   if(dia) vw.solicitudes[si].diaAsignado=dia;
   if(estado) vw.solicitudes[si].estado=estado;
+  if(fmtTipo) { vw.solicitudes[si].fmtTipo=fmtTipo; vw.solicitudes[si].fmtLugar=fmtLugar; }
   _pwSave(list);
   _renderVentana(vwId);
 };
