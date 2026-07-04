@@ -17231,23 +17231,22 @@ function _renderVentana(id){
         const estCfg=_pwEstConfig[item.estSol]||_pwEstConfig.recibida;
         const rowId=`pw-agrow-${id}-${item.si}`;
         const nextIsSol = allItems[idx+1]?.tipo==='sol';
-        // Este item está vinculado al siguiente, o el anterior estaba vinculado a este
         const prevLinked = idx>0 && allItems[idx-1]?.tipo==='sol' && allItems[idx-1]?.linked;
-        const borderTop = prevLinked ? 'border-top-left-radius:0;border-top-right-radius:0;border-top:2px dashed #6EE7B7;' : '';
-        const borderBot = item.linked && nextIsSol ? 'border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;' : 'margin-bottom:6px;';
-        const connector = item.linked && nextIsSol ? `<div style="display:flex;align-items:center;gap:6px;padding:3px 10px;background:#DCFCE7;border-left:2px dashed #6EE7B7;border-right:2px dashed #6EE7B7">
-          <span style="font-size:.65em;color:#065F46;font-weight:700;flex:1;text-align:center">+ conjunto</span>
-        </div>` : '';
-        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:#F0FDF4;${borderBot}${borderTop}cursor:pointer">
+        // Borde izquierdo verde grueso cuando forma parte de un grupo
+        const groupBorder = (item.linked||prevLinked) ? 'border-left:3px solid #10B981;' : '';
+        const radiusTop = prevLinked ? 'border-top-left-radius:4px;border-top-right-radius:10px;' : '';
+        const radiusBot = item.linked&&nextIsSol ? 'border-bottom-left-radius:4px;border-bottom-right-radius:10px;margin-bottom:1px;' : 'margin-bottom:6px;';
+        const conjuntoBadge = prevLinked ? `<span style="font-size:.6em;font-weight:700;color:#059669;background:#D1FAE5;border-radius:6px;padding:1px 5px;margin-left:6px">junto</span>` : '';
+        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:#F0FDF4;${radiusTop}${radiusBot}${groupBorder}cursor:pointer">
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:.7em;color:#065F46;font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
             <div style="flex:1;min-width:0">
-              <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}</div>
+              <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}${conjuntoBadge}</div>
               ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
               ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
             </div>
             <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${estCfg.label}</span>
-            <button onclick="event.stopPropagation();_pwAgToggleLinked('${id}',${item.si})" title="${item.linked?'Desvincular':'Vincular con siguiente'}" style="border:none;background:none;cursor:pointer;color:${item.linked?'#059669':'#9CA3AF'};font-size:.9em;padding:2px;flex-shrink:0"><i class="ti ti-link"></i></button>
+            ${nextIsSol||item.linked ? `<button onclick="event.stopPropagation();_pwAgToggleLinked('${id}',${item.si})" title="${item.linked?'Desvincular de siguiente':'Unir con siguiente'}" style="border:1px solid ${item.linked?'#10B981':'#D1D5DB'};background:${item.linked?'#D1FAE5':'transparent'};border-radius:6px;cursor:pointer;color:${item.linked?'#059669':'#9CA3AF'};font-size:.72em;font-weight:800;padding:2px 6px;flex-shrink:0;line-height:1.4">${item.linked?'junto':'+ junto'}</button>` : ''}
             <button onclick="event.stopPropagation();_pwAgSolQuit('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:2px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
           </div>
           <div id="${rowId}-edit" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #BBF7D0" onclick="event.stopPropagation()">
@@ -17259,7 +17258,7 @@ function _renderVentana(id){
               <button onclick="event.stopPropagation();_pwAgRowSave('${id}',${item.si},'${rowId}')" style="border:none;background:#065F46;color:#fff;border-radius:7px;padding:5px 10px;font-size:.78em;font-weight:700;cursor:pointer">✓ Guardar</button>
             </div>
           </div>
-        </div>${connector}`;
+        </div>`;
       } else {
         const done=item.done;
         return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:${done?'var(--surface)':'#fff'};border:1px solid var(--border);margin-bottom:6px;${done?'opacity:.6':''}">
