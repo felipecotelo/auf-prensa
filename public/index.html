@@ -15756,6 +15756,22 @@ window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
   window.renderJuveniles();
 };
+window._juvGlobalFiltrar = function(){
+  const q=(document.getElementById('juv-global-buscar')?.value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const cards=document.querySelectorAll('#juv-global-grid [data-nom]');
+  let visible=0;
+  cards.forEach(c=>{
+    const nom=(c.dataset.nom||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const club=(c.dataset.club||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const match=!q||nom.includes(q)||club.includes(q);
+    c.style.display=match?'':'none';
+    if(match) visible++;
+  });
+  const countEl=document.getElementById('juv-global-count');
+  if(countEl) countEl.textContent=visible;
+  const totalEl=document.getElementById('juv-global-total');
+  if(totalEl) totalEl.textContent=visible;
+};
 
 // Si la categoría no tiene convocatorias propias pero sí competencias (el caso típico:
 // los convocados reales viven dentro del Sudamericano/Mundial), arrancamos directo ahí
@@ -16009,7 +16025,8 @@ function _juvFichaCard(p, hist, off, extraIcon){
   // p.pais (dato de TM en código) tiene prioridad sobre el default 'uy' de localStorage
   const _storedPais = _juvClubEntry?.pais;
   const juvPais = (_storedPais && _storedPais !== 'uy') ? _storedPais : (p.pais || _storedPais || 'uy');
-  return `<div style="background:var(--card);border:1px solid ${isChamp?'#F59E0B':'var(--border)'};border-radius:12px;padding:12px">
+  const clubShow2 = (getJuvClub()[p.nom]?.actual ?? p.club || '').toLowerCase();
+  return `<div data-nom="${p.nom.toLowerCase()}" data-club="${clubShow2}" style="background:var(--card);border:1px solid ${isChamp?'#F59E0B':'var(--border)'};border-radius:12px;padding:12px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
       <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid ${isChamp?'#F59E0B':'var(--border)'};cursor:pointer;overflow:visible">
         <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
@@ -16490,16 +16507,21 @@ function _buildJuvGlobalPlayers(){
     </div>`;
 
   return `
-    <div style="background:var(--bg);position:sticky;top:0;z-index:10;padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
-      <button onclick="_toggleJuvGlobal()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700">
-        <i class="ti ti-arrow-left"></i> Volver a categorías
+    <div style="background:var(--bg);position:sticky;top:0;z-index:10;padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+      <button onclick="_toggleJuvGlobal()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700;flex-shrink:0">
+        <i class="ti ti-arrow-left"></i> Volver
       </button>
+      <div style="position:relative;flex:1">
+        <i class="ti ti-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.82em;pointer-events:none"></i>
+        <input id="juv-global-buscar" oninput="_juvGlobalFiltrar()" placeholder="Buscar jugador…" autocomplete="off" style="width:100%;padding:7px 10px 7px 28px;border:1.5px solid var(--border);border-radius:9px;font-size:.84em;box-sizing:border-box;outline:none;background:var(--surface)">
+      </div>
+      <span id="juv-global-count" style="font-size:.72em;color:var(--muted);flex-shrink:0">${fichas.length}</span>
     </div>
     <div style="padding:16px">
       <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
-        Jugadores de Juveniles — ${fichas.length} fichas · ⬆️ = pasó por más de una categoría
+        Jugadores de Juveniles — <span id="juv-global-total">${fichas.length}</span> fichas · ⬆️ = pasó por más de una categoría
       </div>
-      ${grid}
+      <div id="juv-global-grid">${grid}</div>
     </div>`;
 }
 
