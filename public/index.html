@@ -17218,7 +17218,7 @@ function _renderVentana(id){
     const solItems = sols
       .map((s,si)=>({s,si}))
       .filter(({s})=>s.diaAsignado===dia && !_pwEstExcluidos.has(s.estado))
-      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', linked:!!s.linkedToNext, done:false}));
+      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', conjuntoId:s.conjuntoId||'', done:false}));
 
     // Notas libres
     const noteItems = (agendaNotes[dia]||[]).map((n,ni)=>({...n, tipo:'nota', ni}));
@@ -17230,14 +17230,12 @@ function _renderVentana(id){
       if(item.tipo==='sol'){
         const estCfg=_pwEstConfig[item.estSol]||_pwEstConfig.recibida;
         const rowId=`pw-agrow-${id}-${item.si}`;
-        const nextIsSol = allItems[idx+1]?.tipo==='sol';
-        const prevLinked = idx>0 && allItems[idx-1]?.tipo==='sol' && allItems[idx-1]?.linked;
-        // Borde izquierdo verde grueso cuando forma parte de un grupo
-        const groupBorder = (item.linked||prevLinked) ? 'border-left:3px solid #10B981;' : '';
-        const radiusTop = prevLinked ? 'border-top-left-radius:4px;border-top-right-radius:10px;' : '';
-        const radiusBot = item.linked&&nextIsSol ? 'border-bottom-left-radius:4px;border-bottom-right-radius:10px;margin-bottom:1px;' : 'margin-bottom:6px;';
-        const conjuntoBadge = prevLinked ? `<span style="font-size:.6em;font-weight:700;color:#059669;background:#D1FAE5;border-radius:6px;padding:1px 5px;margin-left:6px">junto</span>` : '';
-        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:#F0FDF4;${radiusTop}${radiusBot}${groupBorder}cursor:pointer">
+        const inGrupo = !!item.conjuntoId;
+        const groupBorder = inGrupo ? 'border-left:3px solid #10B981;' : '';
+        const conjuntoBadge = inGrupo ? `<span style="font-size:.6em;font-weight:700;color:#059669;background:#D1FAE5;border-radius:6px;padding:1px 5px;margin-left:5px">conjunto</span>` : '';
+        // Otras solicitudes del día para el selector
+        const otrosSiData = allItems.filter(it=>it.tipo==='sol'&&it.si!==item.si).map(it=>`${it.si}|${it.txt} · ${it.sub}`).join(';;');
+        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:#F0FDF4;margin-bottom:6px;${groupBorder}cursor:pointer">
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:.7em;color:#065F46;font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
             <div style="flex:1;min-width:0">
@@ -17246,7 +17244,7 @@ function _renderVentana(id){
               ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
             </div>
             <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${estCfg.label}</span>
-            ${nextIsSol||item.linked ? `<button onclick="event.stopPropagation();_pwAgToggleLinked('${id}',${item.si})" title="${item.linked?'Desvincular de siguiente':'Unir con siguiente'}" style="border:1px solid ${item.linked?'#10B981':'#D1D5DB'};background:${item.linked?'#D1FAE5':'transparent'};border-radius:6px;cursor:pointer;color:${item.linked?'#059669':'#9CA3AF'};font-size:.72em;font-weight:800;padding:2px 6px;flex-shrink:0;line-height:1.4">${item.linked?'junto':'+ junto'}</button>` : ''}
+            <button onclick="event.stopPropagation();_pwAgConjuntoOpen('${id}',${item.si},'${rowId}','${encodeURIComponent(otrosSiData)}')" title="Agrupar en conjunto" style="border:1px solid ${inGrupo?'#10B981':'#D1D5DB'};background:${inGrupo?'#D1FAE5':'transparent'};border-radius:6px;cursor:pointer;color:${inGrupo?'#059669':'#9CA3AF'};font-size:.72em;font-weight:800;padding:2px 7px;flex-shrink:0;line-height:1.4">${inGrupo?'conjunto':'+ junto'}</button>
             <button onclick="event.stopPropagation();_pwAgSolQuit('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:2px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
           </div>
           <div id="${rowId}-edit" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #BBF7D0" onclick="event.stopPropagation()">
@@ -17256,6 +17254,15 @@ function _renderVentana(id){
                 ${Object.entries(_pwEstConfig).filter(([k,v])=>v.primary||(v.secondary&&(_pwEstSecundarios.has(item.estSol)||item.estSol==='agendada'))).map(([k,v])=>`<option value="${k}" ${k===item.estSol?'selected':''}>${v.label}</option>`).join('')}
               </select>
               <button onclick="event.stopPropagation();_pwAgRowSave('${id}',${item.si},'${rowId}')" style="border:none;background:#065F46;color:#fff;border-radius:7px;padding:5px 10px;font-size:.78em;font-weight:700;cursor:pointer">✓ Guardar</button>
+            </div>
+          </div>
+          <div id="${rowId}-conjunto" style="display:none;margin-top:8px;padding:8px;background:#ECFDF5;border-radius:8px;border:1px solid #6EE7B7" onclick="event.stopPropagation()">
+            <div style="font-size:.7em;font-weight:800;color:#065F46;margin-bottom:6px">Seleccioná las que van en conjunto:</div>
+            <div id="${rowId}-conjunto-list"></div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+              <button onclick="event.stopPropagation();_pwAgConjuntoSave('${id}',${item.si},'${rowId}')" style="flex:1;border:none;background:#059669;color:#fff;border-radius:7px;padding:5px 10px;font-size:.75em;font-weight:700;cursor:pointer">✓ Confirmar</button>
+              ${inGrupo?`<button onclick="event.stopPropagation();_pwAgConjuntoQuitar('${id}',${item.si})" style="border:none;background:#FEE2E2;color:#DC2626;border-radius:7px;padding:5px 10px;font-size:.75em;font-weight:700;cursor:pointer">Quitar del grupo</button>`:''}
+              <button onclick="event.stopPropagation();document.getElementById('${rowId}-conjunto').style.display='none'" style="border:1px solid #D1D5DB;background:transparent;color:var(--muted);border-radius:7px;padding:5px 8px;font-size:.75em;cursor:pointer">✕</button>
             </div>
           </div>
         </div>`;
@@ -17826,10 +17833,51 @@ window._pwConflictNotaDel=function(id,i){
   _renderVentana(id);
 };
 
-window._pwAgToggleLinked=function(vwId, si){
+window._pwAgConjuntoOpen=function(vwId, si, rowId, otrosEnc){
+  const panel=document.getElementById(rowId+'-conjunto');
+  if(!panel) return;
+  const open=panel.style.display==='none'||!panel.style.display;
+  panel.style.display=open?'block':'none';
+  if(!open) return;
+  // Cerrar edit si está abierto
+  const edit=document.getElementById(rowId+'-edit');
+  if(edit) edit.style.display='none';
+  // Poblar lista de checkboxes
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId);
+  const curGrupo=vw?.solicitudes?.[si]?.conjuntoId||'';
+  const otros=decodeURIComponent(otrosEnc).split(';;').filter(Boolean);
+  const listEl=document.getElementById(rowId+'-conjunto-list');
+  if(!listEl) return;
+  listEl.innerHTML=otros.map(o=>{
+    const [oSi,oLabel]=o.split('|');
+    const checked=curGrupo&&vw?.solicitudes?.[parseInt(oSi)]?.conjuntoId===curGrupo;
+    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:.78em;color:#065F46;cursor:pointer">
+      <input type="checkbox" data-si="${oSi}" ${checked?'checked':''} style="width:15px;height:15px;accent-color:#059669">
+      ${oLabel}
+    </label>`;
+  }).join('')||'<div style="font-size:.75em;color:var(--muted)">No hay otras solicitudes en este día</div>';
+};
+window._pwAgConjuntoSave=function(vwId, si, rowId){
   const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId); if(!vw) return;
-  if(!vw.solicitudes?.[si]) return;
-  vw.solicitudes[si].linkedToNext=!vw.solicitudes[si].linkedToNext;
+  const checks=[...document.querySelectorAll(`#${rowId}-conjunto-list input[type=checkbox]`)];
+  const selSis=checks.filter(c=>c.checked).map(c=>parseInt(c.dataset.si));
+  // Generar nuevo conjuntoId o reusar el existente
+  const gid=vw.solicitudes[si]?.conjuntoId||(Date.now().toString(36));
+  [si,...selSis].forEach(i=>{ if(vw.solicitudes[i]) vw.solicitudes[i].conjuntoId=gid; });
+  // Quitar del grupo los desmarcados que estaban antes
+  checks.filter(c=>!c.checked).forEach(c=>{
+    const i=parseInt(c.dataset.si);
+    if(vw.solicitudes[i]?.conjuntoId===gid) delete vw.solicitudes[i].conjuntoId;
+  });
+  // Si ninguno seleccionado, quitar al propio
+  if(!selSis.length) delete vw.solicitudes[si].conjuntoId;
+  _pwSave(list); _renderVentana(vwId);
+};
+window._pwAgConjuntoQuitar=function(vwId, si){
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId); if(!vw) return;
+  const gid=vw.solicitudes[si]?.conjuntoId; if(!gid) return;
+  // Solo quitar este del grupo
+  delete vw.solicitudes[si].conjuntoId;
   _pwSave(list); _renderVentana(vwId);
 };
 window._pwAgRowToggle=function(vwId, si, rowId){
