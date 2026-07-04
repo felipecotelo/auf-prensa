@@ -17218,7 +17218,7 @@ function _renderVentana(id){
     const solItems = sols
       .map((s,si)=>({s,si}))
       .filter(({s})=>s.diaAsignado===dia && !_pwEstExcluidos.has(s.estado))
-      .map(({s,si})=>({hora:s.horaAsignada||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', conjuntoId:s.conjuntoId||'', done:false}));
+      .map(({s,si})=>({hora:s.horaAsignada||'', diaAsig:s.diaAsignado||'', txt:s.programa||'Solicitud', sub:s.medio||'', tipo:'sol', si, estSol:s.estado, pidDia:s.diaSolicitado||'', pidFranja:s.franja||'', conjuntoId:s.conjuntoId||'', done:false}));
 
     // Notas libres
     const noteItems = (agendaNotes[dia]||[]).map((n,ni)=>({...n, tipo:'nota', ni}));
@@ -17253,6 +17253,7 @@ function _renderVentana(id){
           </div>
           <div id="${rowId}-edit" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #BBF7D0" onclick="event.stopPropagation()">
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <input id="${rowId}-dia" type="date" value="${item.diaAsig||''}" style="padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;background:#fff;outline:none;cursor:pointer" onclick="event.stopPropagation()">
               <input id="${rowId}-hora" type="text" value="${item.hora||''}" placeholder="10:00" maxlength="5" style="width:62px;padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.82em;text-align:center;outline:none" onclick="event.stopPropagation()">
               <select id="${rowId}-est" style="flex:1;min-width:100px;padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;background:#fff;outline:none">
                 ${Object.entries(_pwEstConfig).filter(([k,v])=>v.primary||(v.secondary&&(_pwEstSecundarios.has(item.estSol)||item.estSol==='agendada'))).map(([k,v])=>`<option value="${k}" ${k===item.estSol?'selected':''}>${v.label}</option>`).join('')}
@@ -17897,9 +17898,11 @@ window._pwAgRowToggle=function(vwId, si, rowId){
 window._pwAgRowSave=function(vwId, si, rowId){
   const hora=(document.getElementById(rowId+'-hora')?.value||'').trim();
   const estado=document.getElementById(rowId+'-est')?.value||'';
+  const dia=(document.getElementById(rowId+'-dia')?.value||'').trim();
   const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId); if(!vw) return;
   if(!vw.solicitudes?.[si]) return;
   vw.solicitudes[si]={...vw.solicitudes[si], horaAsignada:hora};
+  if(dia) vw.solicitudes[si].diaAsignado=dia;
   if(estado) vw.solicitudes[si].estado=estado;
   _pwSave(list);
   _renderVentana(vwId);
