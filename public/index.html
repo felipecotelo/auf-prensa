@@ -5143,7 +5143,7 @@ const getRatings=()=>stor.get(KRatings,{});
 const setRatings=v=>stor.set(KRatings,v);
 
 function normName(s){
-  return s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 }
 
 // Build lookup: normalized last name → player number
@@ -7767,7 +7767,7 @@ function renderJugadores(){
     const isRetirado=!!retirados[nom];
     const borderStyle=isLeyenda?'2px solid #F59E0B':'1px solid var(--border)';
     const cardBg=isRetirado?'var(--surface)':'var(--surface2)';
-    const _mSlug=nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+    const _mSlug=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
     const mayorKey='mayor:'+_mSlug;
     const mayorKeyEnc=encodeURIComponent(mayorKey);
     const cachedPhoto=(window._estPhotoCache||{})[mayorKey]||(window._estPhotoCache||{})['ct-p:'+_mSlug]||photo;
@@ -8433,7 +8433,7 @@ const ESPN_NAME_ES = {
 
 // Normaliza un nombre (minúsculas, sin acentos) para buscarlo en ESPN_NAME_ES
 function normTeamName(s){
-  return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
 
 // Devuelve la letra de grupo (A-L) a la que pertenece un nombre de equipo ESPN
@@ -8655,7 +8655,7 @@ function getCalZMEntries(num){
       const parts=evP[evKey(day.date,idx)]||[];
       if(!parts.includes('p_'+num)) return;
       const txt=getEvTxt(day.date,idx,e.txt||'');
-      const t=txt.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      const t=txt.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
       if(!t.includes('zona mixta')) return;
       if(getEffectiveOblig(day.date,idx,e)) return;
       out.push({date:day.date, txt});
@@ -9251,7 +9251,7 @@ const AUF_HIST_UPDATED={date:'15/06/2026', match:'vs. Arabia Saudita (Fecha 1)'}
 
 // Genera slug AUF: "José María Giménez" → "jose-maria-gimenez"
 function aufSlug(name){
-  return name.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
     .replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-');
 }
 function aufLink(name, label){
@@ -13974,14 +13974,14 @@ function _renderLocalHome(){
 }
 
 function _localNameToKey(nom){
-  return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+  return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
 }
 // Foto universal por nombre — busca en todos los sistemas de fotos
 window._getPhotoByName = function(nom){
   // 1. Juveniles (keyed by name)
   if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
   // 2. Local/Estructura (keyed by slug)
-  const slug = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+  const slug = nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
   const fromEst = (window._estPhotoCache||{})['ct-p:'+slug];
   if(fromEst) return fromEst;
   // 3. Mayor IDB (busca jersey num en convocatorias)
@@ -15757,12 +15757,12 @@ window._toggleJuvGlobal = function(){
   window.renderJuveniles();
 };
 window._juvGlobalFiltrar = function(){
-  const q=(document.getElementById('juv-global-buscar')?.value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const q=(document.getElementById('juv-global-buscar')?.value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const cards=document.querySelectorAll('#juv-global-grid [data-nom]');
   let visible=0;
   cards.forEach(c=>{
-    const nom=(c.dataset.nom||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
-    const club=(c.dataset.club||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const nom=(c.dataset.nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const club=(c.dataset.club||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const match=!q||nom.includes(q)||club.includes(q);
     c.style.display=match?'':'none';
     if(match) visible++;
@@ -15879,7 +15879,7 @@ window._juvPhotoSelected = function(nomEncoded, input){
 };
 
 // Foto unificada para CT/staff — usa est:ct-p:slug, compartida en toda la web
-function _nameSlug(nom){ return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); }
+function _nameSlug(nom){ return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); }
 
 // Busca la foto de una persona por nombre en todos los caches posibles
 window._getPersonPhoto = function(name){
@@ -18769,7 +18769,7 @@ const CT_MAYOR_ALONSO = [
 
 // Convierte nombre a key de persona unificada
 const _nameToKey = n => 'ct-p:' + n.toLowerCase()
-  .normalize('NFD').replace(/[̀-ͯ]/g,'')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 
 function _estBuildAllSections(){
@@ -18960,7 +18960,7 @@ function _renderEstFicha(key){
   const p=_estGetPerson(key);
   if(!p){ _estBackLista(); return; }
   const cache=window._estPhotoCache||{};
-  const _slugKey=typeof _nameSlug==='function'?_nameSlug(p.label):('ct-p:'+p.label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''));
+  const _slugKey=typeof _nameSlug==='function'?_nameSlug(p.label):('ct-p:'+p.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''));
   const photo=cache[key]||cache[_slugKey]||(window._juvPhotoCache||{})[p.label];
   const contracts=_estGetContracts();
   const contrato=contracts[key]||'activo';
