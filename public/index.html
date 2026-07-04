@@ -17328,11 +17328,13 @@ function _renderVentana(id){
     const est = _pwEstConfig[s.estado]||_pwEstConfig.recibida;
     const isDesc = s.estado==='descartada';
     const isConflicto = _conflictoIdxs.has(origSi);
-    const isAgendada = !isDesc && !!s.diaAsignado;
-    return `<div data-buscar="${(s.programa||'').toLowerCase()} ${(s.medio||'').toLowerCase()}" style="background:${isDesc?'#F9FAFB':isConflicto?'#FFFBEB':isAgendada?'#F0FDF4':'#fff'};border:${isConflicto?'2px solid #F59E0B':isDesc?'1px solid #E5E7EB':isAgendada?'1px solid #86EFAC':'1px solid var(--border)'};border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px;opacity:${isDesc?'.55':'1'}">
+    const isRech = s.estado==='rechazada';
+    const isDimmed = isDesc || isRech;
+    const isAgendada = !isDimmed && !!s.diaAsignado;
+    return `<div data-buscar="${(s.programa||'').toLowerCase()} ${(s.medio||'').toLowerCase()}" style="background:${isDesc?'#F9FAFB':isRech?'#FEF2F2':isConflicto?'#FFFBEB':isAgendada?'#F0FDF4':'#fff'};border:${isConflicto?'2px solid #F59E0B':isDesc?'1px solid #E5E7EB':isRech?'1px solid #FECACA':isAgendada?'1px solid #86EFAC':'1px solid var(--border)'};border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px;opacity:${isDimmed?'.6':'1'}">
       <div style="font-size:.78em;font-weight:900;color:var(--muted);min-width:22px;padding-top:2px">${si+1}.</div>
-      <div style="flex:1;min-width:0;${isDesc?'text-decoration:line-through;':'' }">
-        <div style="font-size:.88em;font-weight:800;color:${isDesc?'var(--muted)':'var(--text)'}">${s.programa||'Sin programa'}</div>
+      <div style="flex:1;min-width:0;${isDimmed?'text-decoration:line-through;':'' }">
+        <div style="font-size:.88em;font-weight:800;color:${isDimmed?'var(--muted)':'var(--text)'}">${s.programa||'Sin programa'}</div>
         <div style="font-size:.75em;color:var(--muted);margin-top:1px">${s.medio||''}${s.recibido?` <span style="color:var(--hint);font-size:.9em">· recibido ${_pwFmtDate(s.recibido)}${s.recibidoHora?' '+s.recibidoHora+'h':''}</span>`:''}</div>
         ${(!isDesc&&(s.diaSolicitado||s.disponibilidad||s.franja))?`<div style="font-size:.75em;color:var(--text);margin-top:4px;background:var(--surface);border-radius:6px;padding:4px 8px"><i class="ti ti-calendar-question" style="font-size:.85em"></i> ${[s.diaSolicitado||s.disponibilidad,s.franja?({'mañana':'🌅 Mañana','mediodía':'☀️ Mediodía','tarde':'🌇 Tarde','noche':'🌙 Noche'}[s.franja]||s.franja):null].filter(Boolean).join(' · ')}</div>`:''}
         ${(!isDesc&&s.formato)?`<div style="font-size:.7em;font-weight:700;color:#1D4ED8;margin-top:3px">${s.formato}</div>`:''}
