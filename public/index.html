@@ -18086,25 +18086,55 @@ function _pwBuildAgendaText(id, waMarkdown){
   const agNotes=vw.agenda||{};
   const desdeStr=_pwFmtDate(vw.desde), hastaStr=_pwFmtDate(vw.hasta);
   const periodo=(desdeStr||hastaStr)?`${desdeStr}${hastaStr&&hastaStr!==desdeStr?' al '+hastaStr:''}`:'';
-  let txt = waMarkdown ? `📅 *Agenda — ${vw.personLabel}*\n` : `📅 Agenda — ${vw.personLabel}\n`;
-  if(periodo) txt += waMarkdown ? `_${periodo}_\n\n` : `${periodo}\n\n`;
+  const B=waMarkdown?'*':'', I=waMarkdown?'_':'';
+  let txt = `📅 ${B}Agenda — ${vw.personLabel}${B}\n`;
+  if(periodo) txt += `${I}${periodo}${I}\n`;
+  const toMin=h=>{if(!h)return 9999;const[hh,mm]=(h||'').split(':').map(Number);return hh*60+(mm||0);};
   let hasContent=false;
   dias.forEach(dia=>{
-    const solItems=sols.filter(s=>s.diaAsignado===dia && !_pwEstExcluidos.has(s.estado))
-      .map(s=>({hora:s.horaAsignada||'',txt:s.programa||'Solicitud',sub:(s.medio||'')+(s.formatoFinal?' · '+s.formatoFinal:''),tipo:'sol'}));
-    const noteItems=(agNotes[dia]||[]).map(n=>({hora:n.hora||'',txt:n.txt||'',sub:n.sub||'',tipo:'nota'}));
-    const all=[...solItems,...noteItems].sort((a,b)=>(a.hora||'ZZ').localeCompare(b.hora||'ZZ'));
+    const solsDelDia=sols.filter(s=>s.diaAsignado===dia && !_pwEstExcluidos.has(s.estado));
+    const noteItems=(agNotes[dia]||[]).map(n=>({hora:n.hora||'',txt:n.txt||'',sub:n.sub||'',tipo:'nota',key:'n'}));
+    // Agrupar conjuntos: un item representativo por conjuntoId
+    const seen=new Set();
+    const solItems=[];
+    solsDelDia.forEach(s=>{
+      if(s.conjuntoId){
+        if(seen.has(s.conjuntoId)) return;
+        seen.add(s.conjuntoId);
+        const grupo=solsDelDia.filter(x=>x.conjuntoId===s.conjuntoId);
+        solItems.push({hora:s.horaAsignada||'',tipo:'sol',grupo});
+      } else {
+        solItems.push({hora:s.horaAsignada||'',tipo:'sol',grupo:[s]});
+      }
+    });
+    const all=[...solItems,...noteItems].sort((a,b)=>toMin(a.hora)-toMin(b.hora));
     if(!all.length) return;
     hasContent=true;
-    txt += waMarkdown ? `\n*${_pwFmtDiaLargo(dia).toUpperCase()}*\n` : `\n${_pwFmtDiaLargo(dia).toUpperCase()}\n`;
+    // Día header: *LUNES 6 DE JULIO*
+    const diaLabel=_pwFmtDiaLargo(dia).toUpperCase();
+    txt += `\n${B}${diaLabel}${B}\n`;
     all.forEach(item=>{
-      let line=`  ${item.hora?item.hora+' ':''}${item.tipo==='sol'?'🎙️':'📌'} `;
-      line += waMarkdown && item.tipo==='sol' ? `*${item.txt}*` : item.txt;
-      if(item.sub) line += waMarkdown ? ` _${item.sub}_` : ` (${item.sub})`;
-      txt+=line+'\n';
+      if(item.tipo==='nota'){
+        txt += `- ${item.hora?item.hora+' ':''}${item.txt}${item.sub?' _'+item.sub+'_':''}\n`;
+        return;
+      }
+      const horaStr=item.hora||'';
+      // Construir texto del ítem (puede ser grupo)
+      const partes=item.grupo.map(s=>{
+        let p = `${B}${s.programa||'Solicitud'}${B}`;
+        const subParts=[s.medio];
+        if(s.fmtTipo) subParts.push(s.fmtTipo==='presencial'?('Presencial'+(s.fmtLugar&&s.fmtLugar!==s.fmtTipo?' · '+s.fmtLugar:'')):'Telefónica/Zoom');
+        const sub=subParts.filter(Boolean).join(' · ');
+        if(sub) p += ` ${I}${sub}${I}`;
+        return p;
+      });
+      const aprobada=item.grupo.every(s=>s.estado==='aprobada');
+      const sufijo=aprobada?'':'  (no aprobada aún)';
+      const horaPrefix=horaStr?horaStr+' ':'Hora a definir ';
+      txt += `- ${horaPrefix}${partes.join(' + ')}${sufijo}\n`;
     });
   });
-  if(!hasContent) txt+='Sin eventos agendados todavía.\n';
+  if(!hasContent) txt+='\nSin eventos agendados todavía.\n';
   return txt.trim();
 }
 window._pwShareAgenda=function(id){ window.open('mailto:?subject='+encodeURIComponent('Agenda')+'&body='+encodeURIComponent(_pwBuildAgendaText(id,false)),'_blank'); };
