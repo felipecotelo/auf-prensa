@@ -17224,7 +17224,8 @@ function _renderVentana(id){
     const noteItems = (agendaNotes[dia]||[]).map((n,ni)=>({...n, tipo:'nota', ni}));
 
     // Combinar y ordenar por hora
-    const allItems=[...solItems,...noteItems].sort((a,b)=>(a.hora||'ZZ').localeCompare(b.hora||'ZZ'));
+    const toMin=h=>{if(!h)return 9999;const[hh,mm]=(h||'').split(':').map(Number);return hh*60+(mm||0);};
+    const allItems=[...solItems,...noteItems].sort((a,b)=>toMin(a.hora)-toMin(b.hora));
 
     const rows = allItems.map((item,idx)=>{
       if(item.tipo==='sol'){
@@ -17243,8 +17244,8 @@ function _renderVentana(id){
               ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
               ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
             </div>
+            <button onclick="event.stopPropagation();_pwAgConjuntoOpen('${id}',${item.si},'${rowId}','${encodeURIComponent(otrosSiData)}')" title="Agrupar en conjunto" style="border:1px solid ${inGrupo?'#10B981':'transparent'};background:${inGrupo?'#D1FAE5':'transparent'};border-radius:6px;cursor:pointer;color:${inGrupo?'#059669':'#BBF7D0'};font-size:.68em;font-weight:700;padding:2px 6px;flex-shrink:0;line-height:1.4">${inGrupo?'conjunto':'+ junto'}</button>
             <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${estCfg.label}</span>
-            <button onclick="event.stopPropagation();_pwAgConjuntoOpen('${id}',${item.si},'${rowId}','${encodeURIComponent(otrosSiData)}')" title="Agrupar en conjunto" style="border:1px solid ${inGrupo?'#10B981':'#D1D5DB'};background:${inGrupo?'#D1FAE5':'transparent'};border-radius:6px;cursor:pointer;color:${inGrupo?'#059669':'#9CA3AF'};font-size:.72em;font-weight:800;padding:2px 7px;flex-shrink:0;line-height:1.4">${inGrupo?'conjunto':'+ junto'}</button>
             <button onclick="event.stopPropagation();_pwAgSolQuit('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:2px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
           </div>
           <div id="${rowId}-edit" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #BBF7D0" onclick="event.stopPropagation()">
