@@ -18158,18 +18158,34 @@ function _pwBuildAgendaText(id, waMarkdown){
       }
       const horaStr=item.hora||'';
       // Construir texto del ítem (puede ser grupo)
+      const inGrupo=item.grupo.length>1;
       const partes=item.grupo.map(s=>{
         let p = `${B}${s.programa||'Solicitud'}${B}`;
-        const subParts=[s.medio];
-        if(s.fmtTipo) subParts.push(s.fmtTipo==='presencial'?('Presencial'+(s.fmtLugar&&s.fmtLugar!==s.fmtTipo?' · '+s.fmtLugar:'')):'Telefónica/Zoom');
-        const sub=subParts.filter(Boolean).join(' · ');
-        if(sub) p += ` ${I}${sub}${I}`;
+        if(inGrupo){
+          // En conjunto: solo programa + medio, sin fmtTipo/fmtLugar (va al final compartido)
+          if(s.medio) p += ` ${I}${s.medio}${I}`;
+        } else {
+          const subParts=[s.medio];
+          if(s.fmtTipo) subParts.push(s.fmtTipo==='presencial'?('Presencial'+(s.fmtLugar?' · '+s.fmtLugar:'')):'Telefónica/Zoom');
+          const sub=subParts.filter(Boolean).join(' · ');
+          if(sub) p += ` ${I}${sub}${I}`;
+        }
         return p;
       });
+      // Para conjunto: agregar info de lugar compartida una sola vez al final
+      let lugarSufijo='';
+      if(inGrupo){
+        const rep=item.grupo.find(s=>s.fmtTipo);
+        if(rep){
+          const lugarParts=[rep.fmtTipo==='presencial'?'Presencial':'No presencial'];
+          if(rep.fmtLugar) lugarParts.push(rep.fmtLugar);
+          lugarSufijo=` ${I}· ${lugarParts.join(' · ')}${I}`;
+        }
+      }
       const aprobada=item.grupo.every(s=>s.estado==='aprobada');
       const sufijo=aprobada?'':'  (no aprobada aún)';
       const horaPrefix=horaStr?horaStr+' ':'Hora a definir ';
-      txt += `- ${horaPrefix}${partes.join(' + ')}${sufijo}\n`;
+      txt += `- ${horaPrefix}${partes.join(' + ')}${lugarSufijo}${sufijo}\n`;
     });
   });
   if(!hasContent) txt+='\nSin eventos agendados todavía.\n';
