@@ -8,44 +8,76 @@ Uso:
   python3 update_clubs.py --push    # también hace git commit + push
 """
 
-import re, sys, time, argparse
-import urllib.request, urllib.error
+import re, sys, time, argparse, subprocess
 
 HTML_FILE = 'public/index.html'
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    'Accept-Language': 'es-ES,es;q=0.9',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-}
 
 def fetch_tm(tmid):
+    """Usa curl para traer el perfil TM (evita bloqueos de Python urllib)."""
     url = f'https://www.transfermarkt.es/x/profil/spieler/{tmid}'
-    req = urllib.request.Request(url, headers=HEADERS)
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            return r.read().decode('utf-8', errors='ignore')
-    except Exception as e:
+        result = subprocess.run(
+            ['curl', '-s', '-L', '--max-time', '12',
+             '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+             '-H', 'Accept-Language: es-ES,es;q=0.9',
+             url],
+            capture_output=True, text=True, timeout=15
+        )
+        return result.stdout if result.returncode == 0 else None
+    except Exception:
         return None
 
+LEAGUE_COUNTRY = {
+    # América del Sur
+    'Serie A (Brasil)': 'br', 'Brasileirao': 'br', 'Série A': 'br', 'Serie B (Brasil)': 'br',
+    'Primera División': 'uy', 'Primera División (Uruguay)': 'uy',
+    'Liga Profesional de Fútbol': 'ar', 'Primera Nacional': 'ar', 'Primera División (Argentina)': 'ar',
+    'Primera División (Chile)': 'cl', 'Primera División (Colombia)': 'co',
+    'Liga 1 (Perú)': 'pe', 'Primera División (Paraguay)': 'py',
+    'División de Honor (Bolivia)': 'bo', 'LaLiga BetPlay': 'co',
+    # Europa
+    'LaLiga': 'es', 'LaLiga2': 'es', 'Segunda División': 'es',
+    'Premier League': 'gb-eng', 'Championship': 'gb-eng', 'League One': 'gb-eng',
+    'Ligue 1': 'fr', 'Ligue 2': 'fr',
+    'Bundesliga': 'de', '2. Bundesliga': 'de',
+    'Serie A': 'it', 'Serie B': 'it',
+    'Eredivisie': 'nl', 'Eerste Divisie': 'nl',
+    'Jupiler Pro League': 'be',
+    'Super League (Grecia)': 'gr', 'Super Lig': 'tr',
+    'Primeira Liga': 'pt', 'Liga Portugal 2': 'pt',
+    'Scottish Premiership': 'gb-sct',
+    'Süper Lig': 'tr', 'TFF First League': 'tr',
+    # Medio Oriente / Asia
+    'Saudi Pro League': 'sa', 'Pro League (Saudi Arabia)': 'sa',
+    'UAE Pro League': 'ae', 'Qatar Stars League': 'qa',
+    'MLS': 'us', 'USL Championship': 'us',
+    'Liga MX': 'mx', 'Liga de Expansión MX': 'mx',
+    # Otros
+    'Ukrainian Premier League': 'ua', 'RPL': 'ru',
+}
+
 def parse_club(html):
+    """Extrae club y país. Keywords: 'Jugador,Club,Liga,NacJugador'
+       Description: '... ➤ Club, desde XXXX ➤ ...'
+    """
     if not html:
         return None, None
-    # Club actual — aparece en el header de perfil
-    # <span itemprop="name">Club Name</span> dentro del bloque de club actual
-    m = re.search(r'Club actual[^<]*</span>\s*</td>\s*<td[^>]*>.*?<a[^>]*>([^<]+)</a>', html, re.S)
-    if m:
-        club = m.group(1).strip()
-    else:
-        # fallback: buscar el primer club en data-club-name
-        m2 = re.search(r'data-club-name="([^"]+)"', html)
-        club = m2.group(1).strip() if m2 else None
 
-    # País del club
+    # Club del meta description (nombre más limpio)
+    m = re.search(r'<meta name="description" content="[^"]+?➤\s*([^,➤]+?)(?:,\s*desde|\s*➤)', html)
+    club = m.group(1).strip() if m else None
+
+    # Fallback: segundo campo del keywords
+    if not club:
+        mk = re.search(r'<meta name="keywords" content="[^,]+,([^,]+)', html)
+        club = mk.group(1).strip() if mk else None
+
+    # País: mapear la liga (tercer campo de keywords) → ISO
     pais = None
-    m3 = re.search(r'<img[^>]*class="flagge[^"]*"[^>]*title="([^"]+)"', html)
-    if m3:
-        country_name = m3.group(1).strip()
-        pais = COUNTRY_ISO.get(country_name)
+    mk2 = re.search(r'<meta name="keywords" content="[^,]+,[^,]+,([^,]+),', html)
+    if mk2:
+        liga = mk2.group(1).strip()
+        pais = LEAGUE_COUNTRY.get(liga)
 
     return club, pais
 
@@ -69,11 +101,12 @@ COUNTRY_ISO = {
 
 def extract_mayor_players(html):
     """Extrae (nombre, tmId, club_actual, pais_actual) del bloque JUGADORES."""
-    pattern = r"'([^']+)':\s*\{auf:[^}]+?tmId:(\d+)[^}]+?club:'([^']+)'[^}]+?pais:'([^']+)'"
+    # Cada jugador está en una sola línea: 'Nombre': {auf:..., pos:..., club:'...', pais:'...', ..., tmId:XXXXX, ...}
+    pattern = r"'([^']+)':\s*\{auf:[^\n]+?club:'([^']+)'[^\n]+?pais:'([^']+)'[^\n]+?tmId:(\d+)"
     players = []
     for m in re.finditer(pattern, html):
-        players.append({'nom': m.group(1), 'tmId': int(m.group(2)),
-                        'club': m.group(3), 'pais': m.group(4)})
+        players.append({'nom': m.group(1), 'club': m.group(2),
+                        'pais': m.group(3), 'tmId': int(m.group(4))})
     return players
 
 def flag_to_iso(flag_emoji):
@@ -126,8 +159,9 @@ def main():
         club, pais_iso = parse_club(page)
         time.sleep(1.2)  # respetar rate limit
 
-        if not club:
-            print('❌ sin datos')
+        SKIP = {'Vereinslos', 'Karriereende', 'MLS Pool', 'sin club', 'Retirado'}
+        if not club or club in SKIP:
+            print(f'⏭ {club or "sin datos"} (omitido)')
             continue
 
         new_flag = iso_to_flag(pais_iso) if pais_iso else p['pais']
@@ -160,7 +194,6 @@ def main():
     print(f'\n✓ {HTML_FILE} actualizado')
 
     if args.push:
-        import subprocess
         subprocess.run(['git', 'add', HTML_FILE], check=True)
         subprocess.run(['git', 'commit', '-m', f'Update clubs from Transfermarkt ({len(changes)} cambios)'], check=True)
         subprocess.run(['git', 'push', 'origin', 'main'], check=True)
