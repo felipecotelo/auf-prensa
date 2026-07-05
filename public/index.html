@@ -17241,32 +17241,54 @@ function _renderVentana(id){
 
     // Combinar y ordenar por hora
     const toMin=h=>{if(!h)return 9999;const[hh,mm]=(h||'').split(':').map(Number);return hh*60+(mm||0);};
-    const allItems=[...solItems,...noteItems].sort((a,b)=>toMin(a.hora)-toMin(b.hora));
+    // Agrupar conjuntos: un item representativo por conjuntoId
+    const seenConj=new Set();
+    const solItemsAgrupados=[];
+    solItems.forEach(item=>{
+      if(item.conjuntoId){
+        if(seenConj.has(item.conjuntoId)) return;
+        seenConj.add(item.conjuntoId);
+        const grupo=solItems.filter(x=>x.conjuntoId===item.conjuntoId);
+        solItemsAgrupados.push({...item, _grupo:grupo});
+      } else {
+        solItemsAgrupados.push({...item, _grupo:[item]});
+      }
+    });
+    const allItems=[...solItemsAgrupados,...noteItems].sort((a,b)=>toMin(a.hora)-toMin(b.hora));
 
     const rows = allItems.map((item,idx)=>{
       if(item.tipo==='sol'){
-        const estCfg=_pwEstConfig[item.estSol]||_pwEstConfig.recibida;
+        const grupo = item._grupo||[item];
+        const inGrupo = grupo.length>1;
+        // Usar el primer si del grupo como rowId principal
         const rowId=`pw-agrow-${id}-${item.si}`;
-        const inGrupo = !!item.conjuntoId;
-        const isAprobada = item.estSol==='aprobada';
+        const isAprobada = grupo.every(x=>x.estSol==='aprobada');
         const rowBg = isAprobada ? '#F0FDF4' : '#F8FAFC';
         const rowBorderColor = isAprobada ? '#10B981' : '#CBD5E1';
-        const groupBorder = inGrupo ? `border-left:3px solid ${rowBorderColor};` : '';
-        const conjuntoBadge = inGrupo ? `<span style="font-size:.6em;font-weight:700;color:#059669;background:#D1FAE5;border-radius:6px;padding:1px 5px;margin-left:5px">conjunto</span>` : '';
+        const estCfg=_pwEstConfig[item.estSol]||_pwEstConfig.recibida;
         // Otras solicitudes del día para el selector
         const otrosSiData = allItems.filter(it=>it.tipo==='sol'&&it.si!==item.si).map(it=>`${it.si}|${it.txt} · ${it.sub}`).join(';;');
-        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:${rowBg};margin-bottom:6px;${groupBorder}cursor:pointer">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:.7em;color:${isAprobada?'#065F46':'#475569'};font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
+        // Líneas de programas del grupo
+        const programasHtml = grupo.map(g=>`
+              <div style="display:flex;align-items:center;gap:6px;margin-top:${g===grupo[0]?'0':'4px'}">
+                <div style="flex:1;min-width:0">
+                  <span style="font-size:.82em;font-weight:800;color:#065F46">${g.txt}</span>
+                  ${g.sub?`<span style="font-size:.72em;color:#166534;margin-left:4px">${g.sub}</span>`:''}
+                </div>
+                <button onclick="event.stopPropagation();_pwAgSolQuit('${id}',${g.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.85em;padding:1px 3px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
+              </div>`).join('');
+        return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:${rowBg};margin-bottom:6px;border-left:${inGrupo?`3px solid ${rowBorderColor}`:'none'};cursor:pointer">
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            <span style="font-size:.7em;color:${isAprobada?'#065F46':'#475569'};font-weight:700;min-width:38px;flex-shrink:0;padding-top:2px">${item.hora||'—'}</span>
             <div style="flex:1;min-width:0">
-              <div style="font-size:.82em;font-weight:800;color:#065F46">${item.txt}${conjuntoBadge}</div>
-              ${item.sub?`<div style="font-size:.7em;color:#166534">${item.sub}</div>`:''}
-              ${item.pidDia||item.pidFranja?`<div style="font-size:.68em;color:#6EE7B7;margin-top:2px">Pidió: ${[item.pidDia,item.pidFranja].filter(Boolean).join(' · ')}</div>`:''}
-              ${item.fmtTipo?`<div style="font-size:.68em;color:#065F46;margin-top:2px;display:flex;align-items:center;gap:3px"><i class="ti ti-${item.fmtTipo==='presencial'?'map-pin':'video'}" style="font-size:.9em"></i>${item.fmtTipo==='presencial'?'Presencial':'No presencial'}${item.fmtLugar?' · <strong>'+item.fmtLugar+'</strong>':''}</div>`:''}
+              ${inGrupo?`<div style="font-size:.6em;font-weight:800;color:#059669;background:#D1FAE5;border-radius:5px;padding:1px 6px;display:inline-block;margin-bottom:4px">EN CONJUNTO</div>`:''}
+              ${programasHtml}
+              ${item.fmtTipo?`<div style="font-size:.68em;color:#065F46;margin-top:4px;display:flex;align-items:center;gap:3px"><i class="ti ti-${item.fmtTipo==='presencial'?'map-pin':'video'}" style="font-size:.9em"></i>${item.fmtTipo==='presencial'?'Presencial':'No presencial'}${item.fmtLugar?' · <strong>'+item.fmtLugar+'</strong>':''}</div>`:''}
             </div>
-            <button onclick="event.stopPropagation();_pwAgConjuntoOpen('${id}',${item.si},'${rowId}','${encodeURIComponent(otrosSiData)}')" title="Agrupar en conjunto" style="border:1px solid ${inGrupo?'#10B981':'transparent'};background:${inGrupo?'#D1FAE5':'transparent'};border-radius:6px;cursor:pointer;color:${inGrupo?'#059669':'#BBF7D0'};font-size:.68em;font-weight:700;padding:2px 6px;flex-shrink:0;line-height:1.4">${inGrupo?'conjunto':'+ junto'}</button>
-            <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${estCfg.label}</span>
-            <button onclick="event.stopPropagation();_pwAgSolQuit('${id}',${item.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:2px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+              <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap">${estCfg.label}</span>
+              <button onclick="event.stopPropagation();_pwAgConjuntoOpen('${id}',${item.si},'${rowId}','${encodeURIComponent(otrosSiData)}')" style="border:1px solid ${inGrupo?'#10B981':'transparent'};background:transparent;border-radius:6px;cursor:pointer;color:${inGrupo?'#059669':'#9CA3AF'};font-size:.65em;font-weight:700;padding:2px 6px;line-height:1.4">${inGrupo?'✎ conjunto':'+ junto'}</button>
+            </div>
           </div>
           <div id="${rowId}-edit" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #BBF7D0" onclick="event.stopPropagation()">
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
