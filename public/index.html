@@ -18277,32 +18277,47 @@ function _pwBuildAgendaText(id, waMarkdown){
       const horaStr=item.hora||'';
       // Construir texto del ítem (puede ser grupo)
       const inGrupo=item.grupo.length>1;
+      // Helper: texto de formato para un item
+      const fmtTexto=(s,conEstado)=>{
+        if(!s.fmtTipo) return '';
+        const enRevision=s.estado==='en_revision';
+        if(s.fmtTipo==='presencial'){
+          const lugar=s.fmtLugar||'A definir';
+          return 'Presencial · '+lugar+(enRevision&&conEstado?' (en revisión)':'');
+        } else {
+          // nopresencial: usar fmtLugar como tipo real (Telefónica / Zoom)
+          const subtipo=s.fmtLugar?s.fmtLugar.charAt(0).toUpperCase()+s.fmtLugar.slice(1):'No presencial';
+          return subtipo+(enRevision&&conEstado?' (en revisión)':'');
+        }
+      };
       const partes=item.grupo.map(s=>{
         let p = `${B}${s.programa||'Solicitud'}${B}`;
         if(inGrupo){
-          // En conjunto: solo programa + medio, sin fmtTipo/fmtLugar (va al final compartido)
           if(s.medio) p += ` ${I}${s.medio}${I}`;
         } else {
+          const enRevision=s.estado==='en_revision';
           const subParts=[s.medio];
-          if(s.fmtTipo) subParts.push(s.fmtTipo==='presencial'?('Presencial'+(s.fmtLugar?' · '+s.fmtLugar:'')):'Telefónica/Zoom');
+          const fmt=fmtTexto(s,true);
+          if(fmt) subParts.push(fmt);
+          else if(enRevision) subParts.push('(en revisión)');
           const sub=subParts.filter(Boolean).join(' · ');
           if(sub) p += ` ${I}${sub}${I}`;
         }
         return p;
       });
-      // Para conjunto: agregar info de lugar compartida una sola vez al final
+      // Para conjunto: info de lugar compartida una sola vez al final
       let lugarSufijo='';
       if(inGrupo){
         const rep=item.grupo.find(s=>s.fmtTipo);
         if(rep){
-          const lugarParts=[rep.fmtTipo==='presencial'?'Presencial':'No presencial'];
-          if(rep.fmtLugar) lugarParts.push(rep.fmtLugar);
-          lugarSufijo=` ${I}· ${lugarParts.join(' · ')}${I}`;
+          const enRevision=item.grupo.some(s=>s.estado==='en_revision');
+          const fmt=fmtTexto(rep,false);
+          const revStr=enRevision?' (en revisión)':'';
+          if(fmt) lugarSufijo=` ${I}· ${fmt}${revStr}${I}`;
         }
       }
       const realizada=item.grupo.every(s=>s.estado==='realizada');
-      const aprobada=item.grupo.every(s=>s.estado==='aprobada'||s.estado==='realizada');
-      const sufijo=realizada?' ☑️':aprobada?'':'  _(no aprobada aún)_';
+      const sufijo=realizada?' ☑️':'';
       const horaPrefix=horaStr?horaStr+' ':'Hora a definir ';
       txt += `- ${horaPrefix}${partes.join(' + ')}${lugarSufijo}${sufijo}\n`;
     });
