@@ -2453,30 +2453,47 @@ const TM_FLAG={
 async function _tmSyncAll(force){
   const lastSync=stor.get(KTmSync,{});
   const now=Date.now();
+
+  // Jugadores Mayor (JUGADORES dict)
   const jugClub=getJugClub();
   const exClubs=getJugExClubs();
-  const toSync=Object.entries(JUGADORES)
-    .filter(([,p])=>p.tmId&&(force||!lastSync[p.tmId]||now-lastSync[p.tmId]>TM_TTL));
+  const mayorList=Object.entries(JUGADORES)
+    .filter(([,p])=>p.tmId&&(force||!lastSync[p.tmId]||now-lastSync[p.tmId]>TM_TTL))
+    .map(([nom,p])=>({nom,tmId:p.tmId,source:'mayor'}));
+
+  // Jugadores Local (de _getLocalStats)
+  const localStats=typeof _getLocalStats==='function'?_getLocalStats():{};
+  const localClubOvr=typeof getLocalClub==='function'?getLocalClub():{};
+  const localList=Object.values(localStats)
+    .filter(s=>s.tmId&&(force||!lastSync[s.tmId]||now-lastSync[s.tmId]>TM_TTL))
+    .map(s=>({nom:s.nom,tmId:s.tmId,source:'local'}));
+
+  const toSync=[...mayorList,...localList];
   if(!toSync.length) return 0;
   let updated=0;
-  for(const [nom,p] of toSync){
+  for(const {nom,tmId,source} of toSync){
     try{
-      const r=await fetch(`/api/tm/${p.tmId}`);
+      const r=await fetch(`/api/tm/${tmId}`);
       if(!r.ok) continue;
       const data=await r.json();
       const clubName=data.club?.name;
-      const countryName=data.club?.countryName||data.league?.countryName;
+      const countryName=data.league?.countryName||data.club?.countryName;
       if(clubName){
-        const prev=(jugClub[nom]||'').trim();
-        // Guardar club anterior como ex-club
-        if(prev&&prev!=='—'&&prev!==clubName){
-          const exList=exClubs[nom]||[];
-          if(!exList.includes(prev)){exList.push(prev);exClubs[nom]=exList;}
+        if(source==='mayor'){
+          const prev=(jugClub[nom]||'').trim();
+          if(prev&&prev!=='—'&&prev!==clubName){
+            const exList=exClubs[nom]||[];
+            if(!exList.includes(prev)){exList.push(prev);exClubs[nom]=exList;}
+          }
+          jugClub[nom]=clubName;
+          const flag=TM_FLAG[countryName]||'';
+          if(flag) jugClub[nom+'__pais']=flag;
+        } else {
+          // Local: guardar en KLocalClub
+          if(!localClubOvr[nom]) localClubOvr[nom]={};
+          localClubOvr[nom].actual=clubName;
         }
-        jugClub[nom]=clubName;
-        const flag=TM_FLAG[countryName]||'';
-        if(flag) jugClub[nom+'__pais']=flag;
-        lastSync[p.tmId]=now;
+        lastSync[tmId]=now;
         updated++;
       }
     }catch(e){}
@@ -2485,6 +2502,7 @@ async function _tmSyncAll(force){
   if(updated){
     stor.set(KJugClub,jugClub);
     stor.set(KJugExClubs,exClubs);
+    if(localList.length) stor.set(KLocalClub,localClubOvr);
     stor.set(KTmSync,lastSync);
   }
   return updated;
