@@ -17349,14 +17349,18 @@ function _renderVentana(id){
         // Otras solicitudes del día para el selector
         const otrosSiData = allItems.filter(it=>it.tipo==='sol'&&it.si!==item.si).map(it=>`${it.si}|${it.txt} · ${it.sub}`).join(';;');
         // Líneas de programas del grupo
-        const programasHtml = grupo.map(g=>`
+        const programasHtml = grupo.map(g=>{
+          const gLink=vw.solicitudes[g.si]?.linkUrl||'';
+          return `
               <div style="display:flex;align-items:center;gap:6px;margin-top:${g===grupo[0]?'0':'4px'}">
                 <div style="flex:1;min-width:0">
                   <span style="font-size:.82em;font-weight:800;color:#065F46">${g.txt}</span>
                   ${g.sub?`<span style="font-size:.72em;color:#166534;margin-left:4px">${g.sub}</span>`:''}
                 </div>
+                ${gLink?`<a href="${gLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link" style="color:#3B82F6;font-size:.9em;line-height:1;flex-shrink:0"><i class="ti ti-link"></i></a>`:''}
                 <button onclick="event.stopPropagation();_pwAgSolQuit('${id}',${g.si})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.85em;padding:1px 3px;flex-shrink:0" title="Quitar del día"><i class="ti ti-x"></i></button>
-              </div>`).join('');
+              </div>`;
+        }).join('');
         return `<div id="${rowId}" onclick="_pwAgRowToggle('${id}',${item.si},'${rowId}')" style="padding:8px 10px;border-radius:10px;background:${rowBg};margin-bottom:6px;border-left:${rowBorderLeft};cursor:pointer;opacity:${rowOpacity};transition:opacity .15s">
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:.7em;color:${isAprobada?'#065F46':'#475569'};font-weight:700;min-width:38px;flex-shrink:0">${item.hora||'—'}</span>
@@ -17366,7 +17370,6 @@ function _renderVentana(id){
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
               <div style="display:flex;align-items:center;gap:5px">
-                ${linkUrl?`<a href="${linkUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link" style="color:#3B82F6;font-size:.9em;line-height:1"><i class="ti ti-link"></i></a>`:''}
                 <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap">${estCfg.label}</span>
                 <button onclick="event.stopPropagation();_pwAgToggleRealizada('${id}',${item.si})" title="${isRealizada?'Quitar realizada':'Marcar como realizada'}" style="border:none;background:none;cursor:pointer;padding:1px;font-size:1.2em;color:${isRealizada?'#16A34A':'#94A3B8'};line-height:1"><i class="ti ti-${isRealizada?'circle-check-filled':'circle-check'}"></i></button>
               </div>
@@ -17395,10 +17398,12 @@ function _renderVentana(id){
               </select>
               <input id="${rowId}-fmtlugar" type="text" value="${item.fmtTipo==='presencial'?'':''}" placeholder="Lugar / detalle…" style="flex:1;min-width:80px;padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;outline:none;display:${item.fmtTipo==='presencial'?'block':'none'}">
             </div>
+            ${grupo.map(g=>{const gl=vw.solicitudes[g.si]?.linkUrl||'';return`
             <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
               <i class="ti ti-link" style="color:#6EE7B7;font-size:.9em;flex-shrink:0"></i>
-              <input id="${rowId}-link" type="url" value="${linkUrl}" placeholder="Link del contenido publicado…" style="flex:1;padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;outline:none" onclick="event.stopPropagation()">
-            </div>
+              ${inGrupo?`<span style="font-size:.72em;color:#065F46;font-weight:700;min-width:0;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${g.txt}</span>`:''}
+              <input id="${rowId}-link-${g.si}" type="url" value="${gl}" placeholder="Link…" style="flex:1;padding:5px 7px;border:1.5px solid #6EE7B7;border-radius:7px;font-size:.78em;outline:none" onclick="event.stopPropagation()">
+            </div>`;}).join('')}
           </div>
           <div id="${rowId}-conjunto" style="display:none;margin-top:8px;padding:8px;background:#ECFDF5;border-radius:8px;border:1px solid #6EE7B7" onclick="event.stopPropagation()">
             <div style="font-size:.7em;font-weight:800;color:#065F46;margin-bottom:6px">Seleccioná las que van en conjunto:</div>
@@ -18097,13 +18102,23 @@ window._pwAgRowSave=function(vwId, si, rowId){
   const fmtSubMap={movil:'móvil',piso:'piso',telefonica:'telefónica',zoom:'zoom'};
   const fmtLugarInput=(document.getElementById(rowId+'-fmtlugar')?.value||'').trim();
   const fmtLugar=fmtTipo==='presencial'?(fmtLugarInput||fmtSubMap[fmtSubVal]||''):fmtSubMap[fmtSubVal]||'';
+  // Links: uno por solicitud del grupo
+  const linkInputs=[...document.querySelectorAll(`[id^="${rowId}-link-"]`)];
+  const linkMap={};
+  linkInputs.forEach(inp=>{const si2=inp.id.replace(rowId+'-link-','');linkMap[si2]=(inp.value||'').trim();});
+  // Fallback: input único legacy
   const linkUrl=(document.getElementById(rowId+'-link')?.value||'').trim();
   const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId); if(!vw) return;
   if(!vw.solicitudes?.[si]) return;
   vw.solicitudes[si]={...vw.solicitudes[si], horaAsignada:hora};
   if(dia) vw.solicitudes[si].diaAsignado=dia;
   if(estado) vw.solicitudes[si].estado=estado;
-  vw.solicitudes[si].linkUrl=linkUrl;
+  // Guardar links por solicitud
+  if(Object.keys(linkMap).length){
+    Object.entries(linkMap).forEach(([si2,url])=>{ if(vw.solicitudes[parseInt(si2)]) vw.solicitudes[parseInt(si2)].linkUrl=url; });
+  } else {
+    vw.solicitudes[si].linkUrl=linkUrl;
+  }
   if(fmtTipo){
     vw.solicitudes[si].fmtTipo=fmtTipo; vw.solicitudes[si].fmtLugar=fmtLugar;
     // Propagar a todos los del mismo conjunto
