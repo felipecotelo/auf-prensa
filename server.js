@@ -408,6 +408,23 @@ app.get('/api/calendar.ics', async (req, res) => {
   console.log('Endpoint /api/parse-boletin activo (upload + Dropbox URL)');
 })();
 
+// ── Proxy Transfermarkt API (evita CORS en cliente) ─────────────────────────
+app.get('/api/tm/:id', (req, res) => {
+  const id = req.params.id.replace(/[^0-9]/g, '');
+  if (!id) return res.status(400).json({ error: 'id inválido' });
+  const url = `https://transfermarkt-api.fly.dev/players/${id}/profile`;
+  https.get(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'auf-prensa/1.0' } }, (r) => {
+    let data = '';
+    r.on('data', chunk => data += chunk);
+    r.on('end', () => {
+      try {
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // 24h
+        res.json(JSON.parse(data));
+      } catch(e) { res.status(500).json({ error: 'parse error' }); }
+    });
+  }).on('error', e => res.status(502).json({ error: e.message }));
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));
 // trigger deploy Thu Jun 18 18:40:44 EST 2026
