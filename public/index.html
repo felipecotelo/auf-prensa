@@ -2431,6 +2431,78 @@ const setJugClub=(nom,club)=>{
   d[nom]=club;stor.set(KJugClub,d);
 };
 const clearJugClub=(nom)=>{const d=getJugClub();delete d[nom];stor.set(KJugClub,d);};
+
+// ── Transfermarkt auto-sync ──────────────────────────────────────────────────
+const KTmSync='auf4_tm_sync';
+const TM_API='https://transfermarkt-api.fly.dev';
+const TM_TTL=7*24*3600*1000;
+const TM_FLAG={
+  'Germany':'🇩🇪','Spain':'🇪🇸','England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','France':'🇫🇷','Italy':'🇮🇹',
+  'Portugal':'🇵🇹','Netherlands':'🇳🇱','Brazil':'🇧🇷','Argentina':'🇦🇷','Uruguay':'🇺🇾',
+  'Mexico':'🇲🇽','United States':'🇺🇸','Turkey':'🇹🇷','Saudi Arabia':'🇸🇦',
+  'Greece':'🇬🇷','Belgium':'🇧🇪','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','Ukraine':'🇺🇦','Russia':'🇷🇺',
+  'China':'🇨🇳','Japan':'🇯🇵','South Korea':'🇰🇷','Australia':'🇦🇺','Qatar':'🇶🇦',
+  'Colombia':'🇨🇴','Chile':'🇨🇱','Peru':'🇵🇪','Ecuador':'🇪🇨','Paraguay':'🇵🇾',
+  'Bolivia':'🇧🇴','Venezuela':'🇻🇪','Morocco':'🇲🇦','Egypt':'🇪🇬','Ivory Coast':'🇨🇮',
+  'Austria':'🇦🇹','Switzerland':'🇨🇭','Denmark':'🇩🇰','Sweden':'🇸🇪','Norway':'🇳🇴',
+  'Poland':'🇵🇱','Croatia':'🇭🇷','Serbia':'🇷🇸','Czech Republic':'🇨🇿','Hungary':'🇭🇺',
+  'Israel':'🇮🇱','UAE':'🇦🇪','Canada':'🇨🇦','Romania':'🇷🇴','Slovakia':'🇸🇰',
+  'United Arab Emirates':'🇦🇪','Kazakhstan':'🇰🇿','Cyprus':'🇨🇾','Finland':'🇫🇮',
+  'Malaysia':'🇲🇾','India':'🇮🇳',
+};
+async function _tmSyncAll(force){
+  const lastSync=stor.get(KTmSync,{});
+  const now=Date.now();
+  const jugClub=getJugClub();
+  const exClubs=getJugExClubs();
+  const toSync=Object.entries(JUGADORES)
+    .filter(([,p])=>p.tmId&&(force||!lastSync[p.tmId]||now-lastSync[p.tmId]>TM_TTL));
+  if(!toSync.length) return 0;
+  let updated=0;
+  for(const [nom,p] of toSync){
+    try{
+      const r=await fetch(`${TM_API}/players/${p.tmId}/profile`);
+      if(!r.ok) continue;
+      const data=await r.json();
+      const clubName=data.club?.name;
+      const countryName=data.club?.countryName||data.league?.countryName;
+      if(clubName){
+        const prev=(jugClub[nom]||'').trim();
+        // Guardar club anterior como ex-club
+        if(prev&&prev!=='—'&&prev!==clubName){
+          const exList=exClubs[nom]||[];
+          if(!exList.includes(prev)){exList.push(prev);exClubs[nom]=exList;}
+        }
+        jugClub[nom]=clubName;
+        const flag=TM_FLAG[countryName]||'';
+        if(flag) jugClub[nom+'__pais']=flag;
+        lastSync[p.tmId]=now;
+        updated++;
+      }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,150));
+  }
+  if(updated){
+    stor.set(KJugClub,jugClub);
+    stor.set(KJugExClubs,exClubs);
+    stor.set(KTmSync,lastSync);
+  }
+  return updated;
+}
+// Auto-sync on load (background, sin bloquear render)
+window.addEventListener('load',()=>setTimeout(()=>_tmSyncAll(false).then(n=>{
+  if(n>0){console.log(`TM sync: ${n} clubes actualizados`);if(typeof renderJugadores==='function')renderJugadores();}
+}),2000));
+window._tmSyncManual=async function(){
+  const btn=document.getElementById('tm-sync-btn'); if(!btn) return;
+  btn.disabled=true; btn.textContent='⏳ Sincronizando…';
+  const n=await _tmSyncAll(true);
+  if(typeof renderJugadores==='function') renderJugadores();
+  btn.disabled=false; btn.textContent=n>0?`✓ ${n} clubes actualizados`:'✓ Todo al día';
+  setTimeout(()=>{if(btn)btn.textContent='↻ Sincronizar clubes (TM)';},3000);
+};
+// ────────────────────────────────────────────────────────────────────────────
+
 const KJuvClub='auf4_juv_club';
 const getJuvClub=()=>stor.get(KJuvClub,{});
 const setJuvClub=(nom,club,pais)=>{
@@ -7833,8 +7905,11 @@ function renderJugadores(){
       </div>`:'';
     })():''}
 
-    <!-- Grid -->
-    <div style="font-size:.72em;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.07em">${entries.length} jugador${entries.length!==1?'es':''}</div>
+    <!-- Sync TM -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:.72em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">${entries.length} jugador${entries.length!==1?'es':''}</div>
+      <button id="tm-sync-btn" onclick="_tmSyncManual()" style="font-size:.7em;font-weight:700;color:#1D4ED8;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:4px 10px;cursor:pointer;display:flex;align-items:center;gap:4px"><i class="ti ti-refresh" style="font-size:.9em"></i> Sincronizar clubes (TM)</button>
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px">
       ${entries.map(([nom,d])=>playerCard(nom,d)).join('')}
     </div>
