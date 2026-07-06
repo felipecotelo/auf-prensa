@@ -17905,22 +17905,30 @@ function _renderVentanaRegistro(vw, list){
   const atens=(vw.solicitudes||[]).slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
   const total=atens.length, real=atens.filter(a=>a.realizada).length;
 
-  const rows=atens.length ? atens.map((a,idx)=>{
-    const orig=(vw.solicitudes||[]).indexOf(a); // real index
-    const ri=(vw.solicitudes||[]).findIndex((_,i)=>vw.solicitudes[i]===a);
+  const rows=atens.length ? atens.map((a)=>{
+    const ri=(vw.solicitudes||[]).indexOf(a);
     const fmtLabel=_pwFmtAten[a.formato]||a.formato||'';
     const fechaDisp=a.fecha?_pwFmtDiaLargo(a.fecha):'Sin fecha';
     const horaDisp=a.hora?' · '+a.hora:'';
     const bg=a.realizada?'#F0FDF4':'#fff';
     const border=a.realizada?'1px solid #BBF7D0':'1px solid var(--border)';
     const tickColor=a.realizada?'#16A34A':'#CBD5E1';
-    return `<div style="background:${bg};border:${border};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;opacity:${a.realizada?.7:1}">
-      <button onclick="_pwAtenToggle('${vw.id}',${ri})" style="border:none;background:none;cursor:pointer;padding:0;color:${tickColor};font-size:1.25em;margin-top:1px;flex-shrink:0"><i class="ti ti-${a.realizada?'circle-check-filled':'circle-check'}"></i></button>
+    const estCfg=_pwEstConfig[a.estado];
+    const estBadge=estCfg?`<span style="font-size:.7em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 8px">${estCfg.label}</span>`:'';
+    const solLine=[a.programa,a.medio].filter(Boolean).join(' · ');
+    const fmtSolLabel={presencial:'Presencial',telefonica:'Telefónica',zoom:'Zoom',standup:'Stand-up',escrita:'Nota escrita'}[a.formatoSol]||'';
+    const solMeta=[a.diaSolicitado,a.franja,fmtSolLabel].filter(Boolean).join(' · ');
+    return `<div style="background:${bg};border:${border};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;opacity:${a.realizada?.72:1}">
+      <button onclick="_pwAtenToggle('${vw.id}',${ri})" style="border:none;background:none;cursor:pointer;padding:0;color:${tickColor};font-size:1.25em;margin-top:2px;flex-shrink:0"><i class="ti ti-${a.realizada?'circle-check-filled':'circle-check'}"></i></button>
       <div style="flex:1;min-width:0">
-        <div style="font-size:.95em;font-weight:800;color:var(--text)">${a.protagonistaLabel||a.personLabel||'—'}</div>
-        <div style="font-size:.78em;color:var(--muted);margin-top:2px">${fechaDisp}${horaDisp}${fmtLabel?' · '+fmtLabel:''}</div>
-        ${a.notas?`<div style="font-size:.8em;color:var(--text);margin-top:6px;line-height:1.4;white-space:pre-wrap">${a.notas}</div>`:''}
-        ${a.link?`<a href="${a.link}" target="_blank" rel="noopener" style="font-size:.75em;color:#3B82F6;display:inline-flex;align-items:center;gap:3px;margin-top:4px"><i class="ti ti-link"></i>${a.link.replace(/^https?:\/\//,'').slice(0,40)}</a>`:''}
+        ${solLine?`<div style="font-size:.95em;font-weight:800;color:var(--text);margin-bottom:2px">${solLine}</div>`:''}
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+          ${estBadge}
+          ${solMeta?`<span style="font-size:.74em;color:var(--muted)">${solMeta}</span>`:''}
+        </div>
+        ${a.protagonistaLabel||a.fecha?`<div style="font-size:.8em;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="ti ti-user" style="font-size:.9em"></i>${a.protagonistaLabel||''}${a.fecha?' · '+fechaDisp+horaDisp:''}${fmtLabel?' · '+fmtLabel:''}</div>`:''}
+        ${a.notas?`<div style="font-size:.8em;color:var(--text);margin-top:6px;line-height:1.4;white-space:pre-wrap;border-top:1px solid var(--border);padding-top:6px">${a.notas}</div>`:''}
+        ${a.link?`<a href="${a.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:.75em;color:#3B82F6;display:inline-flex;align-items:center;gap:3px;margin-top:5px"><i class="ti ti-link"></i>${a.link.replace(/^https?:\/\//,'').slice(0,45)}</a>`:''}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
         <button onclick="_pwAtenEdit('${vw.id}',${ri})" style="border:none;background:#F1F5F9;border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--muted);font-size:.8em"><i class="ti ti-pencil"></i></button>
@@ -17960,43 +17968,102 @@ function _pwEnsureAtenModal(){
   if(document.getElementById('pw-aten-modal')) return;
   const div=document.createElement('div');
   div.innerHTML=`<div id="pw-aten-modal" style="display:none;position:fixed;inset:0;z-index:8100;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_pwAtenClose()">
-    <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:85vh;overflow-y:auto;padding:20px 20px 32px">
+    <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;padding:20px 20px 32px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div id="pw-aten-title" style="font-weight:900;font-size:1em">Nueva atención</div>
         <button onclick="_pwAtenClose()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
       </div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN HABLÓ</label>
-        <select id="pw-aten-prot" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)"></select>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px">
-        <div>
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
-          <input id="pw-aten-fecha" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+
+      <!-- Sección: Solicitud -->
+      <div style="background:#F8FAFC;border-radius:12px;padding:12px 14px;margin-bottom:14px;border:1px solid var(--border)">
+        <div style="font-size:.72em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📋 Solicitud</div>
+        <div style="margin-bottom:10px;position:relative">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
+          <input id="pw-aten-programa" type="text" autocomplete="off" placeholder='ej: "Punto Penal"' oninput="_pwAtenProgramaInput(this)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
+          <div id="pw-aten-prog-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:160px;overflow-y:auto"></div>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
+          <input id="pw-aten-medio" type="text" placeholder="ej: Canal 10" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">ESTADO</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px" id="pw-aten-est-btns">
+            ${Object.entries(_pwEstConfig).filter(([,v])=>v.primary||v.secondary).map(([k,v])=>`<button type="button" onclick="_pwAtenEst('${k}')" id="pw-aten-est-${k}" style="padding:4px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:transparent;color:${v.color}">${v.label}</button>`).join('')}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">DÍA PEDIDO</label>
+            <div style="display:flex;flex-wrap:wrap;gap:4px" id="pw-aten-dias-btns">
+              ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','A definir'].map(d=>`<button type="button" onclick="_pwAtenToggleDia('${d}')" id="pw-aten-diasol-${d.replace(/[^a-zA-Z]/g,'')}" style="padding:4px 9px;border-radius:20px;font-size:.73em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${d}</button>`).join('')}
+            </div>
+          </div>
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FRANJA</label>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              ${[['mañana','🌅'],['mediodía','☀️'],['tarde','🌇'],['noche','🌙']].map(([f,e])=>`<button type="button" onclick="_pwAtenToggleFranja('${f}')" id="pw-aten-franja-${f}" style="padding:4px 9px;border-radius:20px;font-size:.73em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${e} ${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO SOLICITADO</label>
+          <select id="pw-aten-fmtsol" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box">
+            <option value="">— Elegir —</option>
+            <option value="presencial">Presencial</option>
+            <option value="telefonica">Telefónica</option>
+            <option value="zoom">Zoom</option>
+            <option value="standup">Stand-up</option>
+            <option value="escrita">Nota escrita</option>
+          </select>
+        </div>
+        <div style="margin-bottom:6px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">CORREO SOLICITANTE</label>
+          <input id="pw-aten-email" type="email" placeholder="periodista@medio.com" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
         </div>
         <div>
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
-          <input id="pw-aten-hora" type="time" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">TEXTO DEL MAIL <span style="font-weight:400;color:var(--hint)">(opcional)</span></label>
+          <textarea id="pw-aten-emailtxt" rows="3" placeholder="Hola, quisiera saber si…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.84em;box-sizing:border-box;resize:vertical;font-family:inherit;background:#fff;line-height:1.5"></textarea>
         </div>
       </div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${Object.entries(_pwFmtAten).map(([k,v])=>`<button onclick="_pwAtenFmt('${k}')" id="pw-aten-fmt-${k}" style="padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;background:#F8FAFC;color:var(--muted)">${v}</button>`).join('')}
+
+      <!-- Sección: Atención -->
+      <div style="background:#F0FDF4;border-radius:12px;padding:12px 14px;margin-bottom:14px;border:1px solid #BBF7D0">
+        <div style="font-size:.72em;font-weight:700;color:#15803D;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">✅ Atención realizada</div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN HABLÓ</label>
+          <select id="pw-aten-prot" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)"></select>
         </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
+            <input id="pw-aten-fecha" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
+          </div>
+          <div>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
+            <input id="pw-aten-hora" type="time" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO REALIZADO</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${Object.entries(_pwFmtAten).map(([k,v])=>`<button onclick="_pwAtenFmt('${k}')" id="pw-aten-fmt-${k}" style="padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;background:#fff;color:var(--muted)">${v}</button>`).join('')}
+          </div>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS / TEMAS TRATADOS</label>
+          <textarea id="pw-aten-notas" rows="3" placeholder="Temas tratados, observaciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;resize:vertical;font-family:inherit;background:#fff"></textarea>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LINK (nota publicada)</label>
+          <input id="pw-aten-link" type="url" placeholder="https://…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input id="pw-aten-realizada" type="checkbox" style="width:16px;height:16px;cursor:pointer">
+          <span style="font-size:.88em;font-weight:700;color:#15803D">✓ Marcar como realizada</span>
+        </label>
       </div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
-        <textarea id="pw-aten-notas" rows="3" placeholder="Temas tratados, observaciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
-      </div>
-      <div style="margin-bottom:20px">
-        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LINK (opcional)</label>
-        <input id="pw-aten-link" type="url" placeholder="https://…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:20px;cursor:pointer">
-        <input id="pw-aten-realizada" type="checkbox" style="width:16px;height:16px;cursor:pointer">
-        <span style="font-size:.88em;font-weight:700;color:var(--text)">✓ Marcar como realizada</span>
-      </label>
+
       <button onclick="_pwAtenGuardar()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar atención</button>
     </div>
   </div>`;
@@ -18005,56 +18072,131 @@ function _pwEnsureAtenModal(){
 
 let _pwAtenVwId=null;
 let _pwAtenFmtVal='';
+let _pwAtenEstVal='';
+let _pwAtenDias=[];
+let _pwAtenFranjaVal='';
+
 function _pwAtenFmt(f){
   _pwAtenFmtVal=_pwAtenFmtVal===f?'':f;
   Object.keys(_pwFmtAten).forEach(k=>{
     const btn=document.getElementById('pw-aten-fmt-'+k); if(!btn) return;
     const on=_pwAtenFmtVal===k;
-    btn.style.background=on?'var(--cel)':'#F8FAFC';
+    btn.style.background=on?'var(--cel)':'#fff';
     btn.style.color=on?'#fff':'var(--muted)';
     btn.style.border=on?'1.5px solid var(--cel)':'1.5px solid var(--border)';
   });
 }
-function _pwAtenNueva(vwId){
-  _pwEnsureAtenModal();
-  _pwAtenVwId=vwId; _pwAtenEditIdx=null; _pwAtenFmtVal='';
-  document.getElementById('pw-aten-title').textContent='Nueva atención';
-  document.getElementById('pw-aten-prot').innerHTML=_pwPersonSelect();
+function _pwAtenEst(k){
+  _pwAtenEstVal=_pwAtenEstVal===k?'':k;
+  Object.entries(_pwEstConfig).forEach(([ek,ev])=>{
+    const btn=document.getElementById('pw-aten-est-'+ek); if(!btn) return;
+    const on=_pwAtenEstVal===ek;
+    btn.style.background=on?ev.bg:'transparent';
+    btn.style.fontWeight=on?'900':'700';
+  });
+}
+function _pwAtenToggleDia(d){
+  const idx=_pwAtenDias.indexOf(d);
+  if(idx>=0) _pwAtenDias.splice(idx,1); else _pwAtenDias=[d]; // solo 1 a la vez para simpleza
+  ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','A definir'].forEach(x=>{
+    const btn=document.getElementById('pw-aten-diasol-'+x.replace(/[^a-zA-Z]/g,'')); if(!btn) return;
+    const on=_pwAtenDias.includes(x);
+    btn.style.background=on?'var(--cel)':'transparent'; btn.style.color=on?'#fff':'#64748B'; btn.style.border=on?'1.5px solid var(--cel)':'1.5px solid #CBD5E1';
+  });
+}
+function _pwAtenToggleFranja(f){
+  _pwAtenFranjaVal=_pwAtenFranjaVal===f?'':f;
+  ['mañana','mediodía','tarde','noche'].forEach(x=>{
+    const btn=document.getElementById('pw-aten-franja-'+x); if(!btn) return;
+    const on=_pwAtenFranjaVal===x;
+    btn.style.background=on?'var(--cel)':'transparent'; btn.style.color=on?'#fff':'#64748B'; btn.style.border=on?'1.5px solid var(--cel)':'1.5px solid #CBD5E1';
+  });
+}
+function _pwAtenProgramaInput(inp){
+  const q=(inp.value||'').toLowerCase().trim();
+  const sug=document.getElementById('pw-aten-prog-suggest'); if(!sug) return;
+  if(!q){ sug.style.display='none'; return; }
+  const medios=_mediosGetAll();
+  const matches=[];
+  medios.forEach(m=>(m.programas||[]).forEach(p=>{ if((p.nombre||'').toLowerCase().includes(q)) matches.push({prog:p.nombre,medio:m.nombre}); }));
+  if(!matches.length){ sug.style.display='none'; return; }
+  sug.innerHTML=matches.slice(0,8).map(m=>`<div onclick="_pwAtenPickProg('${m.prog.replace(/'/g,"\\'")}','${m.medio.replace(/'/g,"\\'")}');document.getElementById('pw-aten-prog-suggest').style.display='none'" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.85em" onmouseover="this.style.background='#F0F9FF'" onmouseout="this.style.background=''">${m.prog} <span style="color:var(--muted);font-size:.85em">· ${m.medio}</span></div>`).join('');
+  sug.style.display='block';
+}
+function _pwAtenPickProg(prog,medio){
+  const pi=document.getElementById('pw-aten-programa'); if(pi) pi.value=prog;
+  const mi=document.getElementById('pw-aten-medio'); if(mi&&!mi.value) mi.value=medio;
+}
+function _pwAtenResetForm(){
+  _pwAtenFmtVal=''; _pwAtenEstVal=''; _pwAtenDias=[]; _pwAtenFranjaVal='';
+  ['pw-aten-programa','pw-aten-medio','pw-aten-notas','pw-aten-link','pw-aten-emailtxt','pw-aten-email'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('pw-aten-fmtsol').value='';
   document.getElementById('pw-aten-fecha').value=new Date().toISOString().slice(0,10);
   document.getElementById('pw-aten-hora').value='';
-  document.getElementById('pw-aten-notas').value='';
-  document.getElementById('pw-aten-link').value='';
   document.getElementById('pw-aten-realizada').checked=false;
-  Object.keys(_pwFmtAten).forEach(k=>_pwAtenFmt_reset(k));
+  Object.keys(_pwFmtAten).forEach(k=>{ const btn=document.getElementById('pw-aten-fmt-'+k); if(!btn) return; btn.style.background='#fff'; btn.style.color='var(--muted)'; btn.style.border='1.5px solid var(--border)'; });
+  Object.entries(_pwEstConfig).forEach(([k,v])=>{ const btn=document.getElementById('pw-aten-est-'+k); if(!btn) return; btn.style.background='transparent'; btn.style.fontWeight='700'; });
+  ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','A definir'].forEach(x=>{ const btn=document.getElementById('pw-aten-diasol-'+x.replace(/[^a-zA-Z]/g,'')); if(!btn) return; btn.style.background='transparent'; btn.style.color='#64748B'; btn.style.border='1.5px solid #CBD5E1'; });
+  ['mañana','mediodía','tarde','noche'].forEach(x=>{ const btn=document.getElementById('pw-aten-franja-'+x); if(!btn) return; btn.style.background='transparent'; btn.style.color='#64748B'; btn.style.border='1.5px solid #CBD5E1'; });
+}
+function _pwAtenNueva(vwId){
+  _pwEnsureAtenModal();
+  _pwAtenVwId=vwId; _pwAtenEditIdx=null;
+  document.getElementById('pw-aten-title').textContent='Nueva atención';
+  document.getElementById('pw-aten-prot').innerHTML=_pwPersonSelect();
+  _pwAtenResetForm();
   document.getElementById('pw-aten-modal').style.display='flex';
 }
-function _pwAtenFmt_reset(k){ const btn=document.getElementById('pw-aten-fmt-'+k); if(!btn) return; btn.style.background='#F8FAFC'; btn.style.color='var(--muted)'; btn.style.border='1.5px solid var(--border)'; }
 function _pwAtenEdit(vwId,idx){
   _pwEnsureAtenModal();
   const list=_pwGetAll(); const vw=list.find(v=>v.id===vwId); if(!vw||!vw.solicitudes[idx]) return;
   const a=vw.solicitudes[idx];
-  _pwAtenVwId=vwId; _pwAtenEditIdx=idx; _pwAtenFmtVal=a.formato||'';
+  _pwAtenVwId=vwId; _pwAtenEditIdx=idx;
+  _pwAtenResetForm();
   document.getElementById('pw-aten-title').textContent='Editar atención';
   document.getElementById('pw-aten-prot').innerHTML=_pwPersonSelect(a.protagonistaKey||'');
+  document.getElementById('pw-aten-programa').value=a.programa||'';
+  document.getElementById('pw-aten-medio').value=a.medio||'';
   document.getElementById('pw-aten-fecha').value=a.fecha||'';
   document.getElementById('pw-aten-hora').value=a.hora||'';
   document.getElementById('pw-aten-notas').value=a.notas||'';
   document.getElementById('pw-aten-link').value=a.link||'';
+  document.getElementById('pw-aten-email').value=a.emailFrom||'';
+  document.getElementById('pw-aten-emailtxt').value=a.emailTxt||'';
+  document.getElementById('pw-aten-fmtsol').value=a.formatoSol||'';
   document.getElementById('pw-aten-realizada').checked=!!a.realizada;
-  Object.keys(_pwFmtAten).forEach(k=>{ const btn=document.getElementById('pw-aten-fmt-'+k); if(!btn) return; const on=k===_pwAtenFmtVal; btn.style.background=on?'var(--cel)':'#F8FAFC'; btn.style.color=on?'#fff':'var(--muted)'; btn.style.border=on?'1.5px solid var(--cel)':'1.5px solid var(--border)'; });
+  if(a.formato) _pwAtenFmt(a.formato);
+  if(a.estado) _pwAtenEst(a.estado);
+  if(a.diaSolicitado) { _pwAtenDias=[a.diaSolicitado]; _pwAtenToggleDia(a.diaSolicitado); }
+  if(a.franja) _pwAtenToggleFranja(a.franja);
   document.getElementById('pw-aten-modal').style.display='flex';
 }
-function _pwAtenClose(){ const m=document.getElementById('pw-aten-modal'); if(m) m.style.display='none'; }
+function _pwAtenClose(){
+  const m=document.getElementById('pw-aten-modal'); if(m) m.style.display='none';
+  const sug=document.getElementById('pw-aten-prog-suggest'); if(sug) sug.style.display='none';
+}
 function _pwAtenGuardar(){
   const protKey=document.getElementById('pw-aten-prot').value;
   const opts=_pwPersonOptions();
   const found=opts.find(o=>o.key===protKey);
+  const programa=(document.getElementById('pw-aten-programa').value||'').trim();
+  const medio=(document.getElementById('pw-aten-medio').value||'').trim();
   const fecha=document.getElementById('pw-aten-fecha').value;
   const hora=document.getElementById('pw-aten-hora').value;
   const notas=document.getElementById('pw-aten-notas').value.trim();
   const link=document.getElementById('pw-aten-link').value.trim();
+  const emailFrom=document.getElementById('pw-aten-email').value.trim();
+  const emailTxt=document.getElementById('pw-aten-emailtxt').value.trim();
+  const formatoSol=document.getElementById('pw-aten-fmtsol').value;
   const realizada=document.getElementById('pw-aten-realizada').checked;
-  const entry={tipo:'atencion', protagonistaKey:protKey, protagonistaLabel:found?.label||protKey, fecha, hora, formato:_pwAtenFmtVal, notas, link, realizada};
+  const entry={
+    tipo:'atencion',
+    protagonistaKey:protKey, protagonistaLabel:found?.label||protKey||'',
+    programa, medio, estado:_pwAtenEstVal,
+    diaSolicitado:_pwAtenDias[0]||'', franja:_pwAtenFranjaVal, formatoSol,
+    emailFrom, emailTxt,
+    fecha, hora, formato:_pwAtenFmtVal, notas, link, realizada,
+  };
   const list=_pwGetAll(); const vw=list.find(v=>v.id===_pwAtenVwId); if(!vw) return;
   if(!vw.solicitudes) vw.solicitudes=[];
   if(_pwAtenEditIdx!=null) vw.solicitudes[_pwAtenEditIdx]=entry;
