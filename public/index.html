@@ -1165,6 +1165,7 @@ html.auf-gate body { display:none !important }
     <button class="nav-l0-section" data-section="local" onclick="showSection('local')"><i class="ti ti-home-shield"></i>Selección Local</button>
     <button class="nav-l0-section" data-section="juveniles" onclick="showSection('juveniles')"><i class="ti ti-users-group"></i>Selecciones Juveniles</button>
     <button class="nav-l0-section" data-section="prensa" onclick="showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
+    <button class="nav-l0-section" data-section="redes" onclick="showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes</button>
     <button class="nav-l0-section" data-section="estructura" onclick="showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura</button>
     <div class="nav-l0-sep"></div>
     <button class="nav-l0-global" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
@@ -1648,6 +1649,10 @@ html.auf-gate body { display:none !important }
 
 <div id="sec-prensa" class="section">
   <div id="prensa-body" style="padding-bottom:3rem"></div>
+</div>
+
+<div id="sec-redes" class="section">
+  <div id="redes-body" style="padding-bottom:3rem"></div>
 </div>
 
 <div id="sec-estructura" class="section">
@@ -3280,6 +3285,8 @@ function _updateNavState(id){
     document.querySelector('.nav-l0-section[data-section="juveniles"]')?.classList.add('active');
   } else if(id==='sec-prensa'){
     document.querySelector('.nav-l0-section[data-section="prensa"]')?.classList.add('active');
+  } else if(id==='sec-redes'){
+    document.querySelector('.nav-l0-section[data-section="redes"]')?.classList.add('active');
   } else if(id==='sec-estructura'){
     document.querySelector('.nav-l0-section[data-section="estructura"]')?.classList.add('active');
   } else if(id==='sec-local'){
@@ -3317,6 +3324,7 @@ function showSection(sec){
   if(sec==='local'){showTab('sec-local');}
   if(sec==='juveniles'){showTab('sec-juveniles');}
   if(sec==='prensa'){showTab('sec-prensa');}
+  if(sec==='redes'){showTab('sec-redes');}
   if(sec==='estructura'){showTab('sec-estructura');}
 }
 
@@ -3353,6 +3361,7 @@ function showTab(id){
   if(id==='sec-local'){window.renderSecLocal?.()}
   if(id==='sec-juveniles'){window.renderJuveniles?.()}
   if(id==='sec-prensa'){renderPrensa?.()}
+  if(id==='sec-redes'){window.renderRedes?.()}
   if(id==='sec-estructura'){renderEstructura?.()}
   if(id==='infogeneral'){renderInfoGeneral()}
   if(id==='grafica'){renderGrafica()}
@@ -17056,6 +17065,303 @@ function renderPrensa(){
   else if(_pwView==='medios') _renderMediosDB();
   else _renderListaPrensa();
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REDES SOCIALES — métricas semanales, momentos y conclusiones
+// ═══════════════════════════════════════════════════════════════════════════
+const REDES_PLATS = {
+  x:         {label:'X (Twitter)', short:'X',       color:'#0A0A0A', emoji:'𝕏'},
+  tiktok:    {label:'TikTok',      short:'TikTok',  color:'#FF2D55', emoji:'♪'},
+  instagram: {label:'Instagram',   short:'IG',      color:'#C13584', emoji:'◎'},
+  youtube:   {label:'YouTube',     short:'YT',      color:'#FF0000', emoji:'▶'},
+  facebook:  {label:'Facebook',    short:'FB',       color:'#1877F2', emoji:'📘'},
+};
+
+// Semilla inicial — primer relevamiento 15 may–6 jul 2026 (previo al Mundial en adelante).
+// Se sobreescribe/ extiende con lo que vaya guardando el chequeo semanal en stor('auf4_social_metrics').
+const REDES_SEED = {
+  snapshots: [
+    {
+      fecha_snapshot: '2026-07-06',
+      rango_desde: '2026-05-15',
+      rango_hasta: '2026-07-06',
+      x:         {seguidores: 1000000, seguidores_nuevos: 3900,   alcance: 36500000, alcance_lbl:'Impresiones', interacciones: 739500},
+      tiktok:    {seguidores: 1300000, seguidores_nuevos: 357800, alcance: 41400000, alcance_lbl:'Vistas de video', interacciones: 4000000},
+      instagram: {seguidores: 1752916, seguidores_nuevos: null,   alcance: 180123871, alcance_lbl:'Visualizaciones (90d)', interacciones: 6279613},
+      youtube:   {seguidores: 165671,  seguidores_nuevos: 13500,  alcance: 4650752,  alcance_lbl:'Visualizaciones', interacciones: 382200, interacciones_lbl:'Horas de visualización'},
+      facebook:  {seguidores: 1560967, seguidores_nuevos: 79960,  alcance: 24031449, alcance_lbl:'Visualizaciones', interacciones: 1481366},
+    }
+  ]
+};
+
+function _redesData(){ return stor.get('auf4_social_metrics', null) || REDES_SEED; }
+function _redesSnaps(){ return (_redesData().snapshots)||[]; }
+function _redesLatest(){ const s=_redesSnaps(); return s[s.length-1]||null; }
+function _redesPrev(){ const s=_redesSnaps(); return s.length>1?s[s.length-2]:null; }
+
+function _redesFmt(n){
+  if(n===null||n===undefined) return '—';
+  const abs=Math.abs(n);
+  if(abs>=1000000) return (n/1000000).toFixed(1).replace(/\.0$/,'')+'M';
+  if(abs>=1000) return (n/1000).toFixed(1).replace(/\.0$/,'')+'K';
+  return String(n);
+}
+function _redesPct(a,b){
+  if(a==null||b==null||b===0) return null;
+  return ((a-b)/Math.abs(b))*100;
+}
+function _redesDeltaBadge(pct){
+  if(pct===null||pct===undefined) return '';
+  const up=pct>=0;
+  return `<span style="font-size:.72em;font-weight:800;color:${up?'var(--green)':'var(--red)'}">${up?'▲':'▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
+
+function renderRedes(){
+  const el=document.getElementById('redes-body');
+  if(!el) return;
+  const latest=_redesLatest();
+  const prev=_redesPrev();
+  if(!latest){
+    el.innerHTML=`<div style="text-align:center;padding:48px 24px;color:var(--muted)">
+      <i class="ti ti-chart-arrows" style="font-size:2.5em;display:block;margin-bottom:12px;opacity:.3"></i>
+      <div style="font-weight:700;margin-bottom:4px">Sin datos de redes todavía</div>
+      <div style="font-size:.82em">El chequeo semanal automático va a ir completando esto.</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML=`
+    <div style="max-width:960px;margin:0 auto;padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:1.1em;font-weight:900;color:var(--text)">Redes sociales — Selección Uruguaya</div>
+          <div style="font-size:.78em;color:var(--muted);margin-top:2px">Último relevamiento: ${_redesFmtFecha(latest.rango_desde)} → ${_redesFmtFecha(latest.rango_hasta)}</div>
+        </div>
+      </div>
+
+      ${_redesResumenCombinado(latest,prev)}
+      ${_redesPorPlataforma(latest,prev)}
+      ${_redesConclusiones(latest,prev)}
+      ${_redesMomentos()}
+      ${_redesComparativaMensual()}
+      ${_redesHistorial()}
+    </div>
+  `;
+  _redesFetchAIConclusiones(latest,prev);
+}
+
+function _redesFmtFecha(iso){
+  if(!iso) return '—';
+  const [y,m,d]=iso.split('-');
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${parseInt(d,10)} ${meses[parseInt(m,10)-1]}`;
+}
+
+// ── Resumen combinado (todas las redes juntas) ──────────────────────────────
+function _redesResumenCombinado(latest,prev){
+  const keys=Object.keys(REDES_PLATS);
+  const sumSeg=keys.reduce((a,k)=>a+(latest[k]?.seguidores||0),0);
+  const sumAlcance=keys.reduce((a,k)=>a+(latest[k]?.alcance||0),0);
+  const sumInter=keys.reduce((a,k)=>a+(latest[k]?.interacciones||0),0);
+  const sumNuevos=keys.reduce((a,k)=>a+(latest[k]?.seguidores_nuevos||0),0);
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">En conjunto — las 5 redes sumadas</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-size:.7em;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px">Seguidores totales</div>
+        <div style="font-size:1.3em;font-weight:900;color:var(--text)">${_redesFmt(sumSeg)}</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-size:.7em;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px">Nuevos seguidores (período)</div>
+        <div style="font-size:1.3em;font-weight:900;color:var(--green)">+${_redesFmt(sumNuevos)}</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-size:.7em;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px">Alcance / visualizaciones</div>
+        <div style="font-size:1.3em;font-weight:900;color:var(--text)">${_redesFmt(sumAlcance)}</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-size:.7em;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px">Interacciones totales</div>
+        <div style="font-size:1.3em;font-weight:900;color:var(--text)">${_redesFmt(sumInter)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Por separado (cada red con su delta vs. semana/relevamiento anterior) ──
+function _redesPorPlataforma(latest,prev){
+  const cards=Object.entries(REDES_PLATS).map(([k,meta])=>{
+    const cur=latest[k]||{};
+    const before=prev?prev[k]:null;
+    const pctAlcance=before?_redesPct(cur.alcance,before.alcance):null;
+    const pctSeg=before?_redesPct(cur.seguidores,before.seguidores):null;
+    let badge='';
+    if(pctAlcance!==null){
+      if(pctAlcance>=50) badge=`<span style="font-size:.68em;font-weight:800;background:var(--gold-lt);color:#8a5a00;border-radius:20px;padding:2px 8px">🔥 Hype</span>`;
+      else if(pctAlcance<=-25) badge=`<span style="font-size:.68em;font-weight:800;background:var(--red-lt);color:var(--red);border-radius:20px;padding:2px 8px">📉 Se pinchó</span>`;
+    }
+    return `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;border-top:3px solid ${meta.color}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-weight:800;font-size:.88em;display:flex;align-items:center;gap:6px"><span>${meta.emoji}</span>${meta.label}</div>
+        ${badge}
+      </div>
+      <div style="font-size:1.15em;font-weight:900;color:var(--text)">${_redesFmt(cur.seguidores)}<span style="font-size:.55em;color:var(--muted);font-weight:700"> seguidores</span></div>
+      <div style="font-size:.72em;color:var(--muted);margin-bottom:8px">${cur.seguidores_nuevos!=null?'+'+_redesFmt(cur.seguidores_nuevos)+' en el período':''} ${_redesDeltaBadge(pctSeg)}</div>
+      <div style="display:flex;justify-content:space-between;font-size:.78em;padding:4px 0;border-top:1px solid var(--border)">
+        <span style="color:var(--muted)">${cur.alcance_lbl||'Alcance'}</span>
+        <span style="font-weight:800">${_redesFmt(cur.alcance)} ${_redesDeltaBadge(pctAlcance)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.78em;padding:4px 0;border-top:1px solid var(--border)">
+        <span style="color:var(--muted)">${cur.interacciones_lbl||'Interacciones'}</span>
+        <span style="font-weight:800">${_redesFmt(cur.interacciones)}</span>
+      </div>
+    </div>`;
+  }).join('');
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Por separado — cada red</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">${cards}</div>
+  </div>`;
+}
+
+// ── Conclusiones automáticas (reglas simples, no requiere IA externa) ──────
+function _redesConclusiones(latest,prev){
+  const bullets=[];
+  const keys=Object.keys(REDES_PLATS);
+  if(prev){
+    let best=null,worst=null;
+    keys.forEach(k=>{
+      const pct=_redesPct(latest[k]?.alcance,prev[k]?.alcance);
+      if(pct===null) return;
+      if(!best||pct>best.pct) best={k,pct};
+      if(!worst||pct<worst.pct) worst={k,pct};
+    });
+    if(best) bullets.push(`<b>${REDES_PLATS[best.k].label}</b> fue la red que más creció en alcance respecto al relevamiento anterior (${best.pct>=0?'+':''}${best.pct.toFixed(1)}%).`);
+    if(worst && worst.pct<0) bullets.push(`<b>${REDES_PLATS[worst.k].label}</b> fue la que más cayó (${worst.pct.toFixed(1)}%) — vale la pena revisar qué contenido se publicó esa semana.`);
+  } else {
+    bullets.push('Este es el primer relevamiento — a partir del próximo chequeo semanal vamos a poder comparar y detectar tendencias.');
+  }
+  // Reglas fijas sobre el snapshot inicial (Mundial 2026)
+  bullets.push('TikTok fue, en el arranque del Mundial, la red con mayor crecimiento relativo de seguidores (+356%) e interacciones (+369%) — el formato corto está funcionando mejor que el resto para captar audiencia nueva.');
+  bullets.push('Instagram es la red con mayor volumen bruto de alcance (180M visualizaciones en 90 días) pero no tiene comparación semana a semana todavía por límites de Meta Business Suite.');
+  bullets.push('X tuvo la tasa de interacción más floja relativa (2%, -1 punto) pese al salto en impresiones — más ruido que conversación real esa semana.');
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🧠 Conclusiones <span id="redes-concl-tag">automáticas (reglas)</span></div>
+    <div id="redes-conclusiones-box" style="background:var(--gold-lt);border:1px solid #f0dca6;border-radius:14px;padding:14px 16px">
+      <ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">
+        ${bullets.map(b=>`<li>${b}</li>`).join('')}
+      </ul>
+    </div>
+  </div>`;
+}
+
+// Progressive enhancement: si el servidor tiene ANTHROPIC_API_KEY configurada,
+// reemplaza las conclusiones heurísticas por conclusiones generadas por IA.
+// Si falla (sin key, sin red, error), deja las heurísticas que ya se ven — no rompe nada.
+async function _redesFetchAIConclusiones(latest,prev){
+  try{
+    const res=await fetch('/api/redes-conclusiones',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({latest,prev,momentos:(typeof MOMENTOS!=='undefined'?MOMENTOS:[])})
+    });
+    const data=await res.json();
+    if(!data.ok||!data.conclusiones||!data.conclusiones.length) return;
+    const box=document.getElementById('redes-conclusiones-box');
+    const tag=document.getElementById('redes-concl-tag');
+    if(!box) return;
+    box.innerHTML=`<ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">${data.conclusiones.map(b=>`<li>${b}</li>`).join('')}</ul>`;
+    if(tag) tag.textContent='generadas por IA';
+  }catch(e){
+    // sin conexión / endpoint no disponible — se queda con las heurísticas, sin romper nada
+  }
+}
+
+// ── Momentos — cruce con el calendario de la Mayor (MOMENTOS ya definido) ──
+function _redesMomentos(){
+  const items=(typeof MOMENTOS!=='undefined'?MOMENTOS:[]).map(m=>{
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--cel);flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-weight:800;font-size:.85em">${m.label}</div>
+        <div style="font-size:.72em;color:var(--muted)">${m.sub}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">📅 Momentos clave (calendario Mayor)</div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px">
+      ${items||'<div style="color:var(--muted);font-size:.82em">Sin momentos cargados en el calendario todavía.</div>'}
+      <div style="font-size:.72em;color:var(--muted);margin-top:8px">Los picos de alcance e interacción de cada semana casi siempre coinciden con estas fechas — cruzalo con el detalle de "por separado" arriba.</div>
+    </div>
+  </div>`;
+}
+
+// ── Comparativa mensual ─────────────────────────────────────────────────────
+function _redesComparativaMensual(){
+  const snaps=_redesSnaps();
+  const byMonth={};
+  snaps.forEach(s=>{
+    const mes=(s.fecha_snapshot||'').slice(0,7);
+    if(!mes) return;
+    if(!byMonth[mes]) byMonth[mes]={alcance:0,interacciones:0,nuevos:0};
+    Object.keys(REDES_PLATS).forEach(k=>{
+      byMonth[mes].alcance+=(s[k]?.alcance||0);
+      byMonth[mes].interacciones+=(s[k]?.interacciones||0);
+      byMonth[mes].nuevos+=(s[k]?.seguidores_nuevos||0);
+    });
+  });
+  const meses=Object.keys(byMonth).sort();
+  if(meses.length<2){
+    return `
+    <div style="margin-bottom:20px">
+      <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">📊 Comparativa mensual</div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;color:var(--muted);font-size:.82em">
+        Todavía hay datos de un solo mes — con el chequeo semanal en marcha, en 4-5 semanas vamos a poder comparar mes contra mes.
+      </div>
+    </div>`;
+  }
+  const rows=meses.map(m=>{
+    const d=byMonth[m];
+    return `<tr><td style="padding:8px;font-weight:700">${m}</td><td style="padding:8px;text-align:right">${_redesFmt(d.alcance)}</td><td style="padding:8px;text-align:right">${_redesFmt(d.interacciones)}</td><td style="padding:8px;text-align:right">+${_redesFmt(d.nuevos)}</td></tr>`;
+  }).join('');
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">📊 Comparativa mensual (todas las redes)</div>
+    <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;font-size:.8em">
+      <thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px;text-align:left">Mes</th><th style="padding:8px;text-align:right">Alcance</th><th style="padding:8px;text-align:right">Interacciones</th><th style="padding:8px;text-align:right">Nuevos seg.</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+// ── Historial crudo (auditoría — todos los relevamientos guardados) ────────
+function _redesHistorial(){
+  const snaps=_redesSnaps();
+  const rows=snaps.map(s=>`
+    <tr>
+      <td style="padding:7px;font-weight:700">${_redesFmtFecha(s.rango_desde)} → ${_redesFmtFecha(s.rango_hasta)}</td>
+      ${Object.keys(REDES_PLATS).map(k=>`<td style="padding:7px;text-align:right">${_redesFmt(s[k]?.seguidores)}</td>`).join('')}
+    </tr>`).join('');
+  return `
+  <div style="margin-bottom:8px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Historial de seguidores por relevamiento</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:14px;font-size:.78em;min-width:600px">
+      <thead><tr style="background:var(--surface)"><th style="padding:7px;text-align:left">Período</th>${Object.values(REDES_PLATS).map(m=>`<th style="padding:7px;text-align:right">${m.emoji} ${m.short}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>
+  </div>
+  <div style="font-size:.72em;color:var(--muted);margin-top:6px">
+    No incluye Ad Value ni alcance en medios tradicionales (como sí tiene el informe trimestral de marketing) — eso requiere una herramienta de monitoreo de prensa/PR paga que no está conectada acá. Si la contratás en algún momento, se puede sumar como una fila más.
+  </div>`;
+}
+
 
 function _renderListaPrensa(){
   const el = document.getElementById('prensa-body');

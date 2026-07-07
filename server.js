@@ -245,7 +245,72 @@ function proxyGet(hostname, path, headers) {
   });
 }
 
+// ── Anthropic — conclusiones automáticas para la sección Redes ──────────────
+// Requiere ANTHROPIC_API_KEY en las variables de entorno de Railway.
+// Si no está configurada, /api/redes-conclusiones responde 501 y el front-end
+// usa el análisis heurístico (reglas) como respaldo — no rompe nada si falta la key.
+function anthropicMessages(promptText) {
+  return new Promise((resolve, reject) => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) { reject(new Error('ANTHROPIC_API_KEY no configurada')); return; }
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 700,
+      messages: [{ role: 'user', content: promptText }],
+    });
+    const req = https.request({
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+    }, res => {
+      let buf = '';
+      res.on('data', d => buf += d);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(buf);
+          if (json.error) { reject(new Error(json.error.message || 'error de Anthropic')); return; }
+          const text = (json.content || []).map(b => b.text || '').join('\n').trim();
+          resolve(text);
+        } catch (e) { reject(new Error('respuesta inválida de Anthropic')); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 app.get('/api/ping', (req, res) => res.json({ ok: true, v: 2, ts: Date.now(), routes: ['r','access','sign-link'] }));
+
+// ── Conclusiones IA para la sección Redes (dashboard de métricas sociales) ──
+app.post('/api/redes-conclusiones', async (req, res) => {
+  try {
+    const { latest, prev, momentos } = req.body || {};
+    if (!latest) { res.status(400).json({ error: 'falta "latest" en el body' }); return; }
+    const prompt = `Sos el analista de redes sociales de la Selección Uruguaya de Fútbol (AUF). Con estos datos de relevamiento semanal/periódico de X, TikTok, Instagram, YouTube y Facebook, escribí entre 4 y 6 conclusiones cortas, directas y accionables en español rioplatense, en formato de lista (una por línea, sin numerar, sin viñetas markdown, cada una arrancando directo con el texto). Priorizá: qué red tuvo mejor o peor desempeño relativo, si alguna red "se pinchó" o tuvo un momento de "hype", qué contenido funcionó mejor, y cómo se relaciona con el calendario de partidos de la Mayor si hay coincidencia de fechas. No inventes números que no estén en los datos. Sé concreto, nada de relleno genérico.
+
+DATOS ACTUALES (última medición):
+${JSON.stringify(latest)}
+
+DATOS ANTERIORES (medición previa, puede no existir):
+${JSON.stringify(prev || null)}
+
+MOMENTOS DEL CALENDARIO (partidos/eventos de la Mayor):
+${JSON.stringify(momentos || [])}`;
+
+    const text = await anthropicMessages(prompt);
+    const conclusiones = text.split('\n').map(s => s.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+    res.json({ ok: true, conclusiones });
+  } catch (e) {
+    res.status(501).json({ ok: false, error: e.message });
+  }
+});
 
 app.get('/api/fotmob/:matchId', async (req, res) => {
   try {
