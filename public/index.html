@@ -17989,7 +17989,7 @@ function _pwEnsureAtenModal(){
         <div style="font-size:.72em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📋 Solicitud</div>
         <div style="margin-bottom:10px;position:relative">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
-          <input id="pw-aten-programa" type="text" autocomplete="off" placeholder='ej: "Punto Penal"' oninput="_pwAtenProgramaInput(this)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
+          <input id="pw-aten-programa" type="text" autocomplete="off" placeholder='Tocá para ver programas…' oninput="_pwAtenProgramaInput(this)" onfocus="_pwAtenProgramaFocus(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-aten-prog-suggest');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
           <div id="pw-aten-prog-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:160px;overflow-y:auto"></div>
         </div>
         <div style="margin-bottom:10px">
@@ -18122,17 +18122,18 @@ function _pwAtenToggleFranja(f){
     btn.style.background=on?'var(--cel)':'transparent'; btn.style.color=on?'#fff':'#64748B'; btn.style.border=on?'1.5px solid var(--cel)':'1.5px solid #CBD5E1';
   });
 }
-function _pwAtenProgramaInput(inp){
-  const q=(inp.value||'').toLowerCase().trim();
+function _pwAtenShowSug(q){
   const sug=document.getElementById('pw-aten-prog-suggest'); if(!sug) return;
-  if(!q){ sug.style.display='none'; return; }
   const medios=_mediosGetAll();
-  const matches=[];
-  medios.forEach(m=>(m.programas||[]).forEach(p=>{ if((p.nombre||'').toLowerCase().includes(q)) matches.push({prog:p.nombre,medio:m.nombre}); }));
+  const all=[];
+  medios.forEach(m=>(m.programas||[]).forEach(p=>{ if(p.nombre) all.push({prog:p.nombre,medio:m.nombre||''}); }));
+  const matches=q ? all.filter(m=>m.prog.toLowerCase().includes(q)) : all;
   if(!matches.length){ sug.style.display='none'; return; }
-  sug.innerHTML=matches.slice(0,8).map(m=>`<div onclick="_pwAtenPickProg('${m.prog.replace(/'/g,"\\'")}','${m.medio.replace(/'/g,"\\'")}');document.getElementById('pw-aten-prog-suggest').style.display='none'" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.85em" onmouseover="this.style.background='#F0F9FF'" onmouseout="this.style.background=''">${m.prog} <span style="color:var(--muted);font-size:.85em">· ${m.medio}</span></div>`).join('');
+  sug.innerHTML=matches.slice(0,14).map(m=>`<div onclick="_pwAtenPickProg('${m.prog.replace(/'/g,"\\'")}','${m.medio.replace(/'/g,"\\'")}');document.getElementById('pw-aten-prog-suggest').style.display='none'" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.85em" onmouseover="this.style.background='#F0F9FF'" onmouseout="this.style.background=''">${m.prog}<span style="color:var(--muted);font-size:.85em"> · ${m.medio}</span></div>`).join('');
   sug.style.display='block';
 }
+function _pwAtenProgramaInput(inp){ _pwAtenShowSug((inp.value||'').toLowerCase().trim()); }
+function _pwAtenProgramaFocus(inp){ _pwAtenShowSug((inp.value||'').toLowerCase().trim()); }
 function _pwAtenPickProg(prog,medio){
   const pi=document.getElementById('pw-aten-programa'); if(pi) pi.value=prog;
   const mi=document.getElementById('pw-aten-medio'); if(mi&&!mi.value) mi.value=medio;
