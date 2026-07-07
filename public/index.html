@@ -17918,31 +17918,34 @@ function _renderVentanaRegistro(vw, list){
   const rows=atens.length ? atens.map((a)=>{
     const ri=(vw.solicitudes||[]).indexOf(a);
     const fmtLabel=_pwFmtAten[a.formato]||a.formato||'';
-    const fechaDisp=a.fecha?_pwFmtDiaLargo(a.fecha):'Sin fecha';
-    const horaDisp=a.hora?' · '+a.hora:'';
-    const bg=a.realizada?'#F0FDF4':'#fff';
-    const border=a.realizada?'1px solid #BBF7D0':'1px solid var(--border)';
-    const tickColor=a.realizada?'#16A34A':'#CBD5E1';
+    const fechaDisp=a.fecha?_pwFmtDiaLargo(a.fecha):'';
     const estCfg=_pwEstConfig[a.estado];
-    const estBadge=estCfg?`<span style="font-size:.7em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 8px">${estCfg.label}</span>`:'';
-    const solLine=[a.programa,a.medio].filter(Boolean).join(' · ');
-    const fmtSolLabel={presencial:'Presencial',telefonica:'Telefónica',zoom:'Zoom',standup:'Stand-up',escrita:'Nota escrita'}[a.formatoSol]||'';
-    const solMeta=[a.diaSolicitado,a.franja,fmtSolLabel].filter(Boolean).join(' · ');
-    return `<div style="background:${bg};border:${border};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;opacity:${a.realizada?.72:1}">
-      <button onclick="_pwAtenToggle('${vw.id}',${ri})" style="border:none;background:none;cursor:pointer;padding:0;color:${tickColor};font-size:1.25em;margin-top:2px;flex-shrink:0"><i class="ti ti-${a.realizada?'circle-check-filled':'circle-check'}"></i></button>
-      <div style="flex:1;min-width:0">
-        ${solLine?`<div style="font-size:.95em;font-weight:800;color:var(--text);margin-bottom:2px">${solLine}</div>`:''}
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
-          ${estBadge}
-          ${solMeta?`<span style="font-size:.74em;color:var(--muted)">${solMeta}</span>`:''}
+    const estBadge=estCfg?`<span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap">${estCfg.label}</span>`:'';
+    const rowBg=a.realizada?'#F0FDF4':'#F8FAFC';
+    const borderLeft=a.realizada?'3px solid #16A34A':'3px solid #E2E8F0';
+    const opacity=a.realizada?'.65':'1';
+    const checkColor=a.realizada?'#16A34A':'#94A3B8';
+    const progLine=a.programa||'Sin programa';
+    const subLine=[a.medio,a.protagonistaLabel].filter(Boolean).join(' · ');
+    const metaLine=[fechaDisp,a.hora,fmtLabel].filter(Boolean).join(' · ');
+    return `<div style="padding:8px 10px;border-radius:10px;background:${rowBg};margin-bottom:6px;border-left:${borderLeft};opacity:${opacity}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.82em;font-weight:800;color:#065F46">${progLine}${a.medio?`<span style="font-size:.85em;color:#166534;font-weight:600;margin-left:5px">${a.medio}</span>`:''}</div>
+          ${a.protagonistaLabel||metaLine?`<div style="font-size:.72em;color:#475569;margin-top:2px;display:flex;align-items:center;gap:3px"><i class="ti ti-user" style="font-size:.9em"></i>${[a.protagonistaLabel,metaLine].filter(Boolean).join(' · ')}</div>`:''}
+          ${a.notas?`<div style="font-size:.74em;color:var(--text);margin-top:5px;line-height:1.4;white-space:pre-wrap">${a.notas}</div>`:''}
+          ${a.link?`<a href="${a.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:.72em;color:#3B82F6;display:inline-flex;align-items:center;gap:3px;margin-top:4px"><i class="ti ti-link"></i>${a.link.replace(/^https?:\/\//,'').slice(0,45)}</a>`:''}
         </div>
-        ${a.protagonistaLabel||a.fecha?`<div style="font-size:.8em;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="ti ti-user" style="font-size:.9em"></i>${a.protagonistaLabel||''}${a.fecha?' · '+fechaDisp+horaDisp:''}${fmtLabel?' · '+fmtLabel:''}</div>`:''}
-        ${a.notas?`<div style="font-size:.8em;color:var(--text);margin-top:6px;line-height:1.4;white-space:pre-wrap;border-top:1px solid var(--border);padding-top:6px">${a.notas}</div>`:''}
-        ${a.link?`<a href="${a.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:.75em;color:#3B82F6;display:inline-flex;align-items:center;gap:3px;margin-top:5px"><i class="ti ti-link"></i>${a.link.replace(/^https?:\/\//,'').slice(0,45)}</a>`:''}
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button onclick="_pwAtenEdit('${vw.id}',${ri})" style="border:none;background:#F1F5F9;border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--muted);font-size:.8em"><i class="ti ti-pencil"></i></button>
-        <button onclick="_pwAtenDelete('${vw.id}',${ri})" style="border:none;background:#FEF2F2;border-radius:8px;padding:5px 8px;cursor:pointer;color:#DC2626;font-size:.8em"><i class="ti ti-trash"></i></button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
+          <div style="display:flex;align-items:center;gap:5px">
+            ${estBadge}
+            <button onclick="_pwAtenToggle('${vw.id}',${ri})" title="${a.realizada?'Quitar realizada':'Marcar como realizada'}" style="border:none;background:none;cursor:pointer;padding:1px;font-size:1.2em;color:${checkColor};line-height:1"><i class="ti ti-${a.realizada?'circle-check-filled':'circle-check'}"></i></button>
+          </div>
+          <div style="display:flex;gap:4px">
+            <button onclick="_pwAtenEdit('${vw.id}',${ri})" style="border:none;background:transparent;border-radius:6px;padding:3px 6px;cursor:pointer;color:#9CA3AF;font-size:.8em"><i class="ti ti-pencil"></i></button>
+            <button onclick="_pwAtenDelete('${vw.id}',${ri})" style="border:none;background:transparent;border-radius:6px;padding:3px 6px;cursor:pointer;color:#F87171;font-size:.8em"><i class="ti ti-trash"></i></button>
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('') : `<div style="text-align:center;padding:40px 24px;color:var(--muted)"><i class="ti ti-notebook" style="font-size:2em;display:block;margin-bottom:10px;opacity:.3"></i><div style="font-weight:700;margin-bottom:4px">Sin atenciones registradas</div><div style="font-size:.82em">Tocá "+ Nueva atención" para cargar la primera</div></div>`;
