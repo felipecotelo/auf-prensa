@@ -17140,6 +17140,7 @@ function renderRedes(){
         </div>
       </div>
 
+      ${_redesHeroSeguidores(latest)}
       ${_redesResumenCombinado(latest,prev)}
       ${_redesPorPlataforma(latest,prev)}
       ${_redesConclusiones(latest,prev)}
@@ -17156,6 +17157,29 @@ function _redesFmtFecha(iso){
   const [y,m,d]=iso.split('-');
   const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   return `${parseInt(d,10)} ${meses[parseInt(m,10)-1]}`;
+}
+
+// ── Hero: redes y seguidores protagónicos ───────────────────────────────────
+function _redesHeroSeguidores(latest){
+  const keys=Object.keys(REDES_PLATS);
+  const total=keys.reduce((a,k)=>a+(latest[k]?.seguidores||0),0);
+  const cards=keys.map(k=>{
+    const meta=REDES_PLATS[k];
+    const seg=latest[k]?.seguidores||0;
+    return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 10px;background:#fff;border-radius:16px;border:1px solid var(--border);border-top:4px solid ${meta.color}">
+      <div style="font-size:1.3em">${meta.emoji}</div>
+      <div style="font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">${meta.short}</div>
+      <div style="font-size:1.6em;font-weight:900;color:var(--text);line-height:1">${_redesFmt(seg)}</div>
+    </div>`;
+  }).join('');
+  return `
+  <div style="margin-bottom:24px">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:2.6em;font-weight:900;color:var(--text);line-height:1">${_redesFmt(total)}</div>
+      <div style="font-size:.78em;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase;letter-spacing:.06em">seguidores totales en 5 redes</div>
+    </div>
+    <div style="display:flex;gap:10px">${cards}</div>
+  </div>`;
 }
 
 // ── Resumen combinado (todas las redes juntas) ──────────────────────────────
