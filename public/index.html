@@ -18040,9 +18040,10 @@ function _pwEnsureAtenModal(){
       <!-- Sección: Atención -->
       <div style="background:#F0FDF4;border-radius:12px;padding:12px 14px;margin-bottom:14px;border:1px solid #BBF7D0">
         <div style="font-size:.72em;font-weight:700;color:#15803D;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">✅ Atención realizada</div>
-        <div style="margin-bottom:10px">
+        <div style="margin-bottom:10px;position:relative">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN HABLÓ</label>
-          <select id="pw-aten-prot" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text)"></select>
+          <input id="pw-aten-prot" type="text" autocomplete="off" placeholder="Nombre del profe, jugador…" onfocus="_pwAtenProtFocus(this)" oninput="_pwAtenProtInput(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-aten-prot-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
+          <div id="pw-aten-prot-sug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:200px;overflow-y:auto"></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:10px">
           <div>
@@ -18150,11 +18151,21 @@ function _pwAtenResetForm(){
   ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','A definir'].forEach(x=>{ const btn=document.getElementById('pw-aten-diasol-'+x.replace(/[^a-zA-Z]/g,'')); if(!btn) return; btn.style.background='transparent'; btn.style.color='#64748B'; btn.style.border='1.5px solid #CBD5E1'; });
   ['mañana','mediodía','tarde','noche'].forEach(x=>{ const btn=document.getElementById('pw-aten-franja-'+x); if(!btn) return; btn.style.background='transparent'; btn.style.color='#64748B'; btn.style.border='1.5px solid #CBD5E1'; });
 }
+function _pwAtenProtShowSug(q){
+  const sug=document.getElementById('pw-aten-prot-sug'); if(!sug) return;
+  const opts=_pwPersonOptions();
+  const matches=q ? opts.filter(o=>o.label.toLowerCase().includes(q)||o.rol.toLowerCase().includes(q)) : opts;
+  if(!matches.length){ sug.style.display='none'; return; }
+  sug.innerHTML=matches.slice(0,16).map(o=>`<div onclick="document.getElementById('pw-aten-prot').value='${o.label.replace(/'/g,"\\'")}';document.getElementById('pw-aten-prot-sug').style.display='none'" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.85em" onmouseover="this.style.background='#F0F9FF'" onmouseout="this.style.background=''">${o.label}<span style="color:var(--muted);font-size:.85em"> · ${o.rol}</span></div>`).join('');
+  sug.style.display='block';
+}
+function _pwAtenProtFocus(inp){ _pwAtenProtShowSug((inp.value||'').toLowerCase().trim()); }
+function _pwAtenProtInput(inp){ _pwAtenProtShowSug((inp.value||'').toLowerCase().trim()); }
+
 function _pwAtenNueva(vwId){
   _pwEnsureAtenModal();
   _pwAtenVwId=vwId; _pwAtenEditIdx=null;
   document.getElementById('pw-aten-title').textContent='Nueva atención';
-  document.getElementById('pw-aten-prot').innerHTML=_pwPersonSelect();
   _pwAtenResetForm();
   document.getElementById('pw-aten-modal').style.display='flex';
 }
@@ -18165,7 +18176,7 @@ function _pwAtenEdit(vwId,idx){
   _pwAtenVwId=vwId; _pwAtenEditIdx=idx;
   _pwAtenResetForm();
   document.getElementById('pw-aten-title').textContent='Editar atención';
-  document.getElementById('pw-aten-prot').innerHTML=_pwPersonSelect(a.protagonistaKey||'');
+  document.getElementById('pw-aten-prot').value=a.protagonistaLabel||a.protagonistaKey||'';
   document.getElementById('pw-aten-programa').value=a.programa||'';
   document.getElementById('pw-aten-medio').value=a.medio||'';
   document.getElementById('pw-aten-fecha').value=a.fecha||'';
@@ -18187,9 +18198,8 @@ function _pwAtenClose(){
   const sug=document.getElementById('pw-aten-prog-suggest'); if(sug) sug.style.display='none';
 }
 function _pwAtenGuardar(){
-  const protKey=document.getElementById('pw-aten-prot').value;
-  const opts=_pwPersonOptions();
-  const found=opts.find(o=>o.key===protKey);
+  const protLabel=(document.getElementById('pw-aten-prot').value||'').trim();
+  const found=null;
   const programa=(document.getElementById('pw-aten-programa').value||'').trim();
   const medio=(document.getElementById('pw-aten-medio').value||'').trim();
   const fecha=document.getElementById('pw-aten-fecha').value;
@@ -18202,7 +18212,7 @@ function _pwAtenGuardar(){
   const realizada=document.getElementById('pw-aten-realizada').checked;
   const entry={
     tipo:'atencion',
-    protagonistaKey:protKey, protagonistaLabel:found?.label||protKey||'',
+    protagonistaKey:protLabel, protagonistaLabel:protLabel,
     programa, medio, estado:_pwAtenEstVal,
     diaSolicitado:_pwAtenDias[0]||'', franja:_pwAtenFranjaVal, formatoSol,
     emailFrom, emailTxt,
