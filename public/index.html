@@ -16987,8 +16987,14 @@ function _pwPersonOptions(){
   const opts = [];
   // Staff AUF (Estructura de Selección)
   ESTRUCTURA_PERSONAS.forEach(d=>d.personas.forEach(p=>opts.push({key:p.key, label:p.label, rol:p.rol, cat:d.dept})));
-  // CT Mayor
+  // CT Mayor desde DELEGACION (datos a nivel de módulo)
   const ctSeen = new Set();
+  if(typeof DELEGACION!=='undefined'){
+    DELEGACION.forEach(area=>(area.people||[]).forEach(m=>{
+      if(!ctSeen.has(m.name)){ ctSeen.add(m.name); opts.push({key:'ct:'+m.name, label:m.name, rol:m.role||'Cuerpo técnico', cat:area.area}); }
+    }));
+  }
+  // CT Mayor desde convocatorias (fallback)
   (typeof BIELSA_CONVOCATORIAS!=='undefined'?BIELSA_CONVOCATORIAS:[]).forEach(c=>{
     (c.ct||[]).forEach(m=>{ if(!ctSeen.has(m.name)){ ctSeen.add(m.name); opts.push({key:'ct:'+m.name, label:m.name, rol:m.rol||'Cuerpo técnico Mayor', cat:'Cuerpo técnico Mayor'}); } });
   });
