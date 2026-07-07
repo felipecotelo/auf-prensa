@@ -17975,7 +17975,8 @@ function _renderVentanaRegistro(vw, list){
 }
 
 function _pwEnsureAtenModal(){
-  if(document.getElementById('pw-aten-modal')) return;
+  const existingAten=document.getElementById('pw-aten-modal');
+  if(existingAten){ if(document.getElementById('pw-aten-prot-sug')) return; existingAten.remove(); }
   const div=document.createElement('div');
   div.innerHTML=`<div id="pw-aten-modal" style="display:none;position:fixed;inset:0;z-index:8100;background:rgba(0,0,0,.45);align-items:flex-end;justify-content:center" onclick="if(event.target===this)_pwAtenClose()">
     <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;padding:20px 20px 32px">
@@ -17984,96 +17985,61 @@ function _pwEnsureAtenModal(){
         <button onclick="_pwAtenClose()" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:1.4em"><i class="ti ti-x"></i></button>
       </div>
 
-      <!-- Sección: Solicitud -->
-      <div style="background:#F8FAFC;border-radius:12px;padding:12px 14px;margin-bottom:14px;border:1px solid var(--border)">
-        <div style="font-size:.72em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📋 Solicitud</div>
-        <div style="margin-bottom:10px;position:relative">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
-          <input id="pw-aten-programa" type="text" autocomplete="off" placeholder='Tocá para ver programas…' oninput="_pwAtenProgramaInput(this)" onfocus="_pwAtenProgramaFocus(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-aten-prog-suggest');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
-          <div id="pw-aten-prog-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:160px;overflow-y:auto"></div>
-        </div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
-          <input id="pw-aten-medio" type="text" placeholder="ej: Canal 10" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
-        </div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">ESTADO</label>
-          <div style="display:flex;flex-wrap:wrap;gap:5px" id="pw-aten-est-btns">
-            ${Object.entries(_pwEstConfig).filter(([,v])=>v.primary||v.secondary).map(([k,v])=>`<button type="button" onclick="_pwAtenEst('${k}')" id="pw-aten-est-${k}" style="padding:4px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:transparent;color:${v.color}">${v.label}</button>`).join('')}
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">DÍA PEDIDO</label>
-            <div style="display:flex;flex-wrap:wrap;gap:4px" id="pw-aten-dias-btns">
-              ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','A definir'].map(d=>`<button type="button" onclick="_pwAtenToggleDia('${d}')" id="pw-aten-diasol-${d.replace(/[^a-zA-Z]/g,'')}" style="padding:4px 9px;border-radius:20px;font-size:.73em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${d}</button>`).join('')}
-            </div>
-          </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FRANJA</label>
-            <div style="display:flex;flex-wrap:wrap;gap:4px">
-              ${[['mañana','🌅'],['mediodía','☀️'],['tarde','🌇'],['noche','🌙']].map(([f,e])=>`<button type="button" onclick="_pwAtenToggleFranja('${f}')" id="pw-aten-franja-${f}" style="padding:4px 9px;border-radius:20px;font-size:.73em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${e} ${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
-            </div>
-          </div>
-        </div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO SOLICITADO</label>
-          <select id="pw-aten-fmtsol" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box">
-            <option value="">— Elegir —</option>
-            <option value="presencial">Presencial</option>
-            <option value="telefonica">Telefónica</option>
-            <option value="zoom">Zoom</option>
-            <option value="standup">Stand-up</option>
-            <option value="escrita">Nota escrita</option>
-          </select>
-        </div>
-        <div style="margin-bottom:6px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">CORREO SOLICITANTE</label>
-          <input id="pw-aten-email" type="email" placeholder="periodista@medio.com" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
-        </div>
-        <div>
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">TEXTO DEL MAIL <span style="font-weight:400;color:var(--hint)">(opcional)</span></label>
-          <textarea id="pw-aten-emailtxt" rows="3" placeholder="Hola, quisiera saber si…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.84em;box-sizing:border-box;resize:vertical;font-family:inherit;background:#fff;line-height:1.5"></textarea>
+      <!-- Programa + Medio -->
+      <div style="margin-bottom:12px;position:relative">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PROGRAMA</label>
+        <input id="pw-aten-programa" type="text" autocomplete="off" placeholder="Tocá para ver programas…" oninput="_pwAtenProgramaInput(this)" onfocus="_pwAtenProgramaFocus(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-aten-prog-suggest');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        <div id="pw-aten-prog-suggest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:160px;overflow-y:auto"></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">MEDIO</label>
+        <input id="pw-aten-medio" type="text" placeholder="ej: Canal 10" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+      </div>
+
+      <!-- Estado -->
+      <div style="margin-bottom:12px">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">ESTADO</label>
+        <div style="display:flex;flex-wrap:wrap;gap:5px" id="pw-aten-est-btns">
+          ${Object.entries(_pwEstConfig).filter(([,v])=>v.primary||v.secondary).map(([k,v])=>`<button type="button" onclick="_pwAtenEst('${k}')" id="pw-aten-est-${k}" style="padding:4px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:transparent;color:${v.color}">${v.label}</button>`).join('')}
         </div>
       </div>
 
-      <!-- Sección: Atención -->
-      <div style="background:#F0FDF4;border-radius:12px;padding:12px 14px;margin-bottom:14px;border:1px solid #BBF7D0">
-        <div style="font-size:.72em;font-weight:700;color:#15803D;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">✅ Atención realizada</div>
-        <div style="margin-bottom:10px;position:relative">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN HABLÓ</label>
-          <input id="pw-aten-prot" type="text" autocomplete="off" placeholder="Nombre del profe, jugador…" onfocus="_pwAtenProtFocus(this)" oninput="_pwAtenProtInput(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-aten-prot-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
-          <div id="pw-aten-prot-sug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:200px;overflow-y:auto"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:10px">
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
-            <input id="pw-aten-fecha" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
-          </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
-            <input id="pw-aten-hora" type="time" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
-          </div>
-        </div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO REALIZADO</label>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${Object.entries(_pwFmtAten).map(([k,v])=>`<button onclick="_pwAtenFmt('${k}')" id="pw-aten-fmt-${k}" style="padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;background:#fff;color:var(--muted)">${v}</button>`).join('')}
-          </div>
-        </div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS / TEMAS TRATADOS</label>
-          <textarea id="pw-aten-notas" rows="3" placeholder="Temas tratados, observaciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;resize:vertical;font-family:inherit;background:#fff"></textarea>
-        </div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LINK (nota publicada)</label>
-          <input id="pw-aten-link" type="url" placeholder="https://…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;background:#fff">
-        </div>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input id="pw-aten-realizada" type="checkbox" style="width:16px;height:16px;cursor:pointer">
-          <span style="font-size:.88em;font-weight:700;color:#15803D">✓ Marcar como realizada</span>
-        </label>
+      <!-- Quién habló + fecha -->
+      <div style="margin-bottom:12px;position:relative">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN PARTICIPÓ</label>
+        <input id="pw-aten-prot" type="text" autocomplete="off" placeholder="Tocá para ver la delegación…" onfocus="_pwAtenProtFocus(this)" oninput="_pwAtenProtInput(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-aten-prot-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        <div id="pw-aten-prot-sug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:200px;overflow-y:auto"></div>
       </div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px">
+        <div>
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
+          <input id="pw-aten-fecha" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
+          <input id="pw-aten-hora" type="time" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${Object.entries(_pwFmtAten).map(([k,v])=>`<button onclick="_pwAtenFmt('${k}')" id="pw-aten-fmt-${k}" style="padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;background:#F8FAFC;color:var(--muted)">${v}</button>`).join('')}
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
+        <textarea id="pw-aten-notas" rows="3" placeholder="Temas tratados, observaciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LINK (nota publicada)</label>
+        <input id="pw-aten-link" type="url" placeholder="https://…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:20px;cursor:pointer">
+        <input id="pw-aten-realizada" type="checkbox" style="width:16px;height:16px;cursor:pointer">
+        <span style="font-size:.88em;font-weight:700;color:#15803D">✓ Marcar como realizada</span>
+      </label>
+      <!-- Campos ocultos para compatibilidad -->
+      <input type="hidden" id="pw-aten-fmtsol"><input type="hidden" id="pw-aten-email"><input type="hidden" id="pw-aten-emailtxt">
 
       <button onclick="_pwAtenGuardar()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar atención</button>
     </div>
