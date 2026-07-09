@@ -1173,9 +1173,10 @@ html.auf-gate body { display:none !important }
   </div>
   <!-- L1: menú de Selección Mayor -->
   <div class="nav-l1" id="nav-l1" style="display:none">
-    <span class="nav-l1-label">Torneos</span>
+    <span class="nav-l1-label">Eventos</span>
     <button class="nav-t-pill dim" title="Próximamente">📋 Eliminatorias 2023–2026</button>
     <button class="nav-t-pill active" data-tournament="cm2026" onclick="showTournament('cm2026')">🏆 Copa Mundial 2026</button>
+    <button class="nav-t-pill" data-tournament="fifasep26" onclick="showTournament('fifasep26')">📅 Fecha FIFA sep–oct 2026</button>
     <div class="nav-l0-sep"></div>
     <button class="nav-l1-btn" data-tab="jugadores" onclick="showTab('jugadores')"><i class="ti ti-users"></i>Jugadores</button>
     <button class="nav-l1-btn" data-tab="tecnicos" onclick="showTab('tecnicos')"><i class="ti ti-clipboard-list"></i>Técnicos</button>
@@ -1459,6 +1460,15 @@ html.auf-gate body { display:none !important }
   </div>
   <div id="grafica-container"></div>
 </div>
+
+<!-- ── Fecha FIFA sep–oct 2026 ─────────────────────────────────────────── -->
+<div id="fifasep26-calendario" class="section"><div id="fifasep26-calendario-container"></div></div>
+<div id="fifasep26-disponibilidad" class="section"><div id="fifasep26-disponibilidad-container"></div></div>
+<div id="fifasep26-pizarra" class="section"><div id="fifasep26-pizarra-container"></div></div>
+<div id="fifasep26-plantel" class="section"><div id="fifasep26-plantel-container"></div></div>
+<div id="fifasep26-fixture" class="section"><div id="fifasep26-fixture-container"></div></div>
+<div id="fifasep26-grafica" class="section"><div id="fifasep26-grafica-container"></div></div>
+<div id="fifasep26-infogeneral" class="section"><div id="fifasep26-infogeneral-container"></div></div>
 
 <!-- ═══════════ LINKS ═══════════ -->
 <div id="calendariomayor" class="section">
@@ -3329,13 +3339,52 @@ function showSection(sec){
   if(sec==='estructura'){showTab('sec-estructura');}
 }
 
+const TOURNAMENTS = {
+  'cm2026': {
+    tabs: [
+      {id:'calendario',    label:'Calendario',    icon:'ti-calendar'},
+      {id:'disponibilidad',label:'Disponibilidad',icon:'ti-list-check'},
+      {id:'fixture',       label:'Fixture',       icon:'ti-tournament'},
+      {id:'partidos',      label:'Partidos',      icon:'ti-world'},
+      {id:'plantel',       label:'Convocados',    icon:'ti-users',         cls:'d-tab'},
+      {id:'pizarra',       label:'Pizarra',       icon:'ti-ball-football'},
+      {id:'grafica',       label:'Diseño',        icon:'ti-photo',         cls:'d-tab'},
+      {id:'infogeneral',   label:'Info general',  icon:'ti-info-circle'},
+    ]
+  },
+  'fifasep26': {
+    tabs: [
+      {id:'fifasep26-calendario',    label:'Calendario',    icon:'ti-calendar'},
+      {id:'fifasep26-disponibilidad',label:'Disponibilidad',icon:'ti-list-check'},
+      {id:'fifasep26-pizarra',       label:'Pizarra',       icon:'ti-ball-football'},
+      {id:'fifasep26-plantel',       label:'Convocados',    icon:'ti-users'},
+      {id:'fifasep26-fixture',       label:'Fixture',       icon:'ti-tournament'},
+      {id:'fifasep26-grafica',       label:'Diseño',        icon:'ti-photo'},
+      {id:'fifasep26-infogeneral',   label:'Info general',  icon:'ti-info-circle'},
+    ]
+  },
+};
+
+function _rebuildNavL2(tournamentId){
+  const conf = TOURNAMENTS[tournamentId];
+  if(!conf) return;
+  const nav = document.getElementById('nav-l2');
+  if(!nav) return;
+  // Keep hidden compat buttons, replace visible tabs
+  const hidden = [...nav.querySelectorAll('button[style*="display:none"]')];
+  nav.innerHTML = conf.tabs.map(t=>
+    `<button class="tab${t.cls?' '+t.cls:''}" data-tab="${t.id}" onclick="showTab('${t.id}')"><i class="ti ${t.icon}"></i>${t.label}</button>`
+  ).join('') + hidden.map(b=>b.outerHTML).join('');
+}
+
 function showTournament(id){
   window._activeTournament=id;
   document.querySelectorAll('.nav-t-pill').forEach(p=>p.classList.remove('active'));
   document.querySelector(`.nav-t-pill[data-tournament="${id}"]`)?.classList.add('active');
+  _rebuildNavL2(id);
   renderClosedBanner();
-  const lastTab=window._lastTournamentTab||'fixture';
-  showTab(lastTab);
+  const firstTab=(TOURNAMENTS[id]?.tabs||[])[0]?.id || 'fixture';
+  showTab(firstTab);
 }
 
 function showTab(id){
@@ -3367,6 +3416,7 @@ function showTab(id){
   if(id==='infogeneral'){renderInfoGeneral()}
   if(id==='grafica'){renderGrafica()}
   if(id==='periplo'){renderPeriplo()}
+  if(id.startsWith('fifasep26-')){renderFifaSep26(id)}
   if(id==='jugadores'){renderJugadores()}
   if(id==='tecnicos'){renderTecnicos()}
 }
@@ -6885,6 +6935,79 @@ function updateDelegArea(gi,el){
   setDelegacion(d);
   renderInfoGeneral();
 }
+
+// ── Fecha FIFA sep–oct 2026 ────────────────────────────────────────────────
+const FIFASEP26 = {
+  label: 'Fecha FIFA sep–oct 2026',
+  desde: '2026-09-21',
+  hasta: '2026-10-06',
+  partidos: 4,
+  desc: 'Primera Fecha FIFA de la Selección Mayor post Copa Mundial 2026. Cuatro partidos por confirmar.',
+};
+
+function renderFifaSep26(tabId){
+  const slug = tabId.replace('fifasep26-','');
+  const con = document.getElementById(tabId+'-container');
+  if(!con) return;
+
+  const _placeholder = (icon, titulo, subtitulo='') => `
+    <div style="padding:32px 20px;text-align:center;color:var(--muted)">
+      <div style="font-size:2.4em;margin-bottom:12px">${icon}</div>
+      <div style="font-weight:800;font-size:1em;color:var(--text);margin-bottom:6px">${titulo}</div>
+      ${subtitulo?`<div style="font-size:.82em;max-width:340px;margin:0 auto;line-height:1.5">${subtitulo}</div>`:''}
+    </div>`;
+
+  const _header = (icon, titulo, desc) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 0 14px;border-bottom:1px solid var(--border);margin-bottom:20px">
+      <div style="width:38px;height:38px;border-radius:10px;background:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:1.2em;flex-shrink:0">${icon}</div>
+      <div>
+        <div style="font-weight:800;font-size:.95em;color:var(--text)">${titulo}</div>
+        <div style="font-size:.75em;color:var(--muted)">${desc}</div>
+      </div>
+    </div>`;
+
+  if(slug==='calendario'){
+    con.innerHTML = _header('📅','Calendario','21 sep – 6 oct 2026 · Período reglamentario FIFA') +
+      _placeholder('🗓️','Calendario por armar','Se completará cuando se confirmen los partidos, sede y logística.');
+  } else if(slug==='disponibilidad'){
+    con.innerHTML = _header('✅','Disponibilidad','Seguimiento de convocados') +
+      _placeholder('👥','Sin convocados aún','La disponibilidad se cargará cuando se anuncie el DT y la lista de convocados.');
+  } else if(slug==='pizarra'){
+    con.innerHTML = _header('⚽','Pizarra táctica','Análisis de los partidos') +
+      _placeholder('🧩','Pizarra disponible al confirmar rivales','Se habilitará cuando se conozcan los 4 partidos del período.');
+  } else if(slug==='plantel'){
+    con.innerHTML = _header('👥','Convocados','Lista oficial') +
+      _placeholder('📋','Lista de convocados por confirmar','Se cargará cuando el DT anuncie la convocatoria oficial.');
+  } else if(slug==='fixture'){
+    con.innerHTML = _header('🗒️','Fixture','4 partidos · sep–oct 2026') +
+      _placeholder('🏟️','Fixture por confirmar','Se cargarán los 4 partidos cuando FIFA publique el calendario oficial.');
+  } else if(slug==='grafica'){
+    con.innerHTML = _header('🎨','Diseño','Material gráfico') +
+      _placeholder('🖼️','Sin piezas cargadas aún','El material gráfico se irá cargando a medida que avance la preparación.');
+  } else if(slug==='infogeneral'){
+    con.innerHTML = _header('ℹ️','Info general',FIFASEP26.label) + `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Período reglamentario</div>
+          <div style="font-weight:800;color:var(--text)">21 sep – 6 oct 2026</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Partidos</div>
+          <div style="font-weight:800;color:var(--text)">4 partidos por confirmar</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Director técnico</div>
+          <div style="font-weight:800;color:var(--text)">Por confirmar</div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Rivales</div>
+          <div style="font-weight:800;color:var(--text)">Por confirmar</div>
+        </div>
+      </div>
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px;font-size:.82em;color:#1D4ED8;line-height:1.5">${FIFASEP26.desc}</div>`;
+  }
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 function renderInfoGeneral(){
   const con=document.getElementById('infogeneral-container');
