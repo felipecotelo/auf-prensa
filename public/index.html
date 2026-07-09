@@ -2550,6 +2550,42 @@ const setJuvClub=(nom,club,pais)=>{
 const clearJuvClub=(nom)=>{const d=getJuvClub();delete d[nom];stor.set(KJuvClub,d);};
 
 // ── Sparrings con la Mayor ────────────────────────────────────────────────────
+const KMayorJuvTags = 'auf4_mayor_juv_tags';
+const getMayorJuvTags = () => stor.get(KMayorJuvTags, {});
+const setMayorJuvTags = (nom, tags) => { const d=getMayorJuvTags(); if(tags&&tags.length) d[nom]=tags; else delete d[nom]; stor.set(KMayorJuvTags,d); cloudPushDebounced(KMayorJuvTags,d); };
+const JUV_CAT_META = {sub23:{label:'Sub-23',color:'#6D28D9',bg:'#EDE9FE'},sub20:{label:'Sub-20',color:'#1D4ED8',bg:'#EFF6FF'},sub18:{label:'Sub-18',color:'#7C3AED',bg:'#F3E8FF'},sub17:{label:'Sub-17',color:'#15803d',bg:'#F0FDF4'},sub16:{label:'Sub-16',color:'#B45309',bg:'#FFFBEB'},sub15:{label:'Sub-15',color:'#9A3412',bg:'#FFF7ED'},sub13:{label:'Sub-13',color:'#DC2626',bg:'#FFF1F2'}};
+
+window._editMayorJuvTags = function(nomSafe){
+  const nom = nomSafe.replace(/\\'/g,"'");
+  const cur = getMayorJuvTags()[nom]||[];
+  const cats = Object.entries(JUV_CAT_META);
+  const id = 'mjt-'+Date.now();
+  const html = `<div id="${id}" onclick="event.stopPropagation()" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:var(--card,#fff);border-radius:14px;padding:18px;box-shadow:0 8px 32px rgba(0,0,0,.18);width:280px;max-width:92vw">
+    <div style="font-weight:800;font-size:.88em;margin-bottom:12px">Categorías juveniles · ${nom.split(' ')[0]}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${cats.map(([k,m])=>`<button onclick="window._mjToggle('${id}','${k}')" id="${id}-${k}" style="border-radius:6px;padding:3px 10px;font-size:.72em;font-weight:700;cursor:pointer;border:1.5px solid ${m.color};background:${cur.includes(k)?m.color:'transparent'};color:${cur.includes(k)?'#fff':m.color}">${m.label}</button>`).join('')}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="window._mjSave('${id}','${nomSafe}')" style="flex:1;padding:7px;border-radius:8px;border:none;background:#1D4ED8;color:#fff;font-size:.8em;font-weight:700;cursor:pointer">Guardar</button>
+      <button onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:none;font-size:.8em;cursor:pointer">Cancelar</button>
+    </div>
+  </div><div id="${id}-bg" onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.3)"></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+};
+window._mjToggle = function(id, k){
+  const btn = document.getElementById(id+'-'+k);
+  const m = JUV_CAT_META[k];
+  const active = btn.style.background === m.color || btn.dataset.active==='1';
+  btn.style.background = active ? 'transparent' : m.color;
+  btn.style.color = active ? m.color : '#fff';
+  btn.dataset.active = active ? '0' : '1';
+};
+window._mjSave = function(id, nomSafe){
+  const nom = nomSafe.replace(/\\'/g,"'");
+  const tags = Object.keys(JUV_CAT_META).filter(k=>{ const btn=document.getElementById(id+'-'+k); return btn&&(btn.style.background===JUV_CAT_META[k].color||btn.dataset.active==='1'); });
+  setMayorJuvTags(nom, tags);
+  document.getElementById(id)?.remove(); document.getElementById(id+'-bg')?.remove();
+  renderJugadores();
+};
+
 const KJuvSparring = 'auf4_juv_sparring';
 const getJuvSparring = () => stor.get(KJuvSparring, {});
 const addJuvSparring = (nom, evento) => {
@@ -8059,30 +8095,36 @@ function renderJugadores(){
     const mayorKey='mayor:'+_mSlug;
     const mayorKeyEnc=encodeURIComponent(mayorKey);
     const cachedPhoto=(window._estPhotoCache||{})[mayorKey]||(window._estPhotoCache||{})['ct-p:'+_mSlug]||photo;
-    return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px;position:relative;${isRetirado?'opacity:.55':''}" onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.1)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
-      ${isRetirado?`<div style="position:absolute;top:8px;left:8px;background:#94A3B8;color:#fff;font-size:7.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`:''}
-      <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:7px;right:8px;background:none;border:none;cursor:pointer;font-size:14px;padding:0;line-height:1;opacity:${isLeyenda?1:.25};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
-      <div style="display:flex;align-items:center;gap:10px;${isRetirado?'margin-top:6px':''}">
+    const _mjTags = getMayorJuvTags()[nom]||[];
+    const _autoJuvHist = typeof _juvPlayerHistory==='function' ? _juvPlayerHistory(nom) : [];
+    const _autoKeys = new Set(_autoJuvHist.map(h=>h.label.toLowerCase().replace(/[^a-z0-9]/g,'').replace(/sub(\d+).*/,'sub$1')));
+    const _manualBadges = _mjTags.filter(k=>!_autoKeys.has(k)).map(k=>JUV_CAT_META[k]).filter(Boolean);
+    const _allJuvBadges = [..._autoJuvHist.map(h=>({label:h.label,color:h.color,bg:h.color+'22'})), ..._manualBadges.map(m=>({label:m.label,color:m.color,bg:m.bg}))];
+    return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative;${isRetirado?'opacity:.55':''}">
+      ${isRetirado?`<div style="position:absolute;top:9px;left:10px;background:#94A3B8;color:#fff;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`:''}
+      <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyenda?1:.2};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
+      <div style="display:flex;align-items:center;gap:11px;${isRetirado?'margin-top:8px':''}">
         <div onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${isRetirado?'grayscale(1)':''}">
-          <div id="mayor-av-${mayorKeyEnc}">${avatar(nom, pos, cachedPhoto, 42)}</div>
+          <div id="mayor-av-${mayorKeyEnc}">${avatar(nom, pos, cachedPhoto, 54)}</div>
           ${cachedPhoto
-            ? `<div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>`
-            : `<div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 4px;font-size:7.5px;font-weight:800;white-space:nowrap;pointer-events:none;border:1px solid #fff">+ foto</div>`}
+            ? `<div style="position:absolute;bottom:-1px;right:-1px;width:17px;height:17px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>`
+            : `<div style="position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 5px;font-size:7.5px;font-weight:700;white-space:nowrap;pointer-events:none;border:1px solid #fff">+ foto</div>`}
           <input type="file" accept="image/*" id="mayor-inp-${mayorKeyEnc}" style="display:none" onchange="_mayorPhotoSelected('${mayorKeyEnc}',this)">
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:800;font-size:.88em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}</div>
-          <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:1px;cursor:pointer" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
+          <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}</div>
+          <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:4px" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span id="jpos-${nomId}" onclick="event.stopPropagation();jTogglePosEdit('${nomSafe}',this)" style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:6px;padding:2px 7px;font-size:.67em;font-weight:800;cursor:pointer" title="Tocar para cambiar posición">${pos||'?'}${customPos?'✎':''}</span>
-        <span style="font-size:.7em;color:var(--muted);font-weight:600">${calls} conv.</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          ${d.total?`<span style="font-size:.7em;font-weight:700;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">—</span>`}
-          <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:900;padding:1px 4px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'};letter-spacing:.03em">R</button>
-        </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <span id="jpos-${nomId}" onclick="event.stopPropagation();jTogglePosEdit('${nomSafe}',this)" style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:5px;padding:2px 7px;font-size:.67em;font-weight:700;cursor:pointer" title="Tocar para cambiar posición">${pos||'?'}${customPos?'✎':''}</span>
+        <span style="font-size:.68em;color:var(--muted)">${calls} conv.</span>
+        <span style="font-size:.68em;color:var(--muted)">·</span>
+        ${d.total?`<span style="font-size:.68em;font-weight:600;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">0 PJ</span>`}
+        <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="margin-left:auto;background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
       </div>
+      ${_allJuvBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${_allJuvBadges.map(b=>`<span style="background:${b.bg};color:${b.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${b.label}</span>`).join('')}<button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Editar categorías juveniles" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:pointer">✎</button></div>`
+      :`<div style="margin-top:8px"><button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 8px;font-size:.6em;color:var(--muted);cursor:pointer">+ juvenil</button></div>`}
     </div>`;
   }
 
@@ -17445,33 +17487,34 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const _storedPais = _juvClubEntry?.pais;
   const juvPais = (_storedPais && _storedPais !== 'uy') ? _storedPais : (p.pais || _storedPais || 'uy');
   const sparringEvts = getJuvSparring()[p.nom]||[];
-  return `<div style="background:var(--card);border:1px solid ${isChamp?'#F59E0B':'var(--border)'};border-radius:12px;padding:12px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
-      <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid ${isChamp?'#F59E0B':'var(--border)'};cursor:pointer;overflow:visible">
+  return `<div style="background:var(--card);border:1px solid ${isChamp?'#F59E0B':'var(--border)'};border-radius:12px;padding:13px">
+    <div style="display:flex;align-items:center;gap:11px">
+      <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:54px;height:54px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1em;flex-shrink:0;border:2px solid ${isChamp?'#F59E0B':'var(--border)'};cursor:pointer;overflow:visible">
         <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
-        <span style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
+        <span style="position:absolute;bottom:-1px;right:-1px;width:17px;height:17px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
         <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:.88em;display:flex;align-items:center;gap:4px">
+        <div style="font-weight:700;font-size:.9em;display:flex;align-items:center;gap:4px">
           ${extraIcon||''}
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nom}</span>
-          ${isChamp?`<span title="Campeón Mundial Sub-20 · Argentina 2023" style="flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:800">🏆</span>`:''}
+          ${isChamp?`<span title="Campeón Mundial Sub-20 · Argentina 2023" style="flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">🏆</span>`:''}
         </div>
-        <div onclick="_editJuvClub('${nomSafe}',this)" title="Tocar para editar club" style="font-size:.72em;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;margin-top:2px">
+        <div onclick="_editJuvClub('${nomSafe}',this)" title="Tocar para editar club" style="font-size:.7em;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;margin-top:2px">
           <img src="https://flagcdn.com/w20/${juvPais}.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">
           ${clubShow||'— sin club —'}${clubEdited?' ✎':''}
         </div>
         ${juvExClubs.length?`<div style="font-size:.62em;color:var(--muted);margin-top:1px;opacity:.65">${juvExClubs.map(c=>`ex ${c}`).join(' · ')}</div>`:''}
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span onclick="_cycleJuvPos('${nomSafe}',this)" title="Click para cambiar el puesto" style="font-size:.68em;font-weight:800;color:${p.pos?JUV_POS_FG[p.pos]:'var(--muted)'};background:${p.pos?JUV_POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?JUV_POS_FG[p.pos]+'55':'var(--border)'};border-radius:6px;padding:2px 7px;cursor:pointer">${posLabel}</span>
-      <span style="font-size:.78em;font-weight:700">${off.conv} <span style="font-weight:500;color:var(--muted);font-size:.85em">conv.</span></span>
-      <span style="font-size:.78em;font-weight:700">${off.pj} <span style="font-weight:500;color:var(--muted);font-size:.85em">PJ</span></span>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
+      <span onclick="_cycleJuvPos('${nomSafe}',this)" title="Click para cambiar el puesto" style="font-size:.67em;font-weight:700;color:${p.pos?JUV_POS_FG[p.pos]:'var(--muted)'};background:${p.pos?JUV_POS_BG[p.pos]:'var(--bg)'};border:1px solid ${p.pos?JUV_POS_FG[p.pos]+'55':'var(--border)'};border-radius:5px;padding:2px 7px;cursor:pointer">${posLabel}</span>
+      <span style="font-size:.68em;color:var(--muted)">${off.conv} conv.</span>
+      <span style="font-size:.68em;color:var(--muted)">·</span>
+      <span style="font-size:.68em;font-weight:600;color:var(--fg)">${off.pj} PJ</span>
     </div>
     ${hist.length?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:8px">
-      ${hist.map(h=>`<span style="font-size:.62em;font-weight:700;color:${h.color};background:${h.color}18;border-radius:6px;padding:1px 6px">${h.label}</span>`).join('')}
+      ${hist.map(h=>`<span style="font-size:.6em;font-weight:600;color:${h.color};background:${h.color}22;border-radius:5px;padding:2px 7px">${h.label}</span>`).join('')}
     </div>`:''}
     <div style="margin-top:${hist.length||sparringEvts.length?'6':'8'}px;display:flex;flex-wrap:wrap;gap:3px">
       ${sparringEvts.length===1?`
