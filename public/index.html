@@ -2548,6 +2548,64 @@ const setJuvClub=(nom,club,pais)=>{
   stor.set(KJuvClub,d);
 };
 const clearJuvClub=(nom)=>{const d=getJuvClub();delete d[nom];stor.set(KJuvClub,d);};
+
+// ── Sparrings con la Mayor ────────────────────────────────────────────────────
+const KJuvSparring = 'auf4_juv_sparring';
+const getJuvSparring = () => stor.get(KJuvSparring, {});
+const addJuvSparring = (nom, evento) => {
+  const d = getJuvSparring();
+  if(!d[nom]) d[nom] = [];
+  if(!d[nom].includes(evento)) d[nom].push(evento);
+  stor.set(KJuvSparring, d);
+};
+const removeJuvSparring = (nom, evento) => {
+  const d = getJuvSparring();
+  if(d[nom]) { d[nom] = d[nom].filter(e=>e!==evento); if(!d[nom].length) delete d[nom]; }
+  stor.set(KJuvSparring, d);
+};
+
+window._sparringEdit = function(nomEnc){
+  const nom = decodeURIComponent(nomEnc);
+  const d = getJuvSparring();
+  const eventos = d[nom]||[];
+  const existing = eventos.map((ev,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <span style="flex:1;font-size:.8em">${ev}</span>
+      <button onclick="removeJuvSparring('${nomEnc.replace(/'/g,"\\'")}','${ev.replace(/'/g,"\\'")}');window.renderJuveniles()" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+  const html = `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--surface);border-radius:14px;padding:20px;width:min(360px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.3)">
+        <div style="font-size:.68em;font-weight:800;color:#0F766E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Sparring con la Mayor</div>
+        <div style="font-weight:800;font-size:.95em;margin-bottom:14px">${nom}</div>
+        ${existing||'<div style="font-size:.8em;color:var(--muted);margin-bottom:10px">Sin eventos registrados</div>'}
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input id="_sparring-input" type="text" placeholder="ej: Copa Mundial 2026" list="_sparring-list"
+            style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.82em;outline:none"
+            onkeydown="if(event.key==='Enter'){window._sparringAdd('${nomEnc}');event.preventDefault()}">
+          <datalist id="_sparring-list">
+            <option value="Copa Mundial 2026">
+            <option value="Fecha FIFA sep–oct 2026">
+            <option value="Eliminatorias 2023–2026">
+          </datalist>
+          <button onclick="_sparringAdd('${nomEnc}')" style="padding:7px 12px;background:#0F766E;color:#fff;border:none;border-radius:8px;font-size:.82em;font-weight:700;cursor:pointer">Agregar</button>
+        </div>
+        <button onclick="this.closest('[onclick]').remove()" style="margin-top:12px;width:100%;padding:7px;border:1px solid var(--border);background:none;border-radius:8px;font-size:.8em;cursor:pointer">Listo</button>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  setTimeout(()=>document.getElementById('_sparring-input')?.focus(), 50);
+};
+window._sparringAdd = function(nomEnc){
+  const nom = decodeURIComponent(nomEnc);
+  const val = document.getElementById('_sparring-input')?.value?.trim();
+  if(!val) return;
+  addJuvSparring(nom, val);
+  document.querySelector('[onclick*="this.remove"]')?.remove();
+  window._sparringEdit(nomEnc);
+  window.renderJuveniles?.();
+};
+
 const getYellows=()=>stor.get(KYellow,{});
 const setYellows=v=>stor.set(KYellow,v);
 function toggleYellow(num){ const y=getYellows(); y[num]=!y[num]; setYellows(y); _luPhotos=null; renderPizarra(_pizMatch); }
@@ -17027,6 +17085,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   // p.pais (dato de TM en código) tiene prioridad sobre el default 'uy' de localStorage
   const _storedPais = _juvClubEntry?.pais;
   const juvPais = (_storedPais && _storedPais !== 'uy') ? _storedPais : (p.pais || _storedPais || 'uy');
+  const sparringEvts = getJuvSparring()[p.nom]||[];
   return `<div style="background:var(--card);border:1px solid ${isChamp?'#F59E0B':'var(--border)'};border-radius:12px;padding:12px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
       <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:42px;height:42px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.92em;flex-shrink:0;border:2px solid ${isChamp?'#F59E0B':'var(--border)'};cursor:pointer;overflow:visible">
@@ -17055,6 +17114,19 @@ function _juvFichaCard(p, hist, off, extraIcon){
     ${hist.length?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:8px">
       ${hist.map(h=>`<span style="font-size:.62em;font-weight:700;color:${h.color};background:${h.color}18;border-radius:6px;padding:1px 6px">${h.label}</span>`).join('')}
     </div>`:''}
+    <div style="margin-top:${hist.length||sparringEvts.length?'6':'8'}px;display:flex;flex-wrap:wrap;gap:3px">
+      ${sparringEvts.map(ev=>`
+        <span onclick="_sparringEdit('${nomEnc}')" title="Click para editar sparrings" style="
+          font-size:.62em;font-weight:800;color:#0F766E;background:#F0FDF4;
+          border:1px solid #6EE7B7;border-radius:6px;padding:1px 7px;cursor:pointer;
+          display:inline-flex;align-items:center;gap:3px
+        "><i class="ti ti-arrow-up-right" style="font-size:9px"></i>Sparring Mayor · ${ev}</span>`).join('')}
+      <span onclick="_sparringEdit('${nomEnc}')" title="Agregar sparring con la Mayor" style="
+        font-size:.62em;font-weight:700;color:${sparringEvts.length?'#0F766E':'var(--muted)'};
+        background:none;border:1px dashed ${sparringEvts.length?'#6EE7B7':'var(--border)'};
+        border-radius:6px;padding:1px 7px;cursor:pointer;display:inline-flex;align-items:center;gap:2px
+      "><i class="ti ti-plus" style="font-size:9px"></i>${sparringEvts.length?'':'Sparring Mayor'}</span>
+    </div>
   </div>`;
 }
 window._juvPlayerHistory = function(nom){return _juvPlayerHistory(nom);};
