@@ -8142,7 +8142,18 @@ function renderJugadores(){
     const _nacIso = getMayorNac()[nom]||'';
     const _nacAge2 = _nacIso ? _nacAge(_nacIso) : null;
     const _mjTags = getMayorJuvTags()[nom]||[];
-    const _autoJuvHist = typeof _juvPlayerHistory==='function' ? _juvPlayerHistory(nom) : [];
+    const _autoJuvHistRaw = typeof _juvPlayerHistory==='function' ? _juvPlayerHistory(nom) : [];
+    // Filter out auto-detected badges that are age-impossible for this Mayor player
+    const _mayorBirthYear = _nacIso ? parseInt(_nacIso.split('-')[0]) : null;
+    const _autoJuvHist = _mayorBirthYear ? _autoJuvHistRaw.filter(h => {
+      const catMatch = h.label.match(/[Ss]ub-?(\d+)/); if(!catMatch) return true;
+      const maxAge = parseInt(catMatch[1]);
+      const yrMatch = h.label.match(/(\d{4})/g); if(!yrMatch) return true;
+      const cycleYear = Math.max(...yrMatch.map(Number));
+      const minBirth = cycleYear - maxAge - 1;
+      const maxBirth = cycleYear - (maxAge - 4);
+      return _mayorBirthYear >= minBirth && _mayorBirthYear <= maxBirth;
+    }) : _autoJuvHistRaw;
     const _autoKeys = new Set(_autoJuvHist.map(h=>h.label.toLowerCase().replace(/[^a-z0-9]/g,'').replace(/sub(\d+).*/,'sub$1')));
     const _manualBadges = _mjTags.filter(k=>!_autoKeys.has(k)).map(k=>JUV_CAT_META[k]).filter(Boolean);
     const _allJuvBadges = [..._autoJuvHist.map(h=>({label:h.label,color:h.color,bg:h.color+'22'})), ..._manualBadges.map(m=>({label:m.label,color:m.color,bg:m.bg}))];
