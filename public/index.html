@@ -2586,6 +2586,25 @@ window._mjSave = function(id, nomSafe){
   renderJugadores();
 };
 
+const KMayorNac = 'auf4_mayor_nac';
+const getMayorNac = () => stor.get(KMayorNac, {});
+const setMayorNac = (nom, val) => { const d=getMayorNac(); if(val) d[nom]=val; else delete d[nom]; stor.set(KMayorNac,d); cloudPushDebounced(KMayorNac,d); };
+const _nacAge = (iso) => { if(!iso) return null; const [y,m,d]=iso.split('-').map(Number); const now=new Date(); const age=now.getFullYear()-y-(now.getMonth()+1<m||(now.getMonth()+1===m&&now.getDate()<d)?1:0); return age; };
+const _nacFmt = (iso) => { if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
+window._editMayorNac = function(nomSafe){
+  const nom = nomSafe.replace(/\\'/g,"'");
+  const cur = getMayorNac()[nom]||'';
+  const id = 'mnac-'+Date.now();
+  document.body.insertAdjacentHTML('beforeend',`<div id="${id}" onclick="event.stopPropagation()" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:var(--card,#fff);border-radius:14px;padding:18px;box-shadow:0 8px 32px rgba(0,0,0,.18);width:270px;max-width:92vw">
+    <div style="font-weight:700;font-size:.88em;margin-bottom:12px">Fecha de nacimiento · ${nom.split(' ')[0]}</div>
+    <input id="${id}-inp" type="date" value="${cur}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.9em;box-sizing:border-box;margin-bottom:12px">
+    <div style="display:flex;gap:8px">
+      <button onclick="(()=>{const v=document.getElementById('${id}-inp').value;setMayorNac('${nomSafe.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',v);document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove();renderJugadores()})()" style="flex:1;padding:7px;border-radius:8px;border:none;background:#1D4ED8;color:#fff;font-size:.8em;font-weight:700;cursor:pointer">Guardar</button>
+      <button onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:none;font-size:.8em;cursor:pointer">Cancelar</button>
+    </div>
+  </div><div id="${id}-bg" onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.3)"></div>`);
+};
+
 const KJuvSparring = 'auf4_juv_sparring';
 const getJuvSparring = () => stor.get(KJuvSparring, {});
 const addJuvSparring = (nom, evento) => {
@@ -8095,6 +8114,8 @@ function renderJugadores(){
     const mayorKey='mayor:'+_mSlug;
     const mayorKeyEnc=encodeURIComponent(mayorKey);
     const cachedPhoto=(window._estPhotoCache||{})[mayorKey]||(window._estPhotoCache||{})['ct-p:'+_mSlug]||photo;
+    const _nacIso = getMayorNac()[nom]||'';
+    const _nacAge2 = _nacIso ? _nacAge(_nacIso) : null;
     const _mjTags = getMayorJuvTags()[nom]||[];
     const _autoJuvHist = typeof _juvPlayerHistory==='function' ? _juvPlayerHistory(nom) : [];
     const _autoKeys = new Set(_autoJuvHist.map(h=>h.label.toLowerCase().replace(/[^a-z0-9]/g,'').replace(/sub(\d+).*/,'sub$1')));
@@ -8114,6 +8135,7 @@ function renderJugadores(){
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}</div>
           <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:4px" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
+          <div onclick="event.stopPropagation();_editMayorNac('${nomSafe}')" style="font-size:.68em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:3px" title="Editar fecha de nacimiento">${_nacAge2!==null?`<span style="font-weight:600;color:var(--fg)">${_nacAge2} años</span><span style="opacity:.6">· ${_nacFmt(_nacIso)}</span>`:'<span style="opacity:.45">+ fecha nac.</span>'}</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
