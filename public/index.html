@@ -17128,12 +17128,20 @@ function _renderJuvenilesSafe(el){
   if(!catData.anos[_juvYear]) _juvYear = anos[0];
   const anoData = catData.anos[_juvYear];
 
-  // Auto-corrección: si quedó guardada la pestaña "Convocados" vacía pero hay competencias
-  // con los convocados reales adentro, saltamos directo ahí para evitar la pantalla vacía.
-  if(_juvTab==='convocados' && !(anoData.convocatorias||[]).length && (anoData.competencias||[]).length){
-    _juvTab = 'competencias';
-    stor.set('auf4_juvTab', _juvTab);
+  const hasComps = (anoData.competencias||[]).length > 0;
+
+  // Si hay competencias: resetear _juvComp si no pertenece al ciclo actual
+  if(_juvComp && !hasComps) _juvComp = null;
+  if(_juvComp && !(anoData.competencias||[]).some(c=>c.id===_juvComp)) _juvComp = null;
+
+  // Auto-seleccionar primer evento si ninguno está seleccionado y el ciclo tiene competencias
+  if(hasComps && !_juvComp && _juvTab!=='ct' && _juvTab!=='jugadores'){
+    _juvComp = anoData.competencias[0].id;
+    _juvCompTab = (_juvComp==='wc17-2026') ? 'preparacion' : 'convocados';
   }
+
+  // Compatibilidad hacia atrás: si quedó en 'competencias' sin comps, reset
+  if(!hasComps && _juvTab==='competencias') _juvTab = 'convocados';
 
   const CAT_ORDER = ['sub23','sub20','sub18','sub17','sub16','sub15','sub13'];
   const catColor = {sub23:'#92400e',sub20:'#1D4ED8',sub18:'#7C3AED',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626'};
@@ -17173,28 +17181,60 @@ function _renderJuvenilesSafe(el){
   }).join('');
 
   // ── L3: Tabs de contenido ──
-  const TABS = [
-    {id:'convocados', label:'Convocados', icon:'ti-users'},
-    {id:'jugadores', label:'Jugadores', icon:'ti-id-badge-2'},
-    {id:'ct', label:'Cuerpo técnico', icon:'ti-id-badge'},
-    {id:'info', label:'Info general', icon:'ti-info-circle'},
-  ];
-  if(anoData.competencias?.length){
-    TABS.push({id:'competencias', label:'Competencias', icon:'ti-trophy'});
+  let tabBtns;
+  if(hasComps){
+    // Vista Mayor-style: pills de evento + utilidades
+    const eventPills = (anoData.competencias||[]).map(c=>{
+      const active = _juvComp===c.id;
+      return `<button onclick="_openJuvComp('${c.id}')" style="
+        padding:6px 12px;border-radius:16px;font-size:.74em;font-weight:800;cursor:pointer;white-space:nowrap;
+        border:1.5px solid ${active?color:'var(--border)'};
+        background:${active?color:'transparent'};
+        color:${active?'#fff':'var(--muted)'};
+        transition:all .15s
+      "><i class="ti ${c.icon||'ti-trophy'}" style="margin-right:4px"></i>${c.label}</button>`;
+    });
+    const UTIL_TABS = [
+      {id:'jugadores', label:'Jugadores', icon:'ti-id-badge-2'},
+      {id:'ct', label:'CT', icon:'ti-id-badge'},
+    ];
+    const utilPills = UTIL_TABS.map(t=>{
+      const active = !_juvComp && _juvTab===t.id;
+      return `<button onclick="_setJuvTab('${t.id}')" style="
+        padding:6px 12px;border-radius:16px;font-size:.74em;font-weight:700;cursor:pointer;
+        border:1.5px solid ${active?color:'var(--border)'};
+        background:${active?color+'18':'transparent'};
+        color:${active?color:'var(--muted)'};
+        transition:all .15s
+      "><i class="ti ${t.icon}" style="margin-right:4px"></i>${t.label}</button>`;
+    });
+    tabBtns = [...eventPills, ...utilPills].join('');
+  } else {
+    const TABS = [
+      {id:'convocados', label:'Convocados', icon:'ti-users'},
+      {id:'jugadores', label:'Jugadores', icon:'ti-id-badge-2'},
+      {id:'ct', label:'Cuerpo técnico', icon:'ti-id-badge'},
+      {id:'info', label:'Info general', icon:'ti-info-circle'},
+    ];
+    tabBtns = TABS.map(t=>{
+      const active = t.id===_juvTab;
+      return `<button onclick="_setJuvTab('${t.id}')" style="
+        padding:7px 13px;border:none;cursor:pointer;font-size:.78em;font-weight:700;
+        background:none;border-bottom:2px solid ${active?color:'transparent'};
+        color:${active?color:'var(--muted)'};white-space:nowrap;transition:all .15s
+      "><i class="ti ${t.icon}" style="margin-right:4px"></i>${t.label}</button>`;
+    }).join('');
   }
-  const tabBtns = TABS.map(t=>{
-    const active = t.id===_juvTab;
-    return `<button onclick="_setJuvTab('${t.id}')" style="
-      padding:7px 13px;border:none;cursor:pointer;font-size:.78em;font-weight:700;
-      background:none;border-bottom:2px solid ${active?color:'transparent'};
-      color:${active?color:'var(--muted)'};white-space:nowrap;transition:all .15s
-    "><i class="ti ${t.icon}" style="margin-right:4px"></i>${t.label}</button>`;
-  }).join('');
 
   // ── Contenido del tab activo ──
   let body = '';
 
-  if(_juvTab==='convocados'){
+  // Vista multi-evento: si hay una competencia seleccionada, renderizar su detalle directamente
+  if(hasComps && _juvComp){
+    body = _buildJuvCompBody(_juvComp, color, catData);
+  }
+
+  else if(_juvTab==='convocados'){
     const convs = anoData.convocatorias||[];
     if(convs.length===0){
       body = `<div style="text-align:center;padding:48px 16px;color:var(--muted)">
@@ -17446,12 +17486,9 @@ function _renderJuvenilesSafe(el){
     }
   }
 
-  // Si hay competencia abierta, inyectar botón volver en el header
-  const backBtn = (_juvComp&&_juvTab==='competencias') ? `
-    <button onclick="_closeJuvComp()" style="
-      display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
-      color:var(--muted);font-size:.8em;font-weight:700;padding:0 0 8px;
-    "><i class="ti ti-arrow-left"></i> Competencias</button>` : '';
+  const l3Style = hasComps
+    ? 'display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0 10px'
+    : 'display:flex;gap:0;overflow-x:auto;scrollbar-width:none';
 
   el.innerHTML = `
     <div style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;padding:12px 16px 0;border-bottom:1px solid var(--border)">
@@ -17461,9 +17498,9 @@ function _renderJuvenilesSafe(el){
       "><i class="ti ti-id-badge-2"></i> Ver todos los jugadores de Juveniles</button>
       <div style="display:flex;gap:6px;margin-bottom:12px">${catPills}</div>
       <div style="display:flex;gap:6px;margin-bottom:8px">${yrPills}</div>
-      <div style="display:flex;gap:0;overflow-x:auto;scrollbar-width:none">${tabBtns}</div>
+      <div style="${l3Style}">${tabBtns}</div>
     </div>
-    <div style="padding:16px">${backBtn}${body}</div>
+    <div style="padding:16px">${body}</div>
   `;
 }
 
