@@ -17180,50 +17180,87 @@ function _renderJuvenilesSafe(el){
     ">${yr}</button>`;
   }).join('');
 
-  // ── L3: Tabs de contenido ──
-  let tabBtns;
+  // ── Fila EVENTOS (estilo Mayor) — solo cuando hay competencias ──
+  let eventosBar = '';
+  let navL2 = '';
+
   if(hasComps){
-    // Vista Mayor-style: pills de evento + utilidades
-    const eventPills = (anoData.competencias||[]).map(c=>{
+    // Fila EVENTOS: año + pills de evento + links utilitarios (igual que Mayor)
+    const yrBtns = anos.map(yr=>{
+      const active = yr===_juvYear;
+      return `<button onclick="_setJuvYear('${yr}')" style="
+        padding:3px 10px;border-radius:12px;border:1px solid ${active?color:'var(--border)'};cursor:pointer;
+        font-size:.72em;font-weight:700;
+        background:${active?color+'18':'transparent'};
+        color:${active?color:'var(--muted)'};transition:all .15s
+      ">${yr}</button>`;
+    }).join('');
+
+    const evtPills = (anoData.competencias||[]).map(c=>{
       const active = _juvComp===c.id;
       return `<button onclick="_openJuvComp('${c.id}')" style="
-        padding:6px 12px;border-radius:16px;font-size:.74em;font-weight:800;cursor:pointer;white-space:nowrap;
-        border:1.5px solid ${active?color:'var(--border)'};
-        background:${active?color:'transparent'};
-        color:${active?'#fff':'var(--muted)'};
-        transition:all .15s
-      "><i class="ti ${c.icon||'ti-trophy'}" style="margin-right:4px"></i>${c.label}</button>`;
-    });
-    const UTIL_TABS = [
+        padding:4px 12px;border-radius:14px;font-size:.72em;font-weight:800;cursor:pointer;white-space:nowrap;
+        border:none;background:${active?color:'transparent'};
+        color:${active?'#fff':'var(--muted)'};transition:all .15s
+      "><i class="ti ${c.icon||'ti-trophy'}" style="margin-right:3px"></i>${c.label}</button>`;
+    }).join('');
+
+    const utilLinks = [
       {id:'jugadores', label:'Jugadores', icon:'ti-id-badge-2'},
       {id:'ct', label:'CT', icon:'ti-id-badge'},
-    ];
-    const utilPills = UTIL_TABS.map(t=>{
+    ].map(t=>{
       const active = !_juvComp && _juvTab===t.id;
       return `<button onclick="_setJuvTab('${t.id}')" style="
-        padding:6px 12px;border-radius:16px;font-size:.74em;font-weight:700;cursor:pointer;
-        border:1.5px solid ${active?color:'var(--border)'};
-        background:${active?color+'18':'transparent'};
-        color:${active?color:'var(--muted)'};
-        transition:all .15s
-      "><i class="ti ${t.icon}" style="margin-right:4px"></i>${t.label}</button>`;
-    });
-    tabBtns = [...eventPills, ...utilPills].join('');
+        display:flex;align-items:center;gap:4px;
+        padding:4px 8px;border:none;background:none;cursor:pointer;
+        font-size:.72em;font-weight:700;
+        color:${active?color:'var(--muted)'};transition:all .15s
+      "><i class="ti ${t.icon}"></i>${t.label}</button>`;
+    }).join('');
+
+    eventosBar = `
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 16px;border-bottom:1px solid var(--border);background:var(--surface);overflow-x:auto;scrollbar-width:none">
+        <span style="font-size:.6em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0">Ciclos</span>
+        ${yrBtns}
+        <div style="width:1px;height:14px;background:var(--border);margin:0 4px;flex-shrink:0"></div>
+        ${evtPills}
+        <div style="margin-left:auto;display:flex;align-items:center;gap:0;flex-shrink:0">${utilLinks}</div>
+      </div>`;
+
+    // nav-l2: tabs de la competencia seleccionada (igual que Mayor)
+    if(_juvComp){
+      const comp = COMP_DATA[_juvComp];
+      if(comp){
+        const cc = comp.color||color;
+        const CTABS = [
+          {id:'convocados',label:'Convocados',icon:'ti-users'},
+          {id:'dorsales',label:'Dorsales',icon:'ti-hash'},
+          {id:'fixture',label:'Fixture',icon:'ti-calendar-event'},
+          {id:'goleadores',label:'Goleadores',icon:'ti-ball-football'},
+          {id:'lista',label:'Lista larga',icon:'ti-list'},
+          {id:'preparacion',label:'Preparación',icon:'ti-run'},
+          {id:'ct_del',label:'CT · Delegación',icon:'ti-id-badge'},
+        ];
+        if(comp.infoGeneral||comp.grupos) CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
+        navL2 = `<div class="tabs">${CTABS.map(t=>{
+          const act = t.id===_juvCompTab;
+          return `<button onclick="_setJuvCompTab('${t.id}')" class="tab${act?' active':''}" style="${act?`color:${cc};border-bottom-color:var(--white)`:''}"><i class="ti ${t.icon}"></i>${t.label}</button>`;
+        }).join('')}</div>`;
+      }
+    }
   } else {
+    // Sin competencias: año pills debajo de categorías (estructura original)
+    eventosBar = `<div style="display:flex;gap:5px;padding:4px 16px 8px">${yrPills}</div>`;
     const TABS = [
       {id:'convocados', label:'Convocados', icon:'ti-users'},
       {id:'jugadores', label:'Jugadores', icon:'ti-id-badge-2'},
       {id:'ct', label:'Cuerpo técnico', icon:'ti-id-badge'},
       {id:'info', label:'Info general', icon:'ti-info-circle'},
     ];
-    tabBtns = TABS.map(t=>{
+    navL2 = `<div class="tabs">${TABS.map(t=>{
       const active = t.id===_juvTab;
-      return `<button onclick="_setJuvTab('${t.id}')" style="
-        padding:7px 13px;border:none;cursor:pointer;font-size:.78em;font-weight:700;
-        background:none;border-bottom:2px solid ${active?color:'transparent'};
-        color:${active?color:'var(--muted)'};white-space:nowrap;transition:all .15s
-      "><i class="ti ${t.icon}" style="margin-right:4px"></i>${t.label}</button>`;
-    }).join('');
+      return `<button onclick="_setJuvTab('${t.id}')" class="tab${active?' active':''}" style="${active?`color:${color};border-bottom-color:var(--white)`:''}"><i class="ti ${t.icon}"></i>${t.label}</button>`;
+    }).join('')}</div>`;
   }
 
   // ── Contenido del tab activo ──
@@ -17486,19 +17523,17 @@ function _renderJuvenilesSafe(el){
     }
   }
 
-  const l3Style = hasComps
-    ? 'display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0 10px'
-    : 'display:flex;gap:0;overflow-x:auto;scrollbar-width:none';
-
   el.innerHTML = `
-    <div style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;padding:12px 16px 0;border-bottom:1px solid var(--border)">
-      <button onclick="_toggleJuvGlobal()" style="
-        display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
-        color:var(--muted);font-size:.78em;font-weight:700;padding:0 0 10px;margin-left:auto
-      "><i class="ti ti-id-badge-2"></i> Ver todos los jugadores de Juveniles</button>
-      <div style="display:flex;gap:6px;margin-bottom:12px">${catPills}</div>
-      <div style="display:flex;gap:6px;margin-bottom:8px">${yrPills}</div>
-      <div style="${l3Style}">${tabBtns}</div>
+    <div style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:6px;padding:10px 16px 8px">
+        <div style="display:flex;gap:5px;flex:1">${catPills}</div>
+        <button onclick="_toggleJuvGlobal()" style="
+          display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;
+          color:var(--muted);font-size:.72em;font-weight:700;flex-shrink:0
+        "><i class="ti ti-id-badge-2"></i> Todos</button>
+      </div>
+      ${eventosBar}
+      ${navL2}
     </div>
     <div style="padding:16px">${body}</div>
   `;
@@ -17604,19 +17639,6 @@ function _buildJuvCompBody(compId, color, catData){
   if(comp.infoGeneral||comp.grupos){
     CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
   }
-  const ctabBtns = CTABS.map(t=>{
-    const act = t.id===_juvCompTab;
-    return `<button onclick="_setJuvCompTab('${t.id}')" class="tab${act?' active':''}" style="${act?`color:${cc};border-color:var(--border);border-bottom-color:var(--white)`:''}"><i class="ti ${t.icon}"></i>${t.label}</button>`;
-  }).join('');
-
-  const header = `
-    <div style="margin-bottom:14px">
-      <div style="font-size:.68em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em">${catData.label}</div>
-      <div style="font-size:1.05em;font-weight:800;margin:2px 0">${comp.label}</div>
-      <div style="font-size:.78em;color:var(--muted)">${comp.fecha}</div>
-    </div>
-    <div class="tabs" style="margin:0 -16px 14px">${ctabBtns}</div>`;
-
   let content = '';
 
   if(_juvCompTab==='info'){
@@ -17816,7 +17838,7 @@ function _buildJuvCompBody(compId, color, catData){
       ${rowDel}`;
   }
 
-  return header + content;
+  return content;
 }
   if(undoMsg){sessionStorage.removeItem('auf4_undo_toast');toast(undoMsg);}
 })();
