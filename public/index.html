@@ -17221,11 +17221,10 @@ function _renderJuvenilesSafe(el){
       if(comp){
         const CTABS = [
           {id:'convocados',label:'Convocados',icon:'ti-users'},
+          {id:'jugadores',label:'Jugadores',icon:'ti-id-badge-2'},
           {id:'dorsales',label:'Dorsales',icon:'ti-hash'},
           {id:'fixture',label:'Fixture',icon:'ti-calendar-event'},
           {id:'goleadores',label:'Goleadores',icon:'ti-ball-football'},
-          {id:'lista',label:'Lista larga',icon:'ti-list'},
-          {id:'preparacion',label:'Preparación',icon:'ti-run'},
           {id:'ct_del',label:'CT · Delegación',icon:'ti-id-badge'},
         ];
         if(comp.infoGeneral||comp.grupos) CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
@@ -17617,14 +17616,13 @@ function _buildJuvCompBody(compId, color, catData){
   if(!comp) return '<div style="padding:32px;text-align:center;color:var(--muted)">Sin datos</div>';
   const cc = comp.color||color;
 
-  // Sub-tabs
+  // Sub-tabs (lista y preparacion reemplazados por jugadores unificado)
   const CTABS = [
     {id:'convocados',label:'Convocados',icon:'ti-users'},
+    {id:'jugadores',label:'Jugadores',icon:'ti-id-badge-2'},
     {id:'dorsales',label:'Dorsales',icon:'ti-hash'},
     {id:'fixture',label:'Fixture',icon:'ti-calendar-event'},
     {id:'goleadores',label:'Goleadores',icon:'ti-ball-football'},
-    {id:'lista',label:'Lista larga',icon:'ti-list'},
-    {id:'preparacion',label:'Preparación',icon:'ti-run'},
     {id:'ct_del',label:'CT · Delegación',icon:'ti-id-badge'},
   ];
   if(comp.infoGeneral||comp.grupos){
@@ -17763,44 +17761,54 @@ function _buildJuvCompBody(compId, color, catData){
       </div>`).join('');
   }
 
-  else if(_juvCompTab==='lista'){
-    const lista = (_juvCat==='sub17'?SUB17_LISTA_LARGA:SUB18_LISTA_LARGA)||[];
-    // Agrupar por club
-    const byClub = {};
-    lista.forEach(p=>{
-      if(!byClub[p.club]) byClub[p.club]=[];
-      byClub[p.club].push(p);
+  else if(_juvCompTab==='jugadores'){
+    // Pool unificado: convocados formales + preparacion + lista larga
+    const convNames = new Set((comp.convocados||[]).filter(j=>!j.descartado).map(j=>j.nom));
+    const allMap = {};
+    // 1. convocados activos primero
+    (comp.convocados||[]).filter(j=>!j.descartado).forEach(j=>{
+      allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:true, num:j.num, asc:j.asc};
     });
+    // 2. preparacion
+    (comp.preparacion||[]).forEach(j=>{
+      if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc};
+    });
+    // 3. lista larga
+    (comp.lista||[]).forEach(j=>{
+      if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc};
+    });
+    const juvPos = getJuvPos();
+    const POS_ORDER = {POR:0,DEF:1,MED:2,DEL:3,'':4};
+    const activos = Object.values(allMap).filter(p=>p.activo)
+      .map(p=>({...p,pos:juvPos[p.nom]||''}))
+      .sort((a,b)=>(POS_ORDER[a.pos]-POS_ORDER[b.pos])||a.nom.localeCompare(b.nom));
+    const pool = Object.values(allMap).filter(p=>!p.activo)
+      .map(p=>({...p,pos:juvPos[p.nom]||''}))
+      .sort((a,b)=>(POS_ORDER[a.pos]-POS_ORDER[b.pos])||a.nom.localeCompare(b.nom));
+    const renderFicha = (p, dimmed) => {
+      const base = _juvFichaCard(p, _juvPlayerHistory(p.nom), _juvOfficialStats(p.nom),
+        p.asc?`<span style="font-size:.6em;color:#7C3AED;font-weight:800">⬆ ex-16</span>`:'');
+      return dimmed
+        ? base.replace('background:var(--card)', 'background:var(--bg)').replace('border:1px solid', 'border:1px dashed').replace(/<div style="([^"]*);border-radius:12px/, m=>m).replace(/opacity:[^;)"]+;?/g,'') + ''
+        : base;
+    };
+    // Wrap activos con borde de color, pool con opacidad reducida
+    const fichasActivas = activos.map(p=>`<div style="position:relative">${renderFicha(p,false)}<div style="position:absolute;top:6px;right:8px;font-size:.6em;font-weight:800;color:${cc};background:${cc}18;border-radius:6px;padding:1px 6px">CONV.</div></div>`).join('');
+    const fichasPool = pool.map(p=>`<div style="opacity:.5">${renderFicha(p,true)}</div>`).join('');
     content = `
-      <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
-        Lista larga — ${lista.length} jugadores
+      <div style="font-size:.68em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+        Convocados — ${activos.length} jugadores
       </div>
-      ${Object.entries(byClub).map(([club,pls])=>`
-        <div style="margin-bottom:12px">
-          <div style="font-size:.7em;font-weight:800;color:${cc};margin-bottom:5px;padding-left:2px">${club}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px">
-            ${pls.map(p=>`<span style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:.78em;font-weight:600">
-              ${p.nom}${p.asc?` <span style="color:#7C3AED;font-size:.75em">⬆</span>`:''}
-            </span>`).join('')}
-          </div>
-        </div>`).join('')}`;
-  }
-
-  else if(_juvCompTab==='preparacion'){
-    const prep = comp.preparacion||[];
-    const byClub = {};
-    prep.forEach(p=>{if(!byClub[p.club])byClub[p.club]=[];byClub[p.club].push(p);});
-    content = `
-      <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
-        Preparación final — ${prep.length} jugadores
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:20px">
+        ${fichasActivas||`<div style="color:var(--muted);font-size:.82em;padding:8px">Sin convocados registrados</div>`}
       </div>
-      ${Object.entries(byClub).map(([club,pls])=>`
-        <div style="margin-bottom:12px">
-          <div style="font-size:.7em;font-weight:800;color:${cc};margin-bottom:5px">${club}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px">
-            ${pls.map(p=>`<span style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:.78em;font-weight:600">${p.nom}${p.asc?` <span style="color:#7C3AED;font-size:.75em">⬆</span>`:''}</span>`).join('')}
-          </div>
-        </div>`).join('')}`;
+      ${pool.length?`
+      <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
+        Pool / preparación — ${pool.length} jugadores
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+        ${fichasPool}
+      </div>`:''}`;
   }
 
   else if(_juvCompTab==='ct_del'){
