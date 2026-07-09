@@ -15203,8 +15203,8 @@ const JUVENILES = {
           ]},
         ],
         competencias: [
-          {id:'sud17-2026', label:'Sudamericano Sub-17 2026', icon:'🌎', color:'#15803d'},
           {id:'wc17-2026', label:'Mundial Sub-17 Qatar 2026', icon:'🏆', color:'#B45309'},
+          {id:'sud17-2026', label:'Sudamericano Sub-17 2026', icon:'🌎', color:'#15803d'},
           {id:'talleres-cordoba-2026', label:'Torneo en Córdoba (Talleres)', icon:'🏟️', color:'#7C3AED'},
         ]
       }
@@ -17945,23 +17945,24 @@ function _buildJuvCompBody(compId, color, catData){
   else if(_juvCompTab==='jugadores'){
     // Pool unificado: convocados formales + preparacion + lista larga
     const formalConv = (comp.convocados||[]).filter(j=>!j.descartado);
-    // Si no hay convocados formales, usar la última convocatoria del ciclo como "activos"
+    // Si no hay convocados formales, usar la última convocatoria como "activos"
+    // Si tampoco hay convocatorias, mostrar toda la preparacion en color
     const convocatorias = comp.convocatorias||[];
     const lastCall = !formalConv.length && convocatorias.length
       ? (convocatorias[convocatorias.length-1].jugadores||[])
       : [];
-    const lastCallNames = new Set(lastCall.map(j=>j.nom));
+    const prepAsActive = !formalConv.length && !convocatorias.length && (comp.preparacion||[]).length > 0;
     const allMap = {};
-    // 1. convocados activos primero (formal o última convocatoria)
+    // 1. convocados activos primero (formal, última convocatoria, o preparacion completa)
     formalConv.forEach(j=>{
       allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:true, num:j.num, asc:j.asc};
     });
     lastCall.forEach(j=>{
       allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:true};
     });
-    // 2. preparacion
+    // 2. preparacion (activo si no hay otra fuente de activos)
     (comp.preparacion||[]).forEach(j=>{
-      if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc};
+      if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:prepAsActive, asc:j.asc};
     });
     // 3. lista larga
     (comp.lista||[]).forEach(j=>{
