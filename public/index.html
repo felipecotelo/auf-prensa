@@ -16928,9 +16928,16 @@ window._setJuvTab = function(tab){
   _juvComp = null;
   window.renderJuveniles();
 };
+function _defaultJuvCompTab(id){
+  const comp = COMP_DATA[id];
+  if(!comp) return 'convocados';
+  const hasConv = (comp.convocados||[]).filter(j=>!j.descartado).length > 0;
+  if(!hasConv && ((comp.preparacion||[]).length>0||(comp.lista||[]).length>0)) return 'jugadores';
+  return 'convocados';
+}
 window._openJuvComp = function(id){
   _juvComp = id;
-  _juvCompTab = (id==='wc17-2026') ? 'preparacion' : 'convocados';
+  _juvCompTab = _defaultJuvCompTab(id);
   window.renderJuveniles();
 };
 window._closeJuvComp = function(){
@@ -17279,7 +17286,7 @@ function _renderJuvenilesSafe(el){
   // Auto-seleccionar primer evento si ninguno está seleccionado y el ciclo tiene competencias
   if(hasComps && !_juvComp && _juvTab!=='ct' && _juvTab!=='jugadores'){
     _juvComp = anoData.competencias[0].id;
-    _juvCompTab = (_juvComp==='wc17-2026') ? 'preparacion' : 'convocados';
+    _juvCompTab = _defaultJuvCompTab(_juvComp);
   }
 
   // Compatibilidad hacia atrás: si quedó en 'competencias' sin comps, reset
