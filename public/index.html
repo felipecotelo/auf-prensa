@@ -7880,6 +7880,19 @@ function selectDT(id){_tecDT=id;_tecTab='resumen';renderTecnicos();}
 function selectTecTab(id){_tecTab=id;renderTecnicos();}
 function backToTecSelector(){_tecDT=null;renderTecnicos();}
 
+const _DT_FOTOS_KEY='auf_dt_fotos_custom';
+function _getDTFotos(){try{return JSON.parse(localStorage.getItem(_DT_FOTOS_KEY)||'{}')}catch{return {}}}
+function getDTFoto(id,fallback){return _getDTFotos()[id]||fallback||null;}
+function editDTFoto(id){
+  const cur=_getDTFotos()[id]||'';
+  const url=prompt('URL de la foto (dejar vacío para quitar foto personalizada):', cur);
+  if(url===null) return;
+  const fotos=_getDTFotos();
+  if(url.trim()) fotos[id]=url.trim(); else delete fotos[id];
+  localStorage.setItem(_DT_FOTOS_KEY, JSON.stringify(fotos));
+  renderTecnicos();
+}
+
 const _AUF_FOTO='https://auf.org.uy/imagenes/img_contenido/seleccion_jugador/a/';
 const DT_CATALOG=[
   {
@@ -7948,7 +7961,7 @@ function renderTecnicos(){
   if(!_tecDT){
     const _dtCard=dt=>{
       const initials=dt.full.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      const fotoSrc=dt.foto||'';
+      const fotoSrc=getDTFoto(dt.id, dt.foto)||'';
       const avatarHtml=`<div style="position:relative;width:52px;height:52px;flex-shrink:0">
         ${fotoSrc?`<img src="${fotoSrc}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--surface);border:2px solid var(--border)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
         <div style="${fotoSrc?'display:none;':'display:flex;'}width:52px;height:52px;border-radius:50%;background:#1D4ED8;color:#fff;align-items:center;justify-content:center;font-size:16px;font-weight:900;border:2px solid var(--border)">${initials}</div>
@@ -8110,9 +8123,10 @@ function renderTecnicos(){
         <i class="ti ti-arrow-left"></i> Técnicos
       </button>
       <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
-        <div style="position:relative;width:52px;height:52px;flex-shrink:0">
-          ${curDT.foto?`<img src="${curDT.foto}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;border:2px solid rgba(255,255,255,.2)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
-          <div style="${curDT.foto?'display:none;':'display:flex;'}width:52px;height:52px;border-radius:50%;background:#2a4a7b;border:2px solid rgba(255,255,255,.2);color:#fff;align-items:center;justify-content:center;font-size:18px;font-weight:900">${initials}</div>
+        <div style="position:relative;width:52px;height:52px;flex-shrink:0;cursor:pointer" onclick="editDTFoto('${curDT.id}')" title="Cambiar foto">
+          ${(()=>{const fs=getDTFoto(curDT.id,curDT.foto)||'';return fs?`<img src="${fs}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;border:2px solid rgba(255,255,255,.2)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''})()}
+          <div style="${getDTFoto(curDT.id,curDT.foto)?'display:none;':'display:flex;'}width:52px;height:52px;border-radius:50%;background:#2a4a7b;border:2px solid rgba(255,255,255,.2);color:#fff;align-items:center;justify-content:center;font-size:18px;font-weight:900">${initials}</div>
+          <div style="position:absolute;bottom:0;right:0;width:18px;height:18px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.3)">📷</div>
         </div>
         <div style="flex:1">
           <div style="font-size:16px;font-weight:900">${curDT.full}${curDT.interino?`<span style="font-size:9px;font-weight:700;background:rgba(255,255,255,.15);color:#fff;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:middle">INT</span>`:''}</div>
@@ -8204,7 +8218,10 @@ function renderTecnicos(){
       <i class="ti ti-arrow-left"></i> Técnicos
     </button>
     <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
-      <img src="${curDT.foto}" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;flex-shrink:0;border:2px solid rgba(255,255,255,.2)">
+      <div style="position:relative;width:52px;height:52px;flex-shrink:0;cursor:pointer" onclick="editDTFoto('${curDT.id}')" title="Cambiar foto">
+        <img src="${getDTFoto(curDT.id,curDT.foto)||curDT.foto}" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;border:2px solid rgba(255,255,255,.2)">
+        <div style="position:absolute;bottom:0;right:0;width:18px;height:18px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.3)">📷</div>
+      </div>
       <div style="flex:1">
         <div style="font-size:16px;font-weight:900">${curDT.full}</div>
         <div style="font-size:11px;opacity:.7;margin-top:2px">${flagImg(curDT.nacISO,13)} ${curDT.nac} · n. ${curDT.born}</div>
