@@ -2630,7 +2630,7 @@ const MAYOR_NAC_DEFAULT = {
   'Isabelino Grandín':'1898-08-14','Roberto Chery':'1952-04-10',
   'Ignacio González':'1981-06-08','Álvaro Fernández':'1985-05-13',
 };
-// cam = años Copa América ganados · wc = años Campeonato del Mundo ganados (incl. JJ.OO. 1924/1928)
+// cam=Copa América · wc=Mundial/JJOO (1924/28/30/50) · oro=Copa de Oro · sub20=Mundial Sub-20
 const LEYENDAS_LOGROS = {
   'José Nasazzi':           {cam:[1923,1926,1935],      wc:[1924,1928,1930]},
   'Héctor Scarone':         {cam:[1920,1923,1926],      wc:[1924,1928,1930]},
@@ -2647,8 +2647,9 @@ const LEYENDAS_LOGROS = {
   'Roque Gastón Máspoli':   {cam:[1956],               wc:[1950]},
   'Bolívar Céspedes':       {cam:[1956],               wc:[1950]},
   'Luis Cubilla':           {cam:[1967]},
-  'Hugo De León':           {cam:[1983,1987]},
-  'Rodolfo Rodríguez':      {cam:[1983]},
+  'Fernando Álvez':         {oro:[1980]},
+  'Rodolfo Rodríguez':      {cam:[1983],               oro:[1980]},
+  'Hugo De León':           {cam:[1983,1987],           oro:[1980]},
   'Ruben Sosa':             {cam:[1987]},
   'Paolo Montero':          {cam:[1995]},
   'Pablo Bengoechea':       {cam:[1995]},
@@ -8212,11 +8213,14 @@ function renderJugadores(){
     const _manualBadges = _mjTags.filter(k=>!_autoKeys.has(k)).map(k=>JUV_CAT_META[k]).filter(Boolean);
     const _allJuvBadges = [..._autoJuvHist.map(h=>({label:h.label,color:h.color,bg:h.color+'22'})), ..._manualBadges.map(m=>({label:m.label,color:m.color,bg:m.bg}))];
     const _logros = (typeof LEYENDAS_LOGROS!=='undefined'&&LEYENDAS_LOGROS[nom])||{};
-    const _logroWC = _logros.wc||[];
-    const _logroCA = _logros.cam||[];
+    const _logroWC  = _logros.wc||[];
+    const _logroCA  = _logros.cam||[];
+    const _logroOro = _logros.oro||[];
     const _logroBadges = [
       ..._logroWC.map(y=>`<span title="Campeón del Mundo ${y}" style="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🏆 ${y}</span>`),
-      ...(_logroCA.length?[`<span title="Copa América: ${_logroCA.join(', ')}" style="background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🌎 Copa Am. ×${_logroCA.length}</span>`]:[]),
+      ...(_logroCA.length?[`<span title="Copa América: ${_logroCA.join(', ')}" style="background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🏆 Copa Am. ×${_logroCA.length}</span>`]:[]),
+      ..._logroOro.map(y=>`<span title="Copa de Oro ${y}" style="background:#FFF1F2;color:#881337;border:1px solid #FECDD3;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🏆 Copa de Oro ${y}</span>`),
+      ...(_isChamp?[`<span title="Campeón Mundial Sub-20 · Argentina 2023" style="background:#F3E8FF;color:#7C3AED;border:1px solid #DDD6FE;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🏆 Sub-20 2023</span>`]:[]),
     ];
     return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative;${isRetirado?'opacity:.55':''}">
       ${isRetirado?`<div style="position:absolute;top:9px;left:10px;background:#94A3B8;color:#fff;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`:''}
@@ -8228,7 +8232,7 @@ function renderJugadores(){
           <input type="file" accept="image/*" id="mayor-inp-${mayorKeyEnc}" style="display:none" onchange="_mayorPhotoSelected('${mayorKeyEnc}',this)">
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}${_isChamp?` <span title="Campeón Mundial Sub-20 · Argentina 2023" style="font-size:.75em">🏆</span>`:''}</div>
+          <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}</div>
           <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:4px" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
           <div onclick="event.stopPropagation();_editMayorNac('${nomSafe}')" style="font-size:.68em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:3px" title="Editar fecha de nacimiento">${_nacAge2!==null?`<span style="font-weight:600;color:var(--fg)">${_nacAge2} años</span><span style="opacity:.6">· ${_nacFmt(_nacIso)}</span>`:'<span style="opacity:.45">+ fecha nac.</span>'}</div>
         </div>
