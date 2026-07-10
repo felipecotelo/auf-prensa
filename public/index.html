@@ -7943,8 +7943,8 @@ function renderTecnicos(){
   const con=document.getElementById('tecnicos-container');
   if(!con) return;
 
-  // Carga fotos IDB si aún no están en cache
-  if(!_idbPhotos){loadIDBPhotos().then(()=>renderTecnicos());return;}
+  // Carga fotos IDB en background si no están — render inmediato con CDN, re-render cuando carguen
+  if(!_idbPhotos) loadIDBPhotos().then(()=>renderTecnicos());
 
   // ── Catálogo completo: recientes (DT_CATALOG) + históricos (DT_MAYOR_HIST reversed) ──
   const _dtSlug=n=>n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -7970,9 +7970,13 @@ function renderTecnicos(){
     const _dtCard=dt=>{
       const initials=dt.full.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const fotoSrc=getDTFoto(dt.id, dt.foto)||'';
-      const avatarHtml=`<div style="position:relative;width:52px;height:52px;flex-shrink:0">
+      const avatarHtml=`<div style="position:relative;width:52px;height:52px;flex-shrink:0" onclick="event.stopPropagation();clickDTPhotoBtn('${dt.id}',this)">
         ${fotoSrc?`<img src="${fotoSrc}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--surface);border:2px solid var(--border)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
         <div style="${fotoSrc?'display:none;':'display:flex;'}width:52px;height:52px;border-radius:50%;background:#1D4ED8;color:#fff;align-items:center;justify-content:center;font-size:16px;font-weight:900;border:2px solid var(--border)">${initials}</div>
+        <div class="p-photo-edit" style="pointer-events:none">
+          <input type="file" accept="image/*" style="display:none" onchange="dtPhotoFileChosen('${dt.id}',this)">
+          📷
+        </div>
       </div>`;
       const periodLine=dt.period||(dt.desde&&dt.desde!=='—'?`${dt.desde} – ${dt.hasta}`:'—');
       return `<button onclick="selectDT('${dt.id}')"
