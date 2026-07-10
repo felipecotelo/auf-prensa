@@ -8182,6 +8182,7 @@ function renderJugadores(){
       </div>
       ${_allJuvBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${_allJuvBadges.map(b=>`<span style="background:${b.bg};color:${b.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${b.label}</span>`).join('')}<button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Editar categorías juveniles" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:pointer">✎</button></div>`
       :`<div style="margin-top:8px"><button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 8px;font-size:.6em;color:var(--muted);cursor:pointer">+ juvenil</button></div>`}
+      ${d.estKey?`<div style="margin-top:6px"><button onclick="event.stopPropagation();_goToEstFicha('${d.estKey}')" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:6px;padding:3px 9px;font-size:.6em;font-weight:700;cursor:pointer">👔 Ver perfil DT</button></div>`:''}
     </div>`;
   }
 
@@ -9810,7 +9811,7 @@ const JUGADORES={
   'Héctor Scarone':          {auf:'hector-scarone',         pos:'MED',total:{pj:52,g:31}},
   'Sebastián Abreu':         {auf:'sebastian-abreu',        pos:'DEL',total:{pj:71,g:26}},
   'Ladislao Mazurkiewicz':   {auf:'ladislao-mazurkiewicz',  pos:'POR',total:{pj:54,g:0}},
-  "Diego 'Ruso' Pérez":     {auf:'diego-perez',            pos:'MED',total:{pj:73,g:4}},
+  "Diego 'Ruso' Pérez":     {auf:'diego-perez',            pos:'MED',total:{pj:73,g:4},estKey:'ct-p:diego-perez'},
   'Álvaro Recoba':           {auf:'alvaro-recoba',          pos:'MED',total:{pj:69,g:7}},
   'Paolo Montero':           {auf:'paolo-montero',          pos:'DEF',total:{pj:57,g:1}},
   "Fabián O'Neill":         {auf:'fabian-oneill',          pos:'MED',total:{pj:30,g:2}},
@@ -21433,6 +21434,7 @@ function _renderEstLista(){
 
 function _estOpenFicha(key){ _estView='ficha'; _estCurKey=key; _renderEstFicha(key); }
 function _estBackLista(){ _estView='list'; _estCurKey=null; _renderEstLista(); }
+window._goToEstFicha=function(key){ showSection('sec-estructura'); setTimeout(()=>_estOpenFicha(key),80); };
 
 function _renderEstFicha(key){
   const el=document.getElementById('estructura-body');
@@ -21457,7 +21459,10 @@ function _renderEstFicha(key){
 
   el.innerHTML=`
     <div style="max-width:700px;margin:0 auto;padding:16px">
-      <button onclick="_estBackLista()" style="display:flex;align-items:center;gap:5px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:.8em;font-weight:700;padding:0;margin-bottom:18px"><i class="ti ti-arrow-left"></i> Estructura de Selección</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+        <button onclick="_estBackLista()" style="display:flex;align-items:center;gap:5px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:.8em;font-weight:700;padding:0"><i class="ti ti-arrow-left"></i> Estructura de Selección</button>
+        ${(()=>{ const jNom=Object.keys(JUGADORES).find(n=>JUGADORES[n].estKey===key); return jNom?`<button onclick="showSection('sec-jugadores');setTimeout(()=>showJugador('${jNom.replace(/'/g,"\\'")}'),80)" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:6px;padding:3px 9px;font-size:.7em;font-weight:700;cursor:pointer">⚽ Ver como jugador</button>`:''; })()}
+      </div>
 
       <div style="background:#fff;border:1px solid var(--border);border-radius:16px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin-bottom:12px">
         <div style="position:relative">
