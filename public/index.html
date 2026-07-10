@@ -8080,7 +8080,7 @@ function renderJugadores(){
   if(window._jFilter==='leyendas'){
     entries=entries.filter(([nom])=>LEYENDAS_SET.has(nom));
     const _jugKeys=new Set(entries.map(([n])=>n));
-    for(const nom of LEYENDAS_SET) if(!_jugKeys.has(nom)) entries.push([nom,{}]);
+    for(const nom of LEYENDAS_SET) if(!_jugKeys.has(nom)) entries.push([nom,{leyendaOnly:true}]);
   }
   if(window._jPos!=='todos') entries=entries.filter(([nom,d])=>d.pos===window._jPos);
 
@@ -8166,13 +8166,15 @@ function renderJugadores(){
       ${isRetirado?`<div style="position:absolute;top:9px;left:10px;background:#94A3B8;color:#fff;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`:''}
       <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyenda?1:.2};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
       <div style="display:flex;align-items:center;gap:11px;${isRetirado?'margin-top:8px':''}">
-        <div onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${isRetirado?'grayscale(1)':''}">
+        ${d.leyendaOnly
+          ? `<div style="position:relative;flex-shrink:0"><div>${avatar(nom, pos, cachedPhoto, 54)}</div></div>`
+          : `<div onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${isRetirado?'grayscale(1)':''}">
           <div id="mayor-av-${mayorKeyEnc}">${avatar(nom, pos, cachedPhoto, 54)}</div>
           ${cachedPhoto
             ? `<div style="position:absolute;bottom:-1px;right:-1px;width:17px;height:17px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>`
             : `<div style="position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 5px;font-size:7.5px;font-weight:700;white-space:nowrap;pointer-events:none;border:1px solid #fff">+ foto</div>`}
           <input type="file" accept="image/*" id="mayor-inp-${mayorKeyEnc}" style="display:none" onchange="_mayorPhotoSelected('${mayorKeyEnc}',this)">
-        </div>
+        </div>`}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}${_isChamp?` <span title="Campeón Mundial Sub-20 · Argentina 2023" style="font-size:.75em">🏆</span>`:''}</div>
           <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:4px" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
