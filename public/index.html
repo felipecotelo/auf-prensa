@@ -6168,7 +6168,11 @@ async function savePE(){
     await savePhotoIDB(PE.num, dataUrl);
     invalidatePhotoCache();
   }catch(e){toast('⚠ Error guardando foto: '+e.message);return}
-  if(typeof PE.num==='string' && PE.num.startsWith('juv:')){
+  if(typeof PE.num==='string' && PE.num.startsWith('dt:')){
+    if(_idbPhotos) _idbPhotos[PE.num]=dataUrl;
+    renderTecnicos();
+    window._savePhotoToServer?.(PE.num, dataUrl);
+  } else if(typeof PE.num==='string' && PE.num.startsWith('juv:')){
     _juvPhotoCache[PE.num.slice(4)]=dataUrl;
     window.renderJuveniles?.();
     document.getElementById('sparr-grid') && renderSparrings();
@@ -7880,17 +7884,18 @@ function selectDT(id){_tecDT=id;_tecTab='resumen';renderTecnicos();}
 function selectTecTab(id){_tecTab=id;renderTecnicos();}
 function backToTecSelector(){_tecDT=null;renderTecnicos();}
 
-const _DT_FOTOS_KEY='auf_dt_fotos_custom';
-function _getDTFotos(){try{return JSON.parse(localStorage.getItem(_DT_FOTOS_KEY)||'{}')}catch{return {}}}
-function getDTFoto(id,fallback){return _getDTFotos()[id]||fallback||null;}
-function editDTFoto(id){
-  const cur=_getDTFotos()[id]||'';
-  const url=prompt('URL de la foto (dejar vacío para quitar foto personalizada):', cur);
-  if(url===null) return;
-  const fotos=_getDTFotos();
-  if(url.trim()) fotos[id]=url.trim(); else delete fotos[id];
-  localStorage.setItem(_DT_FOTOS_KEY, JSON.stringify(fotos));
-  renderTecnicos();
+function getDTFoto(id,fallback){return (_idbPhotos&&_idbPhotos['dt:'+id])||fallback||null;}
+function clickDTPhotoBtn(id,el){
+  const cached=_idbPhotos?.['dt:'+id];
+  if(cached){openPE('dt:'+id,cached);return;}
+  el.querySelector('input[type=file]').click();
+}
+function dtPhotoFileChosen(id,input){
+  const file=input.files[0];if(!file)return;
+  input.value='';
+  const reader=new FileReader();
+  reader.onload=ev=>openPE('dt:'+id,ev.target.result);
+  reader.readAsDataURL(file);
 }
 
 const _AUF_FOTO='https://auf.org.uy/imagenes/img_contenido/seleccion_jugador/a/';
@@ -7937,6 +7942,9 @@ const BIELSA_MATCHES=PERIPLO_MATCHES.slice(_bielsaStart).filter(m=>m.fui&&!m.sub
 function renderTecnicos(){
   const con=document.getElementById('tecnicos-container');
   if(!con) return;
+
+  // Carga fotos IDB si aún no están en cache
+  if(!_idbPhotos){loadIDBPhotos().then(()=>renderTecnicos());return;}
 
   // ── Catálogo completo: recientes (DT_CATALOG) + históricos (DT_MAYOR_HIST reversed) ──
   const _dtSlug=n=>n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
@@ -8123,10 +8131,13 @@ function renderTecnicos(){
         <i class="ti ti-arrow-left"></i> Técnicos
       </button>
       <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
-        <div style="position:relative;width:52px;height:52px;flex-shrink:0;cursor:pointer" onclick="editDTFoto('${curDT.id}')" title="Cambiar foto">
+        <div style="position:relative;width:52px;height:52px;flex-shrink:0">
           ${(()=>{const fs=getDTFoto(curDT.id,curDT.foto)||'';return fs?`<img src="${fs}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;border:2px solid rgba(255,255,255,.2)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''})()}
           <div style="${getDTFoto(curDT.id,curDT.foto)?'display:none;':'display:flex;'}width:52px;height:52px;border-radius:50%;background:#2a4a7b;border:2px solid rgba(255,255,255,.2);color:#fff;align-items:center;justify-content:center;font-size:18px;font-weight:900">${initials}</div>
-          <div style="position:absolute;bottom:0;right:0;width:18px;height:18px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.3)">📷</div>
+          <div class="p-photo-edit" title="Cambiar foto" onclick="clickDTPhotoBtn('${curDT.id}',this)">
+            <input type="file" accept="image/*" style="display:none" onchange="dtPhotoFileChosen('${curDT.id}',this)">
+            📷
+          </div>
         </div>
         <div style="flex:1">
           <div style="font-size:16px;font-weight:900">${curDT.full}${curDT.interino?`<span style="font-size:9px;font-weight:700;background:rgba(255,255,255,.15);color:#fff;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:middle">INT</span>`:''}</div>
@@ -8218,9 +8229,12 @@ function renderTecnicos(){
       <i class="ti ti-arrow-left"></i> Técnicos
     </button>
     <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
-      <div style="position:relative;width:52px;height:52px;flex-shrink:0;cursor:pointer" onclick="editDTFoto('${curDT.id}')" title="Cambiar foto">
+      <div style="position:relative;width:52px;height:52px;flex-shrink:0">
         <img src="${getDTFoto(curDT.id,curDT.foto)||curDT.foto}" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;border:2px solid rgba(255,255,255,.2)">
-        <div style="position:absolute;bottom:0;right:0;width:18px;height:18px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.3)">📷</div>
+        <div class="p-photo-edit" title="Cambiar foto" onclick="clickDTPhotoBtn('${curDT.id}',this)">
+          <input type="file" accept="image/*" style="display:none" onchange="dtPhotoFileChosen('${curDT.id}',this)">
+          📷
+        </div>
       </div>
       <div style="flex:1">
         <div style="font-size:16px;font-weight:900">${curDT.full}</div>
