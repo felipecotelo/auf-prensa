@@ -7911,39 +7911,49 @@ function renderTecnicos(){
   const con=document.getElementById('tecnicos-container');
   if(!con) return;
 
+  // ── Catálogo completo: recientes (DT_CATALOG) + históricos (DT_MAYOR_HIST reversed) ──
+  const _dtSlug=n=>n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const _dtNacName={uy:'Uruguay',ar:'Argentina',it:'Italia',cl:'Chile',br:'Brasil',pe:'Perú'};
+  const _catalogNames=new Set(DT_CATALOG.map(d=>d.full));
+  const _histEntries=(typeof DT_MAYOR_HIST!=='undefined'?[...DT_MAYOR_HIST].reverse():[])
+    .filter(dt=>!_catalogNames.has(dt.name))
+    .map(dt=>({
+      id:'hist-'+_dtSlug(dt.name),
+      full:dt.name, nac:_dtNacName[dt.iso]||'Uruguay', nacISO:dt.iso,
+      born:'—',
+      period:dt.rol.replace(/^Director técnico(?: interino)? · /,''),
+      interino:dt.rol.includes('interino'),
+      logro:dt.logro||'',
+      foto:'./fotos/'+_dtSlug(dt.name)+'.jpg',
+      activo:false, hist:true,
+    }));
+  const fullDTCatalog=[...DT_CATALOG,..._histEntries];
+
   // ── Selector de DT ──────────────────────────────────────────────────────
   if(!_tecDT){
+    const _dtCard=dt=>{
+      const initials=dt.full.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatarHtml=`<div style="position:relative;width:52px;height:52px;flex-shrink:0">
+        <img src="${dt.foto}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--surface);border:2px solid var(--border)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div style="display:none;width:52px;height:52px;border-radius:50%;background:#1D4ED8;color:#fff;align-items:center;justify-content:center;font-size:16px;font-weight:900;border:2px solid var(--border)">${initials}</div>
+      </div>`;
+      const periodLine=dt.period||(dt.desde&&dt.desde!=='—'?`${dt.desde} – ${dt.hasta}`:'—');
+      return `<button onclick="selectDT('${dt.id}')"
+        style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--white);border:0.5px solid var(--border);border-radius:12px;cursor:pointer;text-align:left;width:100%;transition:box-shadow .15s"
+        onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow=''">
+        ${avatarHtml}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:800;color:var(--text)">${dt.full}${dt.interino?`<span style="font-size:9px;font-weight:700;background:#F1F5F9;color:#64748B;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">INT</span>`:''}${dt.logro?`<span style="font-size:9px;font-weight:700;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle">🏆</span>`:''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${flagImg(dt.nacISO,13)} ${dt.nac}${dt.born&&dt.born!=='—'?` · n. ${dt.born}`:''}</div>
+          <div style="font-size:10.5px;color:var(--muted);margin-top:1px">${periodLine}</div>
+        </div>
+        <i class="ti ti-chevron-right" style="color:var(--muted);font-size:16px"></i>
+      </button>`;
+    };
     con.innerHTML=`
-      <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px">Cuerpo técnico — Selección Mayor</div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
-        ${DT_CATALOG.map(dt=>`
-          <button onclick="selectDT('${dt.id}')"
-            style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--white);border:0.5px solid var(--border);border-radius:12px;cursor:pointer;text-align:left;width:100%;transition:box-shadow .15s"
-            onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow=''">
-            <img src="${dt.foto}" onerror="this.src=''" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--surface);border:2px solid var(--border);flex-shrink:0">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:14px;font-weight:800;color:var(--text)">${dt.full}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${flagImg(dt.nacISO,13)} ${dt.nac} · n. ${dt.born}</div>
-              <div style="font-size:10.5px;color:var(--muted);margin-top:1px">${dt.desde !== '—' ? `DT ${dt.desde} – ${dt.hasta}` : 'Sin datos de período aún'}</div>
-            </div>
-            <i class="ti ti-chevron-right" style="color:var(--muted);font-size:16px"></i>
-          </button>`).join('')}
-      </div>
-      <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:10px">Histórico — todos los DT (1917–2022)</div>
-      <div style="background:var(--white);border:0.5px solid var(--border);border-radius:12px;overflow:hidden">
-        ${(typeof DT_MAYOR_HIST!=='undefined'?DT_MAYOR_HIST:[]).map((dt,i,arr)=>{
-          const period=dt.rol.replace('Director técnico · ','').replace('Director técnico interino · ','');
-          const isInterino=dt.rol.includes('interino');
-          return `<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;${i<arr.length-1?'border-bottom:0.5px solid var(--border)':''}">
-            <div style="font-size:13px;flex-shrink:0;opacity:.8">${flagImg(dt.iso,14)}</div>
-            <div style="flex:1;min-width:0">
-              <span style="font-size:13px;font-weight:700;color:var(--text)">${dt.name}</span>
-              ${isInterino?`<span style="font-size:9px;font-weight:700;background:#F1F5F9;color:#64748B;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">INT</span>`:''}
-              ${dt.logro?`<span style="font-size:9px;font-weight:700;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle">🏆 ${dt.logro}</span>`:''}
-            </div>
-            <div style="font-size:11px;color:var(--muted);flex-shrink:0;text-align:right">${period}</div>
-          </div>`;
-        }).join('')}
+      <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:12px">Directores técnicos — Selección Mayor</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${fullDTCatalog.map(_dtCard).join('')}
       </div>`;
     return;
   }
@@ -8074,7 +8084,40 @@ function renderTecnicos(){
   const infoHtml=buildDTInfoHtml(_tecDT);
 
   // ── Render ──────────────────────────────────────────────────────────────
-  const curDT=DT_CATALOG.find(d=>d.id===_tecDT)||BIELSA_BIO;
+  const curDT=fullDTCatalog.find(d=>d.id===_tecDT)||BIELSA_BIO;
+
+  // ── Ficha simplificada para DTs históricos ──────────────────────────────
+  if(curDT.hist){
+    const initials=curDT.full.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    con.innerHTML=`
+      <button onclick="backToTecSelector()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:11.5px;font-weight:600;padding:0;margin-bottom:12px">
+        <i class="ti ti-arrow-left"></i> Técnicos
+      </button>
+      <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
+        <div style="position:relative;width:52px;height:52px;flex-shrink:0">
+          <img src="${curDT.foto}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;border:2px solid rgba(255,255,255,.2)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div style="display:none;width:52px;height:52px;border-radius:50%;background:#2a4a7b;border:2px solid rgba(255,255,255,.2);color:#fff;align-items:center;justify-content:center;font-size:18px;font-weight:900">${initials}</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:900">${curDT.full}${curDT.interino?`<span style="font-size:9px;font-weight:700;background:rgba(255,255,255,.15);color:#fff;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:middle">INT</span>`:''}</div>
+          <div style="font-size:11px;opacity:.7;margin-top:2px">${flagImg(curDT.nacISO,13)} ${curDT.nac}</div>
+          <div style="font-size:10.5px;opacity:.55;margin-top:2px">Director Técnico · ${curDT.period}</div>
+        </div>
+      </div>
+      ${curDT.logro?`<div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:#FEF3C7;border:1px solid #FDE68A;border-radius:10px;margin-bottom:14px">
+        <span style="font-size:18px">🏆</span>
+        <div>
+          <div style="font-size:9px;font-weight:800;color:#92400E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1px">Logro destacado</div>
+          <div style="font-size:13px;font-weight:700;color:#78350F">${curDT.logro}</div>
+        </div>
+      </div>`:''}
+      <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:24px;margin-bottom:6px">📋</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Ficha en construcción</div>
+        <div style="font-size:11.5px;color:var(--muted)">Los datos estadísticos y biográficos<br>de este técnico se irán cargando.</div>
+      </div>`;
+    return;
+  }
   const _cuerpoData={
     bielsa:[
       {iso:'ar',name:'Marcelo Bielsa',   rol:'Director técnico',       dt:true},
