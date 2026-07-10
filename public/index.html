@@ -5186,7 +5186,8 @@ async function renderPlantel(searchVal){
   const pn=getPNotes();
   const grid=document.getElementById('p-grid');
   grid.innerHTML='';
-  const idbPhotos=await loadIDBPhotos();
+  // Render inmediato — no esperar IDB. Si ya están en cache las usamos; si no, se parchean después.
+  const idbPhotos=_idbPhotos||{};
 
   PLAYERS
     .filter(p=>(!curPosFilter||p.pos===curPosFilter)&&(!search||p.name.toLowerCase().includes(search)))
@@ -5351,6 +5352,15 @@ async function renderPlantel(searchVal){
         </div>`;
       grid.appendChild(card);
     });
+  // Patch fotos desde IDB en background si aún no estaban cargadas
+  if(!_idbPhotos){
+    loadIDBPhotos().then(photos=>{
+      Object.entries(photos).forEach(([key,url])=>{
+        const n=parseInt(key);
+        if(!isNaN(n)&&isFinite(n)) applyPhotoToCard(n,url);
+      });
+    });
+  }
   renderSparrings();
 }
 
