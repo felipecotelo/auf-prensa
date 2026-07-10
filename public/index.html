@@ -18959,15 +18959,16 @@ function _renderListaPrensa(){
       : `${solTotal} solicitud${solTotal!==1?'es':''}`;
     const displayName = pw.titulo || pw.personLabel;
     const subLabel = pw.titulo ? pw.personLabel : '';
+    const isCerrada = !!pw.cerrada;
     return `
-    <div onclick="_pwOpenVentana('${pw.id}')" style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px">
+    <div onclick="_pwOpenVentana('${pw.id}')" style="background:${isCerrada?'var(--surface)':'#fff'};border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;opacity:${isCerrada?.6:1}">
       <div style="flex:1;min-width:0">
-        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${pw.cat||''}</div>
-        <div style="font-size:.98em;font-weight:900;color:var(--text);margin-top:1px">${displayName}</div>
+        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${pw.cat||''}${isCerrada?' · <span style="color:#64748B">CONCLUIDA</span>':''}</div>
+        <div style="font-size:.98em;font-weight:900;color:${isCerrada?'var(--muted)':'var(--text)'};margin-top:1px">${displayName}</div>
         <div style="font-size:.75em;color:var(--muted);margin-top:2px">${subLabel ? subLabel+' · ' : ''}${periodo}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        ${badge}
+        ${isCerrada?`<span style="font-size:.72em;font-weight:700;background:#F1F5F9;color:#64748B;border-radius:20px;padding:2px 9px;border:1px solid #CBD5E1"><i class="ti ti-lock" style="font-size:.85em"></i> Cerrada</span>`:badge}
         <span style="font-size:.72em;color:var(--muted)">${countLabel}</span>
       </div>
       <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.9em;flex-shrink:0"></i>
@@ -19496,6 +19497,7 @@ function _renderVentana(id){
       </div>
       <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:20px;margin-top:4px">
         <button onclick="_pwEditVentana('${id}')" style="border:none;background:none;cursor:pointer;color:var(--cel);font-size:.75em;font-weight:700;padding:4px 0"><i class="ti ti-pencil"></i> Editar ventana</button>
+        <button onclick="_pwToggleCerrada('${id}')" style="border:none;background:none;cursor:pointer;color:${vw.cerrada?'#15803d':'#64748B'};font-size:.75em;font-weight:${vw.cerrada?700:400};padding:4px 0"><i class="ti ti-${vw.cerrada?'lock-open':'lock'}"></i> ${vw.cerrada?'Reabrir ventana':'Concluir ventana'}</button>
         <button onclick="_pwDeleteVentana('${id}')" style="border:none;background:none;cursor:pointer;color:var(--muted);font-size:.75em;padding:4px 0"><i class="ti ti-trash"></i> Eliminar ventana</button>
       </div>
 
@@ -19852,6 +19854,7 @@ function _renderVentanaRegistro(vw, list){
         ${vw.titulo&&vw.personLabel?`<div style="font-size:.76em;color:var(--muted)">${vw.personLabel}</div>`:''}
       </div>
       <button onclick="_pwEditVentana('${vw.id}')" style="border:none;background:#F1F5F9;border-radius:10px;padding:7px 10px;cursor:pointer;color:var(--muted);font-size:.85em"><i class="ti ti-settings"></i></button>
+      <button onclick="_pwToggleCerrada('${vw.id}')" title="${vw.cerrada?'Reabrir ventana':'Concluir ventana'}" style="border:none;background:${vw.cerrada?'#F0FDF4':'#F1F5F9'};border-radius:10px;padding:7px 10px;cursor:pointer;color:${vw.cerrada?'#15803d':'var(--muted)'};font-size:.85em"><i class="ti ti-${vw.cerrada?'lock-open':'lock'}"></i></button>
       <button onclick="_pwDeleteVentana('${vw.id}')" style="border:none;background:#FEF2F2;border-radius:10px;padding:7px 10px;cursor:pointer;color:#DC2626;font-size:.85em"><i class="ti ti-trash"></i></button>
     </div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
@@ -20600,6 +20603,15 @@ window._pwShareAgendaMail=function(id){
   const vw=_pwGetAll().find(v=>v.id===id); if(!vw) return;
   window.open('mailto:?subject='+encodeURIComponent(`Agenda — ${vw.personLabel}`)+'&body='+encodeURIComponent(_pwBuildAgendaText(id,false)),'_blank');
 };
+
+function _pwToggleCerrada(id){
+  const list=_pwGetAll();
+  const vw=list.find(v=>v.id===id);
+  if(!vw) return;
+  vw.cerrada = !vw.cerrada;
+  _pwSave(list);
+  _renderVentana(id);
+}
 
 function _pwDeleteVentana(id){
   if(!confirm('¿Eliminar esta ventana y todos sus pedidos?')) return;
