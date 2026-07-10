@@ -2611,6 +2611,59 @@ const MAYOR_NAC_DEFAULT = {
   'Ronald Araújo':'1999-03-07','Santiago Bueno':'1998-11-09','Santiago Mele':'1997-09-06',
   'Santiago Mouriño':'2002-02-13','Sebastián Coates':'1990-10-07','Sergio Rochet':'1993-03-23',
   'Thiago Borbas':'2002-04-07','Tiago Palacios':'2001-03-28',
+  // Leyendas históricas
+  'Diego Forlán':'1979-05-19','Enzo Francescoli':'1961-11-12',
+  'Obdulio Varela':'1917-09-20','Alcides Ghiggia':'1926-12-22',
+  'Diego Lugano':'1980-11-02','Juan Schiaffino':'1925-07-28',
+  'José Nasazzi':'1901-05-24','Héctor Scarone':'1898-11-26',
+  'Sebastián Abreu':'1976-03-11','Ladislao Mazurkiewicz':'1945-03-22',
+  "Diego 'Ruso' Pérez":'1980-01-13','Álvaro Recoba':'1976-03-17',
+  'Paolo Montero':'1971-09-03',"Fabián O'Neill":'1973-03-14',
+  'Pablo Bengoechea':'1969-06-23','Ruben Sosa':'1966-04-13',
+  'Hugo De León':'1959-05-29','Roque Gastón Máspoli':'1917-10-12',
+  'Luis Cubilla':'1940-03-28','Carlos Scarone':'1905-04-08',
+  'Cristian Rodríguez':'1985-09-30','Héctor Castro':'1904-11-10',
+  'Carlos Céspedes':'1906-03-15','Rodolfo Rodríguez':'1957-11-01',
+  "René 'Tito' Borjas":'1943-06-22','José Piendibene':'1889-08-10',
+  'Bolívar Céspedes':'1924-08-05','Fernando Álvez':'1949-09-24',
+  'Pedro Cea':'1900-09-01','Ángel Romano':'1893-01-20',
+  'Isabelino Grandín':'1898-08-14','Roberto Chery':'1952-04-10',
+  'Ignacio González':'1981-06-08','Álvaro Fernández':'1985-05-13',
+};
+// cam = años Copa América ganados · wc = años Campeonato del Mundo ganados (incl. JJ.OO. 1924/1928)
+const LEYENDAS_LOGROS = {
+  'José Nasazzi':           {cam:[1923,1926,1935],      wc:[1924,1928,1930]},
+  'Héctor Scarone':         {cam:[1920,1923,1926],      wc:[1924,1928,1930]},
+  'Carlos Scarone':         {cam:[1920,1923,1926],      wc:[1924,1928]},
+  'Pedro Cea':              {cam:[1923,1926],            wc:[1924,1928,1930]},
+  'Ángel Romano':           {cam:[1916,1917,1920,1923]},
+  'José Piendibene':        {cam:[1916,1917,1920],      wc:[1924]},
+  'Isabelino Grandín':      {wc:[1924]},
+  'Héctor Castro':          {cam:[1926],                wc:[1930]},
+  'Pedro Petrone':          {cam:[1923,1926],           wc:[1924,1928]},
+  'Obdulio Varela':         {cam:[1942,1956],           wc:[1950]},
+  'Alcides Ghiggia':        {wc:[1950]},
+  'Juan Schiaffino':        {wc:[1950]},
+  'Roque Gastón Máspoli':   {cam:[1956],               wc:[1950]},
+  'Bolívar Céspedes':       {cam:[1956],               wc:[1950]},
+  'Luis Cubilla':           {cam:[1967]},
+  'Hugo De León':           {cam:[1983,1987]},
+  'Rodolfo Rodríguez':      {cam:[1983]},
+  'Ruben Sosa':             {cam:[1987]},
+  'Paolo Montero':          {cam:[1995]},
+  'Pablo Bengoechea':       {cam:[1995]},
+  'Álvaro Recoba':          {cam:[1995]},
+  'Diego Forlán':           {cam:[2011]},
+  'Diego Lugano':           {cam:[2011]},
+  'Sebastián Abreu':        {cam:[2011]},
+  "Diego 'Ruso' Pérez":    {cam:[2011]},
+  'Cristian Rodríguez':     {cam:[2011]},
+  'Diego Godín':            {cam:[2011]},
+  'Fernando Muslera':       {cam:[2011]},
+  'Maximiliano Pereira':    {cam:[2011]},
+  'Martín Cáceres':         {cam:[2011]},
+  'Edinson Cavani':         {cam:[2011]},
+  'Luis Suárez':            {cam:[2011]},
 };
 const getMayorNac = () => { const stored=stor.get(KMayorNac,{}); return {...MAYOR_NAC_DEFAULT,...stored}; };
 const setMayorNac = (nom, val) => { const d=getMayorNac(); if(val) d[nom]=val; else delete d[nom]; stor.set(KMayorNac,d); cloudPushDebounced(KMayorNac,d); };
@@ -8158,6 +8211,13 @@ function renderJugadores(){
     const _autoKeys = new Set(_autoJuvHist.map(h=>h.label.toLowerCase().replace(/[^a-z0-9]/g,'').replace(/sub(\d+).*/,'sub$1')));
     const _manualBadges = _mjTags.filter(k=>!_autoKeys.has(k)).map(k=>JUV_CAT_META[k]).filter(Boolean);
     const _allJuvBadges = [..._autoJuvHist.map(h=>({label:h.label,color:h.color,bg:h.color+'22'})), ..._manualBadges.map(m=>({label:m.label,color:m.color,bg:m.bg}))];
+    const _logros = (typeof LEYENDAS_LOGROS!=='undefined'&&LEYENDAS_LOGROS[nom])||{};
+    const _logroWC = _logros.wc||[];
+    const _logroCA = _logros.cam||[];
+    const _logroBadges = [
+      ..._logroWC.map(y=>`<span title="Campeón del Mundo ${y}" style="background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🏆 ${y}</span>`),
+      ...(_logroCA.length?[`<span title="Copa América: ${_logroCA.join(', ')}" style="background:#D1FAE5;color:#065F46;border:1px solid #6EE7B7;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🌎 Copa Am. ×${_logroCA.length}</span>`]:[]),
+    ];
     return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative;${isRetirado?'opacity:.55':''}">
       ${isRetirado?`<div style="position:absolute;top:9px;left:10px;background:#94A3B8;color:#fff;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`:''}
       <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyenda?1:.2};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
@@ -8180,8 +8240,9 @@ function renderJugadores(){
         ${d.total?`<span style="font-size:.68em;font-weight:600;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">0 PJ</span>`}
         <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="margin-left:auto;background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
       </div>
-      ${_allJuvBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${_allJuvBadges.map(b=>`<span style="background:${b.bg};color:${b.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${b.label}</span>`).join('')}<button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Editar categorías juveniles" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:pointer">✎</button></div>`
-      :`<div style="margin-top:8px"><button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 8px;font-size:.6em;color:var(--muted);cursor:pointer">+ juvenil</button></div>`}
+      ${_logroBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${_logroBadges.join('')}</div>`:''}
+      ${_allJuvBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${_allJuvBadges.map(b=>`<span style="background:${b.bg};color:${b.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${b.label}</span>`).join('')}<button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Editar categorías juveniles" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:pointer">✎</button></div>`
+      :`<div style="margin-top:6px"><button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 8px;font-size:.6em;color:var(--muted);cursor:pointer">+ juvenil</button></div>`}
       ${d.estKey?`<div style="margin-top:6px"><button onclick="event.stopPropagation();_goToEstFicha('${d.estKey}')" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:6px;padding:3px 9px;font-size:.6em;font-weight:700;cursor:pointer">👔 Ver perfil DT</button></div>`:''}
     </div>`;
   }
