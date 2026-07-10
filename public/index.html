@@ -18512,6 +18512,18 @@ function _pwGetAll(){
 }
 function _pwSave(list){ localStorage.setItem(KPW, JSON.stringify(list)); }
 function _pwId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+// Migración: actualizar ventana "Atenciones post-Mundial" con cat y fecha
+(function _pwMigratePostMundial(){
+  const list=_pwGetAll(); let changed=false;
+  list.forEach(vw=>{
+    if(vw.tipo==='registro' && (vw.titulo||'').toLowerCase().includes('post')){
+      if(!vw.cat){ vw.cat='STAFF SELECCIÓN MAYOR'; changed=true; }
+      if(!vw.desde){ vw.desde='2026-06-29'; changed=true; }
+    }
+  });
+  if(changed) _pwSave(list);
+})();
+
 // Migración de estados obsoletos → nuevos
 (function _pwMigrateEstados(){
   const MAP={'pendiente':'recibida','confirmada':'agendada','cancelada':'descartada','aceptada':'aprobada'};
@@ -18936,9 +18948,11 @@ function _renderListaPrensa(){
     const solTotal = (pw.solicitudes||[]).length;
     const desdeStr = _pwFmtDate(pw.desde);
     const hastaStr = _pwFmtDate(pw.hasta);
-    const periodo = isReg ? 'Registro libre' : (desdeStr||hastaStr) ? `${desdeStr}${hastaStr&&hastaStr!==desdeStr?' → '+hastaStr:''}` : '';
+    const periodo = isReg
+      ? ((desdeStr||hastaStr) ? `${desdeStr}${hastaStr&&hastaStr!==desdeStr?' → '+hastaStr:''}` : 'Registro libre')
+      : (desdeStr||hastaStr) ? `${desdeStr}${hastaStr&&hastaStr!==desdeStr?' → '+hastaStr:''}` : '';
     const badge = isReg
-      ? `<span style="font-size:.72em;font-weight:700;background:#F0FDF4;color:#15803D;border-radius:20px;padding:2px 9px;border:1px solid #BBF7D0">📋 Registro</span>`
+      ? `<span style="font-size:.72em;font-weight:700;background:#F0FDF4;color:#15803D;border-radius:20px;padding:2px 9px;border:1px solid #BBF7D0">Registro</span>`
       : `<span style="font-size:.72em;font-weight:700;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:2px 9px">${_pwFmtLabel(pw.formato)}</span>`;
     const countLabel = isReg
       ? `${solTotal} atención${solTotal!==1?'es':''}`
