@@ -7880,14 +7880,16 @@ function selectDT(id){_tecDT=id;_tecTab='resumen';renderTecnicos();}
 function selectTecTab(id){_tecTab=id;renderTecnicos();}
 function backToTecSelector(){_tecDT=null;renderTecnicos();}
 
+const _AUF_FOTO='https://auf.org.uy/imagenes/img_contenido/seleccion_jugador/a/';
 const DT_CATALOG=[
   {
     id:'bielsa',
     full:'Marcelo Bielsa',
     nac:'Argentina', nacISO:'ar',
-    born:'21 feb 1955',
+    born:'21 jul 1955',
     desde:'jun 2023', hasta:'jul 2026',
-    foto:'./fotos/bielsa.jpg',
+    foto:_AUF_FOTO+'marcelo-bielsa.jpg',
+    pj:37,
     activo:false,
   },
   {
@@ -7896,16 +7898,18 @@ const DT_CATALOG=[
     nac:'Uruguay', nacISO:'uy',
     born:'16 abr 1975',
     desde:'ene 2022', hasta:'dic 2022',
-    foto:'./fotos/alonso.jpg',
+    foto:_AUF_FOTO+'diego_alonso_un.jpg',
+    pj:12,
     activo:false,
   },
   {
     id:'broli',
     full:'Marcelo Broli',
     nac:'Uruguay', nacISO:'uy',
-    born:'4 dic 1978',
-    desde:'dic 2022', hasta:'may 2023',
-    foto:'./fotos/broli.jpg',
+    born:'13 mar 1978',
+    desde:'mar 2023', hasta:'may 2023',
+    foto:_AUF_FOTO+'broli.jpg',
+    pj:2,
     activo:false,
     interino:true,
   },
@@ -7930,11 +7934,12 @@ function renderTecnicos(){
     .map(dt=>({
       id:'hist-'+_dtSlug(dt.name),
       full:dt.name, nac:_dtNacName[dt.iso]||'Uruguay', nacISO:dt.iso,
-      born:'—',
+      born:dt.born||null,
       period:dt.rol.replace(/^Director técnico(?: interino)? · /,''),
       interino:dt.rol.includes('interino'),
       logro:dt.logro||'',
-      foto:'./fotos/'+_dtSlug(dt.name)+'.jpg',
+      foto:dt.foto||null,
+      pj:dt.pj||null,
       activo:false, hist:true,
     }));
   const fullDTCatalog=[...DT_CATALOG,..._histEntries];
@@ -7943,9 +7948,10 @@ function renderTecnicos(){
   if(!_tecDT){
     const _dtCard=dt=>{
       const initials=dt.full.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const fotoSrc=dt.foto||'';
       const avatarHtml=`<div style="position:relative;width:52px;height:52px;flex-shrink:0">
-        <img src="${dt.foto}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--surface);border:2px solid var(--border)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div style="display:none;width:52px;height:52px;border-radius:50%;background:#1D4ED8;color:#fff;align-items:center;justify-content:center;font-size:16px;font-weight:900;border:2px solid var(--border)">${initials}</div>
+        ${fotoSrc?`<img src="${fotoSrc}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--surface);border:2px solid var(--border)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
+        <div style="${fotoSrc?'display:none;':'display:flex;'}width:52px;height:52px;border-radius:50%;background:#1D4ED8;color:#fff;align-items:center;justify-content:center;font-size:16px;font-weight:900;border:2px solid var(--border)">${initials}</div>
       </div>`;
       const periodLine=dt.period||(dt.desde&&dt.desde!=='—'?`${dt.desde} – ${dt.hasta}`:'—');
       return `<button onclick="selectDT('${dt.id}')"
@@ -8105,12 +8111,12 @@ function renderTecnicos(){
       </button>
       <div style="background:var(--navy);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff">
         <div style="position:relative;width:52px;height:52px;flex-shrink:0">
-          <img src="${curDT.foto}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;border:2px solid rgba(255,255,255,.2)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div style="display:none;width:52px;height:52px;border-radius:50%;background:#2a4a7b;border:2px solid rgba(255,255,255,.2);color:#fff;align-items:center;justify-content:center;font-size:18px;font-weight:900">${initials}</div>
+          ${curDT.foto?`<img src="${curDT.foto}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;background:#2a4a7b;border:2px solid rgba(255,255,255,.2)" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+          <div style="${curDT.foto?'display:none;':'display:flex;'}width:52px;height:52px;border-radius:50%;background:#2a4a7b;border:2px solid rgba(255,255,255,.2);color:#fff;align-items:center;justify-content:center;font-size:18px;font-weight:900">${initials}</div>
         </div>
         <div style="flex:1">
           <div style="font-size:16px;font-weight:900">${curDT.full}${curDT.interino?`<span style="font-size:9px;font-weight:700;background:rgba(255,255,255,.15);color:#fff;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:middle">INT</span>`:''}</div>
-          <div style="font-size:11px;opacity:.7;margin-top:2px">${flagImg(curDT.nacISO,13)} ${curDT.nac}</div>
+          <div style="font-size:11px;opacity:.7;margin-top:2px">${flagImg(curDT.nacISO,13)} ${curDT.nac}${curDT.born?` · n. ${curDT.born}`:''}</div>
           <div style="font-size:10.5px;opacity:.55;margin-top:2px">Director Técnico · ${curDT.period}</div>
         </div>
       </div>
@@ -8120,6 +8126,14 @@ function renderTecnicos(){
           <div style="font-size:9px;font-weight:800;color:#92400E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1px">Logro destacado</div>
           <div style="font-size:13px;font-weight:700;color:#78350F">${curDT.logro}</div>
         </div>
+      </div>`:''}
+      ${curDT.pj?`<div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px">
+        <div style="text-align:center;min-width:52px">
+          <div style="font-size:28px;font-weight:900;color:var(--text)">${curDT.pj}</div>
+          <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">partidos</div>
+        </div>
+        <div style="width:1px;height:36px;background:var(--border)"></div>
+        <div style="font-size:12px;color:var(--muted)">como Director Técnico<br>de la Selección Mayor</div>
       </div>`:''}
       <div style="background:var(--white);border:0.5px solid var(--border);border-radius:10px;padding:16px;text-align:center">
         <div style="font-size:24px;margin-bottom:6px">📋</div>
@@ -21437,14 +21451,14 @@ const CT_MAYOR_ALONSO = [
 
 // DT Selección Mayor — todos los históricos (imagen "Directores Técnicos")
 const DT_MAYOR_HIST = [
-  {iso:'uy', name:'Ramón Platero',           rol:'Director técnico · 1917',                     logro:'Copa América 1917'},
+  {iso:'uy', name:'Ramón Platero',           rol:'Director técnico · 1917',                     logro:'Copa América 1917',    foto:_AUF_FOTO+'ramon_platero_.jpg'},
   {iso:'uy', name:'Severino Castillo',        rol:'Director técnico · 1919'},
   {iso:'uy', name:'Pedro Olivieri',           rol:'Director técnico · 1922'},
   {iso:'uy', name:'Leonardo de Lucca',        rol:'Director técnico · 1923',                     logro:'Copa América 1923'},
   {iso:'uy', name:'Ernesto Meliante',         rol:'Director técnico · 1924',                     logro:'Copa América 1924'},
   {iso:'uy', name:'Luis Grecco',              rol:'Director técnico · 1927'},
   {iso:'it', name:'Primo Gianotti',           rol:'Director técnico · 1928',                     logro:'JJ.OO. 1928 (oro)'},
-  {iso:'uy', name:'Alberto Suppici',          rol:'Director técnico · 1929-1933, 1936-1939',     logro:'Copa del Mundo 1930'},
+  {iso:'uy', name:'Alberto Suppici',          rol:'Director técnico · 1929-1933, 1936-1939',     logro:'Copa del Mundo 1930',  foto:_AUF_FOTO+'dt_alberto_suppici_.jpg',          pj:26},
   {iso:'uy', name:'Raúl Blanco',              rol:'Director técnico · 1935',                     logro:'Copa América 1935'},
   {iso:'uy', name:'Pedro Cea',                rol:'Director técnico · 1940-1942, 1945',          logro:'Copa América 1942'},
   {iso:'uy', name:'Héctor Castro',            rol:'Director técnico · 1943-1944, 1959'},
@@ -21454,44 +21468,44 @@ const DT_MAYOR_HIST = [
   {iso:'uy', name:'Aníbal Tejada',            rol:'Director técnico · 1946'},
   {iso:'uy', name:'Guzmán Vila Gomensoro',    rol:'Director técnico · 1946'},
   {iso:'uy', name:'Marcelino Pérez',          rol:'Director técnico · 1947'},
-  {iso:'uy', name:'Juan López',               rol:'Director técnico · 1947-1948, 1950-1954, 1957, 1962, 1965',  logro:'Copa del Mundo 1950'},
+  {iso:'uy', name:'Juan López',               rol:'Director técnico · 1947-1948, 1950-1954, 1957, 1962, 1965', logro:'Copa del Mundo 1950', born:'15 mar 1908', foto:_AUF_FOTO+'dt_juan_lopez_.jpg', pj:42},
   {iso:'uy', name:'Oscar Marcenaro',          rol:'Director técnico · 1949'},
   {iso:'uy', name:'Romeo Vázquez',            rol:'Director técnico · 1950, 1953'},
-  {iso:'uy', name:'Juan Carlos Corazo',       rol:'Director técnico · 1955, 1959-1962, 1967-1968', logro:'Copa América 1959, 1967'},
-  {iso:'uy', name:'Hugo Bagnulo',             rol:'Director técnico · 1956, 1962, 1973, 1978',  logro:'Copa América 1956'},
-  {iso:'uy', name:'Roque Máspoli',            rol:'Director técnico · 1956, 1979-1981, 1997',   logro:'Copa de Oro 1980'},
+  {iso:'uy', name:'Juan Carlos Corazo',       rol:'Director técnico · 1955, 1959-1962, 1967-1968', logro:'Copa América 1959, 1967', foto:_AUF_FOTO+'dt_juan_carlos_corazo_.jpg', pj:43},
+  {iso:'uy', name:'Hugo Bagnulo',             rol:'Director técnico · 1956, 1962, 1973, 1978',  logro:'Copa América 1956',    born:'23 jul 1915', foto:_AUF_FOTO+'dt_hugo_bagnulo_.jpg'},
+  {iso:'uy', name:'Roque Máspoli',            rol:'Director técnico · 1956, 1979-1981, 1997',   logro:'Copa de Oro 1980',     born:'12 oct 1917', foto:_AUF_FOTO+'dt_roque_maspoli_fifa.jpg', pj:33},
   {iso:'uy', name:'Lorenzo Fernández',        rol:'Director técnico · 1956, 1958'},
   {iso:'uy', name:'Enrique Fernández',        rol:'Director técnico · 1961'},
   {iso:'uy', name:'Roberto Scarone',          rol:'Director técnico · 1962'},
   {iso:'uy', name:'Juan Carlos Taibo',        rol:'Director técnico · 1962'},
   {iso:'uy', name:'Washington Etchamendi',    rol:'Director técnico · 1963, 1972'},
   {iso:'uy', name:'Rafael Milans',            rol:'Director técnico · 1964-1965'},
-  {iso:'uy', name:'Ondino Viera',             rol:'Director técnico · 1966'},
-  {iso:'uy', name:'Juan Eduardo Hohberg',     rol:'Director técnico · 1969-1970, 1976-1977'},
-  {iso:'uy', name:'Rodolfo Zamora',           rol:'Director técnico · 1971'},
+  {iso:'uy', name:'Ondino Viera',             rol:'Director técnico · 1966',                                                   foto:_AUF_FOTO+'dt_ondino_viera_.jpg'},
+  {iso:'uy', name:'Juan Eduardo Hohberg',     rol:'Director técnico · 1969-1970, 1976-1977',                  born:'8 oct 1927',  foto:_AUF_FOTO+'dt_juan_hohberg_sport-ilustrado.jpg', pj:27},
+  {iso:'uy', name:'Rodolfo Zamora',           rol:'Director técnico · 1971',                                                   foto:_AUF_FOTO+'dt_rodolfo_zamora_revista-deportes.jpg'},
   {iso:'uy', name:'Juan Ricardo Faccio',      rol:'Director técnico · 1971'},
   {iso:'uy', name:'Roberto Porta',            rol:'Director técnico · 1974'},
   {iso:'uy', name:'Carlos Silva Cabrera',     rol:'Director técnico · 1975'},
   {iso:'uy', name:'Juan Alberto Schiaffino',  rol:'Director técnico · 1975'},
   {iso:'uy', name:'José María Rodríguez',     rol:'Director técnico · 1976'},
-  {iso:'uy', name:'Omar Borrás',              rol:'Director técnico · 1977, 1982-1986',          logro:'Copa América 1983'},
+  {iso:'uy', name:'Omar Borrás',              rol:'Director técnico · 1977, 1982-1986',          logro:'Copa América 1983',    born:'15 jun 1929', foto:_AUF_FOTO+'dt_omar_borras_getty.jpg', pj:54},
   {iso:'uy', name:'Raúl Bentancor',           rol:'Director técnico · 1977, 1979'},
   {iso:'uy', name:'Guillermo Escalada',       rol:'Director técnico interino · 1979'},
-  {iso:'uy', name:'José Luis Ayala',          rol:'Director técnico interino · 1986'},
-  {iso:'uy', name:'Roberto Fleitas',          rol:'Director técnico · 1987, 1993',               logro:'Copa América 1987'},
-  {iso:'uy', name:'Oscar W. Tabárez',         rol:'Director técnico · 1988-1990, 2006-2021',    logro:'Copa América 2011'},
+  {iso:'uy', name:'José Luis Ayala',          rol:'Director técnico interino · 1986',                                          foto:_AUF_FOTO+'jose-luis-ayala-barrios_1_page-0001.jpg'},
+  {iso:'uy', name:'Roberto Fleitas',          rol:'Director técnico · 1987, 1993',               logro:'Copa América 1987',    born:'25 ago 1932', foto:_AUF_FOTO+'roberto_fleitas_gettyimages.jpg', pj:5},
+  {iso:'uy', name:'Oscar W. Tabárez',         rol:'Director técnico · 1988-1990, 2006-2021',    logro:'Copa América 2011',    born:'3 mar 1947',  foto:_AUF_FOTO+'oscar-tabarez-dt.jpg', pj:221},
   {iso:'uy', name:'Gregorio Pérez',           rol:'Director técnico interino · 1988'},
-  {iso:'uy', name:'Luis Cubilla',             rol:'Director técnico · 1991-1993'},
-  {iso:'uy', name:'Pedro Cubilla',            rol:'Director técnico interino · 1991'},
-  {iso:'uy', name:'Ildo Maneiro',             rol:'Director técnico · 1993'},
-  {iso:'uy', name:'Héctor Núñez',             rol:'Director técnico · 1994-1996',                logro:'Copa América 1995'},
-  {iso:'uy', name:'Juan Ahuntchaín',          rol:'Director técnico · 1996-1997'},
-  {iso:'uy', name:'Víctor Púa',              rol:'Director técnico · 1997-1999, 2001-2002'},
-  {iso:'ar', name:'Daniel Passarella',        rol:'Director técnico · 1999-2000'},
-  {iso:'uy', name:'Jorge Da Silva',           rol:'Director técnico interino · 2002'},
-  {iso:'uy', name:'Gustavo Ferrín',           rol:'Director técnico interino · 2003, 2006'},
-  {iso:'uy', name:'Juan Ramón Carrasco',      rol:'Director técnico · 2003-2004'},
-  {iso:'it', name:'Jorge Fossati',            rol:'Director técnico · 2004-2005'},
+  {iso:'uy', name:'Luis Cubilla',             rol:'Director técnico · 1991-1993',                                              born:'28 mar 1940', foto:_AUF_FOTO+'dt_luis_cubilla.jpg', pj:27},
+  {iso:'uy', name:'Pedro Cubilla',            rol:'Director técnico interino · 1991',                                          born:'25 ago 1933', foto:_AUF_FOTO+'dt_pedro_cubilla_diario-la-nacion-crc.jpg'},
+  {iso:'uy', name:'Ildo Maneiro',             rol:'Director técnico · 1993',                                                   born:'4 ago 1947',  foto:_AUF_FOTO+'ildo_maneiro_.jpg'},
+  {iso:'uy', name:'Héctor Núñez',             rol:'Director técnico · 1994-1996',                logro:'Copa América 1995',    born:'8 may 1936',  pj:25},
+  {iso:'uy', name:'Juan Ahuntchaín',          rol:'Director técnico · 1996-1997',                                              born:'15 ene 1952', foto:_AUF_FOTO+'dt_juan_ahuntchain_gettyimages.jpg'},
+  {iso:'uy', name:'Víctor Púa',              rol:'Director técnico · 1997-1999, 2001-2002',                  born:'31 mar 1956', foto:_AUF_FOTO+'dt_victor_pua_gettyimages.jpg', pj:39},
+  {iso:'ar', name:'Daniel Passarella',        rol:'Director técnico · 1999-2000',                                              born:'25 may 1953', foto:_AUF_FOTO+'dt_daniel_passarella_un.jpg', pj:14},
+  {iso:'uy', name:'Jorge Da Silva',           rol:'Director técnico interino · 2002',                        born:'11 dic 1961', foto:_AUF_FOTO+'dt_jorge_da_silva_gettyimages.jpg'},
+  {iso:'uy', name:'Gustavo Ferrín',           rol:'Director técnico interino · 2003, 2006',                  born:'1 may 1959',  foto:_AUF_FOTO+'dt_gustavo_ferrin_tomikoshi-photography.jpg', pj:3},
+  {iso:'uy', name:'Juan Ramón Carrasco',      rol:'Director técnico · 2003-2004',                                              born:'15 sep 1956', foto:_AUF_FOTO+'dt_juan_ramon_carrasco_mexsport.jpg', pj:13},
+  {iso:'it', name:'Jorge Fossati',            rol:'Director técnico · 2004-2005',                                              born:'22 nov 1952', foto:_AUF_FOTO+'dt_jorge_fossati_afp.jpg', pj:23},
   {iso:'uy', name:'Juan Verzeri',             rol:'Director técnico interino · 2010'},
   {iso:'uy', name:'Celso Otero',              rol:'Director técnico interino · 2014-2015'},
   {iso:'uy', name:'Diego Alonso',             rol:'Director técnico · 2022 (interino hasta confirmación)'},
