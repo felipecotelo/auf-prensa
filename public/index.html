@@ -2616,18 +2616,18 @@ const MAYOR_NAC_DEFAULT = {
   'Obdulio Varela':'1917-09-20','Alcides Ghiggia':'1926-12-22',
   'Diego Lugano':'1980-11-02','Juan Schiaffino':'1925-07-28',
   'José Nasazzi':'1901-05-24','Héctor Scarone':'1898-11-26',
-  'Sebastián Abreu':'1976-03-11','Ladislao Mazurkiewicz':'1945-03-22',
+  'Sebastián Abreu':'1976-03-11','Ladislao Mazurkiewicz':'1945-02-14',
   "Diego 'Ruso' Pérez":'1980-01-13','Álvaro Recoba':'1976-03-17',
   'Paolo Montero':'1971-09-03',"Fabián O'Neill":'1973-03-14',
-  'Pablo Bengoechea':'1969-06-23','Ruben Sosa':'1966-04-13',
-  'Hugo De León':'1959-05-29','Roque Gastón Máspoli':'1917-10-12',
-  'Luis Cubilla':'1940-03-28','Carlos Scarone':'1905-04-08',
-  'Cristian Rodríguez':'1985-09-30','Héctor Castro':'1904-11-10',
+  'Pablo Bengoechea':'1969-06-23','Ruben Sosa':'1966-04-25',
+  'Hugo De León':'1958-02-27','Roque Gastón Máspoli':'1917-10-12',
+  'Luis Cubilla':'1940-03-28','Carlos Scarone':'1888-11-11',
+  'Cristian Rodríguez':'1985-09-30','Héctor Castro':'1904-11-29',
   'Carlos Céspedes':'1906-03-15','Rodolfo Rodríguez':'1957-11-01',
-  "René 'Tito' Borjas":'1943-06-22','José Piendibene':'1889-08-10',
-  'Bolívar Céspedes':'1924-08-05','Fernando Álvez':'1949-09-24',
-  'Pedro Cea':'1900-09-01','Ángel Romano':'1893-01-20',
-  'Isabelino Grandín':'1898-08-14','Roberto Chery':'1952-04-10',
+  "René 'Tito' Borjas":'1897-12-23','José Piendibene':'1890-06-05',
+  'Bolívar Céspedes':'1924-08-05','Fernando Álvez':'1959-09-04',
+  'Pedro Cea':'1900-09-01','Ángel Romano':'1893-08-02',
+  'Isabelino Grandín':'1897-07-08','Roberto Chery':'1896-02-16',
   'Ignacio González':'1981-06-08','Álvaro Fernández':'1985-05-13',
 };
 // cam=Copa América · wc=Mundial/JJOO (1924/28/30/50) · oro=Copa de Oro · sub20=Mundial Sub-20
@@ -2638,7 +2638,7 @@ const LEYENDAS_LOGROS = {
   'Pedro Cea':              {cam:[1923,1926],            wc:[1924,1928,1930]},
   'Ángel Romano':           {cam:[1916,1917,1920,1923]},
   'José Piendibene':        {cam:[1916,1917,1920],      wc:[1924]},
-  'Isabelino Grandín':      {wc:[1924]},
+  'Isabelino Grandín':      {cam:[1916,1917]},
   'Héctor Castro':          {cam:[1926],                wc:[1930]},
   'Pedro Petrone':          {cam:[1923,1926],           wc:[1924,1928]},
   'Obdulio Varela':         {cam:[1942,1956],           wc:[1950]},
@@ -2665,6 +2665,26 @@ const LEYENDAS_LOGROS = {
   'Martín Cáceres':         {cam:[2011]},
   'Edinson Cavani':         {cam:[2011]},
   'Luis Suárez':            {cam:[2011]},
+};
+// fecha de fallecimiento para leyendas fallecidas
+const LEYENDAS_FALLECIDOS = {
+  'Roberto Chery':          '1919-05-30',
+  "René 'Tito' Borjas":    '1931-12-16',
+  'Isabelino Grandín':      '1944-12-21',
+  'Héctor Castro':          '1960-09-15',
+  'Carlos Scarone':         '1965-05-12',
+  'Héctor Scarone':         '1967-04-04',
+  'José Nasazzi':           '1968-06-17',
+  'José Piendibene':        '1969-11-12',
+  'Pedro Cea':              '1970-09-18',
+  'Ángel Romano':           '1972-08-22',
+  'Obdulio Varela':         '1996-08-02',
+  'Juan Schiaffino':        '2002-11-13',
+  'Roque Gastón Máspoli':   '2004-02-22',
+  'Ladislao Mazurkiewicz':  '2013-01-02',
+  'Luis Cubilla':           '2013-03-03',
+  'Alcides Ghiggia':        '2015-07-16',
+  "Fabián O'Neill":         '2022-12-25',
 };
 const getMayorNac = () => { const stored=stor.get(KMayorNac,{}); return {...MAYOR_NAC_DEFAULT,...stored}; };
 const setMayorNac = (nom, val) => { const d=getMayorNac(); if(val) d[nom]=val; else delete d[nom]; stor.set(KMayorNac,d); cloudPushDebounced(KMayorNac,d); };
@@ -8187,8 +8207,11 @@ function renderJugadores(){
     const retirados=stor.get('auf4_retirado',{});
     const isLeyenda=LEYENDAS_SET.has(nom)||!!leyendas[nom];
     const isRetirado=!!retirados[nom];
+    const isFallecido=typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom];
+    const fallecidoDate=isFallecido?LEYENDAS_FALLECIDOS[nom]:null;
+    const isRetOrDead=isRetirado||isFallecido;
     const borderStyle=isLeyenda?'2px solid #F59E0B':'1px solid var(--border)';
-    const cardBg=isRetirado?'var(--surface)':'var(--surface2)';
+    const cardBg=isRetOrDead?'var(--surface)':'var(--surface2)';
     const _mSlug=nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
     const mayorKey='mayor:'+_mSlug;
     const mayorKeyEnc=encodeURIComponent(mayorKey);
@@ -8222,11 +8245,20 @@ function renderJugadores(){
       ..._logroOro.map(y=>`<span title="Copa de Oro ${y}" style="background:#FFF1F2;color:#881337;border:1px solid #FECDD3;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🏆 Copa de Oro ${y}</span>`),
       ...(_isChamp?[`<span title="Campeón Mundial Sub-20 · Argentina 2023" style="background:#F3E8FF;color:#7C3AED;border:1px solid #DDD6FE;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700">🏆 Sub-20 2023</span>`]:[]),
     ];
-    return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative;${isRetirado?'opacity:.55':''}">
-      ${isRetirado?`<div style="position:absolute;top:9px;left:10px;background:#94A3B8;color:#fff;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`:''}
+    const _fallBadge=(()=>{
+      if(isFallecido){
+        const fy=fallecidoDate.split('-')[0];
+        const ageD=_nacIso?Math.floor((new Date(fallecidoDate)-new Date(_nacIso))/(365.25*24*3600*1000)):null;
+        return `<div style="position:absolute;top:9px;left:10px;background:#44403C;color:#FDE68A;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">† ${fy}${ageD!==null?` · ${ageD} años`:''}</div>`;
+      }
+      if(isRetirado) return `<div style="position:absolute;top:9px;left:10px;background:#94A3B8;color:#fff;font-size:7px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:4px;pointer-events:none">Retirado</div>`;
+      return '';
+    })();
+    return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative;${isRetOrDead?'opacity:.55':''}">
+      ${_fallBadge}
       <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyenda?1:.2};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
-      <div style="display:flex;align-items:center;gap:11px;${isRetirado?'margin-top:8px':''}">
-        <div onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${isRetirado?'grayscale(1)':''}">
+      <div style="display:flex;align-items:center;gap:11px;${isRetOrDead?'margin-top:8px':''}">
+        <div onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${isRetOrDead?'grayscale(1)':''}">
           <div id="mayor-av-${mayorKeyEnc}">${avatar(nom, pos, cachedPhoto, 54)}</div>
           <div style="position:absolute;bottom:-1px;right:-1px;width:17px;height:17px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>
           <input type="file" accept="image/*" id="mayor-inp-${mayorKeyEnc}" style="display:none" onchange="_mayorPhotoSelected('${mayorKeyEnc}',this)">
