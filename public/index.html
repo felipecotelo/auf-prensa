@@ -17982,9 +17982,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
     (anoData.competencias||[]).forEach(c=>_juvCompAllPlayers(c.id).forEach(j=>convSet.add(j.nom)));
     (anoData.lista||[]).forEach(j=>convSet.add(j.nom));
   }
-  const allStructurePlayers = [...convSet].sort();
-  const prepGroup = _getAmistConv(cat, year);
-  const convocados = prepGroup.length > 0 ? prepGroup : allStructurePlayers;
+  const convocados = [...convSet].sort();
 
   // Detail view — partido abierto
   const openId = window._amistDetailOpen;
@@ -18244,35 +18242,11 @@ function _buildJuvAmistosos(cat, year, color, catData){
         </div>`;
     }).join('');
 
-  // ── Jugadores de preparación ──
-  const prepSet = new Set(prepGroup);
-  const editing = !!window._amistConvEditing;
-  const prepHtml = `
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:${editing||prepGroup.length>0?'10px':'0'}">
-        <i class="ti ti-users" style="color:${color};font-size:.9em"></i>
-        <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;flex:1">Jugadores de preparación${prepGroup.length>0?' <span style="color:'+color+'">('+prepGroup.length+')</span>':''}</div>
-        <button onclick="window._amistConvEditing=!window._amistConvEditing;window.renderJuveniles?.()"
-          style="font-size:.72em;font-weight:700;color:${editing?color:'var(--muted)'};background:${editing?color+'18':'none'};border:1px solid ${editing?color:'var(--border)'};border-radius:7px;padding:3px 9px;cursor:pointer">
-          ${editing?'Listo':'Editar'}
-        </button>
-      </div>
-      ${editing ? `<div style="display:flex;flex-wrap:wrap;gap:5px">
-        ${allStructurePlayers.map(nom=>{
-          const sel=prepSet.has(nom);
-          return '<button onclick="_amistConvToggle(\''+cat+'\',\''+year+'\',\''+nom.replace(/'/g,"\\'")+'\')" style="font-size:.72em;font-weight:700;padding:4px 10px;border-radius:20px;cursor:pointer;border:1.5px solid '+(sel?color:'var(--border)')+';background:'+(sel?color:'var(--card)')+';color:'+(sel?'#fff':'var(--text)')+'">'+nom+'</button>';
-        }).join('')}
-      </div>` : prepGroup.length>0 ? `<div style="display:flex;flex-wrap:wrap;gap:5px">
-        ${prepGroup.map(nom=>'<span style="font-size:.72em;font-weight:700;padding:4px 10px;border-radius:20px;background:'+color+'18;border:1.5px solid '+color+'40;color:'+color+'">'+nom+'</span>').join('')}
-      </div>` : '<div style="font-size:.75em;color:var(--muted)">Sin jugadores asignados — tocá "Editar" para elegirlos de la estructura.</div>'}
-    </div>`;
-
   return `
     <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
       <i class="ti ti-info-circle" style="color:#2563EB;flex-shrink:0"></i>
       <div style="font-size:.75em;color:#1E40AF;line-height:1.4"><strong>Preparación</strong> — Goles y partidos aquí <strong>no suman a estadísticas oficiales</strong>. Solo cuentan Sudamericano, Mundial Juvenil y Preolímpico.</div>
     </div>
-    ${prepHtml}
     ${resumenHtml}
     ${addForm}
     <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">${total} partido${total!==1?'s':''}</div>
