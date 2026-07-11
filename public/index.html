@@ -19309,29 +19309,84 @@ function _buildJuvCompBody(compId, color, catData){
   }
 
   else if(_juvCompTab==='ct_del'){
-    const ct = comp.ct||[];
-    const del_ = comp.delegacion||[];
-    const rowCT = ct.filter(m=>!m.coord).map(m=>`
-      <div style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:6px">
-        <img src="https://flagcdn.com/w40/${m.iso}.png" style="width:24px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0" onerror="this.style.display='none'">
-        <div style="flex:1"><div style="font-weight:800;font-size:.88em">${m.name}</div><div style="font-size:.72em;color:var(--muted)">${m.rol}</div></div>
-        ${m.dt?`<span style="font-size:.62em;font-weight:800;color:${cc};background:${cc}18;border-radius:6px;padding:2px 7px">DT</span>`:''}
-      </div>`).join('') + (ct.some(m=>m.coord)?`
-      <div style="font-size:.62em;font-weight:800;color:#9333EA;text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px">Coordinación transversal de Juveniles</div>
-      ${ct.filter(m=>m.coord).map(m=>`
-      <div style="display:flex;align-items:center;gap:10px;background:#FAF5FF;border:1px solid #E9D5FF;border-radius:9px;padding:10px 12px;margin-bottom:6px">
-        <img src="https://flagcdn.com/w40/${m.iso}.png" style="width:24px;height:17px;object-fit:cover;border-radius:2px;flex-shrink:0" onerror="this.style.display='none'">
-        <div style="flex:1"><div style="font-weight:800;font-size:.88em;color:#6B21A8">${m.name}</div><div style="font-size:.72em;color:#9333EA">${m.rol}</div></div>
-      </div>`).join('')}` : '');
-    const rowDel = del_.map(m=>`
-      <div style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:8px 12px;margin-bottom:5px">
-        <div style="flex:1"><div style="font-weight:700;font-size:.85em">${m.name}</div><div style="font-size:.7em;color:var(--muted)">${m.rol}</div></div>
-      </div>`).join('');
+    const ctKey = _juvCat+'/'+_juvYear;
+    const ov = _getJuvCTOverrides();
+    const ct = ov[ctKey] || comp.ct || [];
+    const hasOverride = !!ov[ctKey];
+    const fid = 'juv-comp-ct-'+_juvCat+_juvYear;
+
+    const contracts = _estGetContracts?.() || {};
+    const estructuraActivos = (typeof ESTRUCTURA_PERSONAS!=='undefined' ? ESTRUCTURA_PERSONAS : [])
+      .flatMap(d=>d.personas.filter(p=>(contracts[p.key]||'activo')==='activo').map(p=>p.label))
+      .filter((n,i,a)=>a.indexOf(n)===i).sort();
+    const rolesUsados = new Set(ct.map(m=>m.rol));
+    const rolesDatalist = [...new Set([...rolesUsados,'Director técnico','Ayudante técnico','Preparador físico','Entrenador de arqueros','Videoanalista','Coordinador'])];
+
+    const memberRow = (m, idx) => {
+      const photo = window._getPersonPhoto?.(m.name);
+      const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatar = photo
+        ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : `<span>${initials}</span>`;
+      return `
+      <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+        <div onclick="_clickCtPhoto('${encodeURIComponent(m.name)}')" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
+          <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
+          <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:.9em">${m.name}</div>
+          <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.rol}</div>
+        </div>
+        ${m.dt?`<span style="font-size:.65em;font-weight:800;color:${cc};background:${cc}18;border-radius:8px;padding:2px 8px;text-transform:uppercase">DT</span>`:''}
+        ${_juvCtEdit?`<button onclick="_juvCTRemove('${ctKey}',${idx})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px;flex-shrink:0"><i class="ti ti-x"></i></button>`:''}
+      </div>`;
+    };
+
+    const editBtn = `<button onclick="_juvCTToggleEdit()" style="
+      display:flex;align-items:center;gap:5px;border:1.5px solid ${_juvCtEdit?cc:'var(--border)'};
+      background:${_juvCtEdit?cc+'18':'transparent'};color:${_juvCtEdit?cc:'var(--muted)'};
+      border-radius:8px;padding:5px 10px;font-size:.72em;font-weight:700;cursor:pointer;margin-left:auto
+    "><i class="ti ti-pencil"></i>${_juvCtEdit?'Listo':'Editar CT'}</button>`;
+
+    const addForm = _juvCtEdit ? `
+      <div style="background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;padding:12px;margin-top:4px">
+        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Agregar integrante</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">PERSONA</label>
+            <select id="${fid}-nom" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;background:var(--surface);box-sizing:border-box">
+              <option value="">— elegir —</option>
+              ${estructuraActivos.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">ROL</label>
+            <input id="${fid}-rol" list="${fid}-roles" type="text" placeholder="ej: Preparador físico" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
+            <datalist id="${fid}-roles">${rolesDatalist.map(r=>`<option value="${r}">`).join('')}</datalist>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="display:flex;align-items:center;gap:5px;font-size:.75em;color:var(--muted);cursor:pointer">
+            <input type="checkbox" id="${fid}-dt"> DT
+          </label>
+          <button onclick="_juvCTAdd('${ctKey}','${fid}')" style="flex:1;padding:7px;background:${cc};color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Agregar</button>
+        </div>
+      </div>` : '';
+
+    const resetBtn = hasOverride && _juvCtEdit ? `
+      <button onclick="_juvCTReset('${ctKey}')" style="margin-top:8px;width:100%;padding:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;border-radius:8px;font-size:.72em;font-weight:700;cursor:pointer">
+        <i class="ti ti-refresh"></i> Restaurar CT original
+      </button>` : '';
+
     content = `
-      <div style="font-size:.65em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Cuerpo técnico</div>
-      ${rowCT}
-      <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 8px">Resto de la delegación</div>
-      ${rowDel}`;
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="font-size:.65em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em">Cuerpo técnico</div>
+        ${editBtn}
+      </div>
+      ${ct.filter(m=>!m.coord).map((m,i)=>memberRow(m,i)).join('')}
+      ${addForm}
+      ${resetBtn}`;
   }
 
   else if(_juvCompTab==='amistosos'){
