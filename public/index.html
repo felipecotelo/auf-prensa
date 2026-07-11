@@ -17649,180 +17649,390 @@ window._setJuvCompTab = function(tab){
 function _amistKey(cat, year){ return 'auf4_amist_juv_'+cat+'_'+year; }
 function _getAmistosos(cat, year){ try{ return JSON.parse(localStorage.getItem(_amistKey(cat,year))||'[]'); }catch(_){ return []; } }
 function _saveAmistosos(cat, year, list){ localStorage.setItem(_amistKey(cat,year), JSON.stringify(list)); }
+function _amistPatch(cat, year, id, fn){
+  const list = _getAmistosos(cat, year);
+  const m = list.find(m=>m.id===id); if(!m) return;
+  fn(m); _saveAmistosos(cat, year, list); window.renderJuveniles?.();
+}
 
+// Rivals datalist
+const _AMIST_RIVALS = ['Argentina','Bolivia','Brasil','Chile','Colombia','Ecuador','Paraguay','Perú','Venezuela',
+  'Alemania','España','Francia','Inglaterra','Italia','Portugal','México','EE.UU.','Japón','Corea del Sur','Marruecos',
+  'Nacional','Peñarol','River Plate','Defensor Sporting','Danubio','Montevideo City Torque','Racing','Liverpool','Fénix','Boston River','Albion','Cerro','Rentistas'];
+
+window._amistToggleForm = function(){
+  const el=document.getElementById('amist-add-form');
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
+};
+window._amistToggleIV = function(){
+  const iv=document.getElementById('amist-iv')?.checked;
+  const el=document.getElementById('amist-vuelta-row');
+  if(el) el.style.display=iv?'grid':'none';
+};
 window._amistAddMatch = function(cat, year){
   const rival = (document.getElementById('amist-rival')?.value||'').trim();
-  const fecha = (document.getElementById('amist-fecha')?.value||'').trim();
-  const gLocal = parseInt(document.getElementById('amist-gl')?.value)||0;
-  const gRival = parseInt(document.getElementById('amist-gr')?.value)||0;
-  const sede = (document.getElementById('amist-sede')?.value||'').trim();
   if(!rival) return;
+  const m = {
+    id: Date.now(),
+    rival,
+    fecha: document.getElementById('amist-fecha')?.value||'',
+    hora: document.getElementById('amist-hora')?.value||'',
+    lugar: (document.getElementById('amist-lugar')?.value||'').trim(),
+    auftv: document.getElementById('amist-auftv')?.checked||false,
+    esIdaYVuelta: document.getElementById('amist-iv')?.checked||false,
+    fechaVuelta: document.getElementById('amist-fecha2')?.value||'',
+    horaVuelta: document.getElementById('amist-hora2')?.value||'',
+    // Partido / Ida
+    gLocal: null, gRival: null,
+    titulares: [], subs: [], goles: {}, dtPartido: '',
+    // Vuelta
+    gLocal2: null, gRival2: null,
+    titulares2: [], subs2: [], goles2: {}, dt2: '',
+  };
   const list = _getAmistosos(cat, year);
-  list.push({ id: Date.now(), rival, fecha, gLocal, gRival, sede, jugadores:[] });
+  list.push(m);
   _saveAmistosos(cat, year, list);
   window.renderJuveniles?.();
 };
 window._amistDeleteMatch = function(cat, year, id){
-  const list = _getAmistosos(cat, year).filter(m=>m.id!==id);
-  _saveAmistosos(cat, year, list);
+  if(!confirm('¿Eliminar este partido?')) return;
+  _saveAmistosos(cat, year, _getAmistosos(cat,year).filter(m=>m.id!==id));
   window.renderJuveniles?.();
 };
-window._amistToggleMatch = function(id){
-  const el = document.getElementById('amist-detail-'+id);
-  if(el) el.style.display = el.style.display==='none' ? 'block' : 'none';
+window._amistOpenDetail = function(id){ window._amistDetailOpen=id; window.renderJuveniles?.(); };
+window._amistCloseDetail = function(){ window._amistDetailOpen=null; window.renderJuveniles?.(); };
+
+// Save result
+window._amistSaveResult = function(cat, year, id, leg){
+  const sfx = leg===2?'2':'';
+  const gl = parseInt(document.getElementById('amist-res-gl'+sfx+'-'+id)?.value);
+  const gr = parseInt(document.getElementById('amist-res-gr'+sfx+'-'+id)?.value);
+  _amistPatch(cat,year,id,m=>{ m['gLocal'+sfx]=(isNaN(gl)?null:gl); m['gRival'+sfx]=(isNaN(gr)?null:gr); });
 };
-window._amistAddPlayer = function(cat, year, matchId){
-  const nom = (document.getElementById('amist-pnom-'+matchId)?.value||'').trim();
-  if(!nom) return;
-  const titular = document.getElementById('amist-ptit-'+matchId)?.checked;
-  const goles = parseInt(document.getElementById('amist-pgol-'+matchId)?.value)||0;
-  const list = _getAmistosos(cat, year);
-  const m = list.find(m=>m.id===matchId);
-  if(!m) return;
-  if(!m.jugadores) m.jugadores=[];
-  m.jugadores.push({nom, titular:!!titular, goles});
-  _saveAmistosos(cat, year, list);
-  window.renderJuveniles?.();
+// Save DT
+window._amistSaveDT = function(cat, year, id, leg){
+  const sfx = leg===2?'2':'';
+  const dt = (document.getElementById('amist-dt'+sfx+'-'+id)?.value||'').trim();
+  _amistPatch(cat,year,id,m=>{ m['dtPartido'+(sfx?sfx:'')]=dt; });
 };
-window._amistRemovePlayer = function(cat, year, matchId, idx){
-  const list = _getAmistosos(cat, year);
-  const m = list.find(m=>m.id===matchId);
-  if(!m) return;
-  m.jugadores.splice(idx,1);
-  _saveAmistosos(cat, year, list);
-  window.renderJuveniles?.();
+// Toggle titular
+window._amistToggleTit = function(cat, year, id, nom, leg){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat,year,id,m=>{
+    const arr = m['titulares'+sfx]||[];
+    const i = arr.indexOf(nom);
+    if(i===-1) arr.push(nom); else arr.splice(i,1);
+    m['titulares'+sfx]=arr;
+    // Remove from subs if added to starters
+    m['subs'+sfx]=(m['subs'+sfx]||[]).filter(n=>n!==nom);
+    if(!(m['goles'+sfx])) m['goles'+sfx]={};
+  });
 };
+// Toggle sub
+window._amistToggleSub = function(cat, year, id, nom, leg){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat,year,id,m=>{
+    const arr = m['subs'+sfx]||[];
+    const i = arr.indexOf(nom);
+    if(i===-1) arr.push(nom); else arr.splice(i,1);
+    m['subs'+sfx]=arr;
+    m['titulares'+sfx]=(m['titulares'+sfx]||[]).filter(n=>n!==nom);
+    if(!(m['goles'+sfx])) m['goles'+sfx]={};
+  });
+};
+// Gol +/-
+window._amistGol = function(cat, year, id, nom, delta, leg){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat,year,id,m=>{
+    if(!m['goles'+sfx]) m['goles'+sfx]={};
+    m['goles'+sfx][nom]=Math.max(0,(m['goles'+sfx][nom]||0)+delta);
+    if(m['goles'+sfx][nom]===0) delete m['goles'+sfx][nom];
+  });
+};
+
+function _amistLegPanel(m, leg, color, convocados){
+  const sfx = leg===2?'2':'';
+  const gl = m['gLocal'+sfx], gr = m['gRival'+sfx];
+  const titulares = m['titulares'+sfx]||[];
+  const subs = m['subs'+sfx]||[];
+  const goles = m['goles'+sfx]||{};
+  const dtVal = m['dtPartido'+(sfx||'')]||'';
+  const played = titulares.length>0 || subs.length>0 || gl!==null;
+  const fechaLeg = leg===2 ? (m.fechaVuelta||'') : (m.fecha||'');
+  const horaLeg = leg===2 ? (m.horaVuelta||'') : (m.hora||'');
+  const allPlayed = [...new Set([...titulares,...subs])];
+
+  // Input CSS
+  const inp = 'padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.82em;outline:none;background:var(--surface);width:100%;box-sizing:border-box';
+
+  // Resultado
+  const resHtml = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:.62em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Resultado final</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1;text-align:center">
+          <div style="font-size:.62em;font-weight:700;color:${color};margin-bottom:4px">URUGUAY</div>
+          <input id="amist-res-gl${sfx}-${m.id}" type="number" min="0" value="${gl!==null?gl:''}" placeholder="–"
+            style="${inp};text-align:center;font-size:1.3em;font-weight:900;color:${color}">
+        </div>
+        <div style="font-size:1.3em;font-weight:900;color:var(--muted)">–</div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:.62em;font-weight:700;color:#dc2626;margin-bottom:4px">${m.rival.toUpperCase()}</div>
+          <input id="amist-res-gr${sfx}-${m.id}" type="number" min="0" value="${gr!==null?gr:''}" placeholder="–"
+            style="${inp};text-align:center;font-size:1.3em;font-weight:900;color:#dc2626">
+        </div>
+        <button onclick="_amistSaveResult('${_juvCat}','${_juvYear}',${m.id},${leg})"
+          style="padding:8px 14px;background:${color};color:#fff;border:none;border-radius:9px;font-size:.78em;font-weight:800;cursor:pointer;flex-shrink:0">
+          Guardar
+        </button>
+      </div>
+    </div>`;
+
+  // DT
+  const dtHtml = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:.62em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Director técnico en este partido</div>
+      <div style="display:flex;gap:8px">
+        <input id="amist-dt${sfx}-${m.id}" type="text" value="${dtVal}" placeholder="Nombre del DT" style="${inp};flex:1">
+        <button onclick="_amistSaveDT('${_juvCat}','${_juvYear}',${m.id},${leg})"
+          style="padding:8px 14px;background:var(--card);border:1.5px solid var(--border);border-radius:9px;font-size:.78em;font-weight:700;cursor:pointer;flex-shrink:0">
+          OK
+        </button>
+      </div>
+      ${dtVal?`<div style="font-size:.72em;color:${color};margin-top:4px;font-weight:600">DT: ${dtVal}</div>`:''}
+    </div>`;
+
+  // Convocados chips — 11 Inicial
+  const chipStyle = (active, c) => `display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:.75em;font-weight:700;cursor:pointer;border:1.5px solid ${active?c:'var(--border)'};background:${active?c+'20':'var(--bg)'};color:${active?c:'var(--muted)'};margin:3px 3px 3px 0`;
+  const convHtml = convocados.length ? `
+    <div style="margin-bottom:16px">
+      <div style="font-size:.62em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">11 Inicial <span style="font-weight:500">(${titulares.length}/11)</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:0">
+        ${convocados.map(nom=>{
+          const isTit = titulares.includes(nom);
+          return `<span onclick="_amistToggleTit('${_juvCat}','${_juvYear}',${m.id},'${nom.replace(/'/g,"\\'")}',${leg})"
+            style="${chipStyle(isTit,color)}">${nom}</span>`;
+        }).join('')}
+      </div>
+      <div style="font-size:.62em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:10px 0 6px">Ingresos <span style="font-weight:500">(${subs.length})</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:0">
+        ${convocados.map(nom=>{
+          const isSub = subs.includes(nom);
+          return `<span onclick="_amistToggleSub('${_juvCat}','${_juvYear}',${m.id},'${nom.replace(/'/g,"\\'")}',${leg})"
+            style="${chipStyle(isSub,'#7c3aed')}">${nom}</span>`;
+        }).join('')}
+      </div>
+    </div>` : `
+    <div style="margin-bottom:16px;background:var(--bg);border-radius:9px;padding:10px;font-size:.78em;color:var(--muted)">
+      No hay convocados cargados en este ciclo para seleccionar del plantel.
+    </div>`;
+
+  // Goles — solo jugadores que jugaron
+  const golesHtml = allPlayed.length ? `
+    <div style="margin-bottom:12px">
+      <div style="font-size:.62em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Goles <span style="font-weight:500;color:#C2410C">(solo amistosos, no cuentan en stats oficiales)</span></div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${allPlayed.map(nom=>{
+          const g = goles[nom]||0;
+          return `<div style="display:flex;align-items:center;gap:10px">
+            <span style="flex:1;font-size:.82em;font-weight:600">${nom}</span>
+            <button onclick="_amistGol('${_juvCat}','${_juvYear}',${m.id},'${nom.replace(/'/g,"\\'")}',- 1,${leg})"
+              style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg);cursor:pointer;font-size:.9em;display:flex;align-items:center;justify-content:center">−</button>
+            <span style="font-size:1em;font-weight:900;min-width:20px;text-align:center;color:${g>0?'#C2410C':'var(--muted)'}">${g}</span>
+            <button onclick="_amistGol('${_juvCat}','${_juvYear}',${m.id},'${nom.replace(/'/g,"\\'")}',1,${leg})"
+              style="width:28px;height:28px;border-radius:50%;border:1.5px solid ${color};background:${color}18;cursor:pointer;font-size:.9em;color:${color};display:flex;align-items:center;justify-content:center;font-weight:800">+</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  return resHtml + dtHtml + convHtml + (allPlayed.length ? golesHtml : '');
+}
 
 function _buildJuvAmistosos(cat, year, color, catData){
   const list = _getAmistosos(cat, year);
-  const catLabel = catData.label;
 
-  // Resumen global: partidos, goles
+  // Collect convocados for this cat/year
+  const convSet = new Set();
+  const anoData = JUVENILES[cat]?.anos?.[year];
+  if(anoData){
+    (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>convSet.add(j.nom)));
+    (anoData.competencias||[]).forEach(c=>_juvCompAllPlayers(c.id).forEach(j=>convSet.add(j.nom)));
+    (anoData.lista||[]).forEach(j=>convSet.add(j.nom));
+  }
+  const convocados = [...convSet].sort();
+
+  // Detail view — partido abierto
+  const openId = window._amistDetailOpen;
+  if(openId!=null){
+    const m = list.find(m=>m.id===openId);
+    if(m){
+      const gl = m.gLocal, gr = m.gRival;
+      const hasResult = gl!==null && gr!==null;
+      const resLabel = hasResult ? `${gl}–${gr}` : 'Sin resultado';
+      const resColor = hasResult ? (gl>gr?'#16a34a':gl===gr?'#d97706':'#dc2626') : 'var(--muted)';
+      const fechaFmt = m.fecha ? new Date(m.fecha).toLocaleDateString('es-UY',{day:'numeric',month:'short',year:'numeric'}) : '';
+
+      const legContent = m.esIdaYVuelta ? `
+        <div class="tabs" style="margin-bottom:12px">
+          <button onclick="window._amistDetailLeg=1;window.renderJuveniles?.()" class="tab${(window._amistDetailLeg||1)===1?' active':''}">Ida</button>
+          <button onclick="window._amistDetailLeg=2;window.renderJuveniles?.()" class="tab${(window._amistDetailLeg||1)===2?' active':''}">Vuelta</button>
+        </div>
+        ${_amistLegPanel(m, window._amistDetailLeg||1, color, convocados)}
+      ` : _amistLegPanel(m, 1, color, convocados);
+
+      return `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <button onclick="_amistCloseDetail()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700">
+            <i class="ti ti-arrow-left"></i> Volver
+          </button>
+          <div style="flex:1">
+            <div style="font-weight:900;font-size:1em">Uruguay vs. ${m.rival}</div>
+            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${m.hora?' · '+m.hora:''}${m.lugar?' · '+m.lugar:''}</div>
+          </div>
+          <div style="font-size:1.1em;font-weight:900;color:${resColor}">${resLabel}</div>
+          ${m.auftv?`<span style="font-size:.65em;font-weight:800;background:#1D4ED8;color:#fff;border-radius:6px;padding:2px 7px">AUFtv</span>`:''}
+        </div>
+        ${legContent}
+        <button onclick="_amistDeleteMatch('${cat}','${year}',${m.id})"
+          style="width:100%;padding:8px;background:#fff;border:1.5px solid #fca5a5;color:#dc2626;border-radius:10px;font-size:.78em;font-weight:700;cursor:pointer;margin-top:8px">
+          <i class="ti ti-trash"></i> Eliminar partido
+        </button>`;
+    }
+  }
+
+  // ── Resumen ──
+  const played = list.filter(m=>m.gLocal!==null);
   const total = list.length;
-  const wins = list.filter(m=>m.gLocal>m.gRival).length;
-  const draws = list.filter(m=>m.gLocal===m.gRival).length;
-  const losses = list.filter(m=>m.gLocal<m.gRival).length;
-  const gf = list.reduce((s,m)=>s+(m.gLocal||0),0);
-  const gc = list.reduce((s,m)=>s+(m.gRival||0),0);
-  // Goleadores (solo amistosos)
+  const wins = played.filter(m=>m.gLocal>m.gRival).length;
+  const draws = played.filter(m=>m.gLocal===m.gRival).length;
+  const losses = played.filter(m=>m.gLocal<m.gRival).length;
+  const gf = played.reduce((s,m)=>s+(m.gLocal||0),0);
+  const gc = played.reduce((s,m)=>s+(m.gRival||0),0);
   const goleadores = {};
-  list.forEach(m=>(m.jugadores||[]).forEach(j=>{ if(j.goles>0) goleadores[j.nom]=(goleadores[j.nom]||0)+j.goles; }));
+  list.forEach(m=>{
+    Object.entries(m.goles||{}).forEach(([n,g])=>{ if(g>0) goleadores[n]=(goleadores[n]||0)+g; });
+    Object.entries(m.goles2||{}).forEach(([n,g])=>{ if(g>0) goleadores[n]=(goleadores[n]||0)+g; });
+  });
   const topGol = Object.entries(goleadores).sort((a,b)=>b[1]-a[1]);
 
-  const resumenHtml = total>0 ? `
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center">
-        <div style="font-size:1.4em;font-weight:900;color:${color}">${total}</div>
-        <div style="font-size:.65em;color:var(--muted);font-weight:700;text-transform:uppercase">Partidos</div>
+  const resumenHtml = played.length>0 ? `
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 8px;text-align:center">
+        <div style="font-size:1.3em;font-weight:900;color:${color}">${total}</div>
+        <div style="font-size:.6em;color:var(--muted);font-weight:700;text-transform:uppercase">Partidos</div>
       </div>
-      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center">
-        <div style="font-size:.95em;font-weight:800;color:var(--text)">${wins}G ${draws}E ${losses}P</div>
-        <div style="font-size:.65em;color:var(--muted);font-weight:700;text-transform:uppercase">Resultado</div>
+      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 8px;text-align:center">
+        <div style="font-size:.88em;font-weight:800">${wins}G ${draws}E ${losses}P</div>
+        <div style="font-size:.6em;color:var(--muted);font-weight:700;text-transform:uppercase">Resultado</div>
       </div>
-      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center">
-        <div style="font-size:.95em;font-weight:800;color:var(--text)">${gf}–${gc}</div>
-        <div style="font-size:.65em;color:var(--muted);font-weight:700;text-transform:uppercase">Goles</div>
+      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 8px;text-align:center">
+        <div style="font-size:.88em;font-weight:800">${gf}–${gc}</div>
+        <div style="font-size:.6em;color:var(--muted);font-weight:700;text-transform:uppercase">Goles</div>
       </div>
     </div>
-    ${topGol.length ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:10px 12px;margin-bottom:14px">
-      <div style="font-size:.65em;font-weight:800;color:#C2410C;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Goles en amistosos <span style="font-weight:500;color:#9A3412;font-size:.9em">(no cuentan en estadísticas oficiales)</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${topGol.map(([n,g])=>`<span style="background:#fff;border:1px solid #FED7AA;border-radius:6px;padding:2px 9px;font-size:.78em;font-weight:700">${n} <span style="color:#C2410C">${g}</span></span>`).join('')}</div>
-    </div>` : ''}` : '';
+    ${topGol.length?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:9px 12px;margin-bottom:12px">
+      <div style="font-size:.62em;font-weight:800;color:#C2410C;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Goleadores (amistosos)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${topGol.map(([n,g])=>`<span style="background:#fff;border:1px solid #FED7AA;border-radius:6px;padding:2px 9px;font-size:.76em;font-weight:700">${n} <span style="color:#C2410C">${g}</span></span>`).join('')}</div>
+    </div>`:''}` : '';
 
-  // Formulario agregar partido
+  // ── Formulario ──
   const addForm = `
-    <div style="background:var(--card);border:1.5px dashed var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px">
-      <div style="font-size:.68em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">+ Agregar partido</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+    <button onclick="_amistToggleForm()" style="width:100%;padding:10px;background:var(--card);border:1.5px dashed var(--border);border-radius:12px;font-size:.82em;font-weight:800;color:${color};cursor:pointer;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px">
+      <i class="ti ti-plus"></i> Agregar partido
+    </button>
+    <div id="amist-add-form" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="font-size:.68em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Nuevo partido amistoso</div>
+      <datalist id="amist-rivals-dl">${_AMIST_RIVALS.map(r=>`<option value="${r}">`).join('')}</datalist>
+
+      <div style="margin-bottom:10px">
+        <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">RIVAL *</label>
+        <input id="amist-rival" list="amist-rivals-dl" type="text" placeholder="ej: Argentina, Nacional…"
+          style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.84em;box-sizing:border-box;outline:none;background:var(--surface)">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
-          <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:2px">RIVAL</label>
-          <input id="amist-rival" type="text" placeholder="ej: Argentina" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;box-sizing:border-box;outline:none;background:var(--surface)">
+          <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">FECHA *</label>
+          <input id="amist-fecha" type="date"
+            style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.84em;box-sizing:border-box;outline:none;background:var(--surface)">
         </div>
         <div>
-          <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:2px">FECHA</label>
-          <input id="amist-fecha" type="text" placeholder="ej: 5 jul 2026" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;box-sizing:border-box;outline:none;background:var(--surface)">
-        </div>
-        <div>
-          <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:2px">GOLES URU</label>
-          <input id="amist-gl" type="number" min="0" value="0" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;box-sizing:border-box;outline:none;background:var(--surface)">
-        </div>
-        <div>
-          <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:2px">GOLES RIVAL</label>
-          <input id="amist-gr" type="number" min="0" value="0" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;box-sizing:border-box;outline:none;background:var(--surface)">
+          <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">HORA</label>
+          <input id="amist-hora" type="time"
+            style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.84em;box-sizing:border-box;outline:none;background:var(--surface)">
         </div>
       </div>
-      <div style="margin-bottom:8px">
-        <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:2px">SEDE (opcional)</label>
-        <input id="amist-sede" type="text" placeholder="ej: Estadio Centenario, Montevideo" style="width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;box-sizing:border-box;outline:none;background:var(--surface)">
+      <div style="margin-bottom:10px">
+        <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">LUGAR</label>
+        <input id="amist-lugar" type="text" placeholder="ej: Complejo Celeste, Estadio Centenario"
+          style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.84em;box-sizing:border-box;outline:none;background:var(--surface)">
       </div>
-      <button onclick="_amistAddMatch('${cat}','${year}')" style="width:100%;padding:8px;background:${color};color:#fff;border:none;border-radius:9px;font-size:.8em;font-weight:700;cursor:pointer">Guardar partido</button>
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.8em;font-weight:700;cursor:pointer">
+          <input id="amist-iv" type="checkbox" onchange="_amistToggleIV()"> Ida y vuelta (2 partidos)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.8em;font-weight:700;cursor:pointer">
+          <input id="amist-auftv" type="checkbox"> Va por AUFtv
+        </label>
+      </div>
+      <div id="amist-vuelta-row" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">FECHA VUELTA</label>
+          <input id="amist-fecha2" type="date"
+            style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.84em;box-sizing:border-box;outline:none;background:var(--surface)">
+        </div>
+        <div>
+          <label style="font-size:.62em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">HORA VUELTA</label>
+          <input id="amist-hora2" type="time"
+            style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.84em;box-sizing:border-box;outline:none;background:var(--surface)">
+        </div>
+      </div>
+      <button onclick="_amistAddMatch('${cat}','${year}')"
+        style="width:100%;padding:10px;background:${color};color:#fff;border:none;border-radius:10px;font-size:.84em;font-weight:800;cursor:pointer">
+        Crear partido
+      </button>
     </div>`;
 
-  // Lista de partidos
+  // ── Lista de partidos ──
   const matchesHtml = list.length===0 ? `
-    <div style="text-align:center;padding:32px 16px;color:var(--muted)">
+    <div style="text-align:center;padding:36px 16px;color:var(--muted)">
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
       <div style="font-weight:700;margin-bottom:3px">Sin amistosos registrados</div>
-      <div style="font-size:.78em">Cargá partido a partido con el formulario de arriba</div>
+      <div style="font-size:.78em">Creá un partido con el botón de arriba</div>
     </div>` : list.map(m=>{
-      const res = m.gLocal>m.gRival ? '✅' : m.gLocal===m.gRival ? '🟡' : '❌';
-      const titulares = (m.jugadores||[]).filter(j=>j.titular);
-      const ingresos = (m.jugadores||[]).filter(j=>!j.titular);
-      const golesMatch = (m.jugadores||[]).filter(j=>j.goles>0);
+      const gl=m.gLocal, gr=m.gRival;
+      const hasRes = gl!==null && gr!==null;
+      const resLabel = hasRes ? `${gl}–${gr}` : '–';
+      const resColor = hasRes ? (gl>gr?'#16a34a':gl===gr?'#d97706':'#dc2626') : 'var(--muted)';
+      const fechaFmt = m.fecha ? new Date(m.fecha).toLocaleDateString('es-UY',{day:'numeric',month:'short'}) : '';
+      const titCount = (m.titulares||[]).length + (m.titulares2||[]).length;
       return `
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
-          <div onclick="_amistToggleMatch(${m.id})" style="display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer">
-            <div style="font-size:1.1em;line-height:1">${res}</div>
-            <div style="flex:1">
-              <div style="font-weight:800;font-size:.9em">Uruguay <span style="color:${color}">${m.gLocal}</span> – <span style="color:#dc2626">${m.gRival}</span> ${m.rival}</div>
-              <div style="font-size:.72em;color:var(--muted);margin-top:1px">${m.fecha||''}${m.sede?` · ${m.sede}`:''}</div>
+        <div onclick="_amistOpenDetail(${m.id})"
+          style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="font-weight:800;font-size:.9em;margin-bottom:2px">
+              Uruguay vs. <span style="color:${color}">${m.rival}</span>
+              ${m.esIdaYVuelta?`<span style="font-size:.62em;background:#F0F9FF;border:1px solid #BAE6FD;color:#0284C7;border-radius:5px;padding:1px 6px;margin-left:5px;font-weight:700">I+V</span>`:''}
+              ${m.auftv?`<span style="font-size:.62em;background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 6px;margin-left:3px;font-weight:700">AUFtv</span>`:''}
             </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:.68em;color:var(--muted)">${(m.jugadores||[]).length} jug.</span>
-              <button onclick="event.stopPropagation();_amistDeleteMatch('${cat}','${year}',${m.id})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:.85em;padding:2px 4px"><i class="ti ti-trash"></i></button>
-              <i class="ti ti-chevron-down" style="color:var(--muted);font-size:.8em"></i>
-            </div>
+            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${m.hora?' · '+m.hora:''}${m.lugar?' · '+m.lugar:''}</div>
+            ${titCount>0?`<div style="font-size:.68em;color:var(--muted);margin-top:2px">${titCount} jugadores cargados</div>`:''}
           </div>
-          <div id="amist-detail-${m.id}" style="display:none;border-top:1px solid var(--border);padding:12px 14px">
-            ${titulares.length ? `
-              <div style="font-size:.62em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Titulares</div>
-              <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
-                ${titulares.map((j,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:.8em">
-                  <span style="flex:1;font-weight:600">${j.nom}${j.goles>0?` <span style="color:#C2410C">⚽ ${j.goles}</span>`:''}</span>
-                  <button onclick="_amistRemovePlayer('${cat}','${year}',${m.id},${(m.jugadores||[]).indexOf(j)})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:.8em"><i class="ti ti-x"></i></button>
-                </div>`).join('')}
-              </div>` : ''}
-            ${ingresos.length ? `
-              <div style="font-size:.62em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Ingresos</div>
-              <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
-                ${ingresos.map((j,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:.8em">
-                  <span style="flex:1;font-weight:600">${j.nom}${j.goles>0?` <span style="color:#C2410C">⚽ ${j.goles}</span>`:''}</span>
-                  <button onclick="_amistRemovePlayer('${cat}','${year}',${m.id},${(m.jugadores||[]).indexOf(j)})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:.8em"><i class="ti ti-x"></i></button>
-                </div>`).join('')}
-              </div>` : ''}
-            <div style="background:var(--bg);border-radius:9px;padding:10px 11px">
-              <div style="font-size:.62em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px">+ Agregar jugador</div>
-              <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:end;margin-bottom:6px">
-                <input id="amist-pnom-${m.id}" type="text" placeholder="Nombre jugador" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:.78em;outline:none;background:var(--surface)">
-                <input id="amist-pgol-${m.id}" type="number" min="0" value="0" style="width:48px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:.78em;outline:none;background:var(--surface)" title="Goles">
-                <label style="display:flex;align-items:center;gap:4px;font-size:.72em;color:var(--muted);cursor:pointer;white-space:nowrap">
-                  <input id="amist-ptit-${m.id}" type="checkbox" checked> Titular
-                </label>
-              </div>
-              <button onclick="_amistAddPlayer('${cat}','${year}',${m.id})" style="width:100%;padding:6px;background:${color};color:#fff;border:none;border-radius:7px;font-size:.76em;font-weight:700;cursor:pointer">Agregar</button>
-            </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:1.1em;font-weight:900;color:${resColor}">${resLabel}</div>
+            <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.8em"></i>
           </div>
         </div>`;
     }).join('');
 
   return `
-    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 13px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
       <i class="ti ti-info-circle" style="color:#2563EB;flex-shrink:0"></i>
-      <div style="font-size:.77em;color:#1E40AF;line-height:1.4"><strong>Amistosos de Preparación</strong> — Los partidos y goles aquí <strong>no suman a estadísticas oficiales</strong>. Solo cuentan Sudamericano, Mundial Juvenil y Preolímpico/Panamericano.</div>
+      <div style="font-size:.75em;color:#1E40AF;line-height:1.4"><strong>Preparación</strong> — Goles y partidos aquí <strong>no suman a estadísticas oficiales</strong>. Solo cuentan Sudamericano, Mundial Juvenil y Preolímpico.</div>
     </div>
     ${resumenHtml}
     ${addForm}
-    <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">${total} partido${total!==1?'s':''} registrado${total!==1?'s':''}</div>
+    <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">${total} partido${total!==1?'s':''}</div>
     ${matchesHtml}`;
 }
 
