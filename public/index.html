@@ -18371,6 +18371,8 @@ window._clickCtPhoto = function(nomEncoded){
   if(cached){ openPE('est:'+key, cached); return; }
   document.getElementById('ct-photo-input-'+nomEncoded)?.click();
 };
+const CT_ROL_ORDER = ['director técnico','ayudante técnico','preparador físico','entrenador de arqueros','videoanalista'];
+function _sortCT(arr){ return [...arr].sort((a,b)=>{ const ai=CT_ROL_ORDER.indexOf((a.rol||'').toLowerCase()); const bi=CT_ROL_ORDER.indexOf((b.rol||'').toLowerCase()); const ar=ai===-1?99:ai; const br=bi===-1?99:bi; return ar-br; }); }
 // CT dinámico por categoría/año
 const K_JUV_CT = 'auf4_juv_ct';
 function _getJuvCTOverrides(){ try{return JSON.parse(localStorage.getItem(K_JUV_CT)||'{}')}catch(_){return{}} }
@@ -18875,7 +18877,7 @@ function _renderJuvenilesSafe(el){
     const rolesUsados = new Set(ct.map(m=>m.rol));
     const rolesDatalist = [...new Set([...rolesUsados,'Director técnico','Ayudante técnico','Preparador físico','Entrenador de arqueros','Videoanalista','Coordinador'])];
 
-    const ctMain = ct.filter(m=>!m.coord && !m.pendiente);
+    const ctMain = _sortCT(ct.filter(m=>!m.coord && !m.pendiente));
     const ctCoord = ct.filter(m=>m.coord && !m.pendiente);
 
     const memberRow = (m, idx) => {
@@ -19389,7 +19391,7 @@ function _buildJuvCompBody(compId, color, catData){
         <div style="font-size:.65em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em">Cuerpo técnico</div>
         ${editBtn}
       </div>
-      ${ct.filter(m=>!m.coord).map((m,i)=>memberRow(m,i)).join('')}
+      ${_sortCT(ct.filter(m=>!m.coord)).map((m,i)=>memberRow(m,i)).join('')}
       ${addForm}
       ${resetBtn}`;
   }
