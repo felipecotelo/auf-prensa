@@ -5344,7 +5344,7 @@ async function renderPlantel(searchVal){
         <div class="p-card-top" style="position:relative">
           <div class="p-card-num">${p.n}</div>
           <div class="p-avatar" style="position:relative;width:62px;height:62px;flex-shrink:0">
-            ${photoSrc?`<img src="${photoSrc}" alt="${p.name}" onerror="this.parentElement.classList.add('photo-err');this.style.display='none'">`:''}
+            ${photoSrc?`<img src="${photoSrc}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('photo-err');this.style.display='none'">`:''}
             <div class="p-avatar-n" style="font-size:22px">${p.n}</div>
             <div class="p-avatar-ini">${initials}</div>
             ${injDot}
@@ -18457,13 +18457,18 @@ async function _loadJuvPhotoCache(){
     const r = await fetch('/api/photos');
     const j = await r.json();
     if(j.ok && j.photos){
+      if(!_idbPhotos) _idbPhotos={};
       Object.entries(j.photos).forEach(([k,v])=>{
         savePhotoIDB(k,v); // seed local cache for all keys
+        _idbPhotos[k]=v;   // merge into in-memory cache (avoid re-fetch)
         if(k.startsWith('juv:')){
           out[k.slice(4)]=v;
+        } else {
+          // patch mayor cards live if already rendered
+          const n=parseInt(k);
+          if(!isNaN(n)&&isFinite(n)) applyPhotoToCard(n,v);
         }
       });
-      invalidatePhotoCache(); // invalidate Mayor photo cache so it reloads
     }
   }catch(_){}
   // Limpiar fotos de Juan Rodríguez y Juan Martín Rodríguez para carga manual
