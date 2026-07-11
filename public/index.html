@@ -2737,6 +2737,20 @@ window._editMayorNac = function(nomSafe){
   </div><div id="${id}-bg" onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.3)"></div>`);
 };
 
+const KJuvHist = 'auf4_juv_hist';
+const getJuvHist = () => stor.get(KJuvHist, {});
+const addJuvHistTag = (nom, tag) => {
+  const d = getJuvHist();
+  if(!d[nom]) d[nom] = [];
+  if(!d[nom].some(t=>t.label===tag.label)) d[nom].push(tag);
+  stor.set(KJuvHist, d);
+};
+const removeJuvHistTag = (nom, label) => {
+  const d = getJuvHist();
+  if(d[nom]) { d[nom] = d[nom].filter(t=>t.label!==label); if(!d[nom].length) delete d[nom]; }
+  stor.set(KJuvHist, d);
+};
+
 const KJuvSparring = 'auf4_juv_sparring';
 const getJuvSparring = () => stor.get(KJuvSparring, {});
 const addJuvSparring = (nom, evento) => {
@@ -2749,6 +2763,40 @@ const removeJuvSparring = (nom, evento) => {
   const d = getJuvSparring();
   if(d[nom]) { d[nom] = d[nom].filter(e=>e!==evento); if(!d[nom].length) delete d[nom]; }
   stor.set(KJuvSparring, d);
+};
+
+const _JHC = {sub23:{l:'Sub-23',c:'#92400e'},sub20:{l:'Sub-20',c:'#1D4ED8'},sub18:{l:'Sub-18',c:'#7C3AED'},sub17:{l:'Sub-17',c:'#15803d'},sub16:{l:'Sub-16',c:'#B45309'},sub15:{l:'Sub-15',c:'#9A3412'},sub13:{l:'Sub-13',c:'#DC2626'}};
+window._juvHistAdd = function(nomEnc){
+  const nom = decodeURIComponent(nomEnc);
+  const cat = document.getElementById('jh-cat')?.value;
+  const yr  = document.getElementById('jh-year')?.value;
+  if(!cat||!yr) return;
+  const meta = _JHC[cat];
+  addJuvHistTag(nom, {label:`${meta.l} ${yr}`, color:meta.c});
+  _juvHistEdit(nomEnc);
+};
+window._juvHistRemove = function(nomEnc, label){
+  removeJuvHistTag(decodeURIComponent(nomEnc), label);
+  _juvHistEdit(nomEnc);
+};
+window._juvHistEdit = function(nomEnc){
+  const nom = decodeURIComponent(nomEnc);
+  const tags = getJuvHist()[nom]||[];
+  const tagsHtml = tags.length ? tags.map(t=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+      <span style="flex:1;font-size:.8em;font-weight:700;color:${t.color};background:${t.color}22;border-radius:5px;padding:2px 9px">${t.label}</span>
+      <button onclick="_juvHistRemove('${nomEnc}','${t.label.replace(/'/g,"\\'")}\')" style="background:none;border:none;color:var(--muted);font-size:1em;cursor:pointer;padding:0 4px">✕</button>
+    </div>`).join('') : `<p style="font-size:.78em;color:var(--muted);margin:0 0 10px">Sin historial manual cargado.</p>`;
+  _modal(`<b style="font-size:.95em">Historial · ${nom}</b>
+    <p style="font-size:.75em;color:var(--muted);margin:6px 0 12px">Selecciones juveniles adicionales (manual)</p>
+    ${tagsHtml}
+    <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;align-items:center">
+      <select id="jh-cat" style="flex:1;min-width:90px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--card);color:var(--fg);font-size:.8em">
+        ${Object.entries(_JHC).map(([v,m])=>`<option value="${v}">${m.l}</option>`).join('')}
+      </select>
+      <input id="jh-year" type="number" min="2005" max="2030" placeholder="Año" style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--card);color:var(--fg);font-size:.8em">
+      <button onclick="_juvHistAdd('${nomEnc}')" style="background:#1D4ED8;color:#fff;border:none;border-radius:7px;padding:6px 12px;font-size:.8em;cursor:pointer;font-weight:700">Agregar</button>
+    </div>`);
 };
 
 window._sparringEdit = function(nomEnc){
@@ -15146,24 +15194,24 @@ const JUVENILES = {
         },
         convocatorias: [
           {fecha:'Julio 2015 — Panamericanos Sub-23 Toronto', jugadores:[
-            {nom:'Guillermo De Amores',  club:'Liverpool',         pos:'POR', num:1},
-            {nom:'Gastón Olveira',       club:'River Plate',       pos:'POR', num:12},
-            {nom:'Sebastián Gorga',      club:'Nacional',          pos:'DEF', num:2},
-            {nom:'Fabricio Formiliano',  club:'Danubio',           pos:'DEF', num:3},
-            {nom:'Mauricio Lemos',       club:'Defensor Sporting', pos:'DEF', num:4},
-            {nom:'Erick Cabaco',         club:'Rentistas',         pos:'DEF', num:5},
-            {nom:'Mathías Suárez',       club:'Defensor Sporting', pos:'DEF', num:6},
-            {nom:'Federico Ricca',       club:'Danubio',           pos:'DEF', num:13},
-            {nom:'Fernando Gorriarán',   club:'River Plate',       pos:'MED', num:7},
-            {nom:'Gastón Faber',         club:'Danubio',           pos:'MED', num:8},
-            {nom:'Andrés Schetino',      club:'Fénix',             pos:'MED', num:9},
-            {nom:'Facundo Castro',       club:'Defensor Sporting', pos:'MED', num:10},
-            {nom:'Brian Lozano',         club:'Defensor Sporting', pos:'MED', num:11},
-            {nom:'Nicolás Albarracín',   club:'Wanderers',         pos:'MED', num:14},
-            {nom:'Ignacio González',     club:'Danubio',           pos:'DEL', num:15},
-            {nom:'Juan Cruz Mascia',     club:'Nacional',          pos:'DEL', num:16},
-            {nom:'Michael Santos',       club:'River Plate',       pos:'DEL', num:17},
-            {nom:'Junior Arias',         club:'Liverpool',         pos:'DEL', num:18},
+            {nom:'Guillermo De Amores',  club:'Millonarios FC',       pos:'POR', num:1,  pais:'co'},
+            {nom:'Gastón Olveira',       club:'Club Olimpia',         pos:'POR', num:12, pais:'py'},
+            {nom:'Sebastián Gorga',      club:'Rentistas',            pos:'DEF', num:2},
+            {nom:'Fabricio Formiliano',  club:'Montevideo Wanderers', pos:'DEF', num:3},
+            {nom:'Mauricio Lemos',       club:'Peñarol',              pos:'DEF', num:4},
+            {nom:'Erick Cabaco',         club:'',                     pos:'DEF', num:5},
+            {nom:'Mathías Suárez',       club:'Dep. Antofagasta',     pos:'DEF', num:6,  pais:'cl'},
+            {nom:'Federico Ricca',       club:'Belgrano',             pos:'DEF', num:13, pais:'ar'},
+            {nom:'Fernando Gorriarán',   club:'Tigres UANL',          pos:'MED', num:7,  pais:'mx'},
+            {nom:'Gastón Faber',         club:'Sportivo Bella Vista', pos:'MED', num:8},
+            {nom:'Andrés Schetino',      club:'Fénix',                pos:'MED', num:9},
+            {nom:'Facundo Castro',       club:'Defensor Sporting',    pos:'MED', num:10},
+            {nom:'Brian Lozano',         club:'Defensor Sporting',    pos:'MED', num:11},
+            {nom:'Nicolás Albarracín',   club:'Wuxi Wugou',           pos:'MED', num:14, pais:'cn'},
+            {nom:'Ignacio González',     club:'Paysandú FC',          pos:'DEL', num:15},
+            {nom:'Juan Cruz Mascia',     club:'Retirado',             pos:'DEL', num:16},
+            {nom:'Michael Santos',       club:'Central Córdoba SdE',  pos:'DEL', num:17, pais:'ar'},
+            {nom:'Junior Arias',         club:'Aldosivi',             pos:'DEL', num:18, pais:'ar'},
           ]},
         ],
         competencias: [
@@ -17242,24 +17290,24 @@ const PAN_AMERICANOS_2015 = {
     {name:'Víctor Brites',      rol:'Utilero'},
   ],
   convocados:[
-    {num:1,  nom:'Guillermo De Amores',  club:'Liverpool',          pos:'POR'},
-    {num:12, nom:'Gastón Olveira',       club:'River Plate',        pos:'POR'},
-    {num:2,  nom:'Sebastián Gorga',      club:'Nacional',           pos:'DEF'},
-    {num:3,  nom:'Fabricio Formiliano',  club:'Danubio',            pos:'DEF'},
-    {num:4,  nom:'Mauricio Lemos',       club:'Defensor Sporting',  pos:'DEF'},
-    {num:5,  nom:'Erick Cabaco',         club:'Rentistas',          pos:'DEF'},
-    {num:6,  nom:'Mathías Suárez',       club:'Defensor Sporting',  pos:'DEF'},
-    {num:13, nom:'Federico Ricca',       club:'Danubio',            pos:'DEF'},
-    {num:7,  nom:'Fernando Gorriarán',   club:'River Plate',        pos:'MED'},
-    {num:8,  nom:'Gastón Faber',         club:'Danubio',            pos:'MED'},
-    {num:9,  nom:'Andrés Schetino',      club:'Fénix',              pos:'MED'},
-    {num:10, nom:'Facundo Castro',       club:'Defensor Sporting',  pos:'MED'},
-    {num:11, nom:'Brian Lozano',         club:'Defensor Sporting',  pos:'MED'},
-    {num:14, nom:'Nicolás Albarracín',   club:'Wanderers',          pos:'MED'},
-    {num:15, nom:'Ignacio González',     club:'Danubio',            pos:'DEL'},
-    {num:16, nom:'Juan Cruz Mascia',     club:'Nacional',           pos:'DEL'},
-    {num:17, nom:'Michael Santos',       club:'River Plate',        pos:'DEL'},
-    {num:18, nom:'Junior Arias',         club:'Liverpool',          pos:'DEL'},
+    {num:1,  nom:'Guillermo De Amores',  club:'Millonarios FC',          pos:'POR', pais:'co'},
+    {num:12, nom:'Gastón Olveira',       club:'Club Olimpia',            pos:'POR', pais:'py'},
+    {num:2,  nom:'Sebastián Gorga',      club:'Rentistas',               pos:'DEF'},
+    {num:3,  nom:'Fabricio Formiliano',  club:'Montevideo Wanderers',    pos:'DEF'},
+    {num:4,  nom:'Mauricio Lemos',       club:'Peñarol',                 pos:'DEF'},
+    {num:5,  nom:'Erick Cabaco',         club:'',                        pos:'DEF'},
+    {num:6,  nom:'Mathías Suárez',       club:'Deportes Antofagasta',    pos:'DEF', pais:'cl'},
+    {num:13, nom:'Federico Ricca',       club:'Belgrano',                pos:'DEF', pais:'ar'},
+    {num:7,  nom:'Fernando Gorriarán',   club:'Tigres UANL',             pos:'MED', pais:'mx'},
+    {num:8,  nom:'Gastón Faber',         club:'Sportivo Bella Vista',    pos:'MED'},
+    {num:9,  nom:'Andrés Schetino',      club:'Fénix',                   pos:'MED'},
+    {num:10, nom:'Facundo Castro',       club:'Defensor Sporting',       pos:'MED'},
+    {num:11, nom:'Brian Lozano',         club:'Defensor Sporting',       pos:'MED'},
+    {num:14, nom:'Nicolás Albarracín',   club:'Wuxi Wugou',              pos:'MED', pais:'cn'},
+    {num:15, nom:'Ignacio González',     club:'Paysandú FC',             pos:'DEL'},
+    {num:16, nom:'Juan Cruz Mascia',     club:'Retirado',                pos:'DEL'},
+    {num:17, nom:'Michael Santos',       club:'Central Córdoba SdE',     pos:'DEL', pais:'ar'},
+    {num:18, nom:'Junior Arias',         club:'Aldosivi',                pos:'DEL', pais:'ar'},
   ],
   goleadores:[
     {nom:'Ignacio González', g:2},
@@ -18609,9 +18657,10 @@ function _juvFichaCard(p, hist, off, extraIcon){
       <span style="font-size:.68em;color:var(--muted)">·</span>
       <span style="font-size:.68em;font-weight:600;color:var(--fg)">${off.pj} PJ</span>
     </div>
-    ${hist.length?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:8px">
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:8px;align-items:center">
       ${hist.map(h=>`<span style="font-size:.6em;font-weight:600;color:${h.color};background:${h.color}22;border-radius:5px;padding:2px 7px">${h.label}</span>`).join('')}
-    </div>`:''}
+      <span onclick="_juvHistEdit('${nomEnc}')" title="Agregar historial en otras selecciones juveniles" style="font-size:.6em;font-weight:700;color:var(--muted);background:none;border:1px dashed var(--border);border-radius:5px;padding:2px 7px;cursor:pointer">+ sel.</span>
+    </div>
     <div style="margin-top:${hist.length||sparringEvts.length?'6':'8'}px;display:flex;flex-wrap:wrap;gap:3px">
       ${sparringEvts.length===1?`
         <span onclick="_sparringEdit('${nomEnc}')" title="Click para editar sparrings" style="
@@ -18659,6 +18708,9 @@ function _juvPlayerHistory(nom){
       }
     });
   });
+  // Merge manual hist tags from localStorage
+  const manualTags = getJuvHist()[nom]||[];
+  manualTags.forEach(t=>{ if(!seen.has('m:'+t.label)){ seen.add('m:'+t.label); out.push(t); } });
   return out;
 }
 // Stats oficiales de un jugador de Juveniles: solo cuentan competencias tipo:'oficial'
