@@ -19594,9 +19594,9 @@ function _buildJuvCompBody(compId, color, catData){
     const hasOverride = !!ov[ctKey];
     const fid = 'juv-comp-ct-'+_juvCat+_juvYear;
 
-    const contracts = _estGetContracts?.() || {};
+    // Todos los de estructura (activos e históricos) — el CT puede incluir personas ya retiradas
     const estructuraActivos = (typeof ESTRUCTURA_PERSONAS!=='undefined' ? ESTRUCTURA_PERSONAS : [])
-      .flatMap(d=>d.personas.filter(p=>(contracts[p.key]||'activo')==='activo').map(p=>p.label))
+      .flatMap(d=>d.personas.map(p=>p.label))
       .filter((n,i,a)=>a.indexOf(n)===i).sort();
     const rolesUsados = new Set(ct.map(m=>m.rol));
     const rolesDatalist = [...new Set([...rolesUsados,'Director técnico','Ayudante técnico','Preparador físico','Entrenador de arqueros','Videoanalista','Coordinador'])];
@@ -19635,10 +19635,8 @@ function _buildJuvCompBody(compId, color, catData){
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <div>
             <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">PERSONA</label>
-            <select id="${fid}-nom" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;background:var(--surface);box-sizing:border-box">
-              <option value="">— elegir —</option>
-              ${estructuraActivos.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')}
-            </select>
+            <input id="${fid}-nom" list="${fid}-noms" type="text" placeholder="Nombre o elegir de lista…" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
+            <datalist id="${fid}-noms">${estructuraActivos.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist>
           </div>
           <div>
             <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">ROL</label>
