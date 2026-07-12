@@ -5254,8 +5254,9 @@ function getPlayerActs(num){
   return acts;
 }
 
+const _norm=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 async function renderPlantel(searchVal){
-  const search=(searchVal||document.getElementById('p-search').value||'').toLowerCase();
+  const search=_norm(searchVal||document.getElementById('p-search').value||'');
   const pn=getPNotes();
   const grid=document.getElementById('p-grid');
   grid.innerHTML='';
@@ -5263,7 +5264,7 @@ async function renderPlantel(searchVal){
   const idbPhotos=_idbPhotos||{};
 
   PLAYERS
-    .filter(p=>(!curPosFilter||p.pos===curPosFilter)&&(!search||p.name.toLowerCase().includes(search)))
+    .filter(p=>(!curPosFilter||p.pos===curPosFilter)&&(!search||_norm(p.name).includes(search)))
     .sort((a,b)=>a.n-b.n)
     .forEach(p=>{
       const acts=getPlayerActs(p.n);
@@ -13058,9 +13059,9 @@ function clearSlotP(matchId,slotId){
   setLineup(all); closeSP(); renderLineup(matchId);
 }
 function filterSP(q){
-  const lq=q.trim().toLowerCase();
+  const lq=_norm(q.trim());
   document.querySelectorAll('#sp-list .sp-item[data-n]').forEach(row=>{
-    const match=!lq||row.dataset.name.includes(lq)||row.dataset.n.includes(lq);
+    const match=!lq||_norm(row.dataset.name||'').includes(lq)||row.dataset.n.includes(lq);
     row.style.display=match?'':'none';
   });
   document.querySelectorAll('#sp-list .sp-sep').forEach(sep=>{
@@ -18000,9 +18001,9 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
 };
 window._closeJuvSP = function(){ document.getElementById('juv-sp-modal').classList.remove('open'); _juvSPCtx=null; };
 window._filterJuvSP = function(val){
-  const q = val.toLowerCase();
+  const q = _norm(val);
   document.querySelectorAll('#juv-sp-list .sp-item').forEach(el=>{
-    el.style.display = (!q||el.dataset.name?.includes(q)) ? '' : 'none';
+    el.style.display = (!q||_norm(el.dataset.name||'').includes(q)) ? '' : 'none';
   });
   document.querySelectorAll('#juv-sp-list .sp-sep').forEach(sep=>{
     const next = sep.nextElementSibling;
