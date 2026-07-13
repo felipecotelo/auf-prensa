@@ -23043,6 +23043,17 @@ const _nameToKey = n => 'ct-p:' + n.toLowerCase()
   .normalize('NFD').replace(/[̀-ͯ]/g,'')
   .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 
+// Migración: marcar todos los DT histórico Mayor como "finalizado" automáticamente
+(()=>{try{
+  const c=JSON.parse(localStorage.getItem(KEstContract)||'{}');
+  let changed=false;
+  DT_MAYOR_HIST.forEach(m=>{
+    const k=_nameToKey(m.name);
+    if(!c[k]){c[k]='finalizado';changed=true;}
+  });
+  if(changed) localStorage.setItem(KEstContract,JSON.stringify(c));
+}catch(_){}})();
+
 function _estBuildAllSections(){
   const sections = ESTRUCTURA_PERSONAS.map((d,i)=>({
     dept:d.dept, color:_DEPT_COLORS[i%_DEPT_COLORS.length], personas:d.personas
