@@ -19105,10 +19105,13 @@ window._removeJuvP = function(cat, year, matchId, leg, slotId){
 };
 window._setJuvCaptain = function(cat, year, matchId, leg, nomEncoded){
   const nom = decodeURIComponent(nomEncoded);
+  window._setJuvCaptainByName(cat, year, matchId, leg, nom);
+};
+window._setJuvCaptainByName = function(cat, year, matchId, leg, nom){
   _amistPatch(cat, year, matchId, m=>{
     const sfx = leg===2?'2':'';
     if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:'4-3-3',starters:{}};
-    m['lineup'+sfx].captain = m['lineup'+sfx].captain===nom ? null : nom;
+    m['lineup'+sfx].captain = nom||null;
   });
 };
 window._juvChangeForm = function(cat, year, matchId, leg, form){
@@ -19154,6 +19157,16 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
   ).join('');
 
   const captain = lu.captain||null;
+  const starterNoms = Object.values(st).filter(Boolean);
+  const capOpts = `<option value="">Sin capitán</option>`+starterNoms.map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${n===captain?' selected':''}>${n}</option>`).join('');
+  const capSelector = starterNoms.length ? `
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+      <span style="font-size:.65em;font-weight:800;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Capitán</span>
+      <select onchange="_setJuvCaptainByName('${_juvCat}','${_juvYear}',${m.id},${leg},this.value)"
+        style="flex:1;font-size:.72em;font-weight:700;background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.2);border-radius:7px;padding:4px 8px;outline:none;cursor:pointer">
+        ${capOpts}
+      </select>
+    </div>` : '';
   const pitchSlots = slots.map(slot=>{
     const nom = st[slot.id]||null;
     const ph = window._juvGetPhoto?.(nom)||null;
@@ -19161,21 +19174,17 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
     const parts = nom ? nom.split(' ') : [];
     const lbl = nom ? (parts.length>1 ? parts[0][0]+'. '+parts.slice(1).join(' ') : parts[0]) : slot.pos;
     const isCap = nom && nom===captain;
-    const nomE = nom ? encodeURIComponent(nom) : '';
     return `<div class="p-slot" data-slot="${slot.id}" style="left:${slot.x}%;top:${slot.y}%;cursor:pointer"
         onclick="_openJuvSP('${_juvCat}','${_juvYear}',${m.id},${leg},'${slot.id}','${slot.pos}')">
       <div class="p-slot-av${nom?'':' empty'}">
         ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:
           nom?`<span style="font-size:9px;font-weight:800;color:#fff;position:relative;z-index:1">${inits}</span>`:
           `<span style="font-size:8px;color:rgba(255,255,255,.55);font-weight:700">${slot.pos}</span>`}
-        ${isCap?`<span style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);background:#F59E0B;color:#000;font-size:7px;font-weight:900;border-radius:3px;padding:1px 3px;border:1px solid #fff;z-index:11;line-height:1.2">C</span>`:''}
+        ${isCap?`<span style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:#F59E0B;color:#000;font-size:7px;font-weight:900;border-radius:3px;padding:1px 4px;border:1.5px solid rgba(0,0,0,.4);z-index:11;line-height:1.3;white-space:nowrap">C</span>`:''}
       </div>
       <div class="p-slot-lbl">${lbl}</div>
       ${nom?`<button onclick="event.stopPropagation();_removeJuvP('${_juvCat}','${_juvYear}',${m.id},${leg},'${slot.id}')"
-        style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:#dc2626;border:none;color:#fff;font-size:8px;cursor:pointer;display:none;z-index:10" class="p-slot-del">×</button>
-        <button onclick="event.stopPropagation();_setJuvCaptain('${_juvCat}','${_juvYear}',${m.id},${leg},'${nomE}')"
-          title="${isCap?'Quitar capitán':'Hacer capitán'}"
-          style="position:absolute;top:-4px;left:-4px;width:14px;height:14px;border-radius:50%;background:${isCap?'#F59E0B':'rgba(245,158,11,.6)'};border:none;color:#000;font-size:7px;font-weight:900;cursor:pointer;display:none;z-index:10;line-height:1;align-items:center;justify-content:center" class="p-slot-del">C</button>`:''}
+        style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#dc2626;border:1.5px solid #fff;color:#fff;font-size:9px;font-weight:900;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center;line-height:1" class="p-slot-remove">×</button>`:''}
     </div>`;
   }).join('');
 
@@ -19233,6 +19242,9 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
   return `
     <div class="lineup-hdr" style="margin-bottom:6px">
       <div class="form-sel-btns">${formBtns}</div>
+    </div>
+    <div style="background:#1a6b35;border-radius:12px 12px 0 0;padding:8px 8px 0;margin-bottom:0">
+      ${capSelector}
     </div>
     <div style="display:flex;gap:0;align-items:flex-start">
       <div style="flex:1;min-width:0">
@@ -19322,12 +19334,24 @@ window._amistDeleteMatch = function(cat, year, id){
 window._amistOpenDetail = function(id){ window._amistDetailOpen=id; window.renderJuveniles?.(); };
 window._amistCloseDetail = function(){ window._amistDetailOpen=null; window.renderJuveniles?.(); };
 
-// Save result
+// Save result — versión silenciosa (sin re-render, actualiza badge in-place)
 window._amistSaveResult = function(cat, year, id, leg){
   const sfx = leg===2?'2':'';
   const gl = parseInt(document.getElementById('amist-res-gl'+sfx+'-'+id)?.value);
   const gr = parseInt(document.getElementById('amist-res-gr'+sfx+'-'+id)?.value);
-  _amistPatch(cat,year,id,m=>{ m['gLocal'+sfx]=(isNaN(gl)?null:gl); m['gRival'+sfx]=(isNaN(gr)?null:gr); });
+  const list = _getAmistosos(cat, year);
+  const m = list.find(x=>x.id===id); if(!m) return;
+  m['gLocal'+sfx]=(isNaN(gl)?null:gl);
+  m['gRival'+sfx]=(isNaN(gr)?null:gr);
+  _saveAmistosos(cat, year, list);
+  // Update UI in-place without full re-render
+  const lbl = document.getElementById('res-lbl-'+sfx+id);
+  if(lbl){
+    const ok = !isNaN(gl)&&!isNaN(gr);
+    lbl.textContent = ok ? (gl>gr?'VICTORIA':gl===gr?'EMPATE':'DERROTA') : '';
+    lbl.style.background = !ok?'transparent':gl>gr?'rgba(34,197,94,.18)':gl===gr?'rgba(245,158,11,.18)':'rgba(220,38,38,.18)';
+    lbl.style.color = !ok?'transparent':gl>gr?'#86efac':gl===gr?'#fde68a':'#fca5a5';
+  }
 };
 // Save DT
 window._amistSaveDT = function(cat, year, id, leg){
@@ -19390,25 +19414,35 @@ function _buildJuvAmistosos(cat, year, color, catData){
           <button onclick="window._amistDetailLeg=2;window.renderJuveniles?.()" class="tab${leg===2?' active':''}">Vuelta ${m.gLocal2!==null?'('+m.gLocal2+'–'+m.gRival2+')':''}</button>
         </div>` : '';
 
-      // Resultado panel
+      // Resultado panel — dark scoreboard
+      const inpStyle = 'width:58px;height:60px;font-size:2.1em;font-weight:900;text-align:center;color:#fff;background:rgba(255,255,255,.09);border:2px solid rgba(255,255,255,.14);border-radius:12px;outline:none;-moz-appearance:textfield;-webkit-appearance:none;display:block';
       const resPanel = `
-        <details style="margin-bottom:10px" ${!hasResult?'open':''}>
-          <summary style="font-size:.72em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:10px 0">
-            <i class="ti ti-flag"></i> Resultado final
-            ${hasResult?`<span style="font-size:1.1em;font-weight:900;color:${resColor};margin-left:auto">${gl}–${gr}</span>`:'<span style="font-size:.78em;color:var(--muted);font-weight:400;font-style:italic;margin-left:auto;opacity:.7">sin cargar</span>'}
-          </summary>
-          <div style="display:flex;align-items:center;gap:8px;padding-bottom:10px">
-            <span style="font-size:.72em;font-weight:600;color:${color};min-width:52px;text-align:right">Uruguay</span>
-            <input id="amist-res-gl${sfx}-${m.id}" type="number" min="0" value="${gl!==null?gl:''}" placeholder="–"
-              style="${inp};text-align:center;font-size:1.1em;font-weight:700;color:var(--text);width:52px;padding:6px 4px">
-            <span style="color:var(--muted);font-size:.9em">–</span>
-            <input id="amist-res-gr${sfx}-${m.id}" type="number" min="0" value="${gr!==null?gr:''}" placeholder="–"
-              style="${inp};text-align:center;font-size:1.1em;font-weight:700;color:var(--text);width:52px;padding:6px 4px">
-            <span style="font-size:.72em;font-weight:600;color:#94A3B8;min-width:52px">${m.rival}</span>
-            <button onclick="_amistSaveResult('${cat}','${year}',${m.id},${leg})"
-              style="margin-left:auto;padding:6px 12px;background:var(--surface);color:var(--muted);border:1.5px solid var(--border);border-radius:7px;font-size:.75em;font-weight:700;cursor:pointer">Guardar</button>
+        <div style="background:linear-gradient(145deg,#0f172a,#1e2d45);border-radius:16px;padding:16px 14px 12px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="flex:1;text-align:right">
+              <div style="font-size:.68em;font-weight:900;color:#fff;letter-spacing:.05em;text-transform:uppercase">Uruguay</div>
+              <div style="font-size:.55em;font-weight:700;color:${color};letter-spacing:.04em;margin-top:2px">${_juvCat.replace('sub','Sub-').toUpperCase()}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="amist-res-gl${sfx}-${m.id}" type="number" min="0" max="99" value="${gl!==null?gl:''}" placeholder="–"
+                onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" style="${inpStyle}">
+              <span style="color:#334155;font-size:1.4em;font-weight:900">:</span>
+              <input id="amist-res-gr${sfx}-${m.id}" type="number" min="0" max="99" value="${gr!==null?gr:''}" placeholder="–"
+                onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" style="${inpStyle}">
+            </div>
+            <div style="flex:1;text-align:left">
+              <div style="font-size:.68em;font-weight:900;color:#94a3b8;letter-spacing:.05em;text-transform:uppercase;word-break:break-word">${m.rival}</div>
+            </div>
           </div>
-        </details>`;
+          <div style="text-align:center;margin-top:10px">
+            <span id="res-lbl-${sfx}${m.id}" style="font-size:.58em;font-weight:900;padding:3px 12px;border-radius:20px;letter-spacing:.1em;transition:all .2s;
+              background:${hasResult?(gl>gr?'rgba(34,197,94,.18)':gl===gr?'rgba(245,158,11,.18)':'rgba(220,38,38,.18)'):'transparent'};
+              color:${hasResult?(gl>gr?'#86efac':gl===gr?'#fde68a':'#fca5a5'):'transparent'}">
+              ${hasResult?(gl>gr?'VICTORIA':gl===gr?'EMPATE':'DERROTA'):''}
+            </span>
+          </div>
+        </div>
+        <style>.no-spin::-webkit-outer-spin-button,.no-spin::-webkit-inner-spin-button{-webkit-appearance:none}</style>`;
 
       // Goles panel — solo jugadores que jugaron
       const luSfx = m['lineup'+sfx]||{};
