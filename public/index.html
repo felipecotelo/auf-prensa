@@ -19108,6 +19108,19 @@ window._setJuvCaptainByName = function(cat, year, matchId, leg, nom){
     m['lineup'+sfx].captain = nom||null;
   });
 };
+window._amistSetNum = function(cat, year, matchId, leg, slotId, val){
+  const num = parseInt(val)||null;
+  const list = _getAmistosos(cat, year);
+  const m = list.find(x=>x.id===matchId); if(!m) return;
+  const sfx = leg===2?'2':'';
+  if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:'4-3-3',starters:{}};
+  if(!m['lineup'+sfx].nums) m['lineup'+sfx].nums={};
+  if(num) m['lineup'+sfx].nums[slotId]=num; else delete m['lineup'+sfx].nums[slotId];
+  _saveAmistosos(cat, year, list);
+  // Update badge in-place without re-render
+  const badge = document.getElementById('pnum-'+matchId+sfx+'-'+slotId);
+  if(badge){ badge.textContent=num||''; badge.style.display=num?'flex':'none'; }
+};
 window._juvChangeForm = function(cat, year, matchId, leg, form){
   _amistPatch(cat, year, matchId, m=>{
     const sfx = leg===2?'2':'';
@@ -19151,6 +19164,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
   ).join('');
 
   const captain = lu.captain||null;
+  const nums = lu.nums||{};
   const starterNoms = Object.values(st).filter(Boolean);
   const capOpts = `<option value="">Sin capitán</option>`+starterNoms.map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${n===captain?' selected':''}>${n}</option>`).join('');
   const capSelector = starterNoms.length ? `
@@ -19168,6 +19182,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
     const parts = nom ? nom.split(' ') : [];
     const lbl = nom ? (parts.length>1 ? parts[0][0]+'. '+parts.slice(1).join(' ') : parts[0]) : slot.pos;
     const isCap = nom && nom===captain;
+    const slotNum = nums[slot.id]||null;
     return `<div class="p-slot" data-slot="${slot.id}" style="left:${slot.x}%;top:${slot.y}%;cursor:pointer"
         onclick="_openJuvSP('${_juvCat}','${_juvYear}',${m.id},${leg},'${slot.id}','${slot.pos}')">
       <div class="p-slot-av${nom?'':' empty'}">
@@ -19175,10 +19190,11 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
           nom?`<span style="font-size:9px;font-weight:800;color:#fff;position:relative;z-index:1">${inits}</span>`:
           `<span style="font-size:8px;color:rgba(255,255,255,.55);font-weight:700">${slot.pos}</span>`}
         ${isCap?`<span style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:#F59E0B;color:#000;font-size:7px;font-weight:900;border-radius:3px;padding:1px 4px;border:1.5px solid rgba(0,0,0,.4);z-index:11;line-height:1.3;white-space:nowrap">C</span>`:''}
+        <span id="pnum-${m.id}${sfx}-${slot.id}" style="position:absolute;top:-7px;right:-7px;min-width:18px;height:18px;border-radius:9px;background:#1e293b;color:#fff;font-size:9px;font-weight:900;display:${slotNum?'flex':'none'};align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,.7);z-index:12;padding:0 3px;line-height:1">${slotNum||''}</span>
       </div>
       <div class="p-slot-lbl">${lbl}</div>
       ${nom?`<button onclick="event.stopPropagation();_removeJuvP('${_juvCat}','${_juvYear}',${m.id},${leg},'${slot.id}')"
-        style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:#dc2626;border:1.5px solid #fff;color:#fff;font-size:9px;font-weight:900;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center;line-height:1" class="p-slot-remove">×</button>`:''}
+        style="position:absolute;top:-4px;left:-4px;width:16px;height:16px;border-radius:50%;background:#dc2626;border:1.5px solid #fff;color:#fff;font-size:9px;font-weight:900;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center;line-height:1" class="p-slot-remove">×</button>`:''}
     </div>`;
   }).join('');
 
@@ -19195,15 +19211,23 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
         const ph = window._juvPhotoCache?.[nom]||null;
         const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
         const sub = subs.find(s=>s.nom===nom);
-        return `<div onclick="_openJuvSP('${_juvCat}','${_juvYear}',${m.id},${leg},null,'${pos||'any'}')"
-          style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:9px;cursor:pointer;border:1px solid ${sub?color:'var(--border)'};background:${sub?color+'12':'var(--card)'};margin-bottom:5px">
-          <div style="width:30px;height:30px;border-radius:50%;background:#64748b;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center">
-            ${ph?`<img src="${ph}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:
-              `<span style="font-size:9px;font-weight:800;color:#fff">${inits}</span>`}
-          </div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:.78em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nom.split(' ').slice(-2).join(' ')}</div>
-            ${sub?`<div style="font-size:.65em;color:${color};font-weight:700">▲ ${sub.min?sub.min+"'":''}</div>`:''}
+        const benchSlotId = 'bench-'+nom.replace(/[^a-z0-9]/gi,'-');
+        const benchNum = nums[benchSlotId]||null;
+        return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${benchNum||''}" placeholder="#"
+            onclick="event.stopPropagation();this.select()"
+            onchange="event.stopPropagation();_amistSetNum('${_juvCat}','${_juvYear}',${m.id},${leg},'${benchSlotId}',this.value)"
+            style="width:26px;height:26px;border-radius:6px;border:1.5px solid var(--border);background:var(--surface);font-size:.7em;font-weight:800;text-align:center;outline:none;flex-shrink:0;padding:0;color:var(--text)">
+          <div onclick="_openJuvSP('${_juvCat}','${_juvYear}',${m.id},${leg},null,'${pos||'any'}')"
+            style="display:flex;align-items:center;gap:6px;flex:1;padding:5px 7px;border-radius:9px;cursor:pointer;border:1px solid ${sub?color:'var(--border)'};background:${sub?color+'12':'var(--card)'}">
+            <div style="width:26px;height:26px;border-radius:50%;background:#64748b;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center">
+              ${ph?`<img src="${ph}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:
+                `<span style="font-size:8px;font-weight:800;color:#fff">${inits}</span>`}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.73em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nom.split(' ').slice(-2).join(' ')}</div>
+              ${sub?`<div style="font-size:.62em;color:${color};font-weight:700">▲ ${sub.min?sub.min+"'":''}</div>`:''}
+            </div>
           </div>
         </div>`;
       }).join('')}
