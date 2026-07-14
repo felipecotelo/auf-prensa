@@ -19120,7 +19120,7 @@ window._amistSetNum = function(cat, year, matchId, leg, slotId, val){
   // Update badge in-place without re-render (badge id uses sanitized name)
   const badgeKey = slotId.replace(/[^a-z0-9]/gi,'-');
   const badge = document.getElementById('pnum-'+matchId+sfx+'-'+badgeKey);
-  if(badge){ badge.value=num||''; }
+  if(badge){ badge.textContent=num||'#'; badge.style.background=num?'var(--cel)':'rgba(30,41,59,.7)'; badge.style.borderColor=num?'#fff':'rgba(255,255,255,.4)'; }
 };
 window._juvChangeForm = function(cat, year, matchId, leg, form){
   _amistPatch(cat, year, matchId, m=>{
@@ -19147,8 +19147,28 @@ window._removeJuvSub = function(cat, year, matchId, leg, idx){
   _amistPatch(cat, year, matchId, m=>{ (m['subs'+sfx]||[]).splice(idx,1); });
 };
 
+// Tarjetas (amarilla / roja)
+window._amistAddCard = function(cat, year, matchId, leg){
+  const sfx = leg===2?'2':'';
+  const selId = 'juv-card-nom-'+matchId+sfx;
+  const minId = 'juv-card-min-'+matchId+sfx;
+  const colId = 'juv-card-col-'+matchId+sfx;
+  const nom = (document.getElementById(selId)?.value||'').trim();
+  const min = (document.getElementById(minId)?.value||'').trim();
+  const col = document.getElementById(colId)?.value||'a';
+  if(!nom) return;
+  _amistPatch(cat, year, matchId, m=>{
+    if(!m['tarjetas'+sfx]) m['tarjetas'+sfx]=[];
+    m['tarjetas'+sfx].push({nom, min, col});
+  });
+};
+window._amistRemoveCard = function(cat, year, matchId, leg, idx){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat, year, matchId, m=>{ (m['tarjetas'+sfx]||[]).splice(idx,1); });
+};
+
 // Returns {pitchHtml, benchHtml} — assembled into piz-3col layout
-function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
+function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas){
   const sfx = leg===2?'2':'';
   const lu = m['lineup'+sfx]||{formation:'4-3-3',starters:{}};
   const form = lu.formation||'4-3-3';
@@ -19164,6 +19184,10 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
   const captain = lu.captain||null;
   const nums = lu.nums||{};
   const starterNoms = Object.values(st).filter(Boolean);
+  tarjetas = tarjetas||[];
+  // map nom → worst card ('r' beats 'a')
+  const cardMap = {};
+  tarjetas.forEach(t=>{ if(!cardMap[t.nom]||t.col==='r') cardMap[t.nom]=t.col; });
 
   // ── Capitán selector (encima del pitch) ──
   const capOpts = `<option value="">Sin capitán</option>`+starterNoms.map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${n===captain?' selected':''}>${n}</option>`).join('');
@@ -19198,6 +19222,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
           title="Clic para editar dorsal" style="cursor:pointer;background:${slotNum?'var(--cel)':'rgba(30,41,59,.7)'};border-color:${slotNum?'#fff':'rgba(255,255,255,.4)'}">
           ${slotNum||'#'}</div>`:''}
         ${nom&&goles[nom]>0?`<span style="position:absolute;bottom:${isCap?'8px':'-6px'};right:-6px;font-size:${goles[nom]>1?'8px':'11px'};z-index:13;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))">${'⚽'.repeat(Math.min(goles[nom],3))}${goles[nom]>3?'<span style="font-size:7px;color:#fff;font-weight:900">+'+goles[nom]+'</span>':''}</span>`:''}
+        ${nom&&cardMap[nom]?`<span style="position:absolute;top:-6px;left:-4px;font-size:10px;z-index:14;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.8))">${cardMap[nom]==='r'?'🟥':'🟨'}</span>`:''}
       </div>
       <div class="p-slot-lbl">${lbl}</div>
       ${nom?`<button onclick="event.stopPropagation();_removeJuvP('${_juvCat}','${_juvYear}',${m.id},${leg},'${slot.id}')"
@@ -19258,6 +19283,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
                   style="cursor:pointer;min-width:24px;text-align:center">#${benchNum||'?'}</span>
                 <span class="piz-chip-name">${shortNom}</span>
                 ${sub?`<span style="font-size:8px;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 3px;margin-left:3px;white-space:nowrap">▲ ${sub.min?sub.min+"'":'?'}</span>`:''}
+                ${cardMap[nom]?`<span style="font-size:11px;line-height:1;margin-left:2px">${cardMap[nom]==='r'?'🟥':'🟨'}</span>`:''}
               </div>
             </div>
           </div>`;
@@ -19537,6 +19563,41 @@ function _buildJuvAmistosos(cat, year, color, catData){
           </div>
         </details>` : '';
 
+      // Tarjetas panel
+      const tarjetas = m['tarjetas'+sfx]||[];
+      const tarjetasPanel = `
+        <details style="margin-bottom:10px">
+          <summary style="font-size:.72em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:10px 0">
+            <span>🟨</span> Tarjetas
+            ${tarjetas.length?`<span style="margin-left:auto;font-size:.88em;color:var(--text);font-weight:700">${tarjetas.filter(t=>t.col==='r').length>0?tarjetas.filter(t=>t.col==='r').length+'🟥 ':''} ${tarjetas.filter(t=>t.col!=='r').length>0?tarjetas.filter(t=>t.col!=='r').length+'🟨':''}</span>`:''}
+          </summary>
+          <div style="padding-bottom:10px">
+            ${tarjetas.length?`<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">
+              ${tarjetas.map((t,i)=>`<div style="display:flex;align-items:center;gap:6px;font-size:.82em">
+                <span>${t.col==='r'?'🟥':'🟨'}</span>
+                <span style="flex:1;font-weight:700">${t.nom.split(' ').pop()}</span>
+                ${t.min?`<span style="color:var(--muted);font-size:.9em">${t.min}'</span>`:''}
+                <button onclick="_amistRemoveCard('${cat}','${year}',${m.id},${leg},${i})"
+                  style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.85em;padding:0">✕</button>
+              </div>`).join('')}
+            </div>`:''}
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="juv-card-nom-${m.id}${sfx}" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;background:var(--surface);outline:none">
+                <option value="">— jugador —</option>
+                ${jugaron.map(nom=>`<option value="${nom.replace(/"/g,'&quot;')}">${nom.split(' ').slice(-1)[0]}, ${nom.split(' ').slice(0,-1).join(' ')}</option>`).join('')}
+              </select>
+              <select id="juv-card-col-${m.id}${sfx}" style="width:52px;padding:6px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:.85em;background:var(--surface);outline:none;text-align:center">
+                <option value="a">🟨</option>
+                <option value="r">🟥</option>
+              </select>
+              <input id="juv-card-min-${m.id}${sfx}" type="number" min="1" max="120" placeholder="Min"
+                style="width:52px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;outline:none;background:var(--surface)">
+              <button onclick="_amistAddCard('${cat}','${year}',${m.id},${leg})"
+                style="padding:6px 10px;background:${color};color:#fff;border:none;border-radius:8px;font-size:.8em;font-weight:700;cursor:pointer">+</button>
+            </div>
+          </div>
+        </details>`;
+
       // DT panel — selector from juv CT
       const ctMembers = _getJuvCT(cat, year);
       const dtOptions = ctMembers.filter(m2=>m2.dt).map(m2=>{const v=m2.name.replace(/"/g,'&quot;');return`<option value="${v}"${dtVal===m2.name?' selected':''}>${m2.name} — ${m2.rol}</option>`;});
@@ -19556,7 +19617,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
           </div>
         </details>`;
 
-      const {pitchHtml, benchHtml} = _buildJuvMatchPitch(m, leg, color, convocados, convPosMap);
+      const {pitchHtml, benchHtml} = _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas);
 
       return `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -19576,6 +19637,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
           <div class="piz-col-left">
             ${resPanel}
             ${golesPanel}
+            ${tarjetasPanel}
             ${dtPanel}
           </div>
           <div class="piz-col-center">${pitchHtml}</div>
