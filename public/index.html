@@ -7891,6 +7891,125 @@ function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])dele
 function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderJugadores();}
 function _toggleJuvRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);window.renderJuveniles?.();}
 function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);window.renderJuveniles?.();}
+
+function _openJuvDetail(nomEnc){
+  const nom = decodeURIComponent(nomEnc);
+  const photo = (window._juvPhotoCache||{})[nom] || window._getPhotoByName?.(nom);
+  const _juvClubEntry = getJuvClub()[nom];
+  const clubOverride = _juvClubEntry?.actual ?? (_juvClubEntry && typeof _juvClubEntry==='string' ? _juvClubEntry : undefined);
+  const _jugEntry = typeof JUGADORES!=='undefined' ? JUGADORES[nom] : null;
+  const clubShow = clubOverride !== undefined ? clubOverride : (_jugEntry?.club || '');
+  const isRet = !!(stor.get('auf4_retirado',{})[nom]);
+  const isFall = !!(stor.get('auf4_fallecido',{})[nom]);
+  const posColors = {POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
+  const posLabel = _jugEntry?.pos || '';
+
+  // All tournament appearances from COMP_DATA
+  const comps = [];
+  if(typeof COMP_DATA!=='undefined'){
+    Object.values(COMP_DATA).forEach(comp=>{
+      if(!comp?.convocados) return;
+      const pl = comp.convocados.find(c=>c.nom===nom);
+      if(!pl) return;
+      let pj=0;
+      (comp.partidos||[]).forEach(p=>{
+        const t=(p.tit||[]).some(x=>x.n===pl.num);
+        const s=(p.sup||[]).some(x=>x.n===pl.num&&x.in);
+        if(t||s) pj++;
+      });
+      const gols=(comp.goleadores||[]).find(g=>g.nom===nom)?.g||0;
+      comps.push({comp, pl, pj, gols});
+    });
+  }
+  // Sort by fecha (year) ascending
+  comps.sort((a,b)=>(a.comp.fecha||'').localeCompare(b.comp.fecha||''));
+
+  // Convocatorias (amistosos/selecciones menores)
+  const convRows = [];
+  if(typeof JUVENILES!=='undefined'){
+    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
+        (anoData.convocatorias||[]).forEach(c=>{
+          const found = (c.jugadores||[]).find(j=>j.nom===nom);
+          if(found) convRows.push({label:`${catData.label} ${yr}`, desc:c.fecha||c.titulo||'', color:{sub20:'#1D4ED8',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626'}[catKey]||'#6B7280'});
+        });
+      });
+    });
+  }
+
+  // FechaNac
+  const fn = _juvClubEntry?.fechaNac || _jugEntry?.fechaNac || comps[0]?.pl?.fechaNac || '';
+  let fnStr = '';
+  if(fn){const d=new Date(fn);const today=new Date();let age=today.getFullYear()-d.getFullYear();if(today<new Date(today.getFullYear(),d.getMonth(),d.getDate()))age--;const day=d.getDate();const month=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()];fnStr=`${day} ${month} ${d.getFullYear()} · ${age} años`;}
+
+  const avatar = photo
+    ? `<img src="${photo}" style="width:72px;height:72px;object-fit:cover;border-radius:50%;border:2px solid var(--border)">`
+    : `<div style="width:72px;height:72px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.2em;flex-shrink:0;border:2px solid var(--border)">${nom.split(' ').map(s=>s[0]).slice(0,2).join('')}</div>`;
+
+  const posHtml = (comps.length&&comps[0].pl.pos) ? `<span style="font-size:.72em;font-weight:700;color:${posColors[comps[0].pl.pos]||'var(--muted)'};background:${(posColors[comps[0].pl.pos]||'#888')+'22'};border:1px solid ${(posColors[comps[0].pl.pos]||'#888')+'55'};border-radius:5px;padding:2px 8px">${comps[0].pl.pos}</span>` : '';
+
+  const mayorLink = _jugEntry
+    ? `<button onclick="_closeJuvDetail();showJugador('${nom.replace(/'/g,"\\'")}');showSection('sec-jugadores')" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;background:none;cursor:pointer;font-size:.8em;font-weight:700;color:var(--fg);text-align:left">⚽ Ver perfil en Mayor &rarr;</button>`
+    : '';
+
+  const compsHtml = comps.length ? `
+    <div style="margin-top:14px">
+      <div style="font-size:.68em;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Competencias oficiales</div>
+      ${comps.map(({comp,pl,pj,gols})=>`
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:1.3em;flex-shrink:0;margin-top:1px">${comp.icon||'🌐'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.82em;font-weight:700;color:var(--fg)">${comp.label}</div>
+            <div style="font-size:.7em;color:var(--muted);margin-top:1px">${comp.fecha||''}</div>
+            <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+              ${pl.num?`<span style="font-size:.68em;color:var(--muted)">#${pl.num} ${pl.pos||''}</span>`:''}
+              ${pj?`<span style="font-size:.68em;font-weight:600;color:var(--fg)">${pj} PJ</span>`:''}
+              ${gols?`<span style="font-size:.68em;font-weight:700;color:#F59E0B">${gols} gol${gols>1?'es':''}</span>`:''}
+              ${pl.mayor?`<span style="font-size:.65em;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;font-weight:700">Mayor</span>`:''}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>` : '';
+
+  const convHtml = convRows.length ? `
+    <div style="margin-top:14px">
+      <div style="font-size:.68em;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Convocatorias</div>
+      ${convRows.map(r=>`<span style="display:inline-block;margin:2px;font-size:.68em;font-weight:600;color:${r.color};background:${r.color}18;border-radius:5px;padding:3px 8px">${r.label}</span>`).join('')}
+    </div>` : '';
+
+  const clubHtml = isFall ? '✝ Fallecido' : isRet ? 'Retirado' : (clubShow || '— sin club —');
+
+  let overlay = document.getElementById('juv-detail-overlay');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'juv-detail-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9100;display:flex;flex-direction:column;justify-content:flex-end';
+    overlay.innerHTML = '<div id="juv-detail-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px)"></div><div id="juv-detail-sheet" style="position:relative;background:var(--surface2,var(--card));border-radius:20px 20px 0 0;overflow:hidden;max-height:88vh;display:flex;flex-direction:column"><div id="juv-detail-body" style="overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 16px 36px"></div></div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('#juv-detail-backdrop').onclick = _closeJuvDetail;
+  }
+  overlay.querySelector('#juv-detail-body').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      ${avatar}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:1em;color:var(--fg)">${nom}</div>
+        <div style="font-size:.72em;color:var(--muted);margin-top:2px">${clubHtml}</div>
+        ${fnStr?`<div style="font-size:.68em;color:var(--muted);margin-top:1px">${fnStr}</div>`:''}
+      </div>
+      <button onclick="_closeJuvDetail()" style="background:rgba(0,0,0,.08);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:var(--fg);font-size:1em;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    ${compsHtml}
+    ${convHtml}
+    ${mayorLink?`<div style="margin-top:16px">${mayorLink}</div>`:''}
+  `;
+  overlay.style.display = 'flex';
+  requestAnimationFrame(()=>{ overlay.querySelector('#juv-detail-sheet').style.transform='translateY(0)'; });
+}
+function _closeJuvDetail(){
+  const o = document.getElementById('juv-detail-overlay');
+  if(o) o.style.display='none';
+}
+
 function jTogglePosEdit(nom,el){
   // Si ya hay un picker abierto para este jugador, cerrarlo
   const existing=document.getElementById('jpicker-'+nom.replace(/[^a-zA-Z]/g,'_'));
@@ -19550,7 +19669,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const isJuvRetirado = p.retirado || !!(stor.get('auf4_retirado',{})[p.nom]);
   const isJuvFallecido = p.fallecido || !!(stor.get('auf4_fallecido',{})[p.nom]);
   const _champBorder = isChamp?'#F59E0B':isChamp17?'#1D4ED8':isFinal13?'#6B7280':'var(--border)';
-  return `<div style="background:var(--card);border:1px solid ${_champBorder};border-radius:12px;padding:13px">
+  return `<div onclick="_openJuvDetail('${nomEnc}')" style="background:var(--card);border:1px solid ${_champBorder};border-radius:12px;padding:13px;cursor:pointer">
     <div style="display:flex;align-items:center;gap:11px">
       <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:54px;height:54px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1em;flex-shrink:0;border:2px solid ${_champBorder};cursor:pointer;overflow:visible">
         <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
