@@ -19379,10 +19379,16 @@ window._amistSaveDT = function(cat, year, id, leg){
 };
 // Toggle titular
 // Gol +/-
-window._amistAddGol = function(cat, year, id, selId, leg){
+window._amistAddGol = function(cat, year, id, selId, qtyId, leg){
   const nom = document.getElementById(selId)?.value;
   if(!nom) return;
-  window._amistGol(cat, year, id, nom, 1, leg);
+  const qty = Math.max(1, parseInt(document.getElementById(qtyId)?.value)||1);
+  window._amistGol(cat, year, id, nom, qty, leg);
+  // Reset selectors
+  const sel = document.getElementById(selId);
+  const qty_el = document.getElementById(qtyId);
+  if(sel) sel.value='';
+  if(qty_el) qty_el.value='1';
 };
 window._amistGol = function(cat, year, id, nom, delta, leg){
   const sfx = leg===2?'2':'';
@@ -19466,36 +19472,50 @@ function _buildJuvAmistosos(cat, year, color, catData){
           </div>
         </div>`;
 
-      // Goles panel — solo jugadores que jugaron
+      // Goles panel
       const luSfx = m['lineup'+sfx]||{};
       const titNoms = Object.values((luSfx.starters)||{}).filter(Boolean);
       const subNoms = (m['subs'+sfx]||[]).map(s=>s.nom);
       const jugaron = [...new Set([...titNoms,...subNoms])];
+      const ecGoles = goles['__EC__']||0;
+      const topGol = Object.entries(goles).filter(([k,g])=>k!=='__EC__'&&g>0).sort((a,b)=>b[1]-a[1]);
       const golesPanel = jugaron.length ? `
         <details style="margin-bottom:10px">
           <summary style="font-size:.72em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:10px 0">
             <i class="ti ti-ball-football"></i> Goles
-            ${topGol.length?`<span style="margin-left:auto;font-size:.9em;color:#C2410C;font-weight:700">${topGol.map(([n,g])=>n.split(' ').pop()+(g>1?' ×'+g:'')).join(', ')}</span>`:''}
+            <span style="margin-left:auto;font-size:.9em;color:#C2410C;font-weight:700">
+              ${[...topGol.map(([n,g])=>n.split(' ').pop()+(g>1?' ×'+g:'')), ...(ecGoles?['EC'+(ecGoles>1?' ×'+ecGoles:'')]:[])].join(', ')}
+            </span>
           </summary>
           <div style="padding-bottom:10px">
-            ${topGol.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+            ${(topGol.length||ecGoles)?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
               ${topGol.map(([nom,g])=>{
                 const ns=nom.replace(/'/g,"\\'");
-                return `<div style="display:inline-flex;align-items:center;gap:5px;background:#FEF2F2;border:1.5px solid #FECACA;border-radius:20px;padding:4px 10px">
-                  <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',-1,${leg})" style="width:18px;height:18px;border-radius:50%;border:1px solid #FECACA;background:#FEE2E2;cursor:pointer;font-size:.8em;display:flex;align-items:center;justify-content:center;color:#DC2626;line-height:1">−</button>
-                  <span style="font-size:.8em;font-weight:700;color:#B91C1C">${nom.split(' ').pop()}${g>1?' <span style="opacity:.7">×'+g+'</span>':''}</span>
-                  <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',1,${leg})" style="width:18px;height:18px;border-radius:50%;border:1px solid #FCA5A5;background:#FEE2E2;cursor:pointer;font-size:.8em;display:flex;align-items:center;justify-content:center;color:#DC2626;line-height:1">+</button>
-                  <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',${-g},${leg})" style="width:16px;height:16px;border-radius:50%;border:none;background:none;cursor:pointer;font-size:.75em;color:#9CA3AF;line-height:1;padding:0">✕</button>
+                return `<div style="display:inline-flex;align-items:center;gap:5px;background:#FEF2F2;border:1.5px solid #FECACA;border-radius:20px;padding:4px 8px 4px 4px">
+                  <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',-1,${leg})" style="width:20px;height:20px;border-radius:50%;border:none;background:#FEE2E2;cursor:pointer;font-size:1em;display:flex;align-items:center;justify-content:center;color:#DC2626;font-weight:900;line-height:1">−</button>
+                  <span style="font-size:.82em;font-weight:800;color:#B91C1C;min-width:24px;text-align:center">${g>1?'×'+g+' ':''}${nom.split(' ').pop()}</span>
+                  <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',1,${leg})" style="width:20px;height:20px;border-radius:50%;border:none;background:#FEE2E2;cursor:pointer;font-size:1em;display:flex;align-items:center;justify-content:center;color:#DC2626;font-weight:900;line-height:1">+</button>
+                  <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',${-g},${leg})" style="width:18px;height:18px;border-radius:50%;border:none;background:none;cursor:pointer;font-size:.9em;color:#9CA3AF;line-height:1;padding:0;margin-left:1px">✕</button>
                 </div>`;
               }).join('')}
+              ${ecGoles?`<div style="display:inline-flex;align-items:center;gap:5px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:20px;padding:4px 8px 4px 4px">
+                <button onclick="_amistGol('${cat}','${year}',${m.id},'__EC__',-1,${leg})" style="width:20px;height:20px;border-radius:50%;border:none;background:#DCFCE7;cursor:pointer;font-size:1em;display:flex;align-items:center;justify-content:center;color:#16a34a;font-weight:900;line-height:1">−</button>
+                <span style="font-size:.82em;font-weight:800;color:#15803D;min-width:24px;text-align:center">${ecGoles>1?'×'+ecGoles+' ':''}EC</span>
+                <button onclick="_amistGol('${cat}','${year}',${m.id},'__EC__',1,${leg})" style="width:20px;height:20px;border-radius:50%;border:none;background:#DCFCE7;cursor:pointer;font-size:1em;display:flex;align-items:center;justify-content:center;color:#16a34a;font-weight:900;line-height:1">+</button>
+                <button onclick="_amistGol('${cat}','${year}',${m.id},'__EC__',${-ecGoles},${leg})" style="width:18px;height:18px;border-radius:50%;border:none;background:none;cursor:pointer;font-size:.9em;color:#9CA3AF;line-height:1;padding:0;margin-left:1px">✕</button>
+              </div>`:''}
             </div>`:''}
-            <div style="display:flex;gap:8px;align-items:center">
-              <select id="amist-gol-sel-${leg}-${m.id}" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="amist-gol-sel-${leg}-${m.id}" style="flex:1;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;background:var(--surface);outline:none">
                 <option value="">— goleador —</option>
-                ${jugaron.map(nom=>`<option value="${nom.replace(/"/g,'&quot;')}">${nom}</option>`).join('')}
+                ${jugaron.map(nom=>`<option value="${nom.replace(/"/g,'&quot;')}">${nom.split(' ').slice(-1)[0]}, ${nom.split(' ').slice(0,-1).join(' ')}</option>`).join('')}
+                <option value="__EC__">⚽ En contra (EC)</option>
               </select>
-              <button onclick="_amistAddGol('${cat}','${year}',${m.id},'amist-gol-sel-${leg}-${m.id}',${leg})"
-                style="padding:6px 14px;background:${color};color:#fff;border:none;border-radius:8px;font-size:.8em;font-weight:700;cursor:pointer;white-space:nowrap">+ Gol</button>
+              <select id="amist-gol-qty-${leg}-${m.id}" style="width:52px;padding:6px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:.8em;background:var(--surface);outline:none;text-align:center">
+                ${[1,2,3,4,5].map(n=>`<option value="${n}">${n}</option>`).join('')}
+              </select>
+              <button onclick="_amistAddGol('${cat}','${year}',${m.id},'amist-gol-sel-${leg}-${m.id}','amist-gol-qty-${leg}-${m.id}',${leg})"
+                style="padding:6px 12px;background:${color};color:#fff;border:none;border-radius:8px;font-size:.8em;font-weight:700;cursor:pointer;white-space:nowrap">+ Gol</button>
             </div>
           </div>
         </details>` : '';
