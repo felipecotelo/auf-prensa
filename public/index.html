@@ -19147,7 +19147,7 @@ window._removeJuvSub = function(cat, year, matchId, leg, idx){
   _amistPatch(cat, year, matchId, m=>{ (m['subs'+sfx]||[]).splice(idx,1); });
 };
 
-// Returns {pitch, bench} — assembled by caller into 3-col layout
+// Returns {pitchHtml, benchHtml} — assembled into piz-3col layout
 function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
   const sfx = leg===2?'2':'';
   const lu = m['lineup'+sfx]||{formation:'4-3-3',starters:{}};
@@ -19161,25 +19161,22 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
   const subs = m['subs'+sfx]||[];
   const juvPos = getJuvPos();
   const POS_LABEL={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
-
-  const formBtns = Object.keys(FORMATIONS).map(f=>
-    `<button class="form-btn${f===form?' active':''}"
-      onclick="_juvChangeForm('${_juvCat}','${_juvYear}',${m.id},${leg},'${f}')">${f}</button>`
-  ).join('');
-
   const captain = lu.captain||null;
   const nums = lu.nums||{};
   const starterNoms = Object.values(st).filter(Boolean);
+
+  // ── Capitán selector (encima del pitch) ──
   const capOpts = `<option value="">Sin capitán</option>`+starterNoms.map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${n===captain?' selected':''}>${n}</option>`).join('');
   const capSelector = starterNoms.length ? `
-    <div style="display:flex;align-items:center;gap:7px;padding:7px 8px">
-      <span style="font-size:.62em;font-weight:800;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Capitán</span>
+    <div style="display:flex;align-items:center;gap:7px;padding:7px 8px;background:#1a6b35;border-radius:10px 10px 0 0">
+      <span style="font-size:9.5px;font-weight:800;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Capitán</span>
       <select onchange="_setJuvCaptainByName('${_juvCat}','${_juvYear}',${m.id},${leg},this.value)"
-        style="flex:1;font-size:.7em;font-weight:700;background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.2);border-radius:7px;padding:3px 7px;outline:none;cursor:pointer">
+        style="flex:1;font-size:.72em;font-weight:700;background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.2);border-radius:7px;padding:4px 8px;outline:none;cursor:pointer">
         ${capOpts}
       </select>
     </div>` : '';
 
+  // ── Slots de la cancha ──
   const pitchSlots = slots.map(slot=>{
     const nom = st[slot.id]||null;
     const ph = window._juvGetPhoto?.(nom)||null;
@@ -19188,7 +19185,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
     const lbl = nom ? (parts.length>1 ? parts[0][0]+'. '+parts.slice(1).join(' ') : parts[0]) : slot.pos;
     const isCap = nom && nom===captain;
     const slotNum = nom?(nums[nom]||nums[slot.id]||null):null;
-    const nomKey = nom?nom.replace(/[^a-z0-9]/gi,'-'):'';
+    const nomEsc = nom?(nom.replace(/\\/g,'\\\\').replace(/'/g,"\\'")):'';
     return `<div class="p-slot" data-slot="${slot.id}" style="left:${slot.x}%;top:${slot.y}%;cursor:pointer"
         onclick="_openJuvSP('${_juvCat}','${_juvYear}',${m.id},${leg},'${slot.id}','${slot.pos}')">
       <div class="p-slot-av${nom?'':' empty'}">
@@ -19196,11 +19193,10 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
           nom?`<span style="font-size:9px;font-weight:800;color:#fff;position:relative;z-index:1">${inits}</span>`:
           `<span style="font-size:8px;color:rgba(255,255,255,.55);font-weight:700">${slot.pos}</span>`}
         ${isCap?`<span style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:#F59E0B;color:#000;font-size:7px;font-weight:900;border-radius:3px;padding:1px 4px;border:1.5px solid rgba(0,0,0,.4);z-index:11;line-height:1.3;white-space:nowrap">C</span>`:''}
-        ${nom?`<input id="pnum-${m.id}${sfx}-${nomKey}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
-          value="${slotNum||''}" placeholder="#"
-          onclick="event.stopPropagation();this.select()"
-          onchange="event.stopPropagation();_amistSetNum('${_juvCat}','${_juvYear}',${m.id},${leg},'${nom}',this.value)"
-          style="position:absolute;top:-9px;right:-9px;width:20px;height:20px;border-radius:10px;background:#1e293b;color:#fff;font-size:9px;font-weight:900;border:1.5px solid rgba(255,255,255,.7);z-index:12;padding:0;text-align:center;outline:none;cursor:text;line-height:1">`:''}
+        ${nom?`<div class="p-slot-num" id="pnum-${m.id}${sfx}-${nom.replace(/[^a-z0-9]/gi,'-')}"
+          onclick="event.stopPropagation();(function(){const v=prompt('Dorsal para ${nomEsc}:','${slotNum||''}');if(v!==null)_amistSetNum('${_juvCat}','${_juvYear}',${m.id},${leg},'${nomEsc}',v);})()"
+          title="Clic para editar dorsal" style="cursor:pointer;background:${slotNum?'var(--cel)':'rgba(30,41,59,.7)'};border-color:${slotNum?'#fff':'rgba(255,255,255,.4)'}">
+          ${slotNum||'#'}</div>`:''}
         ${nom&&goles[nom]>0?`<span style="position:absolute;bottom:${isCap?'8px':'-6px'};right:-6px;font-size:${goles[nom]>1?'8px':'11px'};z-index:13;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))">${'⚽'.repeat(Math.min(goles[nom],3))}${goles[nom]>3?'<span style="font-size:7px;color:#fff;font-weight:900">+'+goles[nom]+'</span>':''}</span>`:''}
       </div>
       <div class="p-slot-lbl">${lbl}</div>
@@ -19210,12 +19206,16 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
   }).join('');
 
   // ── Pitch HTML ──
+  const formBtns = Object.keys(FORMATIONS).map(f=>
+    `<button class="form-btn${f===form?' active':''}" onclick="_juvChangeForm('${_juvCat}','${_juvYear}',${m.id},${leg},'${f}')">${f}</button>`
+  ).join('');
+
   const pitchHtml = `
     <div style="margin-bottom:6px">
-      <div class="form-sel-btns">${formBtns}</div>
+      <div class="form-sel-btns" style="flex-wrap:wrap">${formBtns}</div>
     </div>
-    <div style="background:#1a6b35;border-radius:10px 10px 0 0">${capSelector}</div>
-    <div class="pitch-outer">
+    ${capSelector}
+    <div class="pitch-outer" style="${capSelector?'border-radius:0 0 12px 12px':''}">
       <div class="pitch">
         <div class="pl pl-mid"></div><div class="pl pl-circle"></div>
         <div class="pl pl-pt"></div><div class="pl pl-pb"></div>
@@ -19236,49 +19236,50 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
   const benchChips = posOrder.map(pos=>{
     const pl = benchByPos[pos]||[];
     if(!pl.length) return '';
-    return `<div style="margin-bottom:8px">
-      <div style="font-size:.58em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">${POS_LABEL[pos]||'Sin posición'}</div>
-      ${pl.map(nom=>{
-        const ph = window._juvGetPhoto?.(nom)||null;
-        const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
-        const sub = subs.find(s=>s.nom===nom);
-        const benchNum = nums[nom]||null;
-        const nomParts = nom.trim().split(' ');
-        const shortNom = nomParts.length>1 ? nomParts[0][0]+'. '+nomParts.slice(1).join(' ') : nomParts[0];
-        return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
-          <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${benchNum||''}" placeholder="#"
-            onclick="event.stopPropagation();this.select()"
-            onchange="event.stopPropagation();_amistSetNum('${_juvCat}','${_juvYear}',${m.id},${leg},'${nom}',this.value)"
-            style="width:24px;height:24px;border-radius:5px;border:1.5px solid var(--border);background:var(--surface);font-size:.68em;font-weight:800;text-align:center;outline:none;flex-shrink:0;padding:0;color:var(--text)">
-          <div style="display:flex;align-items:center;gap:5px;flex:1;padding:4px 6px;border-radius:8px;border:1px solid ${sub?color:'var(--border)'};background:${sub?color+'14':'var(--card)'}">
-            <div style="width:24px;height:24px;border-radius:50%;background:#475569;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center">
+    return `<div class="piz-bench" style="margin-bottom:8px">
+      <div class="piz-bench-lbl">${POS_LABEL[pos]||'Sin posición'}</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        ${pl.map(nom=>{
+          const ph = window._juvGetPhoto?.(nom)||null;
+          const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
+          const sub = subs.find(s=>s.nom===nom);
+          const benchNum = nums[nom]||null;
+          const pts = nom.trim().split(' ');
+          const shortNom = pts.length>1 ? pts[0][0]+'. '+pts.slice(1).join(' ') : pts[0];
+          const nomEsc2 = nom.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          return `<div class="piz-p-chip" style="${sub?'border-color:'+color+';background:'+color+'0f':''}">
+            <div class="piz-chip-av">
               ${ph?`<img src="${ph}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:
-                `<span style="font-size:7px;font-weight:800;color:#fff">${inits}</span>`}
+                `<span class="piz-chip-av-num">${inits}</span>`}
             </div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:.7em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shortNom}</div>
-              ${sub?`<div style="font-size:.6em;color:${color};font-weight:800">▲ ${sub.min?sub.min+"'":''}</div>`:''}
+            <div class="piz-chip-info">
+              <div class="piz-chip-top">
+                <span class="piz-chip-num" onclick="event.stopPropagation();(function(){const v=prompt('Dorsal para ${nomEsc2}:','${benchNum||''}');if(v!==null)_amistSetNum('${_juvCat}','${_juvYear}',${m.id},${leg},'${nomEsc2}',v);})()"
+                  style="cursor:pointer;min-width:24px;text-align:center">#${benchNum||'?'}</span>
+                <span class="piz-chip-name">${shortNom}</span>
+                ${sub?`<span style="font-size:8px;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 3px;margin-left:3px;white-space:nowrap">▲ ${sub.min?sub.min+"'":'?'}</span>`:''}
+              </div>
             </div>
-          </div>
-        </div>`;
-      }).join('')}
+          </div>`;
+        }).join('')}
+      </div>
     </div>`;
   }).join('');
 
   const subsForm = `
     <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-      <div style="font-size:.58em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Agregar cambio</div>
+      <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Agregar cambio</div>
       <div style="display:flex;gap:5px;align-items:center">
         <input id="juv-sub-nom-${m.id}${sfx}" type="text" placeholder="Nombre" list="amist-conv-dl-${m.id}${sfx}"
-          style="flex:1;padding:5px 7px;border:1.5px solid var(--border);border-radius:7px;font-size:.73em;outline:none;background:var(--surface)">
+          style="flex:1;padding:5px 7px;border:1.5px solid var(--border);border-radius:7px;font-size:.75em;outline:none;background:var(--surface)">
         <datalist id="amist-conv-dl-${m.id}${sfx}">${convocados.map(n=>`<option value="${n}">`).join('')}</datalist>
         <input id="juv-sub-min-${m.id}${sfx}" type="number" min="1" max="120" placeholder="Min"
-          style="width:44px;padding:5px 6px;border:1.5px solid var(--border);border-radius:7px;font-size:.73em;outline:none;background:var(--surface)">
+          style="width:44px;padding:5px 6px;border:1.5px solid var(--border);border-radius:7px;font-size:.75em;outline:none;background:var(--surface)">
         <button onclick="_addJuvSub('${_juvCat}','${_juvYear}',${m.id},${leg})"
-          style="padding:5px 9px;background:${color};color:#fff;border:none;border-radius:7px;font-size:.73em;font-weight:700;cursor:pointer">▲</button>
+          style="padding:5px 10px;background:${color};color:#fff;border:none;border-radius:7px;font-size:.75em;font-weight:700;cursor:pointer">▲</button>
       </div>
       ${subs.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">
-        ${subs.map((s,i)=>`<div style="display:flex;align-items:center;gap:6px;font-size:.75em">
+        ${subs.map((s,i)=>`<div style="display:flex;align-items:center;gap:6px;font-size:.78em">
           <span style="color:${color};font-weight:700;white-space:nowrap">▲${s.min?s.min+"'":'?'}</span>
           <span style="flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nom}</span>
           <button onclick="_removeJuvSub('${_juvCat}','${_juvYear}',${m.id},${leg},${i})"
@@ -19288,8 +19289,8 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap){
     </div>`;
 
   const benchHtml = `
-    <div style="font-size:.62em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
-      BANCO — ${bench.length} jugadores
+    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+      BANCO — ${bench.length} JUGADORES
     </div>
     ${benchChips}
     ${subsForm}`;
@@ -19571,17 +19572,14 @@ function _buildJuvAmistosos(cat, year, color, catData){
           <div style="font-size:1.3em;font-weight:900;color:${resColor};flex-shrink:0">${resLabel}</div>
         </div>
         ${legTabs}
-        <div style="display:grid;grid-template-columns:200px 1fr 210px;gap:12px;align-items:start">
-          <!-- Columna izquierda: scoreboard + goles + DT -->
-          <div>
+        <div class="piz-3col">
+          <div class="piz-col-left">
             ${resPanel}
             ${golesPanel}
             ${dtPanel}
           </div>
-          <!-- Columna central: cancha -->
-          <div>${pitchHtml}</div>
-          <!-- Columna derecha: banco completo -->
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
+          <div class="piz-col-center">${pitchHtml}</div>
+          <div class="piz-col-right" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
             ${benchHtml}
           </div>
         </div>
