@@ -19458,16 +19458,31 @@ window._amistSaveDT = function(cat, year, id, leg){
 };
 // Toggle titular
 // Gol +/-
-window._amistAddGol = function(cat, year, id, selId, qtyId, leg){
+window._amistAddGol = function(cat, year, id, selId, minId, leg){
   const nom = document.getElementById(selId)?.value;
   if(!nom) return;
-  const qty = Math.max(1, parseInt(document.getElementById(qtyId)?.value)||1);
-  window._amistGol(cat, year, id, nom, qty, leg);
-  // Reset selectors
-  const sel = document.getElementById(selId);
-  const qty_el = document.getElementById(qtyId);
-  if(sel) sel.value='';
-  if(qty_el) qty_el.value='1';
+  const min = (document.getElementById(minId)?.value||'').trim()||null;
+  _amistPatch(cat,year,id,m=>{
+    const sfx = leg===2?'2':'';
+    if(!m['goles'+sfx]) m['goles'+sfx]={};
+    m['goles'+sfx][nom]=(m['goles'+sfx][nom]||0)+1;
+    if(!m['golMins'+sfx]) m['golMins'+sfx]=[];
+    m['golMins'+sfx].push({nom,min});
+  });
+  const sel=document.getElementById(selId); if(sel) sel.value='';
+  const mi=document.getElementById(minId); if(mi) mi.value='';
+};
+window._amistRemoveGol = function(cat, year, id, leg, idx){
+  _amistPatch(cat,year,id,m=>{
+    const sfx=leg===2?'2':'';
+    const arr=m['golMins'+sfx]||[];
+    if(idx<arr.length){
+      const nom=arr[idx].nom;
+      arr.splice(idx,1);
+      m['golMins'+sfx]=arr;
+      if(m['goles'+sfx]?.[nom]>0){ m['goles'+sfx][nom]--; if(!m['goles'+sfx][nom]) delete m['goles'+sfx][nom]; }
+    }
+  });
 };
 window._amistGol = function(cat, year, id, nom, delta, leg){
   const sfx = leg===2?'2':'';
@@ -19546,8 +19561,11 @@ function _buildJuvAmistosos(cat, year, color, catData){
       const inpScore = 'width:52px;height:52px;font-size:2em;font-weight:900;text-align:center;color:#fff;background:rgba(255,255,255,.09);border:2px solid rgba(255,255,255,.14);border-radius:12px;outline:none;display:block;cursor:text';
 
       // Incidencias timeline — misma estructura visual que la Mayor
-      const goalEntries = topGol.flatMap(([nom,g])=>Array(g).fill(null).map(()=>({type:'goal',nom})));
-      const ecEntries = Array(ecGoles).fill(null).map(()=>({type:'goal',nom:'EC',ec:true}));
+      const golMinsArr = m['golMins'+sfx]||[];
+      const goalEntries = golMinsArr.length
+        ? golMinsArr.map((g,i)=>({type:'goal',nom:g.nom,min:g.min,gmIdx:i,ec:g.nom==='__EC__'}))
+        : topGol.flatMap(([nom,g])=>Array(g).fill(null).map(()=>({type:'goal',nom,ec:nom==='__EC__'})));
+      const ecEntries = golMinsArr.length ? [] : Array(ecGoles).fill(null).map(()=>({type:'goal',nom:'__EC__',ec:true}));
       const cardEntries = tarjetas.map(t=>({type:'card',nom:t.nom,col:t.col,min:t.min}));
       const subEntries = subs.map(s=>({type:'sub',nom:s.nom,min:s.min}));
       const allEntries = [...goalEntries,...ecEntries,...cardEntries,...subEntries];
@@ -19556,12 +19574,16 @@ function _buildJuvAmistosos(cat, year, color, catData){
         if(e.type==='goal'){
           const bg = e.ec?'var(--white)':'#F0FDF4';
           const pts = e.ec
-            ? `<span style="color:var(--muted);font-style:italic">En contra (EC)</span>`
+            ? `<span style="color:var(--muted);font-style:italic">En contra</span>`
             : `<b style="color:var(--navy)">${e.nom.split(' ').pop()}</b>`;
+          const removeCall = e.gmIdx!=null
+            ? `_amistRemoveGol('${cat}','${year}',${m.id},${leg},${e.gmIdx})`
+            : `_amistGol('${cat}','${year}',${m.id},'${(e.ec?'__EC__':e.nom).replace(/'/g,"\\'")}', -1,${leg})`;
           return `<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:${bg};margin-bottom:3px">
+            ${e.min?`<span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>`:'<span style="min-width:22px;flex-shrink:0"></span>'}
             <span style="font-size:14px;flex-shrink:0">⚽</span>
             <div style="flex:1;font-size:10.5px">${pts}</div>
-            <button onclick="_amistGol('${cat}','${year}',${m.id},'${e.ec?'__EC__':e.nom.replace(/'/g,"\\'")}', -1,${leg})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:11px;padding:0;line-height:1">✕</button>
+            <button onclick="${removeCall}" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:11px;padding:0;line-height:1">✕</button>
           </div>`;
         }
         if(e.type==='card'){
@@ -19650,7 +19672,8 @@ function _buildJuvAmistosos(cat, year, color, catData){
                 ${jugaron.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n.split(' ').pop()}</option>`).join('')}
                 <option value="__EC__">En contra</option>
               </select>
-              <button onclick="_amistAddGol('${cat}','${year}',${m.id},'amist-gol-sel-${leg}-${m.id}','amist-gol-qty-${leg}-${m.id}',${leg})"
+              <input id="amist-gol-min-${leg}-${m.id}" type="text" inputmode="numeric" maxlength="3" placeholder="min" style="width:38px;padding:5px 4px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
+              <button onclick="_amistAddGol('${cat}','${year}',${m.id},'amist-gol-sel-${leg}-${m.id}','amist-gol-min-${leg}-${m.id}',${leg})"
                 style="padding:5px 10px;background:var(--cel);color:#fff;border:none;border-radius:7px;font-size:.8em;font-weight:800;cursor:pointer;flex-shrink:0">+</button>
             </div>
             <div style="display:flex;gap:4px;align-items:center">
@@ -19661,6 +19684,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
               <select id="juv-card-col-${m.id}${sfx}" style="width:40px;padding:5px 2px;border:1px solid var(--border);border-radius:7px;font-size:.85em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
                 <option value="a">🟨</option><option value="r">🟥</option>
               </select>
+              <input id="juv-card-min-${m.id}${sfx}" type="text" inputmode="numeric" maxlength="3" placeholder="min" style="width:38px;padding:5px 4px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
               <button onclick="_amistAddCard('${cat}','${year}',${m.id},${leg})"
                 style="padding:5px 10px;background:#F59E0B;color:#fff;border:none;border-radius:7px;font-size:.8em;font-weight:800;cursor:pointer;flex-shrink:0">+</button>
             </div>
