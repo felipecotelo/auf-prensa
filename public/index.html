@@ -7890,6 +7890,7 @@ function jSetPos(v){window._jPos=v;renderJugadores();}
 function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_leyendas',s);renderJugadores();}
 function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderJugadores();}
 function _toggleJuvRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);window.renderJuveniles?.();}
+function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);window.renderJuveniles?.();}
 function jTogglePosEdit(nom,el){
   // Si ya hay un picker abierto para este jugador, cerrarlo
   const existing=document.getElementById('jpicker-'+nom.replace(/[^a-zA-Z]/g,'_'));
@@ -19545,6 +19546,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const juvPais = (_storedPais && _storedPais !== 'uy') ? _storedPais : (p.pais || _storedPais || 'uy');
   const sparringEvts = getJuvSparring()[p.nom]||[];
   const isJuvRetirado = p.retirado || !!(stor.get('auf4_retirado',{})[p.nom]);
+  const isJuvFallecido = p.fallecido || !!(stor.get('auf4_fallecido',{})[p.nom]);
   const _champBorder = isChamp?'#F59E0B':isChamp17?'#1D4ED8':isFinal13?'#6B7280':'var(--border)';
   return `<div style="background:var(--card);border:1px solid ${_champBorder};border-radius:12px;padding:13px">
     <div style="display:flex;align-items:center;gap:11px">
@@ -19560,12 +19562,12 @@ function _juvFichaCard(p, hist, off, extraIcon){
           ${isChamp?`<span title="Campeón Mundial Sub-20 · Argentina 2023" style="flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">🏆</span>`:''}
           ${isChamp17?`<span title="Campeón Sudamericano Sub-20 · Ecuador 2017" style="flex-shrink:0;background:#EFF6FF;color:#1D4ED8;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">🏆</span>`:''}
           ${isFinal13?`<span title="Finalista Mundial Sub-20 · Turquía 2013" style="flex-shrink:0;background:#F3F4F6;color:#374151;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">🥈</span>`:''}
-          ${p.fallecido?`<span title="Fallecido" style="flex-shrink:0;background:#F3F4F6;color:#6B7280;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">✝</span>`:''}
+          ${isJuvFallecido?`<span title="Fallecido" style="flex-shrink:0;background:#F3F4F6;color:#6B7280;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">✝</span>`:''}
           ${isJuvRetirado?`<span title="Retirado del fútbol profesional" style="flex-shrink:0;background:#F3F4F6;color:#6B7280;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">ret.</span>`:''}
         </div>
-        <div onclick="${(isJuvRetirado||p.fallecido)?'':'_editJuvClub(\''+nomSafe+'\',this)'}" title="${isJuvRetirado?'Retirado':p.fallecido?'Fallecido':'Tocar para editar club'}" style="font-size:.7em;color:var(--muted);display:flex;align-items:center;gap:4px;${(isJuvRetirado||p.fallecido)?'':'cursor:pointer;'}margin-top:2px">
-          ${(p.fallecido||isJuvRetirado)?'':`<img src="https://flagcdn.com/w20/${juvPais}.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">`}
-          ${p.fallecido?'✝ Fallecido':isJuvRetirado?'Retirado':(clubShow||'— sin club —')}${(clubEdited&&!isJuvRetirado&&!p.fallecido)?' ✎':''}
+        <div onclick="${(isJuvRetirado||isJuvFallecido)?'':'_editJuvClub(\''+nomSafe+'\',this)'}" title="${isJuvRetirado?'Retirado':isJuvFallecido?'Fallecido':'Tocar para editar club'}" style="font-size:.7em;color:var(--muted);display:flex;align-items:center;gap:4px;${(isJuvRetirado||isJuvFallecido)?'':'cursor:pointer;'}margin-top:2px">
+          ${(isJuvFallecido||isJuvRetirado)?'':`<img src="https://flagcdn.com/w20/${juvPais}.png" style="width:13px;height:9px;object-fit:cover;border-radius:1px" onerror="this.style.display='none'">`}
+          ${isJuvFallecido?'✝ Fallecido':isJuvRetirado?'Retirado':(clubShow||'— sin club —')}${(clubEdited&&!isJuvRetirado&&!isJuvFallecido)?' ✎':''}
         </div>
         ${juvExClubs.length?`<div style="font-size:.62em;color:var(--muted);margin-top:1px;opacity:.65">${juvExClubs.map(c=>`ex ${c}`).join(' · ')}</div>`:''}
         ${(()=>{const fn=p.fechaNac||(typeof MAYOR_NAC_DEFAULT!=='undefined'?MAYOR_NAC_DEFAULT[p.nom]:null)||(typeof getMayorNac==='function'?getMayorNac()[p.nom]:null);if(!fn)return'';const d=new Date(fn);const today=new Date();let age=today.getFullYear()-d.getFullYear();if(today<new Date(today.getFullYear(),d.getMonth(),d.getDate()))age--;const day=d.getDate();const month=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()];return`<div style="font-size:.62em;color:var(--muted);margin-top:1px">${day} ${month} ${d.getFullYear()} · ${age} años</div>`;})()}
@@ -19576,7 +19578,8 @@ function _juvFichaCard(p, hist, off, extraIcon){
       <span style="font-size:.68em;color:var(--muted)">${off.conv} conv.</span>
       <span style="font-size:.68em;color:var(--muted)">·</span>
       <span style="font-size:.68em;font-weight:600;color:var(--fg)">${off.pj} PJ</span>
-      <button onclick="event.stopPropagation();_toggleJuvRetirado('${nomSafe}')" title="${isJuvRetirado?'Marcar activo':'Marcar retirado'}" style="margin-left:auto;background:${isJuvRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isJuvRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvRetirado?'#fff':'#CBD5E1'}">R</button>
+      <button onclick="event.stopPropagation();_toggleJuvFallecido('${nomSafe}')" title="${isJuvFallecido?'Marcar vivo':'Marcar fallecido'}" style="margin-left:auto;background:${isJuvFallecido?'#6B7280':'transparent'};border:1.5px solid ${isJuvFallecido?'#6B7280':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvFallecido?'#fff':'#CBD5E1'}">F</button>
+      <button onclick="event.stopPropagation();_toggleJuvRetirado('${nomSafe}')" title="${isJuvRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isJuvRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isJuvRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvRetirado?'#fff':'#CBD5E1'}">R</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:8px;align-items:center">
       ${hist.map(h=>`<span style="font-size:.6em;font-weight:600;color:${h.color};background:${h.color}22;border-radius:5px;padding:2px 7px">${h.label}</span>`).join('')}
