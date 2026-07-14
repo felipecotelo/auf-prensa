@@ -16135,9 +16135,11 @@ const JUVENILES = {
       },
       2026: {
         ct: [],
-        info: {titulo:'Ciclo 2026', cuando:'', resultado:'', desc:'Información próximamente.'},
+        info: {titulo:'Ciclo 2026', cuando:'', resultado:'', desc:'Preparación rumbo a los Juegos ODESUR 2026 y el Sudamericano Sub-20.'},
         convocatorias: [],
-        competencias: []
+        competencias: [
+          {id:'odesur-2026', label:'Juegos ODESUR 2026', icon:'🏅', color:'#7C3AED'},
+        ]
       },
       2027: {
         ct: [
@@ -18654,6 +18656,18 @@ const SUD20_2027 = {
   goleadores:[],
 };
 
+const ODESUR_2026 = {
+  id:'odesur-2026',
+  label:'Juegos ODESUR 2026',
+  icon:'🏅',
+  color:'#7C3AED',
+  tipo:'oficial',
+  fecha:'12 – 26 de setiembre de 2026 · Argentina',
+  ct:[],
+  convocados:[],
+  partidos:[],
+};
+
 const SUD17_COLOMBIA_2025 = {
   id:'sud17-colombia-2025',
   label:'Sudamericano Sub-17 2025 · Colombia',
@@ -18914,6 +18928,7 @@ const COMP_DATA = {
   'pan-americanos-2023': PAN_AMERICANOS_2023,
   'pre-olimpico-2024': PRE_OLIMPICO_2024,
   'sud20-2025': SUD20_2025,
+  'odesur-2026': ODESUR_2026,
   'sud20-2027': SUD20_2027,
   'sud17-2023': SUD17_2023,
   'sud17-colombia-2025': SUD17_COLOMBIA_2025,
@@ -19088,6 +19103,14 @@ window._removeJuvP = function(cat, year, matchId, leg, slotId){
     if(m['lineup'+sfx]?.starters) delete m['lineup'+sfx].starters[slotId];
   });
 };
+window._setJuvCaptain = function(cat, year, matchId, leg, nomEncoded){
+  const nom = decodeURIComponent(nomEncoded);
+  _amistPatch(cat, year, matchId, m=>{
+    const sfx = leg===2?'2':'';
+    if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:'4-3-3',starters:{}};
+    m['lineup'+sfx].captain = m['lineup'+sfx].captain===nom ? null : nom;
+  });
+};
 window._juvChangeForm = function(cat, year, matchId, leg, form){
   _amistPatch(cat, year, matchId, m=>{
     const sfx = leg===2?'2':'';
@@ -19130,22 +19153,29 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
       onclick="_juvChangeForm('${_juvCat}','${_juvYear}',${m.id},${leg},'${f}')">${f}</button>`
   ).join('');
 
+  const captain = lu.captain||null;
   const pitchSlots = slots.map(slot=>{
     const nom = st[slot.id]||null;
-    const ph = nom ? (window._juvPhotoCache?.[nom]||null) : null;
+    const ph = nom ? (window._juvPhotoCache?.[nom]||window._getPhotoByName?.(nom)||null) : null;
     const inits = nom ? nom.split(' ').map(w=>w[0]).join('').slice(0,2) : '';
     const parts = nom ? nom.split(' ') : [];
     const lbl = nom ? (parts.length>1 ? parts[0][0]+'. '+parts.slice(1).join(' ') : parts[0]) : slot.pos;
+    const isCap = nom && nom===captain;
+    const nomE = nom ? encodeURIComponent(nom) : '';
     return `<div class="p-slot" data-slot="${slot.id}" style="left:${slot.x}%;top:${slot.y}%;cursor:pointer"
         onclick="_openJuvSP('${_juvCat}','${_juvYear}',${m.id},${leg},'${slot.id}','${slot.pos}')">
       <div class="p-slot-av${nom?'':' empty'}">
         ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:
           nom?`<span style="font-size:9px;font-weight:800;color:#fff;position:relative;z-index:1">${inits}</span>`:
           `<span style="font-size:8px;color:rgba(255,255,255,.55);font-weight:700">${slot.pos}</span>`}
+        ${isCap?`<span style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);background:#F59E0B;color:#000;font-size:7px;font-weight:900;border-radius:3px;padding:1px 3px;border:1px solid #fff;z-index:11;line-height:1.2">C</span>`:''}
       </div>
       <div class="p-slot-lbl">${lbl}</div>
       ${nom?`<button onclick="event.stopPropagation();_removeJuvP('${_juvCat}','${_juvYear}',${m.id},${leg},'${slot.id}')"
-        style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:#dc2626;border:none;color:#fff;font-size:8px;cursor:pointer;display:none;z-index:10" class="p-slot-del">×</button>`:''}
+        style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:#dc2626;border:none;color:#fff;font-size:8px;cursor:pointer;display:none;z-index:10" class="p-slot-del">×</button>
+        <button onclick="event.stopPropagation();_setJuvCaptain('${_juvCat}','${_juvYear}',${m.id},${leg},'${nomE}')"
+          title="${isCap?'Quitar capitán':'Hacer capitán'}"
+          style="position:absolute;top:-4px;left:-4px;width:14px;height:14px;border-radius:50%;background:${isCap?'#F59E0B':'rgba(245,158,11,.6)'};border:none;color:#000;font-size:7px;font-weight:900;cursor:pointer;display:none;z-index:10;line-height:1;align-items:center;justify-content:center" class="p-slot-del">C</button>`:''}
     </div>`;
   }).join('');
 
@@ -20358,7 +20388,7 @@ function _renderJuvenilesSafe(el){
       </div>`;
     } else {
       body = comps.map(c=>{
-        const hasData = c.id==='sud20-2005' || c.id==='sud20-2007' || c.id==='mun20-2007' || c.id==='mun20-2009' || c.id==='mun20-2011' || c.id==='mun20-2013' || c.id==='sud20-2015' || c.id==='mun20-2015' || c.id==='mun20-2017' || c.id==='sud20-2017' || c.id==='sud20-2019' || c.id==='mundial-sub20-2023' || c.id==='jjoo-2012' || c.id==='pan-americanos-2015' || c.id==='pan-americanos-2023' || c.id==='pre-olimpico-2024' || c.id==='sud20-2025' || c.id==='sud17-2026' || c.id==='wc17-2026' || c.id==='pioneros-albion-2026' || c.id==='talleres-cordoba-2026' || c.id==='torneo-desarrollo-sub15-2026' || c.id==='mundial-sub15-2026' || c.id==='sud20-2027';
+        const hasData = c.id==='sud20-2005' || c.id==='sud20-2007' || c.id==='mun20-2007' || c.id==='mun20-2009' || c.id==='mun20-2011' || c.id==='mun20-2013' || c.id==='sud20-2015' || c.id==='mun20-2015' || c.id==='mun20-2017' || c.id==='sud20-2017' || c.id==='sud20-2019' || c.id==='mundial-sub20-2023' || c.id==='jjoo-2012' || c.id==='pan-americanos-2015' || c.id==='pan-americanos-2023' || c.id==='pre-olimpico-2024' || c.id==='sud20-2025' || c.id==='odesur-2026' || c.id==='sud17-2026' || c.id==='wc17-2026' || c.id==='pioneros-albion-2026' || c.id==='talleres-cordoba-2026' || c.id==='torneo-desarrollo-sub15-2026' || c.id==='mundial-sub15-2026' || c.id==='sud20-2027';
         return `<button onclick="${hasData?`_openJuvComp('${c.id}')`:'void(0)'}" style="
           width:100%;text-align:left;background:var(--card);border:1px solid var(--border);
           border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:${hasData?'pointer':'default'};
