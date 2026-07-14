@@ -19153,6 +19153,23 @@ window._removeJuvSub = function(cat, year, matchId, leg, idx){
   const sfx = leg===2?'2':'';
   _amistPatch(cat, year, matchId, m=>{ (m['subs'+sfx]||[]).splice(idx,1); });
 };
+window._toggleJuvSub = function(cat, year, matchId, leg, nom){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat, year, matchId, m=>{
+    if(!m['subs'+sfx]) m['subs'+sfx]=[];
+    const idx = m['subs'+sfx].findIndex(s=>s.nom===nom);
+    if(idx>=0) m['subs'+sfx].splice(idx,1);
+    else m['subs'+sfx].push({nom, min:null});
+  });
+};
+window._setJuvSubMin = function(cat, year, matchId, leg, nom, val){
+  const sfx = leg===2?'2':'';
+  const min = val.trim()||null;
+  const list = _getAmistosos(cat, year);
+  const m = list.find(x=>x.id===matchId); if(!m) return;
+  const s = (m['subs'+sfx]||[]).find(s=>s.nom===nom);
+  if(s){ s.min=min; _saveAmistosos(cat, year, list); }
+};
 
 // Tarjetas (amarilla / roja)
 window._amistAddCard = function(cat, year, matchId, leg){
@@ -19283,16 +19300,19 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas){
           const pts = nom.trim().split(' ');
           const shortNom = pts.length>1 ? pts[0][0]+'. '+pts.slice(1).join(' ') : pts[0];
           const nomKey = nom.replace(/[^a-z0-9]/gi,'-');
-          const chipBg = isTit ? color+'0f' : 'var(--card)';
-          const chipBorder = isTit ? color : 'var(--border)';
+          const isSub = !!sub;
+          const chipBg = isTit ? color+'0f' : isSub ? '#F0FDF4' : 'var(--card)';
+          const chipBorder = isTit ? color : isSub ? '#16A34A' : 'var(--border)';
+          const nomEscQ = nom.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
           return `<div style="display:flex;align-items:center;gap:5px">
             <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
               value="${pNum||''}" placeholder="#"
               id="pinput-${m.id}${sfx}-${nomKey}"
               onclick="event.stopPropagation();this.select()"
-              onchange="event.stopPropagation();_amistSetNum('${_juvCat}','${_juvYear}',${m.id},${leg},'${nom.replace(/'/g,"\\'")}',this.value)"
+              onchange="event.stopPropagation();_amistSetNum('${_juvCat}','${_juvYear}',${m.id},${leg},'${nomEscQ}',this.value)"
               style="width:28px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:var(--surface);font-size:.75em;font-weight:800;text-align:center;outline:none;flex-shrink:0;padding:0;color:var(--text)">
-            <div style="display:flex;align-items:center;gap:5px;flex:1;padding:4px 7px;border-radius:8px;border:1px solid ${chipBorder};background:${chipBg}">
+            <div onclick="${isTit?'':` event.stopPropagation();_toggleJuvSub('${_juvCat}','${_juvYear}',${m.id},${leg},'${nomEscQ}')`}"
+              style="display:flex;align-items:center;gap:5px;flex:1;padding:4px 7px;border-radius:8px;border:1px solid ${chipBorder};background:${chipBg};${isTit?'':'cursor:pointer;'}transition:all .12s">
               <div style="width:26px;height:26px;border-radius:50%;background:#475569;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center">
                 ${ph?`<img src="${ph}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:
                   `<span style="font-size:7.5px;font-weight:800;color:#fff">${inits}</span>`}
@@ -19301,10 +19321,14 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas){
                 <div style="font-size:.72em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shortNom}</div>
                 <div style="display:flex;align-items:center;gap:3px;margin-top:1px">
                   ${isTit?`<span style="font-size:.6em;font-weight:800;color:${color};background:${color}18;border-radius:3px;padding:0 4px;line-height:1.5">TIT</span>`:''}
-                  ${sub?`<span style="font-size:.6em;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 4px;line-height:1.5">▲${sub.min?sub.min+"'":'?'}</span>`:''}
+                  ${isSub?`<span style="font-size:.6em;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 4px;line-height:1.5">▲</span>`:''}
                   ${cardMap[nom]?`<span style="font-size:10px;line-height:1">${cardMap[nom]==='r'?'🟥':'🟨'}</span>`:''}
                 </div>
               </div>
+              ${isSub?`<input type="text" inputmode="numeric" maxlength="3" value="${sub.min||''}" placeholder="min"
+                onclick="event.stopPropagation();this.select()"
+                onchange="event.stopPropagation();_setJuvSubMin('${_juvCat}','${_juvYear}',${m.id},${leg},'${nomEscQ}',this.value)"
+                style="width:34px;font-size:.68em;font-weight:700;text-align:center;border:1px solid #86EFAC;border-radius:5px;background:#fff;color:#15803D;outline:none;padding:2px 3px;flex-shrink:0">`:''}
             </div>
           </div>`;
         }).join('')}
@@ -19312,27 +19336,19 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas){
     </div>`;
   }).join('');
 
-  const subsForm = `
+  const subsForm = subs.length ? `
     <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
-      <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Agregar cambio</div>
-      <div style="display:flex;gap:5px;align-items:center">
-        <input id="juv-sub-nom-${m.id}${sfx}" type="text" placeholder="Nombre" list="amist-conv-dl-${m.id}${sfx}"
-          style="flex:1;padding:5px 7px;border:1.5px solid var(--border);border-radius:7px;font-size:.75em;outline:none;background:var(--surface)">
-        <datalist id="amist-conv-dl-${m.id}${sfx}">${convocados.map(n=>`<option value="${n}">`).join('')}</datalist>
-        <input id="juv-sub-min-${m.id}${sfx}" type="number" min="1" max="120" placeholder="Min"
-          style="width:44px;padding:5px 6px;border:1.5px solid var(--border);border-radius:7px;font-size:.75em;outline:none;background:var(--surface)">
-        <button onclick="_addJuvSub('${_juvCat}','${_juvYear}',${m.id},${leg})"
-          style="padding:5px 10px;background:${color};color:#fff;border:none;border-radius:7px;font-size:.75em;font-weight:700;cursor:pointer">▲</button>
-      </div>
-      ${subs.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">
-        ${subs.map((s,i)=>`<div style="display:flex;align-items:center;gap:6px;font-size:.78em">
-          <span style="color:${color};font-weight:700;white-space:nowrap">▲${s.min?s.min+"'":'?'}</span>
-          <span style="flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nom}</span>
+      <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Cambios</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        ${subs.map((s,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:.78em">
+          <span style="color:#16A34A;font-weight:800">▲</span>
+          <span style="flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nom.split(' ').slice(-2).join(' ')}</span>
+          ${s.min?`<span style="color:var(--muted);font-size:.85em">${s.min}'</span>`:''}
           <button onclick="_removeJuvSub('${_juvCat}','${_juvYear}',${m.id},${leg},${i})"
             style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:.85em;padding:0;line-height:1"><i class="ti ti-x"></i></button>
         </div>`).join('')}
-      </div>`:''}
-    </div>`;
+      </div>
+    </div>` : '';
 
   const benchHtml = `
     <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">
