@@ -19520,130 +19520,161 @@ function _buildJuvAmistosos(cat, year, color, catData){
           <button onclick="window._amistDetailLeg=2;window.renderJuveniles?.()" class="tab${leg===2?' active':''}">Vuelta ${m.gLocal2!==null?'('+m.gLocal2+'–'+m.gRival2+')':''}</button>
         </div>` : '';
 
-      // Pre-calcular goles para el scoreboard
+      // Pre-calcular goles
       const ecGoles = goles['__EC__']||0;
       const topGol = Object.entries(goles).filter(([k,g])=>k!=='__EC__'&&g>0).sort((a,b)=>b[1]-a[1]);
 
-      // Resultado panel — dark scoreboard con escudos
-      const _RFLAG = {'Argentina':'ar','Bolivia':'bo','Brasil':'br','Chile':'cl','Colombia':'co','Ecuador':'ec','México':'mx','Paraguay':'py','Perú':'pe','Venezuela':'ve','Estados Unidos':'us','Japón':'jp','Corea del Sur':'kr','Marruecos':'ma','Alemania':'de','España':'es','Francia':'fr','Inglaterra':'gb-eng','Italia':'it','Portugal':'pt','Túnez':'tn','Uruguay':'uy'};
-      const rivalIso = _RFLAG[m.rival]||null;
-      const _crest = iso=>`<img src="https://flagcdn.com/w80/${iso}.png" style="width:44px;height:44px;object-fit:cover;border-radius:50%;border:2.5px solid rgba(255,255,255,.18);display:block;background:#1e293b" onerror="this.style.display='none'">`;
-      const inpStyle = 'width:64px;height:64px;font-size:2.3em;font-weight:900;text-align:center;color:#fff;background:rgba(255,255,255,.09);border:2px solid rgba(255,255,255,.14);border-radius:14px;outline:none;display:block;cursor:text';
-      const resPanel = `
-        <div style="background:linear-gradient(145deg,#0f172a,#1e2d45);border-radius:16px;padding:18px 14px 14px;margin-bottom:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-              ${_crest('uy')}
-              <div style="font-size:.62em;font-weight:900;color:#fff;letter-spacing:.05em;text-transform:uppercase">Uruguay</div>
-              <div style="font-size:.52em;font-weight:700;color:${color};letter-spacing:.04em">${_juvCat.replace('sub','Sub-')}</div>
-              ${topGol.filter(([n])=>n!=='__EC__').length||ecGoles?`<div style="font-size:.58em;color:#86efac;font-weight:700;text-align:center;line-height:1.5;margin-top:2px">
-                ${[...topGol.filter(([n])=>n!=='__EC__').map(([n,g])=>'⚽ '+n.split(' ').pop()+(g>1?' ×'+g:'')), ...(ecGoles?['⚽ EC'+(ecGoles>1?' ×'+ecGoles:'')]:[])].join('<br>')}
-              </div>`:''}
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input id="amist-res-gl${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${gl!==null?gl:''}" placeholder="–"
-                onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" onclick="this.select()" style="${inpStyle}">
-              <span style="color:#334155;font-size:1.4em;font-weight:900">:</span>
-              <input id="amist-res-gr${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${gr!==null?gr:''}" placeholder="–"
-                onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" onclick="this.select()" style="${inpStyle}">
-            </div>
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
-              ${rivalIso?_crest(rivalIso):`<div style="width:44px;height:44px;border-radius:50%;border:2px dashed rgba(255,255,255,.15);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center"><span style="font-size:1.2em">🏳️</span></div>`}
-              <div style="font-size:.62em;font-weight:900;color:#94a3b8;letter-spacing:.05em;text-transform:uppercase;text-align:center;max-width:70px;line-height:1.2">${m.rival}</div>
-            </div>
-          </div>
-          <div style="text-align:center;margin-top:12px">
-            <span id="res-lbl-${sfx}${m.id}" style="font-size:.58em;font-weight:900;padding:4px 14px;border-radius:20px;letter-spacing:.1em;transition:all .2s;
-              background:${hasResult?(gl>gr?'rgba(34,197,94,.18)':gl===gr?'rgba(245,158,11,.18)':'rgba(220,38,38,.18)'):'transparent'};
-              color:${hasResult?(gl>gr?'#86efac':gl===gr?'#fde68a':'#fca5a5'):'transparent'}">
-              ${hasResult?(gl>gr?'VICTORIA':gl===gr?'EMPATE':'DERROTA'):''}
-            </span>
-          </div>
-        </div>`;
-
-      // Goles panel
+      // Jugadores que participaron (para los selects)
       const luSfx = m['lineup'+sfx]||{};
       const titNoms = Object.values((luSfx.starters)||{}).filter(Boolean);
       const subNoms = (m['subs'+sfx]||[]).map(s=>s.nom);
       const jugaron = [...new Set([...titNoms,...subNoms])];
-      const golesPanel = jugaron.length ? `
-        <div style="margin-bottom:8px">
-          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;display:flex;align-items:center;gap:5px">
-            <i class="ti ti-ball-football"></i> Goles
-          </div>
-          ${(topGol.length||ecGoles)?`<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
-            ${topGol.map(([nom,g])=>{const ns=nom.replace(/'/g,"\\'");return`<div style="display:flex;align-items:center;gap:4px;font-size:.78em">
-              <span style="font-weight:800;color:#B91C1C">⚽</span>
-              <span style="flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nom.split(' ').pop()}${g>1?' ×'+g:''}</span>
-              <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',-1,${leg})" style="border:none;background:none;cursor:pointer;color:#DC2626;font-size:1.1em;padding:0;line-height:1;font-weight:900">−</button>
-              <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',1,${leg})" style="border:none;background:none;cursor:pointer;color:#16a34a;font-size:1.1em;padding:0;line-height:1;font-weight:900">+</button>
-              <button onclick="_amistGol('${cat}','${year}',${m.id},'${ns}',${-g},${leg})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:0">✕</button>
-            </div>`;}).join('')}
-            ${ecGoles?`<div style="display:flex;align-items:center;gap:4px;font-size:.78em">
-              <span style="font-weight:800;color:#15803D">⚽</span>
-              <span style="flex:1;font-weight:700">EC${ecGoles>1?' ×'+ecGoles:''}</span>
-              <button onclick="_amistGol('${cat}','${year}',${m.id},'__EC__',-1,${leg})" style="border:none;background:none;cursor:pointer;color:#DC2626;font-size:1.1em;padding:0;line-height:1;font-weight:900">−</button>
-              <button onclick="_amistGol('${cat}','${year}',${m.id},'__EC__',1,${leg})" style="border:none;background:none;cursor:pointer;color:#16a34a;font-size:1.1em;padding:0;line-height:1;font-weight:900">+</button>
-              <button onclick="_amistGol('${cat}','${year}',${m.id},'__EC__',${-ecGoles},${leg})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.9em;padding:0">✕</button>
-            </div>`:''}
-          </div>`:''}
-          <div style="display:flex;gap:4px;align-items:center">
-            <select id="amist-gol-sel-${leg}-${m.id}" style="flex:1;padding:4px 6px;border:1.5px solid var(--border);border-radius:7px;font-size:.72em;background:var(--surface);outline:none;min-width:0">
-              <option value="">— goleador —</option>
-              ${jugaron.map(nom=>`<option value="${nom.replace(/"/g,'&quot;')}">${nom.split(' ').slice(-1)[0]}</option>`).join('')}
-              <option value="__EC__">EC</option>
-            </select>
-            <button onclick="_amistAddGol('${cat}','${year}',${m.id},'amist-gol-sel-${leg}-${m.id}','amist-gol-qty-${leg}-${m.id}',${leg})"
-              style="padding:4px 8px;background:${color};color:#fff;border:none;border-radius:7px;font-size:.72em;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0">+⚽</button>
-          </div>
-        </div>` : '';
 
-      // Tarjetas panel
+      // Tarjetas
       const tarjetas = m['tarjetas'+sfx]||[];
-      const tarjetasPanel = `
-        <div style="margin-bottom:8px">
-          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">🟨 Tarjetas</div>
-          ${tarjetas.length?`<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
-            ${tarjetas.map((t,i)=>`<div style="display:flex;align-items:center;gap:4px;font-size:.78em">
-              <span>${t.col==='r'?'🟥':'🟨'}</span>
-              <span style="flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.nom.split(' ').pop()}</span>
-              ${t.min?`<span style="color:var(--muted);font-size:.85em">${t.min}'</span>`:''}
-              <button onclick="_amistRemoveCard('${cat}','${year}',${m.id},${leg},${i})"
-                style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:.85em;padding:0">✕</button>
-            </div>`).join('')}
-          </div>`:''}
-          <div style="display:flex;gap:4px;align-items:center">
-            <select id="juv-card-nom-${m.id}${sfx}" style="flex:1;padding:4px 6px;border:1.5px solid var(--border);border-radius:7px;font-size:.72em;background:var(--surface);outline:none;min-width:0">
-              <option value="">— jugador —</option>
-              ${jugaron.map(nom=>`<option value="${nom.replace(/"/g,'&quot;')}">${nom.split(' ').slice(-1)[0]}</option>`).join('')}
-            </select>
-            <select id="juv-card-col-${m.id}${sfx}" style="width:36px;padding:4px 2px;border:1.5px solid var(--border);border-radius:7px;font-size:.85em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
-              <option value="a">🟨</option>
-              <option value="r">🟥</option>
-            </select>
-            <button onclick="_amistAddCard('${cat}','${year}',${m.id},${leg})"
-              style="padding:4px 8px;background:${color};color:#fff;border:none;border-radius:7px;font-size:.72em;font-weight:800;cursor:pointer;flex-shrink:0">+🟨</button>
-          </div>
-        </div>`;
+      const subs = m['subs'+sfx]||[];
 
-      // DT panel — selector from juv CT
+      // Flag helpers
+      const _RFLAG = {'Argentina':'ar','Bolivia':'bo','Brasil':'br','Chile':'cl','Colombia':'co','Ecuador':'ec','México':'mx','Paraguay':'py','Perú':'pe','Venezuela':'ve','Estados Unidos':'us','Japón':'jp','Corea del Sur':'kr','Marruecos':'ma','Alemania':'de','España':'es','Francia':'fr','Inglaterra':'gb-eng','Italia':'it','Portugal':'pt','Túnez':'tn','Uruguay':'uy'};
+      const rivalCode = _RFLAG[m.rival]||'un';
+
+      // CT → DT
       const ctMembers = _getJuvCT(cat, year);
-      const dtOptions = ctMembers.filter(m2=>m2.dt).map(m2=>{const v=m2.name.replace(/"/g,'&quot;');return`<option value="${v}"${dtVal===m2.name?' selected':''}>${m2.name} — ${m2.rol}</option>`;});
-      const dtPanel = `
-        <div style="margin-bottom:8px">
-          <div style="font-size:9px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px"><i class="ti ti-id-badge"></i> DT del partido</div>
-          ${dtVal?`<div style="font-size:.78em;font-weight:700;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dtVal}</div>`:''}
-          <div style="display:flex;gap:4px;align-items:center">
-            <select id="amist-dt${sfx}-${m.id}" style="flex:1;padding:4px 6px;border:1.5px solid var(--border);border-radius:7px;font-size:.72em;background:var(--surface);outline:none;min-width:0">
-              <option value="">— elegir DT —</option>
-              ${dtOptions.join('')}
-            </select>
-            <button onclick="_amistSaveDT('${cat}','${year}',${m.id},${leg})"
-              style="padding:4px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:7px;font-size:.72em;font-weight:700;cursor:pointer;flex-shrink:0">OK</button>
-          </div>
-        </div>`;
+      const dtOptions = ctMembers.filter(m2=>m2.dt).map(m2=>{const v=m2.name.replace(/"/g,'&quot;');return`<option value="${v}"${dtVal===m2.name?' selected':''}>${m2.name}</option>`;});
+
+      // Score inputs — mismo estilo que la Mayor
+      const inpScore = 'width:52px;height:52px;font-size:2em;font-weight:900;text-align:center;color:#fff;background:rgba(255,255,255,.09);border:2px solid rgba(255,255,255,.14);border-radius:12px;outline:none;display:block;cursor:text';
+
+      // Incidencias timeline — misma estructura visual que la Mayor
+      const goalEntries = topGol.flatMap(([nom,g])=>Array(g).fill(null).map(()=>({type:'goal',nom})));
+      const ecEntries = Array(ecGoles).fill(null).map(()=>({type:'goal',nom:'EC',ec:true}));
+      const cardEntries = tarjetas.map(t=>({type:'card',nom:t.nom,col:t.col,min:t.min}));
+      const subEntries = subs.map(s=>({type:'sub',nom:s.nom,min:s.min}));
+      const allEntries = [...goalEntries,...ecEntries,...cardEntries,...subEntries];
+
+      const incHtml = allEntries.length ? allEntries.map(e=>{
+        if(e.type==='goal'){
+          const bg = e.ec?'var(--white)':'#F0FDF4';
+          const pts = e.ec
+            ? `<span style="color:var(--muted);font-style:italic">En contra (EC)</span>`
+            : `<b style="color:var(--navy)">${e.nom.split(' ').pop()}</b>`;
+          return `<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:${bg};margin-bottom:3px">
+            <span style="font-size:14px;flex-shrink:0">⚽</span>
+            <div style="flex:1;font-size:10.5px">${pts}</div>
+            <button onclick="_amistGol('${cat}','${year}',${m.id},'${e.ec?'__EC__':e.nom.replace(/'/g,"\\'")}', -1,${leg})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:11px;padding:0;line-height:1">✕</button>
+          </div>`;
+        }
+        if(e.type==='card'){
+          const icon=e.col==='r'?'🟥':'🟨';
+          const bg=e.col==='r'?'#FEF2F2':'var(--white)';
+          const ns=e.nom.replace(/'/g,"\\'");
+          const idx=tarjetas.findIndex(t=>t.nom===e.nom&&t.col===e.col&&t.min===e.min);
+          return `<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:${bg};margin-bottom:3px">
+            ${e.min?`<span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>`:'<span style="min-width:22px;flex-shrink:0"></span>'}
+            <span style="font-size:13px;flex-shrink:0">${icon}</span>
+            <div style="flex:1;font-size:10.5px;font-weight:700;color:var(--navy)">${e.nom.split(' ').pop()}</div>
+            <button onclick="_amistRemoveCard('${cat}','${year}',${m.id},${leg},${idx})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:11px;padding:0;line-height:1">✕</button>
+          </div>`;
+        }
+        if(e.type==='sub'){
+          const ns=e.nom.replace(/'/g,"\\'");
+          const idx=subs.findIndex(s=>s.nom===e.nom);
+          return `<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:var(--surface);margin-bottom:3px">
+            ${e.min?`<span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>`:'<span style="min-width:22px;flex-shrink:0"></span>'}
+            <span style="font-size:11px;flex-shrink:0">▲</span>
+            <div style="flex:1;font-size:10.5px;font-weight:700;color:#16A34A">${e.nom.split(' ').pop()}</div>
+            <button onclick="_removeJuvSub('${cat}','${year}',${m.id},${leg},${idx})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:11px;padding:0;line-height:1">✕</button>
+          </div>`;
+        }
+        return '';
+      }).join('')
+      : `<div style="font-size:10.5px;color:var(--hint);padding:4px 0">Sin incidencias registradas</div>`;
 
       const {pitchHtml, benchHtml} = _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas);
+
+      // ── Columna izquierda — CSS idéntico a la Mayor ──
+      const leftCol = `
+        <div class="piz-info-card">
+          <div class="piz-card-banner">AMISTOSO INTERNACIONAL · ${_juvCat.replace('sub','Sub-').toUpperCase()}</div>
+          <div class="piz-card-body">
+            <div class="piz-card-teams">
+              <div class="piz-card-team">
+                ${flagImg('uy',36)}
+                <div class="piz-card-tname uru">URU</div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+                <div style="display:flex;align-items:center;gap:4px">
+                  <input id="amist-res-gl${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                    value="${gl!==null?gl:''}" placeholder="–"
+                    onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" onclick="this.select()"
+                    style="${inpScore}">
+                  <span style="color:rgba(255,255,255,.3);font-size:1.2em;font-weight:900">:</span>
+                  <input id="amist-res-gr${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+                    value="${gr!==null?gr:''}" placeholder="–"
+                    onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" onclick="this.select()"
+                    style="${inpScore}">
+                </div>
+                ${hasResult?`<span style="font-size:8.5px;font-weight:900;padding:3px 10px;border-radius:20px;letter-spacing:.08em;
+                  background:${gl>gr?'rgba(34,197,94,.18)':gl===gr?'rgba(245,158,11,.18)':'rgba(220,38,38,.18)'};
+                  color:${gl>gr?'#86efac':gl===gr?'#fde68a':'#fca5a5'}">${gl>gr?'VICTORIA':gl===gr?'EMPATE':'DERROTA'}</span>`:''}
+              </div>
+              <div class="piz-card-team">
+                ${flagImg(rivalCode,36)}
+                <div class="piz-card-tname">${m.rival.toUpperCase().slice(0,10)}</div>
+              </div>
+            </div>
+            <div class="piz-card-sep"></div>
+            <div class="piz-card-meta">
+              ${fechaFmt?`<b>${fechaFmt}</b>`:''}${horaSrc?`<br>${horaSrc}`:''}${lugarSrc?`<br>${lugarSrc}`:''}
+              ${auftvSrc?`<br><span style="background:#1D4ED8;color:#fff;border-radius:4px;padding:1px 6px;font-size:8px;font-weight:800">AUFtv</span>`:''}
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Formación</div>
+          <div class="form-sel-btns" style="flex-wrap:wrap">
+            ${Object.keys(FORMATIONS).map(f=>`<button class="form-btn${(luSfx.formation||'4-3-3')===f?' active':''}" onclick="_juvChangeForm('${cat}','${year}',${m.id},${leg},'${f}')">${f}</button>`).join('')}
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Incidencias</div>
+          <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px">
+            ${incHtml}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            ${jugaron.length?`
+            <div style="display:flex;gap:4px;align-items:center">
+              <select id="amist-gol-sel-${leg}-${m.id}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
+                <option value="">— goleador —</option>
+                ${jugaron.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n.split(' ').pop()}</option>`).join('')}
+                <option value="__EC__">En contra</option>
+              </select>
+              <button onclick="_amistAddGol('${cat}','${year}',${m.id},'amist-gol-sel-${leg}-${m.id}','amist-gol-qty-${leg}-${m.id}',${leg})"
+                style="padding:5px 9px;background:var(--cel);color:#fff;border:none;border-radius:7px;font-size:.75em;font-weight:800;cursor:pointer;flex-shrink:0">+⚽</button>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center">
+              <select id="juv-card-nom-${m.id}${sfx}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
+                <option value="">— tarjeta —</option>
+                ${jugaron.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n.split(' ').pop()}</option>`).join('')}
+              </select>
+              <select id="juv-card-col-${m.id}${sfx}" style="width:38px;padding:5px 2px;border:1px solid var(--border);border-radius:7px;font-size:.85em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
+                <option value="a">🟨</option><option value="r">🟥</option>
+              </select>
+              <button onclick="_amistAddCard('${cat}','${year}',${m.id},${leg})"
+                style="padding:5px 9px;background:#F59E0B;color:#fff;border:none;border-radius:7px;font-size:.75em;font-weight:800;cursor:pointer;flex-shrink:0">+🟨</button>
+            </div>`:''}
+            <div style="display:flex;gap:4px;align-items:center">
+              <select id="amist-dt${sfx}-${m.id}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
+                <option value="">— DT del partido —</option>
+                ${dtOptions.join('')}
+              </select>
+              <button onclick="_amistSaveDT('${cat}','${year}',${m.id},${leg})"
+                style="padding:5px 9px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:.75em;font-weight:700;cursor:pointer;flex-shrink:0">OK</button>
+            </div>
+          </div>
+        </div>`;
 
       return `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -19651,25 +19682,16 @@ function _buildJuvAmistosos(cat, year, color, catData){
             <i class="ti ti-arrow-left"></i> Volver
           </button>
           <div style="flex:1;min-width:0">
-            <div style="font-weight:900;font-size:.95em">Uruguay vs. ${m.rival}
-              ${auftvSrc?`<span style="font-size:.6em;background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 6px;margin-left:4px;vertical-align:middle">AUFtv</span>`:''}
-            </div>
-            <div style="font-size:.7em;color:var(--muted)">${fechaFmt}${horaSrc?' · '+horaSrc:''}${lugarSrc?' · '+lugarSrc:''}</div>
+            <div style="font-weight:900;font-size:.95em">Uruguay vs. ${m.rival}</div>
+            <div style="font-size:.7em;color:var(--muted)">${_juvCat.replace('sub','Sub-')} · ${fechaFmt}</div>
           </div>
           <div style="font-size:1.3em;font-weight:900;color:${resColor};flex-shrink:0">${resLabel}</div>
         </div>
         ${legTabs}
         <div class="piz-3col">
-          <div class="piz-col-left">
-            ${resPanel}
-            ${golesPanel}
-            ${tarjetasPanel}
-            ${dtPanel}
-          </div>
+          <div class="piz-col-left">${leftCol}</div>
           <div class="piz-col-center">${pitchHtml}</div>
-          <div class="piz-col-right" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">
-            ${benchHtml}
-          </div>
+          <div class="piz-col-right" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">${benchHtml}</div>
         </div>
         <button onclick="_amistDeleteMatch('${cat}','${year}',${m.id})"
           style="width:100%;padding:8px;background:var(--card);border:1.5px solid #fca5a5;color:#dc2626;border-radius:10px;font-size:.78em;font-weight:700;cursor:pointer;margin-top:12px">
