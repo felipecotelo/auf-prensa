@@ -19156,7 +19156,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados){
   const captain = lu.captain||null;
   const pitchSlots = slots.map(slot=>{
     const nom = st[slot.id]||null;
-    const ph = nom ? (window._juvPhotoCache?.[nom]||window._getPhotoByName?.(nom)||null) : null;
+    const ph = window._juvGetPhoto?.(nom)||null;
     const inits = nom ? nom.split(' ').map(w=>w[0]).join('').slice(0,2) : '';
     const parts = nom ? nom.split(' ') : [];
     const lbl = nom ? (parts.length>1 ? parts[0][0]+'. '+parts.slice(1).join(' ') : parts[0]) : slot.pos;
@@ -19685,10 +19685,21 @@ async function _loadJuvPhotoCache(){
   ['Juan Rodríguez','Juan Martín Rodríguez'].forEach(n=>{ if(out[n]){ delete out[n]; deletePhotoIDB?.('juv:'+n); } });
   _juvPhotoCache = out;
   window._juvPhotoCache = _juvPhotoCache;
+  // Build normalized map for accent-insensitive lookup
+  const _norm = s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  window._juvPhotoCacheNorm = {};
+  Object.entries(out).forEach(([k,v])=>{ window._juvPhotoCacheNorm[_norm(k)]=v; });
   if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
   document.getElementById('sparr-grid') && renderSparrings();
 }
 _loadJuvPhotoCache();
+window._juvGetPhoto = function(nom){
+  if(!nom) return null;
+  if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
+  const n = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  if(window._juvPhotoCacheNorm?.[n]) return window._juvPhotoCacheNorm[n];
+  return window._getPhotoByName?.(nom)||null;
+};
 window._clickJuvPhoto = function(nomEncoded){
   const nom = decodeURIComponent(nomEncoded);
   // Check cache synchronously first (no await — mobile blocks file picker after async break)
