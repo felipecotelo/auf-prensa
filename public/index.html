@@ -7896,6 +7896,7 @@ function jSetFilter(v){window._jFilter=v;renderJugadores();}
 function jSetPos(v){window._jPos=v;renderJugadores();}
 function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_leyendas',s);renderJugadores();}
 function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderJugadores();}
+function _toggleFallecidoMayor(nom){const s=stor.get('auf4_fallecido_mayor',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido_mayor',s);renderJugadores();}
 function _toggleJuvRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);window.renderJuveniles?.();}
 function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);window.renderJuveniles?.();}
 
@@ -8593,7 +8594,7 @@ function renderJugadores(){
     const isLeyenda=LEYENDAS_SET.has(nom)||!!leyendas[nom];
     const isRetirado=!!retirados[nom];
     const lesion=getLesiones()[nom]||null;
-    const isFallecido=typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom];
+    const isFallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!stor.get('auf4_fallecido_mayor',{})[nom];
     const fallecidoDate=isFallecido?LEYENDAS_FALLECIDOS[nom]:null;
     const isRetOrDead=isRetirado||isFallecido;
     const borderStyle=isLeyenda?'2px solid #F59E0B':'1px solid var(--border)';
@@ -8663,8 +8664,12 @@ function renderJugadores(){
         <span style="font-size:.68em;color:var(--muted)">${calls} conv.</span>
         <span style="font-size:.68em;color:var(--muted)">·</span>
         ${d.total&&d.total.pj!=null?`<span style="font-size:.68em;font-weight:600;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">— PJ</span>`}
-        ${lesion?`<span onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion.nota||'Lesión larga'} · ${lesion.meses} meses · Click para editar" style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:#FEF9C3;color:#92400E;border:1px solid #FDE68A;border-radius:20px;padding:2px 8px;font-size:.62em;font-weight:700;cursor:pointer;white-space:nowrap">🩹 ${lesion.nota||lesion.meses+' meses'}</span>`:`<button onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="Marcar lesión larga" style="margin-left:auto;background:transparent;border:1.5px solid #CBD5E1;border-radius:5px;cursor:pointer;font-size:11px;padding:1px 5px;line-height:1.4;opacity:.25">🩹</button>`}
-        <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
+        <div style="display:flex;gap:3px;margin-left:auto;align-items:center">
+          ${lesion?`<span onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion.nota||'Lesión larga'} · ${lesion.meses} meses · Click para editar" style="display:inline-flex;align-items:center;gap:3px;background:#FEF9C3;color:#92400E;border:1px solid #FDE68A;border-radius:20px;padding:2px 7px;font-size:.6em;font-weight:700;cursor:pointer;white-space:nowrap;margin-right:4px">🩹 ${lesion.nota||lesion.meses+'m'}</span>`:''}
+          <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
+          <button onclick="event.stopPropagation();_toggleFallecidoMayor('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#44403C':'transparent'};border:1.5px solid ${isFallecido?'#44403C':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isFallecido?'#FDE68A':'#CBD5E1'}">F</button>
+          <button onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion?'Editar lesión':'Marcar lesión larga'}" style="background:${lesion?'#F59E0B':'transparent'};border:1.5px solid ${lesion?'#F59E0B':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${lesion?'#fff':'#CBD5E1'}">L</button>
+        </div>
       </div>
       ${_logroBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${_logroBadges.join('')}</div>`:''}
       ${_allJuvBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${_allJuvBadges.map(b=>`<span style="background:${b.bg};color:${b.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${b.label}</span>`).join('')}<button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Editar categorías juveniles" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:pointer">✎</button></div>`
@@ -10396,7 +10401,7 @@ const JUGADORES={
   'Pascual Somma':           {auf:'pascual-somma',          pos:'DEF',retirado:true,total:{pj:41,g:null}},
   'Ildo Maneiro':            {auf:'ildo-maneiro',           pos:'DEF',retirado:true,total:{pj:33,g:null}},
   'Carlos Saporiti':         {auf:null,                     pos:'MED',retirado:true,total:{pj:null,g:null}},
-  'Darío Pereira':           {auf:null,                     pos:'DEF',retirado:true,total:{pj:null,g:null}},
+  'Darío Pereyra':           {auf:'dario-pereyra',          pos:'DEF',retirado:true,total:{pj:33,g:null}},
   'Diego Suárez':            {auf:null,                     pos:'DEF',retirado:true,total:{pj:null,g:null}},
   'Emiliano Olaza':          {auf:null,                     pos:'DEF',retirado:false,total:{pj:null,g:null}},
   'Fabián Álvez':            {auf:null,                     pos:'POR',retirado:true,total:{pj:null,g:null}},
@@ -10964,7 +10969,7 @@ const AUF_HIST_CAPS=[
   {n:'Brian Rodríguez',c:34},
   {n:'Julio Pacheco',c:33},{n:'José Andrade',c:33},{n:'Pedro Ubiña',c:33},
   {n:'Matías González',c:33},{n:'Ildo Maneiro',c:33},{n:'Washington Victorino',c:33},
-  {n:'Darío Pereira',c:33},{n:'Gabriel De Los Santos',c:33},{n:'Víctor Hugo Diogo',c:33},
+  {n:'Darío Pereyra',c:33},{n:'Gabriel De Los Santos',c:33},{n:'Víctor Hugo Diogo',c:33},
   {n:'Mario Saralegui',c:33},{n:'Guillermo Varela',c:29},{n:'Maximiliano Araújo',c:29},
   {n:'Ronald Araujo',c:27},{n:'Sebastián Cáceres',c:25},{n:'Facundo Torres',c:20},
   // +10
