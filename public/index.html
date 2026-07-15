@@ -6718,14 +6718,20 @@ async function syncMatchFull(matchId){
         if(num)starterNums.push(num);
       });
       if(starterNums.length>=10){
-        // Asignar a slots de la formación actual en orden de posición ESPN
-        const form=all[matchId].formation||'4-3-3';
-        const slots=FORMATIONS[form];
-        const newSt={};
-        starterNums.forEach((num,i)=>{if(slots[i])newSt[slots[i].id]=num;});
-        all[matchId].starters=newSt;
-        setLineup(all);
-        msgs.push(`XI cargado (${starterNums.length} titulares)`);
+        // Si ya hay posiciones manuales en cancha, NO sobreescribir con ESPN
+        const existingStarters=all[matchId].starters||{};
+        const hasManualLineup=Object.keys(existingStarters).length>=10;
+        if(!hasManualLineup){
+          const form=all[matchId].formation||'4-3-3';
+          const slots=FORMATIONS[form];
+          const newSt={};
+          starterNums.forEach((num,i)=>{if(slots[i])newSt[slots[i].id]=num;});
+          all[matchId].starters=newSt;
+          setLineup(all);
+          msgs.push(`XI cargado (${starterNums.length} titulares)`);
+        } else {
+          msgs.push(`XI manual preservado (${Object.keys(existingStarters).length} titulares)`);
+        }
       }
     }
 
