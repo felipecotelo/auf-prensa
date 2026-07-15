@@ -7894,6 +7894,26 @@ function renderPeriplo(view){
 // ═══════════════════════════════════════════════════════════════════════════
 function jSetFilter(v){window._jFilter=v;renderJugadores();}
 function jSetPos(v){window._jPos=v;renderJugadores();}
+function _patchMayorPhotos(){
+  // Surgical photo update — avoids full re-render of the 277-player grid
+  const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
+  const _slug=n=>n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+  Object.keys(JUGADORES).forEach(nom=>{
+    const d=JUGADORES[nom];
+    const _mSlug=_slug(nom);
+    const mayorKey='mayor:'+_mSlug;
+    const mayorKeyEnc=encodeURIComponent(mayorKey);
+    const el=document.getElementById('mayor-av-'+mayorKeyEnc);
+    if(!el) return;
+    const plPhoto=PLAYERS.find(x=>x.name===nom)?.photo||null;
+    const photo=(window._estPhotoCache||{})[mayorKey]||(window._estPhotoCache||{})['ct-p:'+_mSlug]||d.foto||plPhoto||(window._juvPhotoCache||{})[nom]||window._getPhotoByName?.(nom)||'';
+    if(!photo) return;
+    const customPos=getJugPos()[nom];
+    const pos=customPos||d.pos;
+    const col=posColor[pos]||'#555';
+    el.innerHTML=`<img src="${photo}" alt="${nom}" loading="lazy" style="width:54px;height:54px;border-radius:50%;object-fit:cover;object-position:top center;border:2px solid ${col}44" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:54px;height:54px;border-radius:50%;background:${col};align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0;letter-spacing:-.5px">${nom.split(' ').filter(w=>/^[A-ZÁÉÍÓÚÑÜ]/.test(w)).slice(0,2).map(w=>w[0]).join('')}</div>`;
+  });
+}
 function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_leyendas',s);renderJugadores();}
 function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderJugadores();}
 function _toggleFallecidoMayor(nom){const s=stor.get('auf4_fallecido_mayor',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido_mayor',s);renderJugadores();}
@@ -19935,8 +19955,7 @@ async function _loadJuvPhotoCache(){
   Object.entries(out).forEach(([k,v])=>{ window._juvPhotoCacheNorm[_norm(k)]=v; });
   if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
   document.getElementById('sparr-grid') && renderSparrings();
-  // Re-render Mayor jugadores grid so juv photos appear there too
-  if(typeof renderJugadores==='function') renderJugadores();
+  if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
 }
 _loadJuvPhotoCache();
 window._juvGetPhoto = function(nom){
@@ -24482,8 +24501,7 @@ window._estPhotoSelected=function(keyEnc,input){
     const cache={};
     Object.keys(all).forEach(k=>{ if(k.startsWith('est:')) cache[k.slice(4)]=all[k]; });
     window._estPhotoCache=cache;
-    // Always pre-render jugadores so photos are ready when user navigates there
-    if(typeof renderJugadores==='function') renderJugadores();
+    if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
   }catch(_){ window._estPhotoCache={}; }
 })();
 </script>
