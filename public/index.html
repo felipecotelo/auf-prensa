@@ -12287,9 +12287,11 @@ function buildAllHistFromJugadores(){
   const byName=Object.fromEntries(PLAYERS.map(p=>[p.name,p]));
   const PC={POR:'#CA8A04',DEF:'#16a34a',MED:'#2563EB',DEL:'#EA580C'};
 
+  const retiradosLS=stor.get('auf4_retirado',{});
+  const fallecidosLS=stor.get('auf4_fallecido_mayor',{});
   const all=Object.entries(JUGADORES).map(([nom,d])=>{
     const pp=byName[nom];
-    const isRet=!!(d.retirado||d.fallecido||d.selOtra);
+    const isRet=!!(d.retirado||d.selOtra||retiradosLS[nom]);
     const isLeg=legs.has(nom);
     let pj=d.total?.pj||0, g=d.total?.g||0;
     let wcPj=d.comp?.wc?.pj||0, wcG=d.comp?.wc?.g||0;
@@ -12307,7 +12309,7 @@ function buildAllHistFromJugadores(){
     const aufBtn=d.auf?`<a href="https://www.auf.org.uy/${d.auf}/" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--muted);font-size:9px;margin-left:4px;opacity:.6;text-decoration:none" title="Perfil AUF">↗</a>`:'';
     const dBadge=(showDelta&&pp)?statDeltaBadge(pp.n,deltaKey):'';
     const rankCell=i<3?MEDALS[i]:`<span style="font-size:10px;color:var(--muted)">${i+1}</span>`;
-    const isFall=!!(d.fallecido);
+    const isFall=!!(d.fallecido||fallecidosLS[nom]);
     const statusBadge=isFall
       ?`<span style="font-size:7.5px;font-weight:800;background:#FEF2F2;color:#9F1239;border-radius:4px;padding:1px 5px;margin-left:5px;letter-spacing:.04em;vertical-align:middle">†</span>`
       :isRet
