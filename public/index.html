@@ -20346,7 +20346,7 @@ function _juvPlayerRow(p,destacado,color){
 }
 function _renderJuvenilesSafe(el){
 
-  if(_juvGlobalPlayers){ el.innerHTML = _buildJuvGlobalPlayers(); return; }
+  if(_juvGlobalPlayers){ el.innerHTML = _buildJuvGlobalPlayers(); if(window._juvGlobalQ) setTimeout(_jgFilt,0); return; }
 
   // Asegurar que la categoría/año existan
   if(!JUVENILES[_juvCat]) _juvCat = 'sub20';
@@ -20750,12 +20750,17 @@ function _renderJuvenilesSafe(el){
 
   el.innerHTML = `
     <div style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:6px;padding:10px 16px 8px">
-        <div style="display:flex;gap:5px;flex:1">${catPills}</div>
-        <button onclick="_toggleJuvGlobal()" style="
-          display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;
-          color:var(--muted);font-size:.72em;font-weight:700;flex-shrink:0
-        "><i class="ti ti-id-badge-2"></i> Todos</button>
+      <div style="padding:10px 16px 8px;display:flex;flex-direction:column;gap:8px">
+        <div style="position:relative">
+          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none"></i>
+          <input placeholder="Buscar jugador en todas las categorías…" autocomplete="off"
+            oninput="(function(v){if(v.trim()){window._juvGlobalQ=v;if(!_juvGlobalPlayers){_juvGlobalPlayers=true;window.renderJuveniles();}else{_jgFilt();}}else{window._juvGlobalQ='';if(_juvGlobalPlayers){_juvGlobalPlayers=false;window.renderJuveniles();}}})(this.value)"
+            value="${window._juvGlobalQ||''}"
+            style="width:100%;padding:8px 12px 8px 32px;border:1.5px solid var(--border);border-radius:10px;font-size:.85em;box-sizing:border-box;outline:none;background:var(--white)">
+        </div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="display:flex;gap:5px;flex:1">${catPills}</div>
+        </div>
       </div>
       ${eventosBar}
       ${navL2}
@@ -20802,7 +20807,8 @@ function _buildJuvGlobalPlayers(){
       </button>
       <div style="position:relative;flex:1">
         <i class="ti ti-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.82em;pointer-events:none"></i>
-        <input id="jgb" oninput="_jgFilt()" placeholder="Buscar jugador o club…" autocomplete="off"
+        <input id="jgb" oninput="window._juvGlobalQ=this.value;_jgFilt()" placeholder="Buscar jugador o club…" autocomplete="off"
+          value="${window._juvGlobalQ||''}"
           style="width:100%;padding:7px 10px 7px 28px;border:1.5px solid var(--border);border-radius:9px;font-size:.84em;box-sizing:border-box;outline:none;background:var(--surface)">
       </div>
       <span id="jgc" style="font-size:.72em;color:var(--muted);white-space:nowrap">${fichas.length} fichas</span>
