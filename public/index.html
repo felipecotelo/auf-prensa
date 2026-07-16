@@ -7906,11 +7906,12 @@ function _patchStatPhotos(){
     const nom=img.dataset.histNom;
     const d=JUGADORES[nom]; if(!d) return;
     const ms=_slug(nom), as=d.auf||'';
+    const plPhoto=PLAYERS.find(p=>p.name===nom)?.photo||'';
     const photo=(window._estPhotoCache||{})['mayor:'+ms]
       ||(window._estPhotoCache||{})['ct-p:'+ms]
       ||(window._estPhotoCache||{})['mayor:'+as]
       ||(window._estPhotoCache||{})['ct-p:'+as]
-      ||d.foto||(PLAYERS.find(p=>p.name===nom)?.photo)||'';
+      ||d.foto||plPhoto||(window._juvPhotoCache||{})[nom]||window._getPhotoByName?.(nom)||'';
     if(photo && img.getAttribute('src')!==photo){
       img.src=photo;
       img.style.cssText='position:absolute;inset:0;width:24px;height:24px;border-radius:50%;object-fit:cover;object-position:top center;display:block';
@@ -11639,7 +11640,10 @@ function renderEstadisticas(){
 
     `}
   `;
-  if(tab==='auf-historia') setTimeout(()=>{ if(typeof _patchStatPhotos==='function') _patchStatPhotos(); },50);
+  if(tab==='auf-historia'){
+    setTimeout(()=>{ if(typeof _patchStatPhotos==='function') _patchStatPhotos(); },100);
+    setTimeout(()=>{ if(typeof _patchStatPhotos==='function') _patchStatPhotos(); },800);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
