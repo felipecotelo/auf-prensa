@@ -14805,14 +14805,31 @@ const setLocalClubActual = (nom,club,pais)=>{
 const LOCAL_POS_CYCLE = ['POR','DEF','MED','DEL',null];
 window._cycleLocalPos = function(nomSafe,ev){
   if(ev&&ev.stopPropagation) ev.stopPropagation();
-  const d = getLocalPos();
-  const cur = d[nomSafe]||null;
-  const idx = LOCAL_POS_CYCLE.indexOf(cur);
-  const next = LOCAL_POS_CYCLE[(idx+1)%LOCAL_POS_CYCLE.length];
-  setLocalPos(nomSafe,next);
-  renderSecLocal();
-  const ov = document.getElementById('local-jug-overlay');
-  if(ov && parseFloat(ov.style.opacity)>0) _showLocalJugModal(nomSafe);
+  const el = ev?.target?.closest?.('span')||ev?.target;
+  if(!el) return;
+  // Cerrar picker existente del mismo jugador
+  const pickId='jlpick-'+nomSafe.replace(/[^a-zA-Z]/g,'_');
+  const existing=document.getElementById(pickId);
+  if(existing){existing.remove();return;}
+  document.querySelectorAll('.jpos-picker').forEach(x=>x.remove());
+  const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
+  const curPos=(getLocalPos()[nomSafe]||null);
+  const picker=document.createElement('div');
+  picker.id=pickId;
+  picker.className='jpos-picker';
+  picker.style.cssText='position:absolute;z-index:999;background:var(--white);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;display:flex;gap:3px;margin-top:4px';
+  ['POR','DEF','MED','DEL'].forEach(pp=>{
+    const btn=document.createElement('button');
+    const isCur=curPos===pp;
+    const c=posColor[pp];
+    btn.textContent=pp;
+    btn.style.cssText=`padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;border:1.5px solid ${isCur?c:'var(--border)'};background:${isCur?c+'22':'transparent'};color:${isCur?c:'var(--muted)'};font-family:inherit`;
+    btn.onclick=e=>{e.stopPropagation();setLocalPos(nomSafe,pp);picker.remove();renderSecLocal();};
+    picker.appendChild(btn);
+  });
+  el.style.position='relative';
+  el.appendChild(picker);
+  setTimeout(()=>document.addEventListener('click',function h(){picker.remove();document.removeEventListener('click',h);},{once:true}),0);
 };
 window._localEditTmId = function(nom, photoKeyEnc){
   const cur = getLocalTmId()[nom]||'';
