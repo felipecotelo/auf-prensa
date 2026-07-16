@@ -20107,35 +20107,35 @@ function _buildJuvAmistosos(cat, year, color, catData){
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
       <div style="font-weight:700;margin-bottom:3px">Sin amistosos registrados</div>
       <div style="font-size:.78em">Creá un partido con el botón de arriba</div>
-    </div>` : list.flatMap(m=>{
-      const _mkCard = (leg)=>{
-        const sfx = leg===2?'2':'';
-        const gl = m['gLocal'+sfx], gr = m['gRival'+sfx];
-        const hasRes = gl!=null && gr!=null;
-        const resLabel = hasRes ? `${gl}–${gr}` : '–';
-        const resColor = hasRes ? (gl>gr?'#16a34a':gl===gr?'#d97706':'#dc2626') : 'var(--muted)';
-        const fechaSrc = leg===2?(m.fechaVuelta||m.fecha):m.fecha;
-        const horaSrc  = leg===2?(m.horaVuelta||m.hora):m.hora;
-        const lugarSrc = leg===2?(m.lugarVuelta||m.lugar):m.lugar;
-        const fechaFmt = fechaSrc ? new Date(fechaSrc).toLocaleDateString('es-UY',{day:'numeric',month:'short'}) : '';
-        const legLabel = m.esIdaYVuelta ? `<span style="font-size:.62em;background:#F0F9FF;border:1px solid #BAE6FD;color:#0284C7;border-radius:5px;padding:1px 6px;margin-left:5px;font-weight:700">${leg===1?'Ida':'Vuelta'}</span>` : '';
-        const auftvBadge = (leg===1?m.auftv:m.auftvVuelta)?`<span style="font-size:.62em;background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 6px;margin-left:3px;font-weight:700">AUFtv</span>`:'';
-        return `
-        <div onclick="window._amistDetailLeg=${leg};_amistOpenDetail(${m.id})"
+    </div>` : list.map(m=>{
+      const gl=m.gLocal, gr=m.gRival;
+      const hasRes = gl!=null && gr!=null;
+      const gl2=m.gLocal2, gr2=m.gRival2;
+      const hasRes2 = m.esIdaYVuelta && gl2!=null && gr2!=null;
+      const _rc=(a,b)=>a>b?'#16a34a':a===b?'#d97706':'#dc2626';
+      const fechaFmt = m.fecha ? new Date(m.fecha).toLocaleDateString('es-UY',{day:'numeric',month:'short'}) : '';
+      const auftvBadge = m.auftv?`<span style="font-size:.62em;background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 6px;margin-left:3px;font-weight:700">AUFtv</span>`:'';
+      const ivBadge = m.esIdaYVuelta?`<span style="font-size:.62em;background:#F0F9FF;border:1px solid #BAE6FD;color:#0284C7;border-radius:5px;padding:1px 6px;margin-left:5px;font-weight:700">I+V</span>`:'';
+      const resHtml = m.esIdaYVuelta
+        ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
+            <div style="font-size:.78em;font-weight:900;color:${hasRes?_rc(gl,gr):'var(--muted)'}">${hasRes?`${gl}–${gr}`:'–'} <span style="font-size:.7em;font-weight:600;color:var(--muted)">ida</span></div>
+            <div style="font-size:.78em;font-weight:900;color:${hasRes2?_rc(gl2,gr2):'var(--muted)'}">${hasRes2?`${gl2}–${gr2}`:'–'} <span style="font-size:.7em;font-weight:600;color:var(--muted)">vta</span></div>
+           </div>`
+        : `<div style="font-size:1.1em;font-weight:900;color:${hasRes?_rc(gl,gr):'var(--muted)'}">${hasRes?`${gl}–${gr}`:'–'}</div>`;
+      return `
+        <div onclick="_amistOpenDetail(${m.id})"
           style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:12px">
           <div style="flex:1">
             <div style="font-weight:800;font-size:.9em;margin-bottom:2px">
-              Uruguay vs. <span style="color:${color}">${m.rival}</span>${legLabel}${auftvBadge}
+              Uruguay vs. <span style="color:${color}">${m.rival}</span>${ivBadge}${auftvBadge}
             </div>
-            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${horaSrc?' · '+horaSrc:''}${lugarSrc?' · '+lugarSrc:''}</div>
+            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${m.hora?' · '+m.hora:''}${m.lugar?' · '+m.lugar:''}</div>
           </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:1.1em;font-weight:900;color:${resColor}">${resLabel}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            ${resHtml}
             <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.8em"></i>
           </div>
         </div>`;
-      };
-      return m.esIdaYVuelta ? [_mkCard(1), _mkCard(2)] : [_mkCard(1)];
     }).join('');
 
   return `
