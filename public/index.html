@@ -20137,15 +20137,16 @@ async function _loadJuvPhotoCache(){
 _loadJuvPhotoCache();
 window._juvGetPhoto = function(nom){
   if(!nom) return null;
-  if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
-  const n = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
-  if(window._juvPhotoCacheNorm?.[n]) return window._juvPhotoCacheNorm[n];
-  // Buscar en caché Mayor si el jugador tiene ficha en JUGADORES
+  // Mayor tiene prioridad si el jugador tiene ficha identificada
   const jug = typeof JUGADORES!=='undefined' && JUGADORES[nom];
   if(jug?.auf){
     const ph=(window._estPhotoCache||{})['mayor:'+jug.auf]||(window._estPhotoCache||{})['ct-p:'+jug.auf];
     if(ph) return ph;
   }
+  // Fallback: foto cargada en Juveniles
+  if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
+  const n = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  if(window._juvPhotoCacheNorm?.[n]) return window._juvPhotoCacheNorm[n];
   return window._getPhotoByName?.(nom)||null;
 };
 window._clickJuvPhoto = function(nomEncoded){
