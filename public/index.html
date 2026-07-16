@@ -20002,9 +20002,15 @@ function _buildJuvAmistosos(cat, year, color, catData){
   const gf = allLegs.reduce((s,l)=>s+(l.gL||0),0);
   const gc = allLegs.reduce((s,l)=>s+(l.gR||0),0);
   const goleadores = {};
+  const _addGolSrc = (src) => Object.entries(src||{}).forEach(([n,g])=>{ if(g>0&&n!=='__EC__') goleadores[n]=(goleadores[n]||0)+g; });
+  const _addGolMins = (mins) => (mins||[]).forEach(g=>{ if(g.nom&&g.nom!=='__EC__') goleadores[g.nom]=(goleadores[g.nom]||0)+1; });
   list.forEach(m=>{
-    Object.entries(m.goles||{}).forEach(([n,g])=>{ if(g>0) goleadores[n]=(goleadores[n]||0)+g; });
-    Object.entries(m.goles2||{}).forEach(([n,g])=>{ if(g>0) goleadores[n]=(goleadores[n]||0)+g; });
+    // Leg 1
+    if(Object.keys(m.goles||{}).length) _addGolSrc(m.goles);
+    else _addGolMins(m.golMins);
+    // Leg 2
+    if(Object.keys(m.goles2||{}).length) _addGolSrc(m.goles2);
+    else _addGolMins(m.golMins2);
   });
   const topGol = Object.entries(goleadores).sort((a,b)=>b[1]-a[1]);
 
