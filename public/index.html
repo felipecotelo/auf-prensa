@@ -8066,40 +8066,16 @@ function _closeJuvDetail(){
   if(o) o.style.display='none';
 }
 
+const _POS_CYCLE=['POR','DEF','MED','DEL'];
+const _POS_COLOR={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
 function jTogglePosEdit(nom,el){
-  // Si ya hay un picker abierto para este jugador, cerrarlo
-  const existing=document.getElementById('jpicker-'+nom.replace(/[^a-zA-Z]/g,'_'));
-  if(existing){existing.remove();return;}
-  // Cerrar cualquier otro picker abierto
-  document.querySelectorAll('.jpos-picker').forEach(x=>x.remove());
-  const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
-  const picker=document.createElement('div');
-  picker.id='jpicker-'+nom.replace(/[^a-zA-Z]/g,'_');
-  picker.className='jpos-picker';
-  picker.style.cssText='position:absolute;z-index:999;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:4px;display:flex;gap:3px;margin-top:4px';
-  const customPos=getJugPos()[nom];
-  ['POR','DEF','MED','DEL'].forEach(pp=>{
-    const btn=document.createElement('button');
-    const isCur=(customPos||'')===pp||((!customPos)&&(JUGADORES[nom]?.pos||'')=== pp);
-    const c=posColor[pp];
-    btn.textContent=pp;
-    btn.style.cssText=`padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;border:1.5px solid ${isCur?c:'var(--border)'};background:${isCur?c+'22':'transparent'};color:${isCur?c:'var(--muted)'};font-family:inherit`;
-    btn.onclick=e=>{e.stopPropagation();if(pp===JUGADORES[nom]?.pos)clearJugPos(nom);else setJugPos(nom,pp);picker.remove();renderJugadores();};
-    picker.appendChild(btn);
-  });
-  if(customPos){
-    const reset=document.createElement('button');
-    reset.textContent='↺';
-    reset.title='Restaurar original';
-    reset.style.cssText='padding:4px 7px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit';
-    reset.onclick=e=>{e.stopPropagation();clearJugPos(nom);picker.remove();renderJugadores();};
-    picker.appendChild(reset);
-  }
-  // Posicionar relativo al badge
-  el.style.position='relative';
-  el.appendChild(picker);
-  // Cerrar al click fuera
-  setTimeout(()=>document.addEventListener('click',function h(){picker.remove();document.removeEventListener('click',h);},{once:true}),0);
+  const cur=getJugPos()[nom]||JUGADORES[nom]?.pos||'';
+  const next=_POS_CYCLE[(_POS_CYCLE.indexOf(cur)+1)%_POS_CYCLE.length];
+  if(next===JUGADORES[nom]?.pos) clearJugPos(nom); else setJugPos(nom,next);
+  const c=_POS_COLOR[next]||'#64748B';
+  el.textContent=next;
+  el.style.background=c+'18'; el.style.color=c; el.style.borderColor=c+'44';
+  renderJugadores();
 }
 function jToggleClubEdit(nom,el){
   // Si ya hay un editor abierto en este elemento, lo cierra
@@ -14807,27 +14783,13 @@ const setLocalClubActual = (nom,club,pais)=>{
 const LOCAL_POS_CYCLE = ['POR','DEF','MED','DEL',null];
 window._cycleLocalPos = function(nomSafe,ev){
   if(ev&&ev.stopPropagation) ev.stopPropagation();
-  document.querySelectorAll('.jpos-picker').forEach(x=>x.remove());
-  const el = ev?.currentTarget||ev?.target;
-  if(!el) return;
-  const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
-  const curPos=getLocalPos()[nomSafe]||null;
-  const picker=document.createElement('div');
-  picker.className='jpos-picker';
-  // Posicionar fijo anclado al badge
-  const rect=el.getBoundingClientRect();
-  picker.style.cssText=`position:fixed;z-index:9999;background:var(--white,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.2);padding:4px;display:flex;gap:3px;top:${rect.bottom+4}px;left:${rect.left}px`;
-  ['POR','DEF','MED','DEL'].forEach(pp=>{
-    const btn=document.createElement('button');
-    const isCur=curPos===pp;
-    const c=posColor[pp];
-    btn.textContent=pp;
-    btn.style.cssText=`padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;border:1.5px solid ${isCur?c:'#e2e8f0'};background:${isCur?c+'22':'transparent'};color:${isCur?c:'#94a3b8'};font-family:inherit`;
-    btn.onclick=e=>{e.stopPropagation();e.preventDefault();setLocalPos(nomSafe,pp);picker.remove();renderSecLocal();};
-    picker.appendChild(btn);
-  });
-  document.body.appendChild(picker);
-  setTimeout(()=>document.addEventListener('click',function h(e){picker.remove();document.removeEventListener('click',h);},{once:true}),0);
+  const el=ev?.currentTarget||ev?.target; if(!el) return;
+  const cur=getLocalPos()[nomSafe]||'';
+  const next=_POS_CYCLE[(_POS_CYCLE.indexOf(cur)+1)%_POS_CYCLE.length];
+  setLocalPos(nomSafe,next);
+  const c=_POS_COLOR[next]||'#64748B';
+  el.textContent=next; el.style.background=c+'18'; el.style.color=c; el.style.borderColor=c+'44';
+  renderSecLocal();
 };
 window._localEditTmId = function(nom, photoKeyEnc){
   const cur = getLocalTmId()[nom]||'';
@@ -20175,26 +20137,14 @@ const JUV_POS_CYCLE = ['','POR','DEF','MED','DEL'];
 // badge en el momento, y recién reordenamos 1.5s después de que dejás de tocar.
 window._cycleJuvPos = function(nom, badgeEl, ev){
   if(ev&&ev.stopPropagation) ev.stopPropagation();
-  document.querySelectorAll('.jpos-picker').forEach(x=>x.remove());
-  const el = badgeEl||ev?.currentTarget||ev?.target;
-  if(!el) return;
-  const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
-  const curPos = getJuvPos()[nom]||'';
-  const picker=document.createElement('div');
-  picker.className='jpos-picker';
-  const rect=el.getBoundingClientRect();
-  picker.style.cssText=`position:fixed;z-index:9999;background:var(--white,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.2);padding:4px;display:flex;gap:3px;top:${rect.bottom+4}px;left:${rect.left}px`;
-  ['POR','DEF','MED','DEL'].forEach(pp=>{
-    const btn=document.createElement('button');
-    const isCur=curPos===pp;
-    const c=posColor[pp];
-    btn.textContent=pp;
-    btn.style.cssText=`padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;border:1.5px solid ${isCur?c:'#e2e8f0'};background:${isCur?c+'22':'transparent'};color:${isCur?c:'#94a3b8'};font-family:inherit`;
-    btn.onclick=e=>{e.stopPropagation();e.preventDefault();const m=getJuvPos();if(pp)m[nom]=pp;else delete m[nom];stor.set('auf4_juvPos',m);picker.remove();window.renderJuveniles?.();};
-    picker.appendChild(btn);
-  });
-  document.body.appendChild(picker);
-  setTimeout(()=>document.addEventListener('click',function h(){picker.remove();document.removeEventListener('click',h);},{once:true}),0);
+  const el=badgeEl||ev?.currentTarget||ev?.target; if(!el) return;
+  const cur=getJuvPos()[nom]||'';
+  const next=_POS_CYCLE[(_POS_CYCLE.indexOf(cur)+1)%_POS_CYCLE.length];
+  const m=getJuvPos(); if(next) m[nom]=next; else delete m[nom]; stor.set('auf4_juvPos',m);
+  const c=_POS_COLOR[next]||'#64748B';
+  el.textContent=next; el.style.background=c+'18'; el.style.color=c; el.style.borderColor=c+'44';
+  clearTimeout(window._juvPosTimer);
+  window._juvPosTimer=setTimeout(()=>window.renderJuveniles?.(),800);
 };
 const JUV_POS_BG = {POR:'#FEF3C7',DEF:'#DCFCE7',MED:'#EDE9FE',DEL:'#FEE2E2'};
 const JUV_POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
