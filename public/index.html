@@ -7945,6 +7945,8 @@ function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])del
 function _toggleFallecidoMayor(nom){const s=stor.get('auf4_fallecido_mayor',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido_mayor',s);renderJugadores();}
 function _toggleJuvRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);window.renderJuveniles?.();}
 function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);window.renderJuveniles?.();}
+function _toggleLocalRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderSecLocal?.();}
+function _toggleLocalFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);renderSecLocal?.();}
 
 function _openJuvDetail(nomEnc){
   const nom = decodeURIComponent(nomEnc);
@@ -15127,6 +15129,10 @@ function _renderLocalHome(){
         <span style="font-size:.68em;font-weight:600;color:var(--fg)">${j.pj} PJ</span>
         ${j.g?`<span style="font-size:.68em;color:var(--muted)">·</span><span style="font-size:.68em;font-weight:600;color:var(--fg)">⚽ ${j.g}</span>`:''}
         ${j.a?`<span style="font-size:.68em;color:var(--muted)">·</span><span style="font-size:.68em;font-weight:600;color:var(--fg)">🅰️ ${j.a}</span>`:''}
+        <div style="display:flex;gap:3px;margin-left:auto">
+          <button onclick="event.stopPropagation();_toggleLocalFallecido('${nomSafe}')" title="${(stor.get('auf4_fallecido',{})[j.nom])?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${(stor.get('auf4_fallecido',{})[j.nom])?'#44403C':'transparent'};border:1.5px solid ${(stor.get('auf4_fallecido',{})[j.nom])?'#44403C':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${(stor.get('auf4_fallecido',{})[j.nom])?'#FDE68A':'#CBD5E1'}">F</button>
+          <button onclick="event.stopPropagation();_toggleLocalRetirado('${nomSafe}')" title="${(stor.get('auf4_retirado',{})[j.nom])?'Marcar activo':'Marcar retirado'}" style="background:${(stor.get('auf4_retirado',{})[j.nom])?'#94A3B8':'transparent'};border:1.5px solid ${(stor.get('auf4_retirado',{})[j.nom])?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${(stor.get('auf4_retirado',{})[j.nom])?'#fff':'#CBD5E1'}">R</button>
+        </div>
       </div>
       ${hist.length?`<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">${hist.map(h=>`<span style="background:${h.color}22;color:${h.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${h.label}</span>`).join('')}</div>`:''}
     </div>`;
@@ -20167,20 +20173,28 @@ const JUV_POS_CYCLE = ['','POR','DEF','MED','DEL'];
 // Al ciclar el puesto NO reordenamos la grilla al toque — si no, la ficha se mueve
 // apenas tocás y es imposible llegar al puesto que querés. Actualizamos solo el
 // badge en el momento, y recién reordenamos 1.5s después de que dejás de tocar.
-window._cycleJuvPos = function(nom, badgeEl){
-  const cur = getJuvPos()[nom]||'';
-  const next = JUV_POS_CYCLE[(JUV_POS_CYCLE.indexOf(cur)+1)%JUV_POS_CYCLE.length];
-  const m = getJuvPos();
-  if(next) m[nom]=next; else delete m[nom];
-  stor.set('auf4_juvPos', m);
-  if(badgeEl){
-    badgeEl.textContent = next||'—';
-    badgeEl.style.color = next?JUV_POS_FG[next]:'var(--muted)';
-    badgeEl.style.background = next?JUV_POS_BG[next]:'var(--bg)';
-    badgeEl.style.borderColor = next?JUV_POS_FG[next]+'55':'var(--border)';
-  }
-  clearTimeout(window._juvPosTimer);
-  window._juvPosTimer = setTimeout(()=>window.renderJuveniles(), 1500);
+window._cycleJuvPos = function(nom, badgeEl, ev){
+  if(ev&&ev.stopPropagation) ev.stopPropagation();
+  document.querySelectorAll('.jpos-picker').forEach(x=>x.remove());
+  const el = badgeEl||ev?.currentTarget||ev?.target;
+  if(!el) return;
+  const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'};
+  const curPos = getJuvPos()[nom]||'';
+  const picker=document.createElement('div');
+  picker.className='jpos-picker';
+  const rect=el.getBoundingClientRect();
+  picker.style.cssText=`position:fixed;z-index:9999;background:var(--white,#fff);border:1px solid var(--border,#e2e8f0);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.2);padding:4px;display:flex;gap:3px;top:${rect.bottom+4}px;left:${rect.left}px`;
+  ['POR','DEF','MED','DEL'].forEach(pp=>{
+    const btn=document.createElement('button');
+    const isCur=curPos===pp;
+    const c=posColor[pp];
+    btn.textContent=pp;
+    btn.style.cssText=`padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer;border:1.5px solid ${isCur?c:'#e2e8f0'};background:${isCur?c+'22':'transparent'};color:${isCur?c:'#94a3b8'};font-family:inherit`;
+    btn.onclick=e=>{e.stopPropagation();e.preventDefault();const m=getJuvPos();if(pp)m[nom]=pp;else delete m[nom];stor.set('auf4_juvPos',m);picker.remove();window.renderJuveniles?.();};
+    picker.appendChild(btn);
+  });
+  document.body.appendChild(picker);
+  setTimeout(()=>document.addEventListener('click',function h(){picker.remove();document.removeEventListener('click',h);},{once:true}),0);
 };
 const JUV_POS_BG = {POR:'#FEF3C7',DEF:'#DCFCE7',MED:'#EDE9FE',DEL:'#FEE2E2'};
 const JUV_POS_FG = {POR:'#92400E',DEF:'#15803D',MED:'#6D28D9',DEL:'#B91C1C'};
@@ -20284,7 +20298,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
-      <span onclick="_cycleJuvPos('${nomSafe}',this)" title="Click para cambiar el puesto" style="font-size:.67em;font-weight:700;color:${p.pos?(window.JUV_POS_FG||{})[p.pos]||'var(--muted)':'var(--muted)'};background:${p.pos?(window.JUV_POS_BG||{})[p.pos]||'var(--bg)':'var(--bg)'};border:1px solid ${p.pos?((window.JUV_POS_FG||{})[p.pos]||'var(--border)')+'55':'var(--border)'};border-radius:5px;padding:2px 7px;cursor:pointer">${posLabel}</span>
+      <span onclick="event.stopPropagation();_cycleJuvPos('${nomSafe}',this,event)" title="Tocar para cambiar posición" style="font-size:.67em;font-weight:700;color:${p.pos?(window.JUV_POS_FG||{})[p.pos]||'var(--muted)':'var(--muted)'};background:${p.pos?(window.JUV_POS_BG||{})[p.pos]||'var(--bg)':'var(--bg)'};border:1px solid ${p.pos?((window.JUV_POS_FG||{})[p.pos]||'var(--border)')+'55':'var(--border)'};border-radius:5px;padding:2px 7px;cursor:pointer">${posLabel}</span>
       <span style="font-size:.68em;color:var(--muted)">${off.conv} conv.</span>
       <span style="font-size:.68em;color:var(--muted)">·</span>
       <span style="font-size:.68em;font-weight:600;color:var(--fg)">${off.pj} PJ</span>
