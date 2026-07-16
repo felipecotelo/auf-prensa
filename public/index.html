@@ -8737,6 +8737,7 @@ function renderJugadores(){
           style="width:100%;padding:9px 12px 9px 32px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);font-size:.88em;box-sizing:border-box;outline:none">
       </div>
       ${window._jSearch?`<button onclick="window._jSearch='';renderJugadores()" style="padding:0 12px;border-radius:10px;border:1px solid var(--border);background:none;cursor:pointer;font-size:.8em;color:var(--muted)">✕</button>`:''}
+      <button onclick="exportarFotosIDB()" title="Exportar todas las fotos para compartir" style="padding:0 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:.8em;color:var(--muted);white-space:nowrap">📤 Exportar fotos</button>
     </div>
 
     <!-- Filtros -->
@@ -24583,6 +24584,18 @@ window._estPhotoSelected=function(keyEnc,input){
   reader.onload=ev=>openPE('est:'+decodeURIComponent(keyEnc),ev.target.result);
   reader.readAsDataURL(file);
 };
+
+async function exportarFotosIDB(){
+  const all=await getAllPhotosIDB();
+  const keys=Object.keys(all);
+  if(!keys.length){alert('No hay fotos guardadas en este dispositivo.');return;}
+  const blob=new Blob([JSON.stringify(all)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='auf-fotos.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 (async function _loadEstPhotoCache(){
   try{
