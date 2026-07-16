@@ -15083,39 +15083,39 @@ function _renderLocalHome(){
   const jugCards = jugadores.map(j=>{
     const photoKey = _localNameToKey(j.nom);
     const photo = _localGetPhoto(j.nom);
-    const initials = j.nom.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-    const posColor = posColors[j.pos] || '#334155';
+    const col = posColors[j.pos] || '#334155';
     const nomSafe = j.nom.replace(/'/g,"\\'");
     const photoKeyEnc = encodeURIComponent(photoKey);
-    const avatarInner = photo
-      ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-      : `<span style="font-size:.9em;font-weight:900;color:#fff">${initials}</span>`;
-    return `<div onclick="_localOpenJug('${nomSafe}')" style="cursor:pointer;background:var(--card,#fff);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-      <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" title="Agregar foto" style="position:relative;flex-shrink:0;cursor:pointer">
-        <div id="loc-av-${photoKeyEnc}" style="width:50px;height:50px;border-radius:50%;background:${posColor};display:flex;align-items:center;justify-content:center;overflow:hidden;${!photo?'border:2px dashed rgba(255,255,255,.4)':''}">
-          ${avatarInner}
+    const initials = j.nom.split(' ').filter(w=>/^[A-ZÁÉÍÓÚÑÜ]/.test(w)).slice(0,2).map(w=>w[0]).join('');
+    const hist = typeof _juvPlayerHistory==='function' ? _juvPlayerHistory(j.nom) : [];
+    const pais = `<img src="https://flagcdn.com/w20/${j.clubPais||'uy'}.png" style="height:9px;border-radius:1px;vertical-align:middle" onerror="this.style.display='none'">`;
+    return `<div onclick="_localOpenJug('${nomSafe}')" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer">
+          <div id="loc-av-${photoKeyEnc}" style="width:54px;height:54px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;overflow:hidden">
+            ${photo
+              ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:50%">`
+              : `<span style="font-size:17px;font-weight:900;color:#fff;letter-spacing:-.5px">${initials}</span>`}
+          </div>
+          <div style="position:absolute;bottom:-1px;right:-1px;width:17px;height:17px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>
+          <input type="file" accept="image/*" id="loc-inp-${photoKeyEnc}" style="display:none" onchange="_localPhotoSelected('${photoKeyEnc}',this)">
         </div>
-        ${photo
-          ? `<div style="position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>`
-          : `<div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);background:#1D4ED8;color:#fff;border-radius:6px;padding:1px 5px;font-size:8px;font-weight:800;white-space:nowrap;pointer-events:none;border:1.5px solid #fff">+ foto</div>`}
-        <input type="file" accept="image/*" id="loc-inp-${photoKeyEnc}" style="display:none" onchange="_localPhotoSelected('${photoKeyEnc}',this)">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:4px">${j.nom}</div>
+          <div style="font-size:.7em;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:4px">
+            ${pais}
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${j.clubActual||'—'}</span>
+            <button onclick="event.stopPropagation();_localEditClubInline('${nomSafe}','${j.clubPais||'uy'}',this)" title="Editar club" style="border:none;background:none;cursor:pointer;padding:0;color:var(--hint);font-size:10px;flex-shrink:0;line-height:1"><i class="ti ti-pencil"></i></button>
+          </div>
+        </div>
       </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:.9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${j.nom}</div>
-        <div style="font-size:.73em;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:4px">
-          <img src="https://flagcdn.com/w20/${j.clubPais||'uy'}.png" style="height:9px;border-radius:1px;vertical-align:middle" onerror="this.style.display='none'">
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${j.clubActual||'—'}</span>
-          <button onclick="event.stopPropagation();_localEditClubInline('${nomSafe}','${j.clubPais||'uy'}',this)" title="Editar club" style="border:none;background:none;cursor:pointer;padding:0;color:var(--hint);font-size:10px;flex-shrink:0;line-height:1"><i class="ti ti-pencil"></i></button>
-        </div>
-        <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center">
-          <span onclick="event.stopPropagation();_cycleLocalPos('${nomSafe}',event)" title="Tocar para cambiar puesto" style="background:${posColor};color:#fff;border-radius:4px;padding:1px 6px;font-size:.65em;font-weight:800;cursor:pointer">${j.pos||'—'}</span>
-          <span style="background:#EFF6FF;color:#1D4ED8;border-radius:5px;padding:2px 7px;font-size:.65em;font-weight:700">${j.pj} PJ</span>
-          ${j.g?`<span style="background:#F0FDF4;color:#15803D;border-radius:5px;padding:2px 7px;font-size:.65em;font-weight:700">⚽ ${j.g}</span>`:''}
-          ${j.a?`<span style="background:#F3F0FF;color:#6D28D9;border-radius:5px;padding:2px 7px;font-size:.65em;font-weight:700">🅰️ ${j.a}</span>`:''}
-        </div>
-        ${(()=>{const hist=typeof _juvPlayerHistory==='function'?_juvPlayerHistory(j.nom):[];return hist.length?`<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">${hist.map(h=>`<span style="background:${h.color}22;color:${h.color};border-radius:4px;padding:1px 6px;font-size:.6em;font-weight:700">${h.label}</span>`).join('')}</div>`:'';})()}
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <span onclick="event.stopPropagation();_cycleLocalPos('${nomSafe}',event)" title="Tocar para cambiar puesto" style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:5px;padding:2px 7px;font-size:.67em;font-weight:700;cursor:pointer">${j.pos||'—'}</span>
+        <span style="font-size:.68em;font-weight:600;color:var(--fg)">${j.pj} PJ</span>
+        ${j.g?`<span style="font-size:.68em;color:var(--muted)">·</span><span style="font-size:.68em;font-weight:600;color:var(--fg)">⚽ ${j.g}</span>`:''}
+        ${j.a?`<span style="font-size:.68em;color:var(--muted)">·</span><span style="font-size:.68em;font-weight:600;color:var(--fg)">🅰️ ${j.a}</span>`:''}
       </div>
-      <i class="ti ti-chevron-right" style="color:var(--muted);font-size:14px;flex-shrink:0"></i>
+      ${hist.length?`<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">${hist.map(h=>`<span style="background:${h.color}22;color:${h.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${h.label}</span>`).join('')}</div>`:''}
     </div>`;
   }).join('');
 
