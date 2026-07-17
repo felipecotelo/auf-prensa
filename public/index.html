@@ -22633,85 +22633,51 @@ function _renderVentana(id){
           <input id="pw-sol-medio" type="text" placeholder="ej: Canal 10" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div style="margin-bottom:12px">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">ESTADO</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px" id="pw-sol-est-btns">
+            ${Object.entries(_pwEstConfig).filter(([,v])=>v.primary||v.secondary).map(([k,v])=>`<button type="button" onclick="_pwToggleEst('${k}')" id="pw-est-btn-${k}" style="padding:4px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:transparent;color:${v.color}">${v.label}</button>`).join('')}
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px;position:relative">
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN PARTICIPÓ</label>
+          <input id="pw-sol-quien" type="text" autocomplete="off" placeholder="Tocá para ver la delegación…" onfocus="_pwSolQuienFocus(this)" oninput="_pwSolQuienInput(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-sol-quien-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <div id="pw-sol-quien-sug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:200px;overflow-y:auto"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px">
           <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">RECIBIDO</label>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
             <input id="pw-sol-recibido" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
           </div>
           <div>
             <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
-            <input id="pw-sol-recibido-hora" type="text" placeholder="ej: 14:30" maxlength="5" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;font-family:inherit">
-          </div>
-          <div style="grid-column:span 2">
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">DÍA SOLICITADO</label>
-            <div style="display:flex;flex-wrap:wrap;gap:5px" id="pw-dias-sol-btns">
-              ${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','Lun–Vie','A definir'].map(d=>`<button type="button" onclick="_pwToggleDiaSol('${d}')" id="pw-diasol-${d.replace(/[^a-zA-Z]/g,'')}" style="padding:5px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${d}</button>`).join('')}
-            </div>
-            <input type="hidden" id="pw-sol-disp">
-          </div>
-          <div style="grid-column:span 2">
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FRANJA HORARIA</label>
-            <div style="display:flex;flex-wrap:wrap;gap:5px">
-              ${[['mañana','🌅'],['mediodía','☀️'],['tarde','🌇'],['noche','🌙']].map(([f,e])=>`<button type="button" onclick="_pwToggleFranja('${f}')" id="pw-franja-${f}" style="padding:5px 11px;border-radius:20px;font-size:.76em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${e} ${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
-            </div>
-            <input type="hidden" id="pw-sol-franja">
-          </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
-            <select id="pw-sol-formato" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box">
-              <option value="">— Elegir —</option>
-              <option value="presencial">Presencial</option>
-              <option value="telefonica">Telefónica</option>
-              <option value="zoom">Zoom</option>
-              <option value="standup">Stand-up</option>
-              <option value="escrita">Nota escrita</option>
-            </select>
+            <input id="pw-sol-recibido-hora" type="time" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
           </div>
         </div>
 
         <div style="margin-bottom:12px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">ESTADO</label>
-          <div style="display:flex;flex-wrap:wrap;gap:6px" id="pw-sol-est-btns">
-            ${Object.entries(_pwEstConfig).filter(([k,v])=>v.primary).map(([k,v])=>`<button type="button" onclick="_pwToggleEst('${k}')" id="pw-est-btn-${k}" style="padding:5px 13px;border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;border:1.5px solid ${v.color};background:transparent;color:${v.color}">${v.label}</button>`).join('')}
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FORMATO</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${Object.entries(_pwFmtAten).map(([k,v])=>`<button type="button" onclick="_pwSolFmt('${k}')" id="pw-sol-fmt-${k}" style="padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;background:#F8FAFC;color:var(--muted)">${v}</button>`).join('')}
           </div>
-        </div>
-
-        <div id="pw-sol-confirm-fields" style="display:none;background:var(--surface);border-radius:12px;padding:12px;margin-bottom:12px">
-          <div style="font-size:.72em;font-weight:700;color:var(--muted);margin-bottom:10px">ASIGNAR A AGENDA</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div>
-              <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">DÍA</label>
-              <select id="pw-sol-dia" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.85em;background:#fff;color:var(--text)">
-                <option value="">— Sin asignar —</option>
-                ${diaOpts}
-              </select>
-            </div>
-            <div>
-              <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
-              <input id="pw-sol-hora" type="time" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:9px;font-size:.85em;box-sizing:border-box">
-            </div>
-          </div>
-          <div>
-            <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FORMATO</label>
-            <div style="display:flex;gap:6px;flex-wrap:wrap" id="pw-sol-fmt-btns">
-              ${['Presencial','Telefónica','Zoom','Móvil'].map(f=>`<button type="button" onclick="_pwToggleFmtFinal('${f}')" id="pw-fmt-${f.toLowerCase().replace('ó','o')}" style="padding:5px 12px;border-radius:20px;font-size:.78em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${f}</button>`).join('')}
-            </div>
-          </div>
+          <input type="hidden" id="pw-sol-formato">
         </div>
 
         <div style="margin-bottom:12px">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">NOTAS</label>
-          <textarea id="pw-sol-notas" rows="2" placeholder="Contexto, restricciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+          <textarea id="pw-sol-notas" rows="3" placeholder="Temas tratados, observaciones…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
         </div>
 
-        <div style="margin-bottom:12px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">CORREO DEL SOLICITANTE</label>
-          <input id="pw-sol-email-from" type="email" placeholder="periodista@medio.com" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box;font-family:inherit">
-        </div>
         <div style="margin-bottom:20px">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">TEXTO DEL MAIL <span style="font-weight:400;color:var(--hint)">(opcional)</span></label>
-          <textarea id="pw-sol-email" rows="4" placeholder="Hola Felipe, quisiera saber si..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.86em;resize:vertical;box-sizing:border-box;font-family:inherit;color:var(--text);background:var(--surface);line-height:1.5"></textarea>
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">LINK (nota publicada)</label>
+          <input id="pw-sol-link" type="url" placeholder="https://…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
+
+        <!-- Campos ocultos de compatibilidad -->
+        <input type="hidden" id="pw-sol-disp"><input type="hidden" id="pw-sol-franja">
+        <input type="hidden" id="pw-sol-email-from"><input type="hidden" id="pw-sol-email">
 
         <button onclick="_pwGuardarSol()" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--cel);color:#fff;font-size:.9em;font-weight:800;cursor:pointer">Guardar pedido</button>
       </div>
@@ -22823,8 +22789,29 @@ function _pwToggleEst(k){
     btn.style.color = v.color;
     btn.style.borderColor = v.color;
   });
-  const cf=document.getElementById('pw-sol-confirm-fields');
-  if(cf) cf.style.display = k==='confirmada' ? 'block' : 'none';
+}
+
+let _pwSolFmtVal='';
+function _pwSolFmt(f){
+  _pwSolFmtVal=_pwSolFmtVal===f?'':f;
+  const hidden=document.getElementById('pw-sol-formato'); if(hidden) hidden.value=_pwSolFmtVal;
+  Object.keys(_pwFmtAten).forEach(k=>{
+    const btn=document.getElementById('pw-sol-fmt-'+k); if(!btn) return;
+    const on=_pwSolFmtVal===k;
+    btn.style.background=on?'var(--cel)':'#F8FAFC';
+    btn.style.color=on?'#fff':'var(--muted)';
+    btn.style.border=on?'1.5px solid var(--cel)':'1.5px solid var(--border)';
+  });
+}
+function _pwSolQuienFocus(inp){ _pwSolQuienInput(inp); }
+function _pwSolQuienInput(inp){
+  const sug=document.getElementById('pw-sol-quien-sug'); if(!sug) return;
+  const q=(inp.value||'').toLowerCase();
+  const all=[];
+  getDelegacion().forEach(g=>(g.people||[]).forEach(p=>all.push(p)));
+  const matches=all.filter(p=>!q||p.name.toLowerCase().includes(q)).slice(0,15);
+  sug.style.display=matches.length?'block':'none';
+  sug.innerHTML=matches.map(p=>`<div onclick="document.getElementById('pw-sol-quien').value='${p.name.replace(/'/g,"\\'")}';document.getElementById('pw-sol-quien-sug').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:.88em;border-bottom:1px solid var(--border)">${p.name}${p.role?`<span style="color:var(--muted);font-size:.85em;margin-left:6px">${p.role}</span>`:''}</div>`).join('');
 }
 
 // ── Registro libre: vista y CRUD de atenciones ────────────────────────────────
@@ -23657,17 +23644,10 @@ function _pwOpenSolModal(id,si){
   document.getElementById('pw-sol-recibido-hora').value=s?.recibidoHora||'';
   document.getElementById('pw-sol-programa').value=s?.programa||'';
   document.getElementById('pw-sol-medio').value=s?.medio||'';
-  _pwDiasSol = s?.diaSolicitado ? s.diaSolicitado.split(', ').filter(d=>_PW_DIAS_SOL.includes(d)) : [];
-  document.getElementById('pw-sol-disp').value=_pwDiasSol.join(', ');
-  setTimeout(_pwRenderDiasSol,0);
-  const fmtEl=document.getElementById('pw-sol-formato'); if(fmtEl) fmtEl.value=s?.formato||'';
+  const quienEl=document.getElementById('pw-sol-quien'); if(quienEl) quienEl.value=s?.quien||'';
+  const linkEl=document.getElementById('pw-sol-link'); if(linkEl) linkEl.value=s?.link||'';
   document.getElementById('pw-sol-notas').value=s?.notas||'';
-  document.getElementById('pw-sol-email-from').value=s?.emailFrom||'';
-  document.getElementById('pw-sol-email').value=s?.emailPedido||'';
-  const diaEl=document.getElementById('pw-sol-dia'); if(diaEl) diaEl.value=s?.diaAsignado||'';
-  const horaEl=document.getElementById('pw-sol-hora'); if(horaEl) horaEl.value=s?.horaAsignada||'';
-  _pwFmtFinal=''; setTimeout(()=>_pwToggleFmtFinal(s?.formatoFinal||''),0);
-  _pwFranjaSol=''; setTimeout(()=>_pwToggleFranja(s?.franja||''),0);
+  _pwSolFmtVal=''; setTimeout(()=>_pwSolFmt(s?.formato||''),0);
   _pwToggleEst(s?.estado||'pendiente');
   document.getElementById('pw-sol-modal').style.display='flex';
 }
@@ -23682,16 +23662,13 @@ function _pwGuardarSol(){
     recibidoHora:document.getElementById('pw-sol-recibido-hora').value.trim(),
     programa:document.getElementById('pw-sol-programa').value.trim(),
     medio:document.getElementById('pw-sol-medio').value.trim(),
-    diaSolicitado:document.getElementById('pw-sol-disp').value.trim(),
-    franja:document.getElementById('pw-sol-franja').value.trim(),
-    formato:document.getElementById('pw-sol-formato')?.value||'',
+    formato:_pwSolFmtVal,
+    quien:document.getElementById('pw-sol-quien')?.value.trim()||'',
+    link:document.getElementById('pw-sol-link')?.value.trim()||'',
     estado,
-    diaAsignado:estado==='confirmada'?(document.getElementById('pw-sol-dia')?.value||''):'',
-    horaAsignada:estado==='confirmada'?(document.getElementById('pw-sol-hora')?.value||''):'',
-    formatoFinal:estado==='confirmada'?_pwFmtFinal:'',
     notas:document.getElementById('pw-sol-notas').value.trim(),
-    emailFrom:document.getElementById('pw-sol-email-from').value.trim(),
-    emailPedido:document.getElementById('pw-sol-email').value.trim(),
+    emailFrom:'',
+    emailPedido:'',
   };
   if(_pwSolEditIdx!=null) vw.solicitudes[_pwSolEditIdx]=s; else vw.solicitudes.push(s);
   _pwSave(list); _pwCloseSolModal(); _renderVentana(_pwCurId);
