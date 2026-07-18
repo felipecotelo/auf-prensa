@@ -1423,6 +1423,7 @@ html.auf-gate body { display:none !important }
     <div style="display:flex;gap:7px;flex-wrap:wrap">
       <button class="btn sm" onclick="exportData()"><i class="ti ti-download" style="font-size:12px"></i> Descargar JSON</button>
       <button class="btn sm" onclick="document.getElementById('imp-file').click()"><i class="ti ti-upload" style="font-size:12px"></i> Importar</button>
+      <button class="btn sm" id="btn-push-fotos" onclick="_pushAllPhotosToServer(this)"><i class="ti ti-cloud-upload" style="font-size:12px"></i> Subir fotos al servidor</button>
       <button class="btn sm danger" onclick="clearAll()"><i class="ti ti-trash" style="font-size:12px"></i> Borrar todo</button>
     </div>
     <input type="file" id="imp-file" accept=".json" style="display:none" onchange="handleImport(event)">
@@ -20293,6 +20294,29 @@ async function _savePhotoToServer(key, dataUrl){
   }catch(_){}
 }
 window._savePhotoToServer = _savePhotoToServer;
+async function _pushAllPhotosToServer(btn){
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Subiendo...';
+  try {
+    const all = await getAllPhotosIDB();
+    const keys = Object.keys(all);
+    let ok = 0, fail = 0;
+    for(const k of keys){
+      try {
+        await fetch('/api/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:String(k),dataUrl:all[k]})});
+        ok++;
+        btn.textContent = `⏳ ${ok}/${keys.length}`;
+      } catch(_){ fail++; }
+    }
+    btn.textContent = `✅ ${ok} fotos subidas${fail?` (${fail} errores)`:''}`;
+    setTimeout(()=>{ btn.textContent=orig; btn.disabled=false; }, 3000);
+  } catch(e) {
+    btn.textContent = '❌ Error';
+    setTimeout(()=>{ btn.textContent=orig; btn.disabled=false; }, 2000);
+  }
+}
+window._pushAllPhotosToServer = _pushAllPhotosToServer;
 async function _loadJuvPhotoCache(){
   const all = await getAllPhotosIDB();
   const out = {};
