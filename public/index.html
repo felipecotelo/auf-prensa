@@ -15069,17 +15069,12 @@ function _renderLocalHome(){
     const pais = `<img src="https://flagcdn.com/w20/${j.clubPais||'uy'}.png" style="height:9px;border-radius:1px;vertical-align:middle" onerror="this.style.display='none'">`;
     const isRetirado = !!(stor.get('auf4_retirado',{})[j.nom]);
     const isFallecido = !!(stor.get('auf4_fallecido',{})[j.nom]);
-    const leyendas = stor.get('auf4_leyendas',{});
-    const isLeyenda = !!leyendas[j.nom];
-    const borderStyle = isLeyenda ? '2px solid #F59E0B' : '1px solid var(--border)';
-    const cardBg = (isRetirado||isFallecido) ? 'var(--surface)' : 'var(--surface2)';
-    const _nacIso = (typeof getMayorNac==='function' ? getMayorNac()[j.nom] : null) || (typeof JUGADORES!=='undefined' ? JUGADORES[j.nom]?.fechaNac||JUGADORES[j.nom]?.nac : null) || '';
-    const _nacAge2 = _nacIso && typeof _nacAge==='function' ? _nacAge(_nacIso) : null;
-    const _nacFmtStr = _nacIso && typeof _nacFmt==='function' ? _nacFmt(_nacIso) : '';
-    return `<div onclick="_localOpenJug('${nomSafe}')" style="background:${cardBg};border:${borderStyle};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
-      <button onclick="event.stopPropagation();(()=>{const s=stor.get('auf4_leyendas',{});if(s['${nomSafe}'])delete s['${nomSafe}'];else s['${nomSafe}']=true;stor.set('auf4_leyendas',s);_renderLocalHome&&document.getElementById('sec-local')&&(document.getElementById('sec-local').innerHTML=_renderLocalHome());})()" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyenda?1:.2};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
-      <div style="display:flex;align-items:center;gap:11px;${(isRetirado||isFallecido)?'opacity:.55':''}">
-        <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${(isRetirado||isFallecido)?'grayscale(1)':''}">
+    const _nacIso = getMayorNac()[j.nom] || (JUGADORES[j.nom] ? JUGADORES[j.nom].fechaNac||JUGADORES[j.nom].nac||'' : '');
+    const _nacAge2 = _nacIso ? _nacAge(_nacIso) : null;
+    const _nacFmtStr = _nacIso ? _nacFmt(_nacIso) : '';
+    return `<div onclick="_localOpenJug('${nomSafe}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer">
           <div id="loc-av-${photoKeyEnc}" style="width:54px;height:54px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;overflow:hidden">
             ${photo
               ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:50%">`
@@ -15089,27 +15084,26 @@ function _renderLocalHome(){
           <input type="file" accept="image/*" id="loc-inp-${photoKeyEnc}" style="display:none" onchange="_localPhotoSelected('${photoKeyEnc}',this)">
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${j.nom}</div>
+          <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:4px">${j.nom}</div>
           <div style="font-size:.7em;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:4px">
             ${pais}
             <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${j.clubActual||'—'}</span>
             <button onclick="event.stopPropagation();_localEditClubInline('${nomSafe}','${j.clubPais||'uy'}',this)" title="Editar club" style="border:none;background:none;cursor:pointer;padding:0;color:var(--hint);font-size:10px;flex-shrink:0;line-height:1"><i class="ti ti-pencil"></i></button>
           </div>
-          ${_nacAge2!==null?`<div style="font-size:.68em;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:3px"><span style="font-weight:600;color:var(--fg)">${_nacAge2} años</span><span style="opacity:.6"> · ${_nacFmtStr}</span></div>`:''}
+          ${_nacAge2!==null?`<div style="font-size:.68em;color:var(--muted);margin-top:2px"><span style="font-weight:600;color:var(--fg)">${_nacAge2} años</span><span style="opacity:.6"> · ${_nacFmtStr}</span></div>`:''}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
         <span onclick="event.stopPropagation();_cycleLocalPos('${nomSafe}',event)" title="Tocar para cambiar puesto" style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:5px;padding:2px 7px;font-size:.67em;font-weight:700;cursor:pointer">${j.pos||'—'}</span>
-        <span style="font-size:.68em;color:var(--muted)">${j.pj} PJ</span>
+        <span style="font-size:.68em;font-weight:600;color:var(--fg)">${j.pj} PJ</span>
         ${j.g?`<span style="font-size:.68em;color:var(--muted)">·</span><span style="font-size:.68em;font-weight:600;color:var(--fg)">⚽ ${j.g}</span>`:''}
         ${j.a?`<span style="font-size:.68em;color:var(--muted)">·</span><span style="font-size:.68em;font-weight:600;color:var(--fg)">🅰️ ${j.a}</span>`:''}
-        <div style="display:flex;gap:3px;margin-left:auto;align-items:center">
+        <div style="display:flex;gap:3px;margin-left:auto">
           <button onclick="event.stopPropagation();_toggleLocalRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
           <button onclick="event.stopPropagation();_toggleLocalFallecido('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#44403C':'transparent'};border:1.5px solid ${isFallecido?'#44403C':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isFallecido?'#FDE68A':'#CBD5E1'}">F</button>
         </div>
       </div>
-      ${hist.length?`<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">${hist.map(h=>`<span style="background:${h.color}22;color:${h.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${h.label}</span>`).join('')}<button onclick="event.stopPropagation()" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:default">✎</button></div>`
-      :`<div style="margin-top:6px"><button onclick="event.stopPropagation()" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 8px;font-size:.6em;color:var(--muted);cursor:default">+ juvenil</button></div>`}
+      ${hist.length?`<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">${hist.map(h=>`<span style="background:${h.color}22;color:${h.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${h.label}</span>`).join('')}</div>`:''}
     </div>`;
   }).join('');
 
