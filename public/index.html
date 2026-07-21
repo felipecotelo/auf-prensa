@@ -24675,7 +24675,7 @@ window.renderEstructura=renderEstructura;
 
 function _renderEstPersonaRow(p, label, rol, photo, contrato){
   const initials=label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  const dim=contrato!=='activo';
+  const dim=contrato==='finalizado'||contrato==='desvinculado';
   const avatar=photo
     ?`<img src="${photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;${dim?'opacity:.45':''}">`
     :`<div style="width:36px;height:36px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.7em;font-weight:800;flex-shrink:0;${dim?'opacity:.45':''}">${initials}</div>`;
@@ -24708,13 +24708,14 @@ function _renderEstLista(){
 
   if(_estTab==='activos'){
     sections.forEach(d=>{
-      const personas=d.showAll ? d.personas : d.personas.filter(p=>(contracts[p.key]||'activo')==='activo');
+      const _isActive=c=>c==='activo'||c==='por_vencer'||c==='proximo';
+      const personas=d.showAll ? d.personas : d.personas.filter(p=>_isActive(contracts[p.key]||'activo'));
       if(!personas.length) return;
       total+=personas.length;
       const rows=personas.map(p=>{
         const label=edits[p.key]?.label||p.label;
         const rol=edits[p.key]?.rolesEdit?.[d.dept]?.rol||p.rol;
-        const contrato=d.showAll?(contracts[p.key]||'activo'):'activo';
+        const contrato=d.showAll?(contracts[p.key]||'activo'):(contracts[p.key]||'activo');
         return _renderEstPersonaRow(p,label,rol,cache[p.key]||p.foto,contrato);
       }).join('');
       blocks+=`<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
