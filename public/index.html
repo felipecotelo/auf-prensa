@@ -2578,9 +2578,9 @@ window._editMayorJuvTags = function(nomSafe){
   const cur = getMayorJuvTags()[nom]||[];
   const cats = Object.entries(JUV_CAT_META);
   const id = 'mjt-'+Date.now();
-  const html = `<div id="${id}" onclick="event.stopPropagation()" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:var(--card,#fff);border-radius:14px;padding:18px;box-shadow:0 8px 32px rgba(0,0,0,.18);width:280px;max-width:92vw">
-    <div style="font-weight:800;font-size:.88em;margin-bottom:12px">Categorías juveniles · ${nom.split(' ')[0]}</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${cats.map(([k,m])=>`<button onclick="window._mjToggle('${id}','${k}')" id="${id}-${k}" style="border-radius:6px;padding:3px 10px;font-size:.72em;font-weight:700;cursor:pointer;border:1.5px solid ${m.color};background:${cur.includes(k)?m.color:'transparent'};color:${cur.includes(k)?'#fff':m.color}">${m.label}</button>`).join('')}</div>
+  const html = `<div id="${id}" onclick="event.stopPropagation()" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:var(--card,#fff);border-radius:14px;padding:16px 18px 18px;box-shadow:0 8px 32px rgba(0,0,0,.18);width:260px;max-width:92vw">
+    <div style="font-weight:800;font-size:.82em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Categorías juveniles · ${nom.split(' ')[0]}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">${cats.map(([k,m])=>{const on=cur.includes(k);return`<button onclick="window._mjToggle('${id}','${k}')" id="${id}-${k}" data-active="${on?'1':'0'}" style="border-radius:5px;padding:2px 8px;font-size:.65em;font-weight:600;cursor:pointer;border:1px solid ${m.color};background:${on?m.color:m.bg};color:${on?'#fff':m.color};opacity:${on?'1':'.55'};transition:all .12s">${m.label}</button>`;}).join('')}</div>
     <div style="display:flex;gap:8px">
       <button onclick="window._mjSave('${id}','${nomSafe}')" style="flex:1;padding:7px;border-radius:8px;border:none;background:#1D4ED8;color:#fff;font-size:.8em;font-weight:700;cursor:pointer">Guardar</button>
       <button onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:none;font-size:.8em;cursor:pointer">Cancelar</button>
@@ -2591,14 +2591,15 @@ window._editMayorJuvTags = function(nomSafe){
 window._mjToggle = function(id, k){
   const btn = document.getElementById(id+'-'+k);
   const m = JUV_CAT_META[k];
-  const active = btn.style.background === m.color || btn.dataset.active==='1';
-  btn.style.background = active ? 'transparent' : m.color;
-  btn.style.color = active ? m.color : '#fff';
-  btn.dataset.active = active ? '0' : '1';
+  const on = btn.dataset.active === '1';
+  btn.dataset.active = on ? '0' : '1';
+  btn.style.background = on ? m.bg : m.color;
+  btn.style.color = on ? m.color : '#fff';
+  btn.style.opacity = on ? '.55' : '1';
 };
 window._mjSave = function(id, nomSafe){
   const nom = nomSafe.replace(/\\'/g,"'");
-  const tags = Object.keys(JUV_CAT_META).filter(k=>{ const btn=document.getElementById(id+'-'+k); return btn&&(btn.style.background===JUV_CAT_META[k].color||btn.dataset.active==='1'); });
+  const tags = Object.keys(JUV_CAT_META).filter(k=>{ const btn=document.getElementById(id+'-'+k); return btn&&btn.dataset.active==='1'; });
   setMayorJuvTags(nom, tags);
   document.getElementById(id)?.remove(); document.getElementById(id+'-bg')?.remove();
   renderJugadores();
