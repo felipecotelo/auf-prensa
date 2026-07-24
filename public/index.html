@@ -20542,12 +20542,20 @@ window._gnavCTSearch = function(v){
 window._gnavCTGo = function(section, nomEnc, extra){
   document.getElementById('gnav-ct-drop')?.remove();
   const q = document.getElementById('gnav-ct-q'); if(q) q.value='';
-  if(section==='estructura'){
-    showSection('estructura');
-  } else {
-    showSection('juveniles');
-    setTimeout(()=>{ _juvGlobalPlayers=false; window.renderJuveniles?.(); },80);
+  const nom = decodeURIComponent(nomEnc);
+  // Si es jugador Mayor, ir a su ficha de jugador
+  if(typeof JUGADORES!=='undefined' && JUGADORES[nom]){
+    showSection('mayor'); showTab('jugadores');
+    setTimeout(()=>{ window._jSearch=nom; if(typeof renderJugadores==='function') renderJugadores(); },80);
+    return;
   }
+  // Si tiene key en Estructura, ir a su ficha de Estructura
+  if(extra && extra.key){
+    window._goToEstFicha?.(extra.key);
+    return;
+  }
+  // Default: abrir modal ficha CT
+  window._openCTFicha?.(nom);
 };
 window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
@@ -21664,6 +21672,96 @@ window._clickCtPhoto = function(nomEncoded){
   const cached = (window._estPhotoCache||{})[key];
   if(cached){ openPE('est:'+key, cached); return; }
   document.getElementById('ct-photo-input-'+nomEncoded)?.click();
+};
+window._openCTFicha = function(name){
+  const nomEnc = encodeURIComponent(name);
+  const slug = _nameSlug(name);
+  const photoKey = 'ct-p:'+slug;
+
+  // Recopilar todos los roles/apariciones de esta persona
+  const apariciones = [];
+  // Estructura actual
+  if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
+    ESTRUCTURA_PERSONAS.forEach(dept=>{
+      const p = dept.personas.find(p=>p.label===name);
+      if(p) apariciones.push({label: dept.dept, rol: p.rol, activo:true});
+    });
+  }
+  // DT Mayor histórico
+  if(typeof DT_MAYOR_HIST!=='undefined'){
+    DT_MAYOR_HIST.forEach(d=>{ if(d.name===name) apariciones.push({label:'Mayor (DT)',rol:d.rol}); });
+  }
+  // CT Mayor ciclos
+  [typeof CT_MAYOR_BIELSA!=='undefined'?CT_MAYOR_BIELSA:[],typeof CT_MAYOR_ALONSO!=='undefined'?CT_MAYOR_ALONSO:[]]
+    .forEach((arr,i)=>arr.forEach(m=>{ if(m.name===name) apariciones.push({label:'Mayor – CT '+(i===0?'Bielsa':'Alonso'),rol:m.rol}); }));
+  // Bielsa convocatorias
+  if(typeof BIELSA_CONVOCATORIAS!=='undefined'){
+    BIELSA_CONVOCATORIAS.forEach(c=>{ (c.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:(c.titulo||c.competencia||'Mayor'),rol:m.rol}); }); });
+  }
+  // JUV_TORNEOS
+  if(typeof JUV_TORNEOS!=='undefined'){
+    Object.entries(JUV_TORNEOS).forEach(([tid,t])=>{
+      (t.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:t.titulo||tid,rol:m.rol}); });
+    });
+  }
+  // JUVENILES años ct
+  if(typeof JUVENILES!=='undefined'){
+    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      Object.entries(catData.anos||{}).forEach(([anoKey,anoData])=>{
+        (anoData.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:(catData.label||catKey)+' '+anoKey,rol:m.rol}); });
+      });
+    });
+  }
+
+  const _renderFicha = () => {
+    const photo = window._getPersonPhoto?.(name)||null;
+    const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const photoEl = photo
+      ? `<img src="${photo}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid var(--border)">`
+      : `<div style="width:90px;height:90px;border-radius:50%;background:var(--bg);border:3px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.6em;font-weight:900;color:var(--muted)">${initials}</div>`;
+    const aRows = apariciones.length
+      ? apariciones.map(a=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)">
+          <span style="flex:1;font-size:.82em;color:var(--fg);font-weight:600">${a.label}</span>
+          <span style="font-size:.75em;color:var(--muted)">${a.rol}${a.activo?` <span style="color:#16a34a;font-weight:800">● actual</span>`:''}</span>
+        </div>`).join('')
+      : `<div style="font-size:.8em;color:var(--muted);padding:8px 0">Sin apariciones registradas</div>`;
+    const el = document.getElementById('ct-ficha-modal');
+    if(el) el.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:16px">
+        <div onclick="_clickCtPhoto('${nomEnc}')" style="cursor:pointer;position:relative">
+          ${photoEl}
+          <div style="position:absolute;bottom:2px;right:2px;width:22px;height:22px;background:rgba(0,0,0,.65);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px">📷</div>
+          <input type="file" accept="image/*" id="ct-photo-input-${nomEnc}" style="display:none"
+            onchange="(function(input){
+              var f=input.files[0];if(!f)return;
+              var r=new FileReader();
+              r.onload=function(ev){
+                openPE('${photoKey}',ev.target.result);
+                setTimeout(function(){window._openCTFicha(${JSON.stringify(name)})},400);
+              };
+              r.readAsDataURL(f);
+              input.value='';
+            })(this)">
+        </div>
+        <div style="font-size:1.05em;font-weight:800;color:var(--fg);text-align:center">${name}</div>
+      </div>
+      <div style="font-size:.68em;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Historial</div>
+      ${aRows}`;
+  };
+
+  // Abrir modal
+  let modal = document.getElementById('ct-ficha-modal-bg');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id='ct-ficha-modal-bg';
+    modal.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML=`<div id="ct-ficha-modal" style="background:var(--card);border-radius:16px;padding:20px 20px 16px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto;position:relative">
+      <button onclick="document.getElementById('ct-ficha-modal-bg').remove()" style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:1.3em;cursor:pointer;color:var(--muted)">×</button>
+    </div>`;
+    modal.addEventListener('click',e=>{ if(e.target===modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+  _renderFicha();
 };
 const CT_ROL_ORDER = ['director técnico','ayudante técnico','preparador físico','entrenador de arqueros','videoanalista'];
 function _sortCT(arr){ return [...arr].sort((a,b)=>{ const ai=CT_ROL_ORDER.indexOf((a.rol||'').toLowerCase()); const bi=CT_ROL_ORDER.indexOf((b.rol||'').toLowerCase()); const ar=ai===-1?99:ai; const br=bi===-1?99:bi; return ar-br; }); }
