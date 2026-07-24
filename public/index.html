@@ -441,6 +441,18 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .p-card-body{padding:9px 10px}
 .p-name{font-size:11.5px;font-weight:700;color:var(--text);margin-bottom:5px;line-height:1.3}
 .p-acts{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;min-height:16px}
+.p-mob-name{display:none}.p-mob-pos{display:none}
+.juv-fichas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.juv-ficha-mob-cpt{display:none}
+.juv-ficha-full{display:block}
+@media(max-width:600px){
+  .juv-fichas-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+  .juv-ficha-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;align-items:center;padding:8px 4px 6px}
+  .juv-ficha-mob-cpt{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%}
+  .juv-ficha-mob-nm{font-size:8.5px;font-weight:700;text-align:center;color:var(--text);line-height:1.25;padding:0 2px;word-break:break-word}
+  .juv-ficha-mob-pos{font-size:7.5px;font-weight:800;padding:1px 6px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em}
+  .juv-ficha-full{display:none}
+}
 .p-act-chip{
   font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;
   background:var(--cel-lt);color:var(--cel-dk);
@@ -858,11 +870,27 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
   .sec-desc{font-size:10.5px}
   .grid4{grid-template-columns:1fr 1fr}
   .stat-n{font-size:22px}
-  .p-grid{grid-template-columns:1fr 1fr}
-  .p-card-num{font-size:30px}
-  .p-avatar{width:54px!important;height:54px!important}
-  .p-avatar-n{font-size:18px!important}
-  .p-name{font-size:11px}
+  .p-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+  .p-card{border-radius:10px}
+  .p-card-top{padding:8px 6px 6px;flex-direction:column;align-items:center;gap:4px}
+  .p-card-num{display:none}
+  .p-card-right{display:none}
+  .p-photo-edit{display:none}
+  .p-avatar{width:52px!important;height:52px!important;border-width:2px}
+  .p-avatar-n{font-size:16px!important}
+  .p-card-body{display:none}
+  .p-mob-name{display:block;font-size:8.5px;font-weight:700;color:rgba(255,255,255,.95);text-align:center;line-height:1.25;max-width:100%;word-break:break-word;padding:0 2px}
+  .p-mob-pos{display:block;font-size:7.5px;font-weight:800;padding:1px 6px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
+  /* Expanded card: full row, all content visible */
+  .p-card.mob-exp{grid-column:1/-1;border-radius:12px}
+  .p-card.mob-exp .p-card-top{flex-direction:row;align-items:center;padding:12px 12px 10px;gap:10px}
+  .p-card.mob-exp .p-card-num{display:block;font-size:30px}
+  .p-card.mob-exp .p-card-right{display:flex}
+  .p-card.mob-exp .p-photo-edit{display:flex}
+  .p-card.mob-exp .p-avatar{width:54px!important;height:54px!important}
+  .p-card.mob-exp .p-card-body{display:block}
+  .p-card.mob-exp .p-mob-name{display:none}
+  .p-card.mob-exp .p-mob-pos{display:none}
   .p-stat-n{font-size:12px}
   .p-stat-l{font-size:7px}
   .inj-toggle{font-size:10px;padding:2px 7px 2px 5px}
@@ -5462,6 +5490,7 @@ async function renderPlantel(searchVal){
       const card=document.createElement('div');
       card.className='p-card';
       card.id=`pcard-${p.n}`;
+      card.onclick=function(e){if(window._mobCardToggle)_mobCardToggle(this);};
       card.innerHTML=`
         <div class="p-card-top" style="position:relative">
           <div class="p-card-num">${p.n}</div>
@@ -5479,6 +5508,8 @@ async function renderPlantel(searchVal){
           <div class="p-photo-edit" title="Cambiar foto" onclick="event.stopPropagation();clickPhotoBtn(${p.n},this)">
             📷<input type="file" accept="image/*" style="display:none" onchange="changePlayerPhoto(${p.n},this)">
           </div>
+          <div class="p-mob-name">${p.name}</div>
+          <div class="p-mob-pos pos-${p.pos}">${p.pos}</div>
         </div>
         <div class="p-card-body">
           <div class="p-name">${p.name}</div>
@@ -8623,6 +8654,12 @@ function renderTecnicos(){
     <div>${tabContent[_tecTab]||''}</div>`;
 }
 
+window._mobCardToggle=function(card){
+  if(window.innerWidth>600)return;
+  const wasExp=card.classList.contains('mob-exp');
+  document.querySelectorAll('.p-card.mob-exp').forEach(c=>c.classList.remove('mob-exp'));
+  if(!wasExp){card.classList.add('mob-exp');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+};
 function renderJugadores(){
   const con=document.getElementById('jugadores-container');
   if(!con) return;
@@ -21368,8 +21405,8 @@ function _renderJuvenilesSafe(el){
         <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
           Fichas de jugadores — ${fichas.length} · click en el puesto para editarlo
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-          ${fichas.map(p=>_juvFichaCard(p, _juvPlayerHistory(p.nom), _juvOfficialStats(p.nom))).join('')}
+        <div class="juv-fichas-grid">
+          ${fichas.map(p=>{const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');const photo=window._juvGetPhoto?.(p.nom)||null;const initials=p.nom.split(' ').filter((_,i)=>i===0||i===p.nom.split(' ').length-1).map(w=>w[0]).join('');const posLabel=p.pos||'—';const posFg=(window.JUV_POS_FG||{})[p.pos]||'#fff';const posBg=(window.JUV_POS_BG||{})[p.pos]||'#6B7280';return`<div class="juv-ficha-wrap" onclick="if(window.innerWidth<=600){event.preventDefault();_openJuvDetail('${nomEnc}');}"><div class="juv-ficha-mob-cpt"><div style="width:54px;height:54px;border-radius:50%;background:var(--bg);border:2px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.9em;color:var(--muted);flex-shrink:0">${photo?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:`<span>${initials}</span>`}</div><div class="juv-ficha-mob-nm">${p.nom}</div><div class="juv-ficha-mob-pos" style="background:${posBg};color:${posFg}">${posLabel}</div></div><div class="juv-ficha-full">${_juvFichaCard(p, _juvPlayerHistory(p.nom), _juvOfficialStats(p.nom))}</div></div>`}).join('')}
         </div>`;
     }
   }
