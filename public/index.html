@@ -1213,6 +1213,18 @@ html.auf-gate body { display:none !important }
       </div>
       <div id="gnav-drop" style="display:none"></div>
     </div>
+    <div style="position:relative;flex-shrink:0" id="gnav-ct-wrap">
+      <div style="position:relative;display:flex;align-items:center">
+        <i class="ti ti-users" style="position:absolute;left:8px;color:rgba(255,255,255,.5);font-size:12px;pointer-events:none"></i>
+        <input id="gnav-ct-q" type="text" placeholder="Buscar CT…" autocomplete="off"
+          oninput="window._gnavCTSearch(this.value)"
+          onfocus="if(this.value.trim()) window._gnavCTSearch(this.value)"
+          onblur="setTimeout(()=>{const d=document.getElementById('gnav-ct-drop');if(d)d.style.display='none';},180)"
+          style="padding:5px 10px 5px 26px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fff;font-size:.78em;width:130px;outline:none;transition:width .2s"
+          onfocusin="this.style.width='200px'" onfocusout="this.style.width='130px'">
+      </div>
+      <div id="gnav-ct-drop" style="display:none"></div>
+    </div>
     <button class="nav-l0-global" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
     <button class="nav-l0-global" data-tab="linkgen" onclick="showTab('linkgen')" style="color:#c4b5fd"><i class="ti ti-link"></i>Links</button>
   </div>
@@ -20468,6 +20480,75 @@ window._gnavGo = function(section, nomEnc){
   }
 };
 
+window._gnavCTSearch = function(v){
+  document.getElementById('gnav-ct-drop')?.remove();
+  const q = _gnavNorm(v.trim());
+  if(!q) return;
+  const inp = document.getElementById('gnav-ct-q');
+  if(!inp) return;
+  const rect = inp.getBoundingClientRect();
+  const results = [];
+  const seen = new Set();
+  const add = (nom, sub, section, extra) => {
+    if(!seen.has(nom) && _gnavNorm(nom).includes(q)){
+      seen.add(nom); results.push({nom, sub, section, extra:extra||null});
+    }
+  };
+  // 1. Estructura actual
+  try{
+    (typeof ESTRUCTURA_PERSONAS!=='undefined'?ESTRUCTURA_PERSONAS:[]).forEach(dept=>{
+      dept.personas.forEach(p=>add(p.label, dept.dept+' · '+p.rol, 'estructura', {key:p.key}));
+    });
+  }catch(_){}
+  // 2. CT de ciclos juveniles (JUV_TORNEOS)
+  try{
+    if(typeof JUV_TORNEOS!=='undefined') Object.entries(JUV_TORNEOS).forEach(([tid,t])=>{
+      (t.ct||[]).forEach(m=>add(m.name, (t.titulo||tid)+' · '+m.rol, 'juv_ct', {tid}));
+    });
+  }catch(_){}
+  // 3. CT de ciclos en JUVENILES (anos.ct)
+  try{
+    if(typeof JUVENILES!=='undefined') Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      Object.entries(catData.anos||{}).forEach(([anoKey,anoData])=>{
+        (anoData.ct||[]).forEach(m=>add(m.name, (catData.label||catKey)+' '+anoKey+' · '+m.rol, 'juv_ct', {}));
+      });
+    });
+  }catch(_){}
+  // 4. CT Mayor (BIELSA_CONVOCATORIAS ct)
+  try{
+    if(typeof BIELSA_CONVOCATORIAS!=='undefined') BIELSA_CONVOCATORIAS.forEach(c=>{
+      (c.ct||[]).forEach(m=>add(m.name, 'Mayor · '+(c.titulo||c.competencia||'')+' · '+m.rol, 'estructura', {}));
+    });
+  }catch(_){}
+  results.sort((a,b)=>a.nom.localeCompare(b.nom));
+  const drop = document.createElement('div');
+  drop.id='gnav-ct-drop';
+  drop.style.cssText=`position:fixed;left:${Math.max(4,rect.right-260)}px;top:${rect.bottom+4}px;width:260px;max-height:360px;overflow-y:auto;background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:99999;font-family:inherit`;
+  drop.innerHTML = !results.length
+    ? `<div style="padding:10px 14px;font-size:.82em;color:#6b7280">Sin resultados</div>`
+    : results.slice(0,14).map(r=>{
+      const photo = window._getPersonPhoto?.(r.nom)||null;
+      const initials = r.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatar = photo
+        ? `<img src="${photo}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<div style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.62em;font-weight:800;color:#6b7280">${initials}</div>`;
+      return `<div onclick="window._gnavCTGo('${r.section}','${encodeURIComponent(r.nom)}',${JSON.stringify(r.extra||{})})" style="display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6">
+        ${avatar}
+        <div style="min-width:0"><div style="font-size:.84em;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div><div style="font-size:.68em;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.sub}</div></div>
+      </div>`;
+    }).join('')+(results.length>14?`<div style="padding:6px 12px;font-size:.72em;color:#6b7280">+${results.length-14} más…</div>`:'');
+  document.body.appendChild(drop);
+};
+window._gnavCTGo = function(section, nomEnc, extra){
+  document.getElementById('gnav-ct-drop')?.remove();
+  const q = document.getElementById('gnav-ct-q'); if(q) q.value='';
+  if(section==='estructura'){
+    showSection('estructura');
+  } else {
+    showSection('juveniles');
+    setTimeout(()=>{ _juvGlobalPlayers=false; window.renderJuveniles?.(); },80);
+  }
+};
 window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
   window.renderJuveniles();
