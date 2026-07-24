@@ -19532,56 +19532,49 @@ let _juvComp = null; // competencia abierta (detalle)
 let _juvCompTab = 'convocados'; // sub-tab dentro de competencia
 let _juvGlobalPlayers = false; // vista "Jugadores" cruzando todas las categorías
 
+function _gnavNorm(s){return(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
 window._gnavSearch = function(v){
-  const q = _norm(v.trim());
-  const drop = document.getElementById('gnav-drop');
-  if(!drop) return;
-  if(!q){ drop.style.display='none'; return; }
+  document.getElementById('gnav-drop')?.remove();
+  const q = _gnavNorm(v.trim());
+  if(!q) return;
+  const inp = document.getElementById('gnav-q');
+  if(!inp) return;
+  const rect = inp.getBoundingClientRect();
   // Recopilar jugadores Mayor
   const results = [];
   const seen = new Set();
-  Object.entries(typeof JUGADORES!=='undefined'?JUGADORES:{}).forEach(([nom,d])=>{
-    if(seen.has(nom)) return;
-    if(_norm(nom).includes(q)){seen.add(nom);results.push({nom,sub:'Mayor · '+d.pos,section:'mayor',foto:d.foto||null});}
-  });
+  try{ Object.entries(JUGADORES).forEach(([nom,d])=>{
+    if(!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);results.push({nom,sub:'Mayor · '+(d.pos||''),section:'mayor',foto:d.foto||null});}
+  });}catch(_){}
   // Recopilar jugadores Juveniles
-  const juvAll = {};
-  if(typeof JUVENILES!=='undefined') Object.entries(JUVENILES).forEach(([catKey,catData])=>{
-    const label = catData.label||catKey;
-    Object.values(catData.anos||{}).forEach(anoData=>{
-      (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
-        if(!juvAll[j.nom]) juvAll[j.nom]={cats:new Set()};
-        juvAll[j.nom].cats.add(label);
-      }));
-      (anoData.lista||[]).forEach(j=>{
-        if(!juvAll[j.nom]) juvAll[j.nom]={cats:new Set()};
-        juvAll[j.nom].cats.add(label);
+  try{
+    const juvAll={};
+    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      const label=catData.label||catKey;
+      Object.values(catData.anos||{}).forEach(anoData=>{
+        (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{if(!juvAll[j.nom])juvAll[j.nom]=new Set();juvAll[j.nom].add(label);}));
+        (anoData.lista||[]).forEach(j=>{if(!juvAll[j.nom])juvAll[j.nom]=new Set();juvAll[j.nom].add(label);});
       });
     });
-  });
-  Object.entries(juvAll).forEach(([nom,d])=>{
-    if(seen.has(nom)) return;
-    if(_norm(nom).includes(q)){seen.add(nom);results.push({nom,sub:[...d.cats].join(' · '),section:'juveniles',foto:null});}
-  });
+    Object.entries(juvAll).forEach(([nom,cats])=>{
+      if(!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);results.push({nom,sub:[...cats].join(' · '),section:'juveniles',foto:null});}
+    });
+  }catch(_){}
   results.sort((a,b)=>a.nom.localeCompare(b.nom));
-  if(!results.length){
-    drop.innerHTML=`<div style="padding:10px 14px;font-size:.78em;color:var(--muted)">Sin resultados</div>`;
-    drop.style.display='block'; return;
-  }
-  drop.innerHTML = results.slice(0,10).map(r=>`
-    <div onclick="window._gnavGo('${r.section}','${encodeURIComponent(r.nom)}')"
-      style="display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border)"
-      onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
-      ${r.foto?`<img src="${r.foto}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`
-              :`<div style="width:28px;height:28px;border-radius:50%;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65em;font-weight:800;color:var(--muted)">${r.nom.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}</div>`}
-      <div style="min-width:0"><div style="font-size:.82em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div>
-      <div style="font-size:.68em;color:var(--muted)">${r.sub}</div></div>
-    </div>`).join('')+(results.length>10?`<div style="padding:6px 12px;font-size:.7em;color:var(--muted)">+${results.length-10} más…</div>`:'');
-  drop.style.display='block';
+  const drop = document.createElement('div');
+  drop.id='gnav-drop';
+  drop.style.cssText=`position:fixed;left:${Math.max(4,rect.right-280)}px;top:${rect.bottom+4}px;width:280px;max-height:360px;overflow-y:auto;background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:99999;font-family:inherit`;
+  drop.innerHTML = !results.length
+    ? `<div style="padding:10px 14px;font-size:.82em;color:#6b7280">Sin resultados</div>`
+    : results.slice(0,12).map(r=>`<div onclick="window._gnavGo('${r.section}','${encodeURIComponent(r.nom)}')" style="display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6">
+      ${r.foto?`<img src="${r.foto}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:`<div style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.62em;font-weight:800;color:#6b7280">${r.nom.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}</div>`}
+      <div style="min-width:0"><div style="font-size:.84em;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div><div style="font-size:.68em;color:#6b7280">${r.sub}</div></div>
+    </div>`).join('')+(results.length>12?`<div style="padding:6px 12px;font-size:.72em;color:#6b7280">+${results.length-12} más…</div>`:'');
+  document.body.appendChild(drop);
 };
 window._gnavGo = function(section, nomEnc){
   document.getElementById('gnav-drop')?.remove();
-  document.getElementById('gnav-q').value='';
+  const q = document.getElementById('gnav-q'); if(q) q.value='';
   const nom = decodeURIComponent(nomEnc);
   if(section==='mayor'){
     showSection('mayor'); showTab('jugadores');
@@ -19591,10 +19584,6 @@ window._gnavGo = function(section, nomEnc){
     setTimeout(()=>{ window._juvGlobalQ=nom; _juvGlobalPlayers=true; window.renderJuveniles?.(); },80);
   }
 };
-// Posicionar dropdown bajo el input
-const _gnavStyle=document.createElement('style');
-_gnavStyle.textContent='#gnav-drop{position:absolute;right:0;top:calc(100% + 4px);background:var(--card,#fff);color:var(--fg,#111);border:1px solid var(--border,#e5e7eb);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;min-width:260px;max-height:360px;overflow-y:auto}';
-document.head.appendChild(_gnavStyle);
 
 window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
