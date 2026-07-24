@@ -2767,6 +2767,30 @@ const LEYENDAS_FALLECIDOS = {
   'Pedro Rocha':            '2013-12-02',
 };
 const getMayorNac = () => { const stored=stor.get(KMayorNac,{}); return {...MAYOR_NAC_DEFAULT,...stored}; };
+
+// Fechas de nacimiento de jugadores juveniles (todas las generaciones conocidas)
+const JUV_NAC_DATES = {
+  // Generación 2000 — Sub-15 Colombia 2015 / Sub-17 Chile 2017
+  'Mauro Silveira':'2000-05-06', 'Jonathan González':'2000-06-22', 'Christian Luna':'2000-01-26',
+  'Edgar Elizalde':'2000-02-27', 'Gastón Medina':'2000-09-13', 'José Neris':'2000-03-13',
+  'Juan Manuel Sanabria':'2000-03-29', 'Gonzalo Nápoli':'2000-05-08', 'Owen Falconis':'2000-02-25',
+  'Santiago Rodríguez':'2000-01-08', 'Nahuel Suárez':'2000-06-02', 'Facundo Santellán':'2000-03-20',
+  'Ezequiel Mechoso':'2000-03-23', 'Mateo Sena':'2000-03-30', 'Matías Alfonso':'2000-02-29',
+  'Facundo Parada':'2000-01-28', 'Thomas Chacón':'2000-08-17', 'Gustavo Viera':'2000-10-21',
+  'Nicolás García':'2000-10-05', 'Brian Leis':'2000-11-18', 'Rodolfo Rodríguez Macari':'2000-11-16',
+  // Generación 2002 — Sub-15 Argentina 2017 / Sub-17 Perú 2019
+  'Máximo Alonso':'2002-07-05', 'Axel Barreto':'2002-02-11', 'Lucas Benítez':'2002-11-08',
+  'Mateo Cano':'2002-05-11', 'Agustín Da Rocha':'2002-01-25', 'Lucas Disabella':'2002-03-29',
+  'Rodrigo Fernández':'2002-08-25', 'Matías González':'2002-11-29', 'Braulio Guisolfo':'2002-05-07',
+  'Juan Manuel Gutiérrez':'2002-02-04', 'Maximiliano Juambeltz':'2002-06-09', 'Diego Méndez':'2002-05-27',
+  'Santiago Mernies':'2002-03-14', 'Pedro Milans':'2002-03-24', 'Matías Ocampo':'2002-03-14',
+  'Vicente Poggi':'2002-07-11', 'Enzo Siri':'2002-03-09', 'Joaquín Sosa':'2002-01-10',
+  'Ignacio Suárez':'2002-02-05', 'Ignacio Velázquez':'2002-10-31', 'Carlos Adrián Vila':'2002-01-01',
+  'Kevin Alaniz':'2003-01-30', 'Santiago Álvez':'2002-07-13', 'Santiago Cartagena':'2002-09-01',
+  'Luciano Fernández':'2002-03-16', 'Lucas González':'2002-02-11', 'Alexander Machado':'2002-05-28',
+  'Axel Pérez':'2002-02-18', 'Axel Prado':'2002-11-17', 'Bruno Vera':'2003-05-04',
+  'Guillermo Wagner':'2002-01-09',
+};
 const setMayorNac = (nom, val) => { const d=getMayorNac(); if(val) d[nom]=val; else delete d[nom]; stor.set(KMayorNac,d); cloudPushDebounced(KMayorNac,d); };
 const _nacAge = (iso) => { if(!iso) return null; const [y,m,d]=iso.split('-').map(Number); const now=new Date(); const age=now.getFullYear()-y-(now.getMonth()+1<m||(now.getMonth()+1===m&&now.getDate()<d)?1:0); return age; };
 const _nacFmt = (iso) => { if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
@@ -21540,7 +21564,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
           ${isJuvFallecido?'✝ Fallecido':isJuvRetirado?'Retirado':(clubShow||'— sin club —')}${(clubEdited&&!isJuvRetirado&&!isJuvFallecido)?' ✎':''}
         </div>
         ${juvExClubs.length?`<div style="font-size:.62em;color:var(--muted);margin-top:1px;opacity:.65">${juvExClubs.map(c=>`ex ${c}`).join(' · ')}</div>`:''}
-        ${(()=>{const fn=p.fechaNac||(typeof MAYOR_NAC_DEFAULT!=='undefined'?MAYOR_NAC_DEFAULT[p.nom]:null)||(typeof getMayorNac==='function'?getMayorNac()[p.nom]:null);if(!fn)return'';const d=new Date(fn);const today=new Date();let age=today.getFullYear()-d.getFullYear();if(today<new Date(today.getFullYear(),d.getMonth(),d.getDate()))age--;const day=d.getDate();const month=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()];return`<div style="font-size:.62em;color:var(--muted);margin-top:1px">${day} ${month} ${d.getFullYear()} · ${age} años</div>`;})()}
+        ${(()=>{const fn=p.fechaNac||(typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES[p.nom]:null)||(typeof MAYOR_NAC_DEFAULT!=='undefined'?MAYOR_NAC_DEFAULT[p.nom]:null)||(typeof getMayorNac==='function'?getMayorNac()[p.nom]:null);if(!fn)return'';const d=new Date(fn);const today=new Date();let age=today.getFullYear()-d.getFullYear();if(today<new Date(today.getFullYear(),d.getMonth(),d.getDate()))age--;const day=d.getDate();const month=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()];return`<div style="font-size:.62em;color:var(--muted);margin-top:1px">${day} ${month} ${d.getFullYear()} · ${age} años</div>`;})()}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
