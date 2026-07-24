@@ -17463,7 +17463,7 @@ const JUVENILES = {
       },
       '2018-2019': {
         ct: [
-          {iso:'uy', name:'Diego DeMarco',       rol:'Director técnico', dt:true},
+          {iso:'uy', name:'Diego Demarco',       rol:'Director técnico', dt:true},
           {iso:'uy', name:'Andrés Silva',        rol:'Director técnico alterno'},
           {iso:'uy', name:'Carlos Arias',        rol:'Entrenador de arqueros'},
           {iso:'uy', name:'Horacio Britos',      rol:'Preparador físico'},
@@ -17501,7 +17501,7 @@ const JUVENILES = {
       },
       '2016-2017': {
         ct: [
-          {iso:'uy', name:'Diego DeMarco',       rol:'Director técnico', dt:true},
+          {iso:'uy', name:'Diego Demarco',       rol:'Director técnico', dt:true},
           {iso:'uy', name:'Andrés Silva',        rol:'Director técnico alterno'},
           {iso:'uy', name:'Diego Estavillo',     rol:'Preparador físico'},
           {iso:'uy', name:'Gonzalo Noguera',     rol:'Entrenador de arqueros'},
@@ -20153,7 +20153,7 @@ const COMP_DATA = {
     id:'sud15-argentina-2017', label:'Sudamericano Sub-15 Argentina 2017', icon:'🌎', color:'#9A3412', tipo:'oficial',
     fecha:'2017 · San Juan, Argentina',
     ct:[
-      {iso:'uy', name:'Diego DeMarco',       rol:'Director técnico', dt:true},
+      {iso:'uy', name:'Diego Demarco',       rol:'Director técnico', dt:true},
       {iso:'uy', name:'Andrés Silva',        rol:'Director técnico alterno'},
       {iso:'uy', name:'Diego Estavillo',     rol:'Preparador físico'},
       {iso:'uy', name:'Gonzalo Noguera',     rol:'Entrenador de arqueros'},
@@ -20303,7 +20303,7 @@ const COMP_DATA = {
     id:'sud15-paraguay-2019', label:'Sudamericano Sub-15 Paraguay 2019', icon:'🌎', color:'#9A3412', tipo:'oficial',
     fecha:'2019 · Asunción, Paraguay',
     ct:[
-      {iso:'uy', name:'Diego DeMarco',    rol:'Director técnico', dt:true},
+      {iso:'uy', name:'Diego Demarco',    rol:'Director técnico', dt:true},
       {iso:'uy', name:'Andrés Silva',     rol:'Director técnico alterno'},
       {iso:'uy', name:'Carlos Arias',     rol:'Entrenador de arqueros'},
       {iso:'uy', name:'Horacio Britos',   rol:'Preparador físico'},
@@ -20494,30 +20494,31 @@ window._gnavCTSearch = function(v){
       seen.add(nom); results.push({nom, sub, section, extra:extra||null});
     }
   };
+  const nr = r => _normRol(r)||r;
   // 1. Estructura actual
   try{
     (typeof ESTRUCTURA_PERSONAS!=='undefined'?ESTRUCTURA_PERSONAS:[]).forEach(dept=>{
-      dept.personas.forEach(p=>add(p.label, dept.dept+' · '+p.rol, 'estructura', {key:p.key}));
+      dept.personas.forEach(p=>add(p.label, dept.dept+' · '+nr(p.rol), 'estructura', {key:p.key}));
     });
   }catch(_){}
   // 2. CT de ciclos juveniles (JUV_TORNEOS)
   try{
     if(typeof JUV_TORNEOS!=='undefined') Object.entries(JUV_TORNEOS).forEach(([tid,t])=>{
-      (t.ct||[]).forEach(m=>add(m.name, (t.titulo||tid)+' · '+m.rol, 'juv_ct', {tid}));
+      (t.ct||[]).forEach(m=>add(m.name, (t.titulo||tid)+' · '+nr(m.rol), 'juv_ct', {tid}));
     });
   }catch(_){}
   // 3. CT de ciclos en JUVENILES (anos.ct)
   try{
     if(typeof JUVENILES!=='undefined') Object.entries(JUVENILES).forEach(([catKey,catData])=>{
       Object.entries(catData.anos||{}).forEach(([anoKey,anoData])=>{
-        (anoData.ct||[]).forEach(m=>add(m.name, (catData.label||catKey)+' '+anoKey+' · '+m.rol, 'juv_ct', {}));
+        (anoData.ct||[]).forEach(m=>add(m.name, (catData.label||catKey)+' '+anoKey+' · '+nr(m.rol), 'juv_ct', {}));
       });
     });
   }catch(_){}
   // 4. CT Mayor (BIELSA_CONVOCATORIAS ct)
   try{
     if(typeof BIELSA_CONVOCATORIAS!=='undefined') BIELSA_CONVOCATORIAS.forEach(c=>{
-      (c.ct||[]).forEach(m=>add(m.name, 'Mayor · '+(c.titulo||c.competencia||'')+' · '+m.rol, 'estructura', {}));
+      (c.ct||[]).forEach(m=>add(m.name, 'Mayor · '+(c.titulo||c.competencia||'')+' · '+nr(m.rol), 'estructura', {}));
     });
   }catch(_){}
   results.sort((a,b)=>a.nom.localeCompare(b.nom));
@@ -21681,34 +21682,30 @@ window._openCTFicha = function(name){
   // Recopilar todos los roles/apariciones de esta persona
   const apariciones = [];
   // Estructura actual
+  const nr = r => _normRol(r)||r;
   if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
     ESTRUCTURA_PERSONAS.forEach(dept=>{
       const p = dept.personas.find(p=>p.label===name);
-      if(p) apariciones.push({label: dept.dept, rol: p.rol, activo:true});
+      if(p) apariciones.push({label: dept.dept, rol: nr(p.rol), activo:true});
     });
   }
-  // DT Mayor histórico
   if(typeof DT_MAYOR_HIST!=='undefined'){
-    DT_MAYOR_HIST.forEach(d=>{ if(d.name===name) apariciones.push({label:'Mayor (DT)',rol:d.rol}); });
+    DT_MAYOR_HIST.forEach(d=>{ if(d.name===name) apariciones.push({label:'Mayor (DT)',rol:nr(d.rol)}); });
   }
-  // CT Mayor ciclos
   [typeof CT_MAYOR_BIELSA!=='undefined'?CT_MAYOR_BIELSA:[],typeof CT_MAYOR_ALONSO!=='undefined'?CT_MAYOR_ALONSO:[]]
-    .forEach((arr,i)=>arr.forEach(m=>{ if(m.name===name) apariciones.push({label:'Mayor – CT '+(i===0?'Bielsa':'Alonso'),rol:m.rol}); }));
-  // Bielsa convocatorias
+    .forEach((arr,i)=>arr.forEach(m=>{ if(m.name===name) apariciones.push({label:'Mayor – CT '+(i===0?'Bielsa':'Alonso'),rol:nr(m.rol)}); }));
   if(typeof BIELSA_CONVOCATORIAS!=='undefined'){
-    BIELSA_CONVOCATORIAS.forEach(c=>{ (c.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:(c.titulo||c.competencia||'Mayor'),rol:m.rol}); }); });
+    BIELSA_CONVOCATORIAS.forEach(c=>{ (c.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:(c.titulo||c.competencia||'Mayor'),rol:nr(m.rol)}); }); });
   }
-  // JUV_TORNEOS
   if(typeof JUV_TORNEOS!=='undefined'){
     Object.entries(JUV_TORNEOS).forEach(([tid,t])=>{
-      (t.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:t.titulo||tid,rol:m.rol}); });
+      (t.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:t.titulo||tid,rol:nr(m.rol)}); });
     });
   }
-  // JUVENILES años ct
   if(typeof JUVENILES!=='undefined'){
     Object.entries(JUVENILES).forEach(([catKey,catData])=>{
       Object.entries(catData.anos||{}).forEach(([anoKey,anoData])=>{
-        (anoData.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:(catData.label||catKey)+' '+anoKey,rol:m.rol}); });
+        (anoData.ct||[]).forEach(m=>{ if(m.name===name) apariciones.push({label:(catData.label||catKey)+' '+anoKey,rol:nr(m.rol)}); });
       });
     });
   }
@@ -21763,8 +21760,32 @@ window._openCTFicha = function(name){
   }
   _renderFicha();
 };
-const CT_ROL_ORDER = ['director técnico','ayudante técnico','preparador físico','entrenador de arqueros','videoanalista'];
-function _sortCT(arr){ return [...arr].sort((a,b)=>{ const ai=CT_ROL_ORDER.indexOf((a.rol||'').toLowerCase()); const bi=CT_ROL_ORDER.indexOf((b.rol||'').toLowerCase()); const ar=ai===-1?99:ai; const br=bi===-1?99:bi; return ar-br; }); }
+const _CT_ROL_MAP = {
+  // Director técnico
+  'dt':'Director técnico','head coach':'Director técnico',
+  // Ayudante técnico
+  'director técnico alterno':'Ayudante técnico','segundo entrenador':'Ayudante técnico',
+  'técnico asistente':'Ayudante técnico','auxiliar técnico':'Ayudante técnico',
+  'asistente técnico':'Ayudante técnico','ayudante de dt':'Ayudante técnico',
+  // Preparador físico
+  'profe principal':'Preparador físico','profe secundario':'Preparador físico',
+  'preparador':'Preparador físico','coordinador del área física de juveniles':'Preparador físico',
+  'coordinador del área física':'Preparador físico',
+  // Colaborador técnico
+  'videoanalista':'Colaborador técnico','analista de videos':'Colaborador técnico',
+  'analista de sistemas':'Colaborador técnico','analista selección mayor':'Colaborador técnico',
+  'analista':'Colaborador técnico','colaborador':'Colaborador técnico',
+  // Entrenador de arqueros
+  'coach de porteros':'Entrenador de arqueros','coach porteros':'Entrenador de arqueros',
+  'entrenador arqueros':'Entrenador de arqueros',
+};
+function _normRol(rol){
+  if(!rol) return rol;
+  const k = rol.trim().toLowerCase();
+  return _CT_ROL_MAP[k] || rol;
+}
+const CT_ROL_ORDER = ['director técnico','ayudante técnico','preparador físico','colaborador técnico','entrenador de arqueros','videoanalista'];
+function _sortCT(arr){ return [...arr].map(m=>({...m,rol:_normRol(m.rol)})).sort((a,b)=>{ const ai=CT_ROL_ORDER.indexOf((a.rol||'').toLowerCase()); const bi=CT_ROL_ORDER.indexOf((b.rol||'').toLowerCase()); const ar=ai===-1?99:ai; const br=bi===-1?99:bi; return ar-br; }); }
 // CT dinámico por categoría/año
 const K_JUV_CT = 'auf4_juv_ct';
 function _getJuvCTOverrides(){ try{return JSON.parse(localStorage.getItem(K_JUV_CT)||'{}')}catch(_){return{}} }
