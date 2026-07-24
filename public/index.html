@@ -1156,6 +1156,7 @@ html.auf-gate body { display:none !important }
     <button class="nav-btn" id="btn-cloud-load" onclick="serverLoad()" title="Cargar datos del servidor"><i class="ti ti-cloud-download" style="font-size:12px"></i> <span class="nav-sync-lbl">Cargar</span></button>
     <button class="nav-btn" id="btn-cloud-save" onclick="serverSave()" title="Guardar datos en el servidor"><i class="ti ti-cloud-upload" style="font-size:12px"></i> <span class="nav-sync-lbl">Guardar</span></button>
     <button class="nav-btn" onclick="exportData()"><i class="ti ti-download" style="font-size:12px"></i> <span class="nav-sync-lbl">Backup</span></button>
+    <button class="nav-btn" id="btn-foto-upload" onclick="window._btnSubirFotos()" title="Subir todas las fotos a la nube para que sean visibles desde cualquier dispositivo"><i class="ti ti-photo-up" style="font-size:12px"></i> <span class="nav-sync-lbl">Fotos</span></button>
 
     <span class="nav-badge">TMO · Interno</span>
   </div>
@@ -3381,6 +3382,70 @@ async function deletePhotoIDB(num){
     tx.oncomplete=res; tx.onerror=rej;
   });
 }
+
+// ── Supabase Storage para fotos ─────────────────────────────────────────────
+const _SB_BUCKET = 'auf-fotos';
+function _sbPhotoUrl(key){
+  // URL pública directa — no requiere auth ni listado previo
+  return `${_SB_URL}/storage/v1/object/public/${_SB_BUCKET}/${encodeURIComponent(String(key))}`;
+}
+
+// Sube UNA foto a Supabase Storage
+async function _sbUploadPhoto(key, dataUrl){
+  try{
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const { error } = await _sb.storage.from(_SB_BUCKET).upload(String(key), blob, {
+      upsert: true, contentType: blob.type || 'image/jpeg'
+    });
+    if(error) throw error;
+    return true;
+  }catch(e){ console.warn('sbUpload error', key, e); return false; }
+}
+
+// Sube TODAS las fotos de IDB a Supabase Storage (migración única)
+window.uploadAllPhotosToSupabase = async function(){
+  const toast2 = (msg,dur=3000)=>{ const t=document.createElement('div'); t.textContent=msg; t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e3a8a;color:#fff;padding:10px 18px;border-radius:10px;font-size:.85em;z-index:99999;font-weight:600'; document.body.appendChild(t); setTimeout(()=>t.remove(),dur); };
+  const photos = await getAllPhotosIDB();
+  const entries = Object.entries(photos);
+  if(!entries.length){ toast2('No hay fotos en este dispositivo'); return; }
+  toast2(`Subiendo ${entries.length} fotos… puede tardar unos minutos`, 120000);
+  let ok=0, err=0;
+  for(const [key, dataUrl] of entries){
+    const r = await _sbUploadPhoto(key, dataUrl);
+    if(r) ok++; else err++;
+  }
+  document.querySelector('[data-sbtoast]')?.remove();
+  toast2(`✅ ${ok} fotos subidas a la nube${err?` (${err} errores)`:''}`, 5000);
+};
+
+window._btnSubirFotos = async function(){
+  const btn = document.getElementById('btn-foto-upload');
+  const photos = await getAllPhotosIDB();
+  const entries = Object.entries(photos);
+  if(!entries.length){ toast('No hay fotos cargadas en este dispositivo'); return; }
+  if(!confirm(`¿Subir ${entries.length} fotos a la nube? Esto puede tardar unos minutos.`)) return;
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 ti-spin" style="font-size:12px"></i> <span class="nav-sync-lbl">Subiendo…</span>';
+  let ok=0, err=0;
+  for(const [key,dataUrl] of entries){
+    const r = await _sbUploadPhoto(key, dataUrl);
+    if(r) ok++; else err++;
+    if((ok+err)%20===0) btn.querySelector('.nav-sync-lbl').textContent=`${ok+err}/${entries.length}`;
+  }
+  btn.disabled=false;
+  btn.innerHTML='<i class="ti ti-photo-check" style="font-size:12px"></i> <span class="nav-sync-lbl">Fotos</span>';
+  toast(`✅ ${ok} fotos subidas${err?` · ${err} errores`:''}`);
+};
+
+// Hook: auto-sube cada foto nueva que se guarda
+window._savePhotoToServer = async function(key, dataUrl){
+  await _sbUploadPhoto(key, dataUrl);
+};
+
+// Devuelve la foto de un jugador: IDB primero, luego Supabase Storage (URL pública)
+window._getCloudPhotoUrl = function(key){
+  return _sbPhotoUrl(key);
+};
 
 async function getAllPhotosIDB(){
   const db=await openIDB();
@@ -20619,7 +20684,44 @@ async function _loadJuvPhotoCache(){
   if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
   document.getElementById('sparr-grid') && renderSparrings();
   if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
+  // Cargar fotos desde Supabase Storage (cross-device)
+  _loadPhotosFromSupabase();
 }
+async function _loadPhotosFromSupabase(){
+  try{
+    // Listar todos los archivos del bucket (una sola llamada al startup)
+    const {data,error}=await _sb.storage.from(_SB_BUCKET).list('',{limit:10000});
+    if(error||!data||!data.length) return;
+    // Parchear caches con URLs públicas para fotos no presentes en IDB
+    data.forEach(f=>{
+      const rawKey=decodeURIComponent(f.name);
+      const url=_sbPhotoUrl(f.name);
+      if(rawKey.startsWith('juv:')){
+        const nom=rawKey.slice(4);
+        if(!window._juvPhotoCache?.[nom]){
+          window._juvPhotoCache=window._juvPhotoCache||{};
+          window._juvPhotoCache[nom]=url;
+          const n=nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+          window._juvPhotoCacheNorm=window._juvPhotoCacheNorm||{};
+          window._juvPhotoCacheNorm[n]=url;
+        }
+      } else if(rawKey.startsWith('est:')){
+        const estKey=rawKey.slice(4);
+        if(!(window._estPhotoCache?.[estKey])){
+          window._estPhotoCache=window._estPhotoCache||{};
+          window._estPhotoCache[estKey]=url;
+        }
+      } else {
+        // Mayor (clave numérica o 'dt:...')
+        if(_idbPhotos&&!_idbPhotos[rawKey]) _idbPhotos[rawKey]=url;
+      }
+    });
+    // Re-renderizar si la sección activa lo necesita
+    if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles?.();
+    if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
+  }catch(e){console.warn('Supabase photo load:',e);}
+}
+
 _loadJuvPhotoCache();
 window._juvGetPhoto = function(nom){
   if(!nom) return null;
