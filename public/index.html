@@ -8061,6 +8061,98 @@ window._copyWaFotos=function(btn,msg){navigator.clipboard.writeText(msg).then(()
 function _toggleLocalRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderSecLocal?.();}
 function _toggleLocalFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);renderSecLocal?.();}
 
+// ─── SISTEMA DE SANCIONES ────────────────────────────────────────────────────
+window._getSanciones=function(nom){return stor.get('auf4_sanciones',{})[nom]||[];};
+window._openSancModal=function(nom){
+  var modal=document.getElementById('sanc-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='sanc-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML=`<div style="background:var(--surface,#fff);border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto;position:relative">
+      <button onclick="document.getElementById('sanc-modal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted,#888)">✕</button>
+      <div style="font-weight:800;font-size:.95em;margin-bottom:4px;padding-right:24px">⚠️ Sanciones</div>
+      <div id="sanc-nom" style="font-size:.75em;color:var(--muted,#888);margin-bottom:14px"></div>
+      <div id="sanc-list" style="margin-bottom:16px"></div>
+      <div style="border-top:1px solid var(--border,#e5e7eb);padding-top:14px">
+        <div style="font-size:.72em;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted,#888);margin-bottom:10px">Agregar sanción</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input id="sanc-ano" type="number" placeholder="Año" min="1900" max="2100" style="width:80px;padding:7px 10px;border:1px solid var(--border,#e5e7eb);border-radius:8px;font-size:.82em;background:var(--surface2,#f8fafc);outline:none">
+          <select id="sanc-tipo" style="flex:1;padding:7px 10px;border:1px solid var(--border,#e5e7eb);border-radius:8px;font-size:.82em;background:var(--surface2,#f8fafc);outline:none">
+            <option value="Mal uso de redes sociales">Mal uso de redes sociales</option>
+            <option value="Dopaje">Dopaje</option>
+            <option value="Violencia">Violencia</option>
+            <option value="Indisciplina">Indisciplina</option>
+            <option value="Suspensión federativa">Suspensión federativa</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <textarea id="sanc-detalle" placeholder="Descripción del incidente..." rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--border,#e5e7eb);border-radius:8px;font-size:.82em;background:var(--surface2,#f8fafc);outline:none;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+        <button onclick="_addSancion()" style="margin-top:10px;width:100%;padding:9px;background:#DC2626;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.85em;cursor:pointer">Guardar sanción</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click',function(e){if(e.target===modal)modal.style.display='none';});
+  }
+  modal._nom=nom;
+  document.getElementById('sanc-nom').textContent=nom;
+  document.getElementById('sanc-ano').value=new Date().getFullYear();
+  document.getElementById('sanc-tipo').value='Mal uso de redes sociales';
+  document.getElementById('sanc-detalle').value='';
+  _renderSancList(nom);
+  modal.style.display='flex';
+};
+function _renderSancList(nom){
+  var list=document.getElementById('sanc-list');
+  if(!list)return;
+  var sancs=window._getSanciones(nom);
+  if(!sancs.length){list.innerHTML='<div style="font-size:.78em;color:var(--muted,#888);font-style:italic">Sin sanciones registradas.</div>';return;}
+  list.innerHTML=sancs.map(function(s,i){
+    return '<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;margin-bottom:8px;position:relative">'
+      +'<button onclick="_delSancion('+i+')" title="Eliminar" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:#DC2626;font-size:13px;line-height:1">✕</button>'
+      +'<div style="font-size:.7em;font-weight:800;color:#B91C1C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">'+s.ano+' · '+s.tipo+'</div>'
+      +(s.detalle?'<div style="font-size:.78em;color:#374151;padding-right:20px">'+s.detalle+'</div>':'')
+      +'</div>';
+  }).join('');
+}
+window._addSancion=function(){
+  var modal=document.getElementById('sanc-modal');
+  if(!modal||!modal._nom)return;
+  var nom=modal._nom;
+  var ano=document.getElementById('sanc-ano').value.trim();
+  var tipo=document.getElementById('sanc-tipo').value;
+  var detalle=document.getElementById('sanc-detalle').value.trim();
+  if(!ano){alert('Ingresá el año');return;}
+  var all=stor.get('auf4_sanciones',{});
+  if(!all[nom])all[nom]=[];
+  all[nom].push({ano:ano,tipo:tipo,detalle:detalle});
+  stor.set('auf4_sanciones',all);
+  document.getElementById('sanc-detalle').value='';
+  _renderSancList(nom);
+  renderJugadores?.();
+  renderSecLocal?.();
+  window.renderJuveniles?.();
+};
+window._delSancion=function(idx){
+  var modal=document.getElementById('sanc-modal');
+  if(!modal||!modal._nom)return;
+  var nom=modal._nom;
+  var all=stor.get('auf4_sanciones',{});
+  if(all[nom]){all[nom].splice(idx,1);if(!all[nom].length)delete all[nom];}
+  stor.set('auf4_sanciones',all);
+  _renderSancList(nom);
+  renderJugadores?.();
+  renderSecLocal?.();
+  window.renderJuveniles?.();
+};
+function _sancBadge(nom){
+  var sancs=window._getSanciones(nom);
+  if(!sancs.length)return '';
+  var tip=sancs.map(function(s){return s.ano+': '+s.tipo;}).join(' | ');
+  return '<span title="'+tip+'" style="display:inline-flex;align-items:center;gap:3px;background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:700;cursor:pointer;white-space:nowrap" onclick="event.stopPropagation();_openSancModal(\''+nom.replace(/'/g,"\\'")+'\')">⚠️ '+sancs.length+' sanc.</span>';
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function _openJuvDetail(nomEnc){
   const nom = decodeURIComponent(nomEnc);
   const photo = (window._juvPhotoCache||{})[nom] || window._getPhotoByName?.(nom);
@@ -8836,11 +8928,13 @@ function renderJugadores(){
           <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
           <button onclick="event.stopPropagation();_toggleFallecidoMayor('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#44403C':'transparent'};border:1.5px solid ${isFallecido?'#44403C':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isFallecido?'#FDE68A':'#CBD5E1'}">F</button>
           <button onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion?'Editar lesión':'Marcar lesión larga'}" style="background:${lesion?'#F59E0B':'transparent'};border:1.5px solid ${lesion?'#F59E0B':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${lesion?'#fff':'#CBD5E1'}">L</button>
+          ${(()=>{const _hs=(window._getSanciones?window._getSanciones(nom):[]);return`<button onclick="event.stopPropagation();_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(s=>s.ano+': '+s.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#DC2626':'transparent'};border:1.5px solid ${_hs.length?'#DC2626':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${_hs.length?'#fff':'#CBD5E1'}">S</button>`;})()}
         </div>
       </div>
       ${_logroBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${_logroBadges.join('')}</div>`:''}
       ${_allJuvBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${_allJuvBadges.map(b=>`<span style="background:${b.bg};color:${b.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${b.label}</span>`).join('')}<button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Editar categorías juveniles" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:pointer">✎</button></div>`
       :`<div style="margin-top:6px"><button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 8px;font-size:.6em;color:var(--muted);cursor:pointer">+ juvenil</button></div>`}
+      ${(()=>{const _sb=_sancBadge(nom);return _sb?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${_sb}</div>`:'';})()}
       ${d.estKey?`<div style="margin-top:6px"><button onclick="event.stopPropagation();_goToEstFicha('${d.estKey}')" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:6px;padding:3px 9px;font-size:.6em;font-weight:700;cursor:pointer">👔 Ver perfil DT</button></div>`:''}
     </div>`;
   }
@@ -15253,9 +15347,11 @@ function _renderLocalHome(){
         <div style="display:flex;gap:3px;margin-left:auto">
           <button onclick="event.stopPropagation();_toggleLocalRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
           <button onclick="event.stopPropagation();_toggleLocalFallecido('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#44403C':'transparent'};border:1.5px solid ${isFallecido?'#44403C':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isFallecido?'#FDE68A':'#CBD5E1'}">F</button>
+          ${(()=>{const _hs=(window._getSanciones?window._getSanciones(j.nom):[]);return`<button onclick="event.stopPropagation();_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(s=>s.ano+': '+s.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#DC2626':'transparent'};border:1.5px solid ${_hs.length?'#DC2626':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${_hs.length?'#fff':'#CBD5E1'}">S</button>`;})()}
         </div>
       </div>
       ${hist.length?`<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">${hist.map(h=>`<span style="background:${h.color}22;color:${h.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${h.label}</span>`).join('')}</div>`:''}
+      ${(()=>{const _sb=_sancBadge(j.nom);return _sb?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${_sb}</div>`:'';})()}
     </div>`;
   }).join('');
 
@@ -21254,7 +21350,9 @@ function _juvFichaCard(p, hist, off, extraIcon){
       <button onclick="_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesionado?'Quitar lesión':'Marcar lesionado'}" style="margin-left:auto;background:${isJuvLesionado?'#F59E0B':'transparent'};border:1.5px solid ${isJuvLesionado?'#F59E0B':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvLesionado?'#fff':'#CBD5E1'}">L</button>
       <button onclick="_toggleJuvFallecido('${nomSafe}')" title="${isJuvFallecido?'Marcar vivo':'Marcar fallecido'}" style="background:${isJuvFallecido?'#6B7280':'transparent'};border:1.5px solid ${isJuvFallecido?'#6B7280':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvFallecido?'#fff':'#CBD5E1'}">F</button>
       <button onclick="_toggleJuvRetirado('${nomSafe}')" title="${isJuvRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isJuvRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isJuvRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvRetirado?'#fff':'#CBD5E1'}">R</button>
+      ${(()=>{const _hs=window._getSanciones?window._getSanciones(p.nom):[];return`<button onclick="_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(s=>s.ano+': '+s.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#DC2626':'transparent'};border:1.5px solid ${_hs.length?'#DC2626':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${_hs.length?'#fff':'#CBD5E1'}">S</button>`;})()}
     </div>
+    ${(()=>{const _sb=typeof _sancBadge==='function'?_sancBadge(p.nom):'';return _sb?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${_sb}</div>`:'';})()}
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:8px;align-items:center">
       ${hist.map(h=>`<span style="font-size:.6em;font-weight:600;color:${h.color};background:${h.color}22;border-radius:5px;padding:2px 7px">${h.label}</span>`).join('')}
       <span onclick="_juvHistEdit('${nomEnc}')" title="Agregar historial en otras selecciones juveniles" style="font-size:.6em;font-weight:700;color:var(--muted);background:none;border:1px dashed var(--border);border-radius:5px;padding:2px 7px;cursor:pointer">+ sel.</span>
