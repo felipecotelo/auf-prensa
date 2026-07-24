@@ -1174,6 +1174,18 @@ html.auf-gate body { display:none !important }
     <div class="nav-l0-sep"></div>
     <button class="nav-l0-global" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
     <button class="nav-l0-global" data-tab="linkgen" onclick="showTab('linkgen')" style="color:#c4b5fd"><i class="ti ti-link"></i>Links</button>
+    <div style="position:relative;margin-left:auto;flex-shrink:0" id="gnav-wrap">
+      <div style="position:relative;display:flex;align-items:center">
+        <i class="ti ti-search" style="position:absolute;left:8px;color:rgba(255,255,255,.5);font-size:12px;pointer-events:none"></i>
+        <input id="gnav-q" type="text" placeholder="Buscar jugador…" autocomplete="off"
+          oninput="window._gnavSearch(this.value)"
+          onfocus="if(this.value.trim()) window._gnavSearch(this.value)"
+          onblur="setTimeout(()=>document.getElementById('gnav-drop')?.remove(),180)"
+          style="padding:5px 10px 5px 26px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fff;font-size:.78em;width:160px;outline:none;transition:width .2s"
+          onfocusin="this.style.width='220px'" onfocusout="this.style.width='160px'">
+      </div>
+      <div id="gnav-drop" style="display:none"></div>
+    </div>
   </div>
   <!-- L1: menú de Selección Mayor -->
   <div class="nav-l1" id="nav-l1" style="display:none">
@@ -19519,6 +19531,70 @@ let _juvTab = stor.get('auf4_juvTab','convocados');
 let _juvComp = null; // competencia abierta (detalle)
 let _juvCompTab = 'convocados'; // sub-tab dentro de competencia
 let _juvGlobalPlayers = false; // vista "Jugadores" cruzando todas las categorías
+
+window._gnavSearch = function(v){
+  const q = _norm(v.trim());
+  const drop = document.getElementById('gnav-drop');
+  if(!drop) return;
+  if(!q){ drop.style.display='none'; return; }
+  // Recopilar jugadores Mayor
+  const results = [];
+  const seen = new Set();
+  Object.entries(typeof JUGADORES!=='undefined'?JUGADORES:{}).forEach(([nom,d])=>{
+    if(seen.has(nom)) return;
+    if(_norm(nom).includes(q)){seen.add(nom);results.push({nom,sub:'Mayor · '+d.pos,section:'mayor',foto:d.foto||null});}
+  });
+  // Recopilar jugadores Juveniles
+  const juvAll = {};
+  if(typeof JUVENILES!=='undefined') Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+    const label = catData.label||catKey;
+    Object.values(catData.anos||{}).forEach(anoData=>{
+      (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+        if(!juvAll[j.nom]) juvAll[j.nom]={cats:new Set()};
+        juvAll[j.nom].cats.add(label);
+      }));
+      (anoData.lista||[]).forEach(j=>{
+        if(!juvAll[j.nom]) juvAll[j.nom]={cats:new Set()};
+        juvAll[j.nom].cats.add(label);
+      });
+    });
+  });
+  Object.entries(juvAll).forEach(([nom,d])=>{
+    if(seen.has(nom)) return;
+    if(_norm(nom).includes(q)){seen.add(nom);results.push({nom,sub:[...d.cats].join(' · '),section:'juveniles',foto:null});}
+  });
+  results.sort((a,b)=>a.nom.localeCompare(b.nom));
+  if(!results.length){
+    drop.innerHTML=`<div style="padding:10px 14px;font-size:.78em;color:var(--muted)">Sin resultados</div>`;
+    drop.style.display='block'; return;
+  }
+  drop.innerHTML = results.slice(0,10).map(r=>`
+    <div onclick="window._gnavGo('${r.section}','${encodeURIComponent(r.nom)}')"
+      style="display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border)"
+      onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background=''">
+      ${r.foto?`<img src="${r.foto}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`
+              :`<div style="width:28px;height:28px;border-radius:50%;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65em;font-weight:800;color:var(--muted)">${r.nom.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}</div>`}
+      <div style="min-width:0"><div style="font-size:.82em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div>
+      <div style="font-size:.68em;color:var(--muted)">${r.sub}</div></div>
+    </div>`).join('')+(results.length>10?`<div style="padding:6px 12px;font-size:.7em;color:var(--muted)">+${results.length-10} más…</div>`:'');
+  drop.style.display='block';
+};
+window._gnavGo = function(section, nomEnc){
+  document.getElementById('gnav-drop')?.remove();
+  document.getElementById('gnav-q').value='';
+  const nom = decodeURIComponent(nomEnc);
+  if(section==='mayor'){
+    showSection('mayor'); showTab('jugadores');
+    setTimeout(()=>{ window._jSearch=nom; if(typeof renderJugadores==='function') renderJugadores(); },80);
+  } else {
+    showSection('juveniles');
+    setTimeout(()=>{ window._juvGlobalQ=nom; _juvGlobalPlayers=true; window.renderJuveniles?.(); },80);
+  }
+};
+// Posicionar dropdown bajo el input
+const _gnavStyle=document.createElement('style');
+_gnavStyle.textContent='#gnav-drop{position:absolute;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;min-width:260px;max-height:360px;overflow-y:auto}';
+document.head.appendChild(_gnavStyle);
 
 window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
