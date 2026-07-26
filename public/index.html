@@ -77,17 +77,55 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 .nav-btn:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:500px){.nav-sync-lbl{display:none}}
 /* ── MOBILE NAV OVERRIDES ──────────────────────── */
+.mob-quickbar{display:none}
 @media(max-width:600px){
-  .nav{height:50px;padding:0 10px;padding-top:env(safe-area-inset-top)}
-  .nav-brand{gap:7px}
-  .nav-logo{height:32px}
+  .nav{
+    height:48px;padding:0 12px;
+    padding-top:env(safe-area-inset-top);
+    border-bottom:1px solid rgba(0,157,216,.3);
+  }
+  .nav-brand{gap:8px}
+  .nav-logo{height:30px}
   .nav-divider{display:none}
-  .nav-text h1{font-size:11px}
+  .nav-text h1{font-size:12px;font-weight:700}
   .nav-text p{display:none}
-  .nav-right{gap:5px}
+  .nav-right{gap:4px}
   .nav-badge{display:none}
-  .nav-btn{padding:5px 8px;font-size:10px}
+  .nav-btn{padding:6px 8px;font-size:11px;border-radius:8px}
   .nav-center{display:none!important}
+  /* hide cloud/backup buttons — moved to Más drawer */
+  #btn-cloud-load,#btn-cloud-save,#btn-foto-upload,
+  .nav-right button:not(#btn-cloud-load):not(#btn-cloud-save):not(#btn-foto-upload):not([id]){
+    display:none
+  }
+  #sync-dot{display:none}
+  /* quickbar */
+  .mob-quickbar{
+    display:flex;align-items:center;gap:0;
+    background:#0A1628;
+    border-bottom:1px solid rgba(0,157,216,.15);
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;padding:0 4px;
+    position:sticky;top:calc(48px + env(safe-area-inset-top));z-index:299;
+  }
+  .mob-quickbar::-webkit-scrollbar{display:none}
+}
+.mob-qbtn{
+  display:none;
+  align-items:center;gap:5px;
+  background:none;border:none;
+  color:rgba(255,255,255,.65);
+  font-size:12px;font-weight:600;
+  padding:9px 12px;white-space:nowrap;cursor:pointer;
+  transition:color .15s;
+  flex-shrink:0;
+}
+.mob-qbtn i{font-size:13px}
+.mob-qbtn:active,.mob-qbtn:focus{color:#63b3ff;outline:none}
+.mob-qbar-sep{display:none;width:1px;height:18px;background:rgba(255,255,255,.12);flex-shrink:0;margin:0 2px}
+@media(max-width:600px){
+  .mob-qbtn{display:flex}
+  .mob-qbar-sep{display:block}
 }
 /* ── MOBILE SEARCH OVERLAY ──────────────────────── */
 .mob-search-overlay{
@@ -125,7 +163,7 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
   .nav-text p{display:none}
   .nav-btn span.nav-sync-lbl{display:none}
   .nav-btn{padding:5px 7px}
-  #app-content{padding-bottom:calc(62px + env(safe-area-inset-bottom))}
+  #app-content{padding-bottom:calc(62px + env(safe-area-inset-bottom));padding-top:0}
   .mob-tab-bar{display:flex!important}
   .mob-more-sheet{display:none}
   .mob-more-sheet.open{display:flex!important}
@@ -1291,6 +1329,16 @@ html.auf-gate body { display:none !important }
     <span class="nav-badge">TMO · Interno</span>
   </div>
 </nav>
+
+<!-- Mobile quick-access bar (below nav, mobile only) -->
+<div class="mob-quickbar" id="mob-quickbar">
+  <button class="mob-qbtn" onclick="_mobOpenSearch('jugador')"><i class="ti ti-search"></i>Jugadores</button>
+  <button class="mob-qbtn" onclick="_mobOpenSearch('ct')"><i class="ti ti-users"></i>CT / Staff</button>
+  <div class="mob-qbar-sep"></div>
+  <button class="mob-qbtn" onclick="showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
+  <button class="mob-qbtn" onclick="showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes</button>
+  <button class="mob-qbtn" onclick="showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura</button>
+</div>
 
 <div id="tabs-bar" style="opacity:0">
   <!-- L0: secciones globales -->
@@ -26549,8 +26597,11 @@ async function exportarFotosIDB(){
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes sociales</button>
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura AUF</button>
-  <button class="mob-more-item" onclick="_mobCloseMore();_mobOpenSearch('jugador')"><i class="ti ti-search"></i>Buscar jugador</button>
-  <button class="mob-more-item" onclick="_mobCloseMore();_mobOpenSearch('ct')"><i class="ti ti-users"></i>Buscar CT / Staff</button>
+  <div style="height:1px;background:rgba(255,255,255,.08);margin:4px 0"></div>
+  <button class="mob-more-item" onclick="_mobCloseMore();serverLoad()"><i class="ti ti-cloud-download"></i>Cargar datos</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();serverSave()"><i class="ti ti-cloud-upload"></i>Guardar datos</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();window._btnSubirFotos()"><i class="ti ti-photo-up"></i>Subir fotos</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();exportData()"><i class="ti ti-download"></i>Backup local</button>
 </div>
 <nav class="mob-tab-bar" id="mob-tab-bar">
   <button class="mob-tab active" id="mobt-inicio" onclick="showSection('inicio')">
