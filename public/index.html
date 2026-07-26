@@ -21558,6 +21558,9 @@ async function _loadPhotosFromSupabase(){
     // Listar todos los archivos del bucket (una sola llamada al startup)
     const {data,error}=await _sb.storage.from(_SB_BUCKET).list('',{limit:10000});
     if(error||!data||!data.length) return;
+    // Asegurar que _idbPhotos está inicializado antes de parchear
+    if(!_idbPhotos) _idbPhotos={};
+    let patchedEst=false;
     // Parchear caches con URLs públicas para fotos no presentes en IDB
     data.forEach(f=>{
       const rawKey=decodeURIComponent(f.name);
@@ -21571,20 +21574,26 @@ async function _loadPhotosFromSupabase(){
           window._juvPhotoCacheNorm=window._juvPhotoCacheNorm||{};
           window._juvPhotoCacheNorm[n]=url;
         }
+        // Guardar en IDB para carga rápida en próxima visita
+        if(!_idbPhotos[rawKey]){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
       } else if(rawKey.startsWith('est:')){
         const estKey=rawKey.slice(4);
         if(!(window._estPhotoCache?.[estKey])){
           window._estPhotoCache=window._estPhotoCache||{};
           window._estPhotoCache[estKey]=url;
+          patchedEst=true;
         }
+        if(!_idbPhotos[rawKey]){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
       } else {
         // Mayor (clave numérica o 'dt:...')
-        if(_idbPhotos&&!_idbPhotos[rawKey]) _idbPhotos[rawKey]=url;
+        if(!_idbPhotos[rawKey]){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
       }
     });
-    // Re-renderizar si la sección activa lo necesita
+    // Re-renderizar secciones activas
     if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles?.();
+    if(document.getElementById('sec-local')?.classList.contains('active') && typeof renderSecLocal==='function') renderSecLocal();
     if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
+    if(patchedEst && typeof renderEstructura==='function') renderEstructura();
   }catch(e){console.warn('Supabase photo load:',e);}
 }
 
