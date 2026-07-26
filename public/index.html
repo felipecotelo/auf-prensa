@@ -77,6 +77,64 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 .nav-btn:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:500px){.nav-sync-lbl{display:none}}
 
+/* ── MOBILE BOTTOM TAB BAR ──────────────────────── */
+@media(max-width:600px){
+  .nav-l0{display:none!important}
+  .nav-right .nav-badge{display:none}
+  .nav{height:52px;padding:env(safe-area-inset-top) .75rem 0}
+  .nav-brand{gap:7px}
+  .nav-text h1{font-size:11px}
+  .nav-text p{display:none}
+  .nav-btn span.nav-sync-lbl{display:none}
+  .nav-btn{padding:5px 7px}
+  #app-content{padding-bottom:calc(62px + env(safe-area-inset-bottom))}
+  .mob-tab-bar{display:flex!important}
+  .mob-more-sheet{display:none}
+  .mob-more-sheet.open{display:flex!important}
+}
+.mob-tab-bar{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:999;
+  background:linear-gradient(180deg,#0D1B2E 0%,#07111E 100%);
+  border-top:1px solid rgba(0,157,216,.25);
+  height:calc(58px + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  align-items:stretch;
+}
+.mob-tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;border:none;background:none;cursor:pointer;
+  color:rgba(255,255,255,.45);font-size:9.5px;font-weight:700;letter-spacing:.03em;
+  padding:6px 2px 2px;transition:color .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mob-tab i{font-size:20px;line-height:1;transition:color .15s,transform .15s}
+.mob-tab.active{color:#63b3ff}
+.mob-tab.active i{transform:translateY(-1px)}
+.mob-tab:active i{transform:scale(.9)}
+/* More sheet */
+.mob-more-sheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:998;
+  background:#0D1B2E;border-top:1px solid rgba(0,157,216,.3);
+  border-radius:18px 18px 0 0;
+  padding:12px 16px calc(72px + env(safe-area-inset-bottom));
+  flex-direction:column;gap:4px;
+  box-shadow:0 -8px 32px rgba(0,0,0,.4);
+}
+.mob-more-item{
+  display:flex;align-items:center;gap:14px;
+  padding:13px 16px;border-radius:12px;border:none;
+  background:rgba(255,255,255,.05);color:rgba(255,255,255,.85);
+  font-size:14px;font-weight:700;cursor:pointer;width:100%;text-align:left;
+  transition:background .12s;-webkit-tap-highlight-color:transparent;
+}
+.mob-more-item:active{background:rgba(0,157,216,.2)}
+.mob-more-item i{font-size:20px;color:#63b3ff}
+.mob-more-overlay{
+  display:none;position:fixed;inset:0;z-index:997;background:rgba(0,0,0,.45);
+}
+.mob-more-overlay.open{display:block}
+
 /* ── TABS ───────────────────────────────────────── */
 #tabs-bar{
   position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:200;
@@ -1313,7 +1371,7 @@ html.auf-gate body { display:none !important }
 })();
 </script>
 
-<main>
+<main id="app-content">
 
 <!-- ═══════════ INICIO ═══════════ -->
 <div id="inicio" class="section active">
@@ -26439,6 +26497,55 @@ async function exportarFotosIDB(){
     if(window._juvGlobalPlayers && typeof window.renderJuveniles==='function') window.renderJuveniles();
   }catch(_){ window._estPhotoCache={}; }
 })();
+</script>
+
+<!-- ── MOBILE BOTTOM TAB BAR ── -->
+<div class="mob-more-overlay" id="mob-overlay" onclick="_mobCloseMore()"></div>
+<div class="mob-more-sheet" id="mob-more-sheet">
+  <button class="mob-more-item" onclick="_mobCloseMore();showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes sociales</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura AUF</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();document.getElementById('gnav-q')?.focus()"><i class="ti ti-search"></i>Buscar jugador</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();document.getElementById('gnav-ct-q')?.focus()"><i class="ti ti-users"></i>Buscar CT / Staff</button>
+</div>
+<nav class="mob-tab-bar" id="mob-tab-bar">
+  <button class="mob-tab active" id="mobt-inicio" onclick="showSection('inicio')">
+    <i class="ti ti-layout-grid"></i><span>Inicio</span>
+  </button>
+  <button class="mob-tab" id="mobt-mayor" onclick="showSection('mayor')">
+    <i class="ti ti-shield"></i><span>Mayor</span>
+  </button>
+  <button class="mob-tab" id="mobt-local" onclick="showSection('local')">
+    <i class="ti ti-home-shield"></i><span>Local</span>
+  </button>
+  <button class="mob-tab" id="mobt-juveniles" onclick="showSection('juveniles')">
+    <i class="ti ti-users-group"></i><span>Juveniles</span>
+  </button>
+  <button class="mob-tab" id="mobt-mas" onclick="_mobToggleMore()">
+    <i class="ti ti-dots"></i><span>Más</span>
+  </button>
+</nav>
+<script>
+function _mobCloseMore(){
+  document.getElementById('mob-more-sheet')?.classList.remove('open');
+  document.getElementById('mob-overlay')?.classList.remove('open');
+}
+function _mobToggleMore(){
+  const s=document.getElementById('mob-more-sheet');
+  const o=document.getElementById('mob-overlay');
+  const open=s?.classList.contains('open');
+  open?_mobCloseMore():(s?.classList.add('open'),o?.classList.add('open'));
+}
+// Sync bottom bar when showSection is called
+const _origShowSection=window.showSection;
+window.showSection=function(sec){
+  _origShowSection?.(sec);
+  _mobCloseMore();
+  document.querySelectorAll('.mob-tab').forEach(b=>b.classList.remove('active'));
+  const map={inicio:'mobt-inicio',mayor:'mobt-mayor',local:'mobt-local',juveniles:'mobt-juveniles',prensa:'mobt-mas',redes:'mobt-mas',estructura:'mobt-mas'};
+  const id=map[sec];
+  if(id) document.getElementById(id)?.classList.add('active');
+};
 </script>
 </body>
 </html>
