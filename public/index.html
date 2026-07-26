@@ -297,13 +297,22 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5;
   .nav-l1,.nav-l2{display:none!important}
   #tabs-bar{display:none!important}
   .nav-right .nav-badge{display:none}
-  .nav{height:52px;padding:env(safe-area-inset-top) .75rem 0}
-  .nav-brand{gap:7px}
-  .nav-text h1{font-size:11px}
-  .nav-text p{display:none}
+  /* ── MOBILE HEADER REDESIGN ───────────────────── */
+  .nav{height:52px;padding:0;padding-top:env(safe-area-inset-top);box-sizing:content-box}
+  .nav-brand{display:none!important}
+  /* Show centered AUF branding */
+  .nav-center{display:flex!important;pointer-events:none;transform:translateX(-50%)}
+  .nav-logo-desk{display:none!important}
+  .nav-logo-mob{display:flex!important;flex-direction:column;align-items:center}
+  /* Right: show only 1 practical icon button */
+  .nav-right{gap:6px;padding-right:12px}
+  #btn-cloud-save{display:flex!important;padding:7px 8px;border-radius:10px;background:rgba(0,157,216,.12);border:1px solid rgba(0,157,216,.25)}
+  #btn-cloud-save .nav-sync-lbl{display:none}
+  #btn-cloud-save i{font-size:16px}
+  #sync-dot{display:inline-block!important}
   .nav-btn span.nav-sync-lbl{display:none}
   .nav-btn{padding:5px 7px}
-  #app-content{padding-bottom:calc(80px + env(safe-area-inset-bottom));padding-top:0;overflow-x:hidden}
+  #app-content{padding-bottom:calc(80px + var(--mob-safari-extra,0px) + env(safe-area-inset-bottom));padding-top:0;overflow-x:hidden}
   .mob-tab-bar{display:flex!important}
   .mob-more-sheet{display:none}
   .mob-more-sheet.open{display:flex!important}
@@ -316,8 +325,8 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5;
 .redes-plat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
 .mob-tab-bar{
   display:none;
-  position:fixed;bottom:0;left:0;right:0;z-index:999;
-  background:rgba(7,13,24,.92);
+  position:fixed;bottom:var(--mob-safari-extra,0px);left:0;right:0;z-index:999;
+  background:rgba(7,13,24,.96);
   -webkit-backdrop-filter:blur(20px) saturate(1.8);
   backdrop-filter:blur(20px) saturate(1.8);
   border-top:1px solid rgba(255,255,255,.08);
@@ -343,12 +352,13 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5;
 .mob-tab.active i{transform:translateY(-1px)}
 .mob-tab:active i{transform:scale(.88)}
 /* Lupa tab — special styling, always celeste */
-.mob-tab-lupa{color:rgba(91,184,255,.7)!important}
+.mob-tab-lupa{color:rgba(91,184,255,.7)!important;overflow:hidden}
 .mob-tab-lupa i{
-  font-size:20px;
+  font-size:18px;
   background:rgba(0,157,216,.15);
-  border-radius:50%;width:36px;height:36px;
+  border-radius:50%;width:30px;height:30px;
   display:flex!important;align-items:center;justify-content:center;
+  flex-shrink:0;
   border:1.5px solid rgba(0,157,216,.25);
   transition:background .15s,border-color .15s;
 }
@@ -26904,11 +26914,19 @@ function _mobCloseMore(){
 }
 
 // Sync bottom tabs + quickbar when showSection is called
+// Safari URL bar detection — push tab bar up when browser chrome is visible
+(function(){
+  const extra = (!window.navigator.standalone && /iPhone|iPad|iPod/.test(navigator.userAgent)) ? '49px' : '0px';
+  document.documentElement.style.setProperty('--mob-safari-extra', extra);
+})();
+
 const _origShowSection=window.showSection;
 window.showSection=function(sec){
   _origShowSection?.(sec);
   _mobCloseMore();
   _mobCloseUnifiedSearch();
+  // Close any expanded player card so Mayor doesn't look broken on arrival
+  document.querySelectorAll('.p-card.mob-exp').forEach(c=>c.classList.remove('mob-exp'));
   document.querySelectorAll('.mob-tab').forEach(b=>b.classList.remove('active'));
   const tabMap={inicio:'mobt-inicio',mayor:'mobt-mayor',local:'mobt-local',juveniles:'mobt-juveniles'};
   const tid=tabMap[sec]; if(tid) document.getElementById(tid)?.classList.add('active');
