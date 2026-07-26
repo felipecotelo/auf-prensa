@@ -76,6 +76,44 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5}
 .nav-btn.sync-err{border-color:var(--red);color:var(--red)}
 .nav-btn:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:500px){.nav-sync-lbl{display:none}}
+/* ── MOBILE NAV OVERRIDES ──────────────────────── */
+@media(max-width:600px){
+  .nav{height:50px;padding:0 10px;padding-top:env(safe-area-inset-top)}
+  .nav-brand{gap:7px}
+  .nav-logo{height:32px}
+  .nav-divider{display:none}
+  .nav-text h1{font-size:11px}
+  .nav-text p{display:none}
+  .nav-right{gap:5px}
+  .nav-badge{display:none}
+  .nav-btn{padding:5px 8px;font-size:10px}
+  .nav-center{display:none!important}
+}
+/* ── MOBILE SEARCH OVERLAY ──────────────────────── */
+.mob-search-overlay{
+  display:none;position:fixed;inset:0;z-index:1200;
+  background:rgba(7,17,30,.92);backdrop-filter:blur(8px);
+  flex-direction:column;padding:env(safe-area-inset-top) 0 0;
+}
+.mob-search-overlay.open{display:flex}
+.mob-search-header{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 16px;border-bottom:1px solid rgba(0,157,216,.2);
+}
+.mob-search-header input{
+  flex:1;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  border-radius:10px;padding:10px 14px;color:#fff;font-size:15px;outline:none;
+}
+.mob-search-header input::placeholder{color:rgba(255,255,255,.4)}
+.mob-search-cancel{color:#63b3ff;font-size:14px;font-weight:600;background:none;border:none;cursor:pointer;white-space:nowrap;padding:4px 0 4px 4px}
+.mob-search-results{flex:1;overflow-y:auto;padding:8px 0}
+.mob-search-results .gnav-item{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)}
+.mob-search-results .gnav-item:active{background:rgba(0,157,216,.1)}
+.mob-search-results .gnav-item img{width:36px;height:36px;border-radius:50%;object-fit:cover}
+.mob-search-results .gnav-item-info{flex:1;min-width:0}
+.mob-search-results .gnav-item-name{color:#fff;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mob-search-results .gnav-item-sub{color:rgba(255,255,255,.5);font-size:12px}
+.mob-search-empty{text-align:center;color:rgba(255,255,255,.4);font-size:14px;padding:40px 20px}
 
 /* ── MOBILE BOTTOM TAB BAR ──────────────────────── */
 @media(max-width:600px){
@@ -26511,8 +26549,8 @@ async function exportarFotosIDB(){
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes sociales</button>
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura AUF</button>
-  <button class="mob-more-item" onclick="_mobCloseMore();document.getElementById('gnav-q')?.focus()"><i class="ti ti-search"></i>Buscar jugador</button>
-  <button class="mob-more-item" onclick="_mobCloseMore();document.getElementById('gnav-ct-q')?.focus()"><i class="ti ti-users"></i>Buscar CT / Staff</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();_mobOpenSearch('jugador')"><i class="ti ti-search"></i>Buscar jugador</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();_mobOpenSearch('ct')"><i class="ti ti-users"></i>Buscar CT / Staff</button>
 </div>
 <nav class="mob-tab-bar" id="mob-tab-bar">
   <button class="mob-tab active" id="mobt-inicio" onclick="showSection('inicio')">
@@ -26552,6 +26590,86 @@ window.showSection=function(sec){
   const id=map[sec];
   if(id) document.getElementById(id)?.classList.add('active');
 };
+
+// Mobile search overlay
+let _mobSearchMode='jugador';
+function _mobOpenSearch(mode){
+  _mobSearchMode=mode;
+  const ov=document.getElementById('mob-search-ov');
+  const inp=document.getElementById('mob-search-inp');
+  const title=document.getElementById('mob-search-title');
+  if(!ov||!inp) return;
+  title.textContent=mode==='jugador'?'Buscar jugador':'Buscar CT / Staff';
+  inp.placeholder=mode==='jugador'?'Nombre del jugador…':'Nombre del técnico o staff…';
+  inp.value='';
+  document.getElementById('mob-search-results').innerHTML='<div class="mob-search-empty">Escribí para buscar</div>';
+  ov.classList.add('open');
+  setTimeout(()=>inp.focus(),100);
+}
+function _mobCloseSearch(){
+  document.getElementById('mob-search-ov')?.classList.remove('open');
+}
+function _mobSearchInput(val){
+  const res=document.getElementById('mob-search-results');
+  if(!val.trim()){res.innerHTML='<div class="mob-search-empty">Escribí para buscar</div>';return;}
+  // reuse existing search logic
+  if(_mobSearchMode==='jugador' && typeof window._gnavSearch==='function'){
+    // render into a temp drop, then extract items
+    window._gnavSearch(val);
+    const drop=document.getElementById('gnav-drop');
+    if(drop && drop.innerHTML.trim()){
+      // clone items and adapt for mobile overlay
+      const items=drop.querySelectorAll('[onclick]');
+      if(items.length===0){res.innerHTML='<div class="mob-search-empty">Sin resultados</div>';return;}
+      res.innerHTML='';
+      items.forEach(item=>{
+        const clone=item.cloneNode(true);
+        clone.classList.add('gnav-item');
+        clone.addEventListener('click',()=>{_mobCloseSearch();clone.click&&null;});
+        // copy the onclick to close overlay first
+        const origOnclick=item.getAttribute('onclick');
+        if(origOnclick){
+          clone.setAttribute('onclick',`_mobCloseSearch();${origOnclick}`);
+        }
+        res.appendChild(clone);
+      });
+    } else {
+      res.innerHTML='<div class="mob-search-empty">Sin resultados</div>';
+    }
+  } else if(_mobSearchMode==='ct' && typeof window._gnavCTSearch==='function'){
+    window._gnavCTSearch(val);
+    const drop=document.getElementById('gnav-ct-drop');
+    if(drop && drop.innerHTML.trim()){
+      const items=drop.querySelectorAll('[onclick]');
+      if(items.length===0){res.innerHTML='<div class="mob-search-empty">Sin resultados</div>';return;}
+      res.innerHTML='';
+      items.forEach(item=>{
+        const clone=item.cloneNode(true);
+        clone.classList.add('gnav-item');
+        const origOnclick=item.getAttribute('onclick');
+        if(origOnclick) clone.setAttribute('onclick',`_mobCloseSearch();${origOnclick}`);
+        res.appendChild(clone);
+      });
+    } else {
+      res.innerHTML='<div class="mob-search-empty">Sin resultados</div>';
+    }
+  }
+}
 </script>
+
+<!-- Mobile search overlay -->
+<div class="mob-search-overlay" id="mob-search-ov">
+  <div class="mob-search-header">
+    <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+      <div id="mob-search-title" style="color:rgba(255,255,255,.5);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Buscar jugador</div>
+      <input id="mob-search-inp" type="search" autocomplete="off" spellcheck="false"
+        oninput="_mobSearchInput(this.value)">
+    </div>
+    <button class="mob-search-cancel" onclick="_mobCloseSearch()">Cancelar</button>
+  </div>
+  <div class="mob-search-results" id="mob-search-results">
+    <div class="mob-search-empty">Escribí para buscar</div>
+  </div>
+</div>
 </body>
 </html>
