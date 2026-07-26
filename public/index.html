@@ -4238,41 +4238,93 @@ function countDone(matchId,items){
 function renderInicio(){
   const el=document.getElementById('inicio-body');
   if(!el)return;
+  const isMob=window.innerWidth<=600;
 
+  // ── Desktop helpers ──────────────────────────────────────────────────────
   function secBtn(label, icon, color, onclick){
     return `<button onclick="${onclick}" style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:11px;border:1px solid var(--border);background:var(--white);cursor:pointer;text-align:left;width:100%;transition:background .12s" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='var(--white)'">
-      <span style="width:32px;height:32px;border-radius:8px;background:${color}18;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <i class="ti ${icon}" style="font-size:16px;color:${color}"></i>
-      </span>
+      <span style="width:32px;height:32px;border-radius:8px;background:${color}18;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${icon}" style="font-size:16px;color:${color}"></i></span>
       <span style="font-size:13px;font-weight:700;color:var(--text)">${label}</span>
       <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--hint);font-size:13px;flex-shrink:0"></i>
     </button>`;
   }
-
   function tabBtn(label, icon, color, tab){
     return `<button onclick="showTab('${tab}')" style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:10px;border:1px solid var(--border);background:var(--white);cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='var(--white)'">
       <i class="ti ${icon}" style="font-size:18px;color:${color}"></i>
       <span style="font-size:10px;font-weight:700;color:var(--text);text-align:center;line-height:1.2">${label}</span>
     </button>`;
   }
-
   function group(title, html){
-    return `<div style="margin-bottom:20px">
-      <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${title}</div>
-      ${html}
-    </div>`;
+    return `<div style="margin-bottom:20px"><div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${title}</div>${html}</div>`;
   }
 
-  // ── Selecciones ─────────────────────────────────────────────────────────
-  const selecciones = [
-    secBtn('Selección Mayor', 'ti-shield', '#1A56C4', "showSection('mayor')"),
-    secBtn('Selección Local', 'ti-home-shield', '#0EA5E9', "showSection('local')"),
-    secBtn('Selecciones Juveniles', 'ti-users-group', '#8B5CF6', "showSection('juveniles')"),
-    secBtn('Prensa', 'ti-microphone-2', '#F59E0B', "showSection('prensa')"),
-    secBtn('Estructura AUF', 'ti-sitemap', '#22C55E', "showSection('estructura')"),
-  ].join('');
+  // ── MOBILE home screen ───────────────────────────────────────────────────
+  if(isMob){
+    const card=(label,icon,color,sub,fn)=>`
+      <button onclick="${fn}" style="display:flex;align-items:center;gap:14px;padding:16px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);cursor:pointer;text-align:left;width:100%;-webkit-tap-highlight-color:transparent" ontouchstart="this.style.background='rgba(0,157,216,.09)'" ontouchend="this.style.background='rgba(255,255,255,.04)'">
+        <div style="width:44px;height:44px;border-radius:13px;background:${color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid ${color}30">
+          <i class="ti ${icon}" style="font-size:20px;color:${color}"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700;color:#EFF3F8">${label}</div>
+          ${sub?`<div style="font-size:11px;color:rgba(239,243,248,.45);margin-top:2px">${sub}</div>`:''}
+        </div>
+        <i class="ti ti-chevron-right" style="color:rgba(239,243,248,.25);font-size:14px;flex-shrink:0"></i>
+      </button>`;
 
-  // ── Copa Mundial 2026 ────────────────────────────────────────────────────
+    const fwcPill=(label,icon,color,tab)=>`
+      <button onclick="showSection('mayor');showTab('${tab}')" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);cursor:pointer;min-width:72px;-webkit-tap-highlight-color:transparent" ontouchstart="this.style.background='rgba(0,157,216,.09)'" ontouchend="this.style.background='rgba(255,255,255,.04)'">
+        <i class="ti ${icon}" style="font-size:22px;color:${color}"></i>
+        <span style="font-size:10.5px;font-weight:700;color:#EFF3F8;white-space:nowrap">${label}</span>
+      </button>`;
+
+    const grpHdr=(t)=>`<div style="font-size:11px;font-weight:800;color:rgba(239,243,248,.4);text-transform:uppercase;letter-spacing:.1em;margin:20px 0 10px">${t}</div>`;
+
+    el.innerHTML=`
+      <!-- Hero banner -->
+      <div style="background:linear-gradient(135deg,#0D1F38 0%,#091628 60%,#0D1A2E 100%);border-radius:18px;padding:18px 16px;margin-bottom:20px;border:1px solid rgba(0,157,216,.15);position:relative;overflow:hidden">
+        <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(0,157,216,.12) 0%,transparent 70%)"></div>
+        <div style="font-size:11px;font-weight:700;color:rgba(0,157,216,.8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🏆 Copa Mundial 2026</div>
+        <div style="font-size:22px;font-weight:900;color:#EFF3F8;line-height:1.1">Selección Uruguaya</div>
+        <div style="font-size:12px;color:rgba(239,243,248,.5);margin-top:4px">Mi plataforma · TMO Interno</div>
+      </div>
+
+      <!-- Selecciones -->
+      ${grpHdr('Selecciones')}
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${card('Mayor','ti-shield','#1A56C4','Selección absoluta',`showSection('mayor')`)}
+        ${card('Local','ti-home-shield','#0EA5E9','Selección Local',`showSection('local')`)}
+        ${card('Juveniles','ti-users-group','#8B5CF6','Sub-13 · Sub-15 · Sub-17 · Sub-20',`showSection('juveniles')`)}
+        ${card('Prensa','ti-microphone-2','#F59E0B','Agenda de ventanas y medios',`showSection('prensa')`)}
+        ${card('Redes','ti-chart-arrows-vertical','#EF4444','Métricas y análisis',`showSection('redes')`)}
+        ${card('Estructura AUF','ti-sitemap','#22C55E','Organigrama y staff',`showSection('estructura')`)}
+      </div>
+
+      <!-- CM 2026 herramientas -->
+      ${grpHdr('Copa Mundial 2026')}
+      <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+        ${fwcPill('Jugadores','ti-users','#5BB8FF','jugadores')}
+        ${fwcPill('Técnicos','ti-clipboard-list','#60A5FA','tecnicos')}
+        ${fwcPill('Convocados','ti-user-check','#34D399','plantel')}
+        ${fwcPill('Fixture','ti-tournament','#A78BFA','fixture')}
+        ${fwcPill('Partidos','ti-world','#94A3B8','partidos')}
+        ${fwcPill('Calendario','ti-calendar','#F87171','calendario')}
+        ${fwcPill('Stats','ti-chart-bar','#FBBF24','estadisticas')}
+        ${fwcPill('Pizarra','ti-ball-football','#FB923C','pizarra')}
+        ${fwcPill('Disponib.','ti-list-check','#2DD4BF','disponibilidad')}
+      </div>
+    `;
+    return;
+  }
+
+  // ── DESKTOP ──────────────────────────────────────────────────────────────
+  const selecciones = [
+    secBtn('Selección Mayor','ti-shield','#1A56C4',"showSection('mayor')"),
+    secBtn('Selección Local','ti-home-shield','#0EA5E9',"showSection('local')"),
+    secBtn('Selecciones Juveniles','ti-users-group','#8B5CF6',"showSection('juveniles')"),
+    secBtn('Prensa','ti-microphone-2','#F59E0B',"showSection('prensa')"),
+    secBtn('Estructura AUF','ti-sitemap','#22C55E',"showSection('estructura')"),
+  ].join('');
   const fwcTabs = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:7px">
     ${tabBtn('Jugadores','ti-users','#1A56C4','jugadores')}
     ${tabBtn('Técnicos','ti-clipboard-list','#0EA5E9','tecnicos')}
@@ -4286,19 +4338,15 @@ function renderInicio(){
     ${tabBtn('Info','ti-info-circle','#94A3B8','infogeneral')}
     ${tabBtn('Diseño','ti-photo','#EC4899','grafica')}
   </div>`;
-
-  // ── Herramientas ─────────────────────────────────────────────────────────
   const tools = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
-    ${secBtn('Mi Periplo', 'ti-map-2', '#F59E0B', "showTab('periplo')")}
-    ${secBtn('Links', 'ti-link', '#8B5CF6', "showTab('linkgen')")}
+    ${secBtn('Mi Periplo','ti-map-2','#F59E0B',"showTab('periplo')")}
+    ${secBtn('Links','ti-link','#8B5CF6',"showTab('linkgen')")}
   </div>`;
-
-  el.innerHTML=`
-    <div style="padding:0 0 2px">
-      ${group('Selecciones', `<div style="display:flex;flex-direction:column;gap:6px">${selecciones}</div>`)}
-      ${group('Copa Mundial 2026', fwcTabs)}
-      ${group('Herramientas', tools)}
-    </div>`;
+  el.innerHTML=`<div style="padding:0 0 2px">
+    ${group('Selecciones',`<div style="display:flex;flex-direction:column;gap:6px">${selecciones}</div>`)}
+    ${group('Copa Mundial 2026',fwcTabs)}
+    ${group('Herramientas',tools)}
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
