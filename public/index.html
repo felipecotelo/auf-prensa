@@ -8880,8 +8880,11 @@ function jToggleClubEdit(nom,el){
 // ═══════════════════════════════════════════════════════════════════════════
 let _tecDT=null;   // null = selector | 'bielsa' | 'alonso'
 let _tecTab='resumen';
-function selectDT(id){_tecDT=id;_tecTab='resumen';renderTecnicos();}
+let _tecMode='mayor'; // DTs con doble rol (ej: forlan) — 'mayor' | 'sub20'
+const DT_MODES={forlan:[{id:'mayor',label:'Selección Mayor'},{id:'sub20',label:'Selección Sub-20'}]};
+function selectDT(id){_tecDT=id;_tecTab='resumen';_tecMode=DT_MODES[id]?.[0]?.id||'mayor';renderTecnicos();}
 function selectTecTab(id){_tecTab=id;renderTecnicos();}
+function selectTecMode(id){_tecMode=id;renderTecnicos();}
 function backToTecSelector(){_tecDT=null;renderTecnicos();}
 
 function getDTFoto(id,fallback){return (_idbPhotos&&_idbPhotos['dt:'+id])||fallback||null;}
@@ -9081,6 +9084,10 @@ function renderTecnicos(){
           <span style="color:var(--muted);font-size:10px">${det}</span>
         </div>`).join('')}
     </div>`;
+  const _forlanRolesPorModo={
+    mayor:[['Mayor · DT interino','Fecha FIFA set-oct 2026 · 4 PJ (21/9–6/10)'],['Mayor · DT interino','Fecha FIFA nov 2026 · 2 PJ (9/11–17/11)'],['Mayor · DT interino','Fecha FIFA mar 2027 · 2 PJ']],
+    sub20:[['Sub-20 · DT titular','Hasta el Sudamericano Sub-20 de enero 2027'],['Sub-20 · DT titular','Se extiende hasta el Mundial Sub-20 si Uruguay clasifica']],
+  };
   const _forlanResumenHtml=`
     <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Vínculo con AUF</div>
     <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
@@ -9089,9 +9096,9 @@ function renderTecnicos(){
         <span style="color:var(--muted);font-size:10px">1° ago 2026 – elecciones de presidencia AUF (aprox. mar 2027)</span>
       </div>
     </div>
-    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Roles</div>
+    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Rol · ${_tecMode==='sub20'?'Selección Sub-20':'Selección Mayor'}</div>
     <div style="display:flex;flex-direction:column;gap:4px">
-      ${[['Mayor · DT interino','Fecha FIFA set-oct 2026 · 4 PJ (21/9–6/10)'],['Mayor · DT interino','Fecha FIFA nov 2026 · 2 PJ (9/11–17/11)'],['Mayor · DT interino','Fecha FIFA mar 2027 · 2 PJ'],['Sub-20 · DT titular','Hasta el Sudamericano Sub-20 de enero 2027 · se extiende hasta el Mundial Sub-20 si Uruguay clasifica']].map(([fase,det])=>`
+      ${(_forlanRolesPorModo[_tecMode]||[]).map(([fase,det])=>`
         <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:11.5px">
           <span style="flex:1;font-weight:600;color:var(--text)">${fase}</span>
           <span style="color:var(--muted);font-size:10px">${det}</span>
@@ -9225,17 +9232,25 @@ function renderTecnicos(){
       {iso:'br',name:'Guilherme Rodrígues',rol:'Fisiólogo'},
       {iso:'uy',name:'Carlos Nicola',      rol:'Entrenador de arqueros'},
     ],
-    forlan:[
+    forlan_mayor:[
       {iso:'uy',name:'Diego Forlán',       rol:'Director técnico (interino)', dt:true},
-      {iso:'uy',name:'Santiago Ferro',     rol:'Profe principal'},
-      {iso:'uy',name:'Diego Estavillo',    rol:'Profe secundario'},
-      {iso:'uy',name:'Enzo Ferrari',       rol:'Entrenador de arqueros', pendiente:true},
-      {iso:'uy',name:'Kevin Beckman',      rol:'Videoanalista', pendiente:true},
-      {iso:'uy',name:'Gonzalo Rodríguez',  rol:'Videoanalista', pendiente:true},
-      {iso:'uy',name:'Facundo Leiton',     rol:'Videoanalista', pendiente:true},
+      {iso:'uy',name:'Santiago Ferro',     rol:'Profe principal',       key:'sferro'},
+      {iso:'uy',name:'Diego Estavillo',    rol:'Profe secundario',      key:'destavillo'},
+      {iso:'uy',name:'Enzo Ferrari',       rol:'Entrenador de arqueros', key:'eferrari',     pendiente:true},
+      {iso:'uy',name:'Kevin Beckman',      rol:'Videoanalista',          key:'kbekmann',     pendiente:true},
+      {iso:'uy',name:'Gonzalo Rodríguez',  rol:'Videoanalista',          key:'grodriguezva', pendiente:true},
+      {iso:'uy',name:'Facundo Leiton',     rol:'Videoanalista',          key:'fleiton',      pendiente:true},
+    ],
+    forlan_sub20:[
+      {iso:'uy',name:'Diego Forlán',       rol:'Director técnico',      dt:true},
+      {iso:'uy',name:'Diego Pérez',        rol:'Ayudante técnico',      key:'dperezjuv'},
+      {iso:'uy',name:'Marco Mansulino',    rol:'Preparador físico',     key:'mmansulino'},
+      {iso:'uy',name:'Ignacio Bordad',     rol:'Entrenador de arqueros',key:'ibordad'},
+      {iso:'uy',name:'Gabriel Skrilec',    rol:'Videoanalista',         key:'gskrilec'},
+      {iso:'uy',name:'Ayudante técnico adicional', rol:'Ayudante técnico', pendiente:true, sinNombre:true},
     ],
   };
-  const _cuerpoList=_cuerpoData[_tecDT]||[];
+  const _cuerpoList=_cuerpoData[_tecDT==='forlan'?'forlan_'+_tecMode:_tecDT]||[];
   const _cuerpoActivos=_cuerpoList.filter(m=>!m.salio);
   const _cuerpoSalidos=_cuerpoList.filter(m=>m.salio);
   const _renderCuerpoRow=(m,i,arr)=>{
@@ -9244,14 +9259,29 @@ function renderTecnicos(){
         <span style="font-size:8.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Incorporados por AUF</span>
       </div>`;
     }
-    return`<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;${m.dt?'background:#FFFBEB;':''}${m.salio?'opacity:0.45;':''}${i<arr.length-1&&!arr[i+1]?._sep?'border-bottom:0.5px solid var(--border)':''}">
-      <span style="font-size:16px;line-height:1">${flagImg(m.iso,18)}</span>
+    if(m.sinNombre){
+      return`<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;opacity:.6;${i<arr.length-1&&!arr[i+1]?._sep?'border-bottom:0.5px solid var(--border)':''}">
+        <span style="width:24px;height:24px;border-radius:50%;background:var(--surface);border:1.5px dashed var(--muted);flex-shrink:0"></span>
+        <span style="flex:1;font-size:13px;font-style:italic;color:var(--muted)">${m.name}</span>
+        <span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 5px">por definir</span>
+      </div>`;
+    }
+    const foto=m.key?(window._estPhotoCache?.[m.key]):null;
+    const initials=m.name.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const avatar=m.key?(foto
+      ?`<img src="${foto}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+      :`<div style="width:24px;height:24px;border-radius:50%;background:#EFF6FF;color:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:.6em;font-weight:800;flex-shrink:0">${initials}</div>`)
+      :`<span style="font-size:16px;line-height:1;flex-shrink:0">${flagImg(m.iso,18)}</span>`;
+    const clickable=m.key?` onclick="showSection('estructura');_estOpenFicha('${m.key}')" style="cursor:pointer"`:'';
+    return`<div${clickable} style="display:flex;align-items:center;gap:10px;padding:9px 10px;${m.dt?'background:#FFFBEB;':''}${m.salio?'opacity:0.45;':''}${i<arr.length-1&&!arr[i+1]?._sep?'border-bottom:0.5px solid var(--border)':''}">
+      ${avatar}
       <span style="flex:1;font-size:13px;font-weight:${m.dt?800:600};color:var(--text);${m.salio?'text-decoration:line-through;':''}">${m.dt?'⭐ ':''}<strong>${m.name}</strong>${m.reemplazoa?`<span style="font-size:9px;font-weight:600;color:#16a34a;text-decoration:none;display:inline-block;margin-left:6px">↩ reemplazó a ${m.reemplazoa}</span>`:''}</span>
       <div style="text-align:right">
         <div style="font-size:11px;color:var(--muted)">${m.rol}${m.pendiente?`<span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">por confirmar</span>`:''}</div>
         ${m.hasta?`<div style="font-size:8.5px;color:#64748B;font-weight:600;margin-top:1px">Hasta ${m.hasta}</div>`:''}
         ${m.salioPor?`<div style="font-size:8.5px;color:#dc2626;font-weight:600">→ ${m.salioPor}</div>`:''}
       </div>
+      ${m.key?`<i class="ti ti-chevron-right" style="color:var(--hint);font-size:14px;flex-shrink:0"></i>`:''}
     </div>`;
   };
   const cuerpoHtml=!_cuerpoList.length?_noDataHtml:`
@@ -9284,6 +9314,9 @@ function renderTecnicos(){
         <div style="font-size:10.5px;opacity:.55;margin-top:2px">${curDT.desde!=='—'?`Director Técnico · ${curDT.desde} – ${curDT.hasta}`:'Director Técnico'}</div>
       </div>
     </div>
+    ${DT_MODES[curDT.id]?`<div style="display:flex;gap:5px;margin-bottom:10px;background:var(--surface);border-radius:10px;padding:4px">
+      ${DT_MODES[curDT.id].map(m=>`<button onclick="selectTecMode('${m.id}')" style="flex:1;padding:7px 10px;border-radius:7px;font-size:11.5px;font-weight:800;cursor:pointer;border:none;background:${_tecMode===m.id?'var(--white)':'transparent'};color:${_tecMode===m.id?'var(--text)':'var(--muted)'};box-shadow:${_tecMode===m.id?'0 1px 3px rgba(0,0,0,.1)':'none'}">${m.label}</button>`).join('')}
+    </div>`:''}
     <div style="display:flex;gap:5px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px">
       ${tabBtn('resumen','Resumen')}
       ${tabBtn('estadisticas','Estadísticas')}
@@ -12980,46 +13013,89 @@ function buildBielsaConfsHtml(){
   </div>`;
 }
 
+window._editForlanConf=function(n){
+  const edits=stor.get('auf4_forlanconf',{});
+  const cur=edits[n]||{};
+  const lugar=prompt('Lugar:',cur.lugar||'');
+  if(lugar===null) return;
+  const hora=prompt('Hora (ej: 18:00):',cur.hora||'');
+  if(hora===null) return;
+  const aufTvIn=prompt('¿Va por AUFtv? (si/no):',cur.aufTv?'si':'no');
+  if(aufTvIn===null) return;
+  const link=prompt('Link (vacío para quitar):',cur.link||'');
+  if(link===null) return;
+  edits[n]={lugar:lugar.trim(),hora:hora.trim(),aufTv:/^s/i.test(aufTvIn.trim()),link:link.trim()};
+  stor.set('auf4_forlanconf',edits);
+  renderTecnicos();
+};
 function buildForlanConfsHtml(){
   const confs=[
-    {n:1,txt:'Conferencia de prensa de presentación',fecha:'3/8/26',lugar:'por confirmar',pendiente:true},
+    {n:1,txt:'Conferencia de prensa de presentación',fecha:'3/8/26',pendiente:true},
   ];
+  const edits=stor.get('auf4_forlanconf',{});
   return `<div class="stats-section">
     <div class="phase">🎙️ Atención de prensa · Diego Forlán</div>
     <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
-      ${confs.map(c=>`
+      ${confs.map(c=>{
+        const ed=edits[c.n]||{};
+        const lugar=ed.lugar||'por confirmar';
+        const hora=ed.hora||'';
+        return `
         <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--surface);border:0.5px solid var(--border)">
           <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
           <div style="flex:1">
-            <div style="font-size:12px;font-weight:600;color:var(--text)">${c.txt}${c.pendiente?`<span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">por confirmar</span>`:''}</div>
-            <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${c.fecha} · ${c.lugar}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text)">${ed.link?`<a href="${ed.link}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}${c.pendiente&&!ed.lugar?`<span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">por confirmar</span>`:''}${ed.aufTv?`<span style="font-size:8px;font-weight:700;color:#059669;background:rgba(5,150,105,.12);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">AUFtv</span>`:''}</div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${c.fecha}${hora?' · '+hora:''} · ${lugar}</div>
           </div>
-        </div>`).join('')}
+          <button onclick="_editForlanConf(${c.n})" title="Editar lugar/hora/AUFtv/link" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:var(--hint);line-height:1">✏️</button>
+        </div>`;}).join('')}
     </div>
   </div>`;
 }
 
+const _FORLAN_CONV_DEFAULTS={'0_reserva':'viernes 4/9','0_final':'viernes 18/9','1_reserva':'viernes 23/10','1_final':'viernes 6/11','2_reserva':null,'2_final':null};
+window._editForlanConvDate=function(vi,tipo){
+  const key=vi+'_'+tipo;
+  const dates=stor.get('auf4_forlanconvdates',{});
+  const v=prompt('Fecha límite (vacío = a definir):',dates[key]||_FORLAN_CONV_DEFAULTS[key]||'');
+  if(v===null) return;
+  const val=v.trim();
+  if(val) dates[key]=val; else delete dates[key];
+  stor.set('auf4_forlanconvdates',dates);
+  renderTecnicos();
+};
 function buildForlanConvHtml(){
+  if(_tecMode==='sub20'){
+    return `<div class="stats-section">
+      <div class="phase">📋 Convocatorias · Diego Forlán (Sub-20)</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">Todavía no hay ventanas de convocatoria definidas para el proceso Sub-20. Se cargarán de cara al Sudamericano de enero 2027.</div>
+    </div>`;
+  }
+  const dates=stor.get('auf4_forlanconvdates',{});
   const ventanas=[
-    {label:'Fecha FIFA setiembre-octubre 2026',partidos:4,rango:'21/9 – 6/10'},
-    {label:'Fecha FIFA noviembre 2026',partidos:2,rango:'9/11 – 17/11'},
-    {label:'Fecha FIFA marzo 2027',partidos:2,rango:'por confirmar'},
+    {label:'Fecha FIFA setiembre-octubre 2026',partidos:4,rango:'21/9 – 6/10',reserva:'viernes 4/9',final:'viernes 18/9'},
+    {label:'Fecha FIFA noviembre 2026',partidos:2,rango:'9/11 – 17/11',reserva:'viernes 23/10',final:'viernes 6/11'},
+    {label:'Fecha FIFA marzo 2027',partidos:2,rango:'por confirmar',reserva:null,final:null},
   ];
+  const dateRow=(vi,tipo,label,def)=>{
+    const key=vi+'_'+tipo;
+    const val=dates[key]||def;
+    return `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:11px">
+      <span style="flex:1;font-weight:600;color:var(--text)">${label}</span>
+      <span style="color:${val?'var(--text)':'var(--muted)'};font-size:10px;font-weight:${val?700:400}">${val||'a definir'}</span>
+      <button onclick="_editForlanConvDate(${vi},'${tipo}')" title="Editar fecha límite" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:var(--hint);line-height:1">✏️</button>
+    </div>`;
+  };
   return `<div class="stats-section">
     <div class="phase">📋 Convocatorias · Diego Forlán (Mayor, interino)</div>
-    <div style="font-size:11px;color:var(--muted);margin:6px 0 12px">Cada ventana tiene 2 instancias: lista de reserva y convocatoria final. Fechas límite pendientes de confirmar.</div>
-    ${ventanas.map(v=>`
+    <div style="font-size:11px;color:var(--muted);margin:6px 0 12px">Cada ventana tiene 2 instancias: <strong>lista de reserva</strong> (fecha reglamentaria de FIFA) y <strong>convocatoria final</strong> (fecha interna definida por AUF, previa al inicio de la Fecha FIFA).</div>
+    ${ventanas.map((v,vi)=>`
       <div style="border:0.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px">
         <div style="font-size:12.5px;font-weight:700;color:var(--text)">${v.label}</div>
         <div style="font-size:10.5px;color:var(--muted);margin-bottom:8px">${v.partidos} partidos · ${v.rango}</div>
         <div style="display:flex;flex-direction:column;gap:4px">
-          <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:11px">
-            <span style="flex:1;font-weight:600;color:var(--text)">Lista de reserva</span>
-            <span style="color:var(--muted);font-size:10px">fecha límite por definir</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:11px">
-            <span style="flex:1;font-weight:600;color:var(--text)">Convocatoria final</span>
-            <span style="color:var(--muted);font-size:10px">fecha límite por definir</span>
+          ${dateRow(vi,'reserva','Lista de reserva',v.reserva)}
+          ${dateRow(vi,'final','Convocatoria final',v.final)}
           </div>
         </div>
       </div>`).join('')}
@@ -13119,7 +13195,7 @@ function buildDTInfoHtml(dtId){
       ${sectionHdr('Trayectoria como entrenador')}
       ${timelineItem('Peñarol (Uruguay) · Liga AUF','')}
       ${timelineItem('Atenas (Uruguay) · Segunda División AUF','')}
-      ${timelineItem('Selección Sub-20 Uruguaya','2025–2027')}
+      ${timelineItem('Selección Sub-20 Uruguaya','2026–2027')}
       ${timelineItem('Selección Uruguaya (interino)','ago 2026 – mar 2027')}
 
       ${sectionHdr('Referencias')}
@@ -23724,6 +23800,11 @@ const ESTRUCTURA_PERSONAS = [
     {key:'mloza',         label:'Mauricio Loza',       rol:'Cocinero'},
     {key:'mcasado',       label:'María Casado',        rol:'Cocinera'},
   ]},
+  {dept:'Cuerpo técnico Selección Mayor', personas:[
+    {key:'sferro',        label:'Santiago Ferro',      rol:'Profe principal'},
+    {key:'destavillo',    label:'Diego Estavillo',     rol:'Profe secundario'},
+    {key:'eferrari',      label:'Enzo Ferrari',        rol:'Entrenador de arqueros (ex Sub-15 con López Báez, luego Sub-17, luego Mayor)'},
+  ]},
   {dept:'Videoanalistas', personas:[
     {key:'kbekmann',      label:'Kevin Bekmann',       rol:'Analista Selección Mayor'},
     {key:'grodriguezva',  label:'Gonzalo Rodríguez',   rol:'Analista Selección Mayor'},
@@ -26459,7 +26540,22 @@ const _DEPT_COLORS = [
 const KEstEdits    = 'auf4_est_edits';
 const KEstContract = 'auf4_est_contract';
 function _estGetEdits(){ try{return JSON.parse(localStorage.getItem(KEstEdits)||'{}')}catch(_){return{}} }
-function _estSaveEdits(obj){ localStorage.setItem(KEstEdits, JSON.stringify(obj)); }
+function _estSaveEdits(obj){ stor.set(KEstEdits, obj); }
+// Migración (una sola vez): Ferro y Estavillo ingresaron en 2022 (Broli → Bielsa → Forlán) — sembrar período
+(()=>{try{
+  if(localStorage.getItem('auf4_mig_ferro_estavillo_2022')) return;
+  localStorage.setItem('auf4_mig_ferro_estavillo_2022','1');
+  const e=_estGetEdits();
+  let changed=false;
+  ['sferro','destavillo'].forEach(k=>{
+    if(!e[k]) e[k]={};
+    if(!e[k].periodos || !e[k].periodos.length){
+      e[k].periodos=[{desde:'2022',hasta:'',rol:'Preparador físico'}];
+      changed=true;
+    }
+  });
+  if(changed) _estSaveEdits(e);
+}catch(_){}})();
 function _estGetContracts(){
   try{
     const stored=JSON.parse(localStorage.getItem(KEstContract)||'{}');
@@ -26476,7 +26572,7 @@ function _estGetContracts(){
     return stored;
   }catch(_){return{}}
 }
-function _estSaveContracts(obj){ localStorage.setItem(KEstContract, JSON.stringify(obj)); }
+function _estSaveContracts(obj){ stor.set(KEstContract, obj); }
 
 const _EST_CONTRATO = {
   activo:      {label:'Activo',              bg:'#D1FAE5',color:'#065F46'},
