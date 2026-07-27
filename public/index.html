@@ -22067,6 +22067,24 @@ async function _pushAllPhotosToServer(btn){
   }
 }
 window._pushAllPhotosToServer = _pushAllPhotosToServer;
+
+// Respaldo automático silencioso: reintenta subir a Supabase cualquier foto local que
+// haya quedado sin sincronizar (ej: el upload inmediato al guardar falló por falta de red).
+async function _autoBackupPhotosToSupabase(){
+  try{
+    const all = await getAllPhotosIDB();
+    const entries = Object.entries(all).filter(([,v])=>typeof v==='string'&&v.startsWith('data:'));
+    if(!entries.length) return;
+    let ok=0, err=0;
+    for(const [key,dataUrl] of entries){
+      const r = await _sbUploadPhoto(key, dataUrl);
+      if(r) ok++; else err++;
+    }
+    if(ok) toast(`🔄 Respaldo automático: ${ok} foto${ok===1?'':'s'} guardada${ok===1?'':'s'} en la nube`);
+    if(err) console.warn(`[auto-backup fotos] ${err} fallaron, se reintentará en el próximo ciclo`);
+  }catch(e){ console.warn('auto-backup fotos error', e); }
+}
+window._autoBackupPhotosToSupabase = _autoBackupPhotosToSupabase;
 async function _loadJuvPhotoCache(){
   const all = await getAllPhotosIDB();
   const out = {};
@@ -22154,7 +22172,10 @@ async function _loadPhotosFromSupabase(){
 _loadJuvPhotoCache();
 
 // Auto-push fotos al servidor 4 veces por día (cada 6 horas)
-setInterval(()=>{ _pushAllPhotosToServer(null); }, 6 * 60 * 60 * 1000);
+// Respaldo automático de fotos 4x/día (cada 6hs) + uno a los 30s de abrir la app,
+// para no depender de que el tab quede abierto 6hs antes del primer intento.
+setInterval(_autoBackupPhotosToSupabase, 6 * 60 * 60 * 1000);
+setTimeout(_autoBackupPhotosToSupabase, 30 * 1000);
 window._juvGetPhoto = function(nom){
   if(!nom) return null;
   // Mayor tiene prioridad si el jugador tiene ficha identificada
