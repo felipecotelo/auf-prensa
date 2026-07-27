@@ -421,6 +421,9 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5;
   color:rgba(239,243,248,.3);font-size:15px;
 }
 .mob-usearch-empty i{font-size:40px;display:block;margin-bottom:12px;opacity:.4}
+/* Desktop unified search menu pills */
+.gnav-mpill{padding:6px 14px;border-radius:16px;border:1.5px solid rgba(255,255,255,.15);background:none;color:rgba(239,243,248,.6);font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:all .15s}
+.gnav-mpill.active{background:rgba(0,157,216,.2);border-color:#009DD8;color:#5BB8FF}
 /* More sheet */
 .mob-more-sheet{
   position:fixed;bottom:0;left:0;right:0;z-index:998;
@@ -1613,29 +1616,21 @@ html.auf-gate body { display:none !important }
     <button class="nav-l0-section" data-section="redes" onclick="showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes</button>
     <button class="nav-l0-section" data-section="estructura" onclick="showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura</button>
     <div class="nav-l0-sep"></div>
-    <div style="position:relative;flex-shrink:0" id="gnav-wrap">
+    <div style="position:relative;flex-shrink:0;display:flex;align-items:center;gap:4px" id="gnav-wrap">
       <div style="position:relative;display:flex;align-items:center">
         <i class="ti ti-search" style="position:absolute;left:8px;color:rgba(255,255,255,.5);font-size:12px;pointer-events:none"></i>
-        <input id="gnav-q" type="text" placeholder="Buscar jugador…" autocomplete="off"
+        <input id="gnav-q" type="text" placeholder="Buscar jugador, CT o estructura…" autocomplete="off"
           oninput="window._gnavSearch(this.value)"
           onfocus="if(this.value.trim()) window._gnavSearch(this.value)"
+          onkeydown="if(event.key==='Enter'){window._gnavOpenMenu(this.value);this.blur();}"
           onblur="setTimeout(()=>{const d=document.getElementById('gnav-drop');if(d)d.style.display='none';},180)"
-          style="padding:5px 10px 5px 26px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fff;font-size:.78em;width:160px;outline:none;transition:width .2s"
-          onfocusin="this.style.width='220px'" onfocusout="this.style.width='160px'">
+          style="padding:5px 10px 5px 26px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fff;font-size:.78em;width:210px;outline:none;transition:width .2s"
+          onfocusin="this.style.width='270px'" onfocusout="this.style.width='210px'">
       </div>
       <div id="gnav-drop" style="display:none"></div>
-    </div>
-    <div style="position:relative;flex-shrink:0" id="gnav-ct-wrap">
-      <div style="position:relative;display:flex;align-items:center">
-        <i class="ti ti-users" style="position:absolute;left:8px;color:rgba(255,255,255,.5);font-size:12px;pointer-events:none"></i>
-        <input id="gnav-ct-q" type="text" placeholder="Buscar CT…" autocomplete="off"
-          oninput="window._gnavCTSearch(this.value)"
-          onfocus="if(this.value.trim()) window._gnavCTSearch(this.value)"
-          onblur="setTimeout(()=>{const d=document.getElementById('gnav-ct-drop');if(d)d.style.display='none';},180)"
-          style="padding:5px 10px 5px 26px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fff;font-size:.78em;width:130px;outline:none;transition:width .2s"
-          onfocusin="this.style.width='200px'" onfocusout="this.style.width='130px'">
-      </div>
-      <div id="gnav-ct-drop" style="display:none"></div>
+      <button onclick="window._gnavOpenMenu(document.getElementById('gnav-q').value)" title="Menú de búsqueda" style="flex-shrink:0;width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px">
+        <i class="ti ti-layout-grid"></i>
+      </button>
     </div>
     <button class="nav-l0-global" data-tab="periplo" onclick="showTab('periplo')"><i class="ti ti-map-2"></i>Mi periplo</button>
     <button class="nav-l0-global" data-tab="linkgen" onclick="showTab('linkgen')" style="color:#c4b5fd"><i class="ti ti-link"></i>Links</button>
@@ -3901,8 +3896,9 @@ async function _sbUploadPhoto(key, dataUrl){
 window.uploadAllPhotosToSupabase = async function(){
   const toast2 = (msg,dur=3000)=>{ const t=document.createElement('div'); t.textContent=msg; t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e3a8a;color:#fff;padding:10px 18px;border-radius:10px;font-size:.85em;z-index:99999;font-weight:600'; document.body.appendChild(t); setTimeout(()=>t.remove(),dur); };
   const photos = await getAllPhotosIDB();
-  const entries = Object.entries(photos);
-  if(!entries.length){ toast2('No hay fotos en este dispositivo'); return; }
+  // Sólo fotos locales nuevas (data:...) — las que ya están en la nube quedan guardadas como URL, no hace falta re-subirlas
+  const entries = Object.entries(photos).filter(([,v])=>typeof v==='string'&&v.startsWith('data:'));
+  if(!entries.length){ toast2('No hay fotos nuevas para subir'); return; }
   toast2(`Subiendo ${entries.length} fotos… puede tardar unos minutos`, 120000);
   let ok=0, err=0;
   for(const [key, dataUrl] of entries){
@@ -3916,9 +3912,10 @@ window.uploadAllPhotosToSupabase = async function(){
 window._btnSubirFotos = async function(){
   const btn = document.getElementById('btn-foto-upload');
   const photos = await getAllPhotosIDB();
-  const entries = Object.entries(photos);
-  if(!entries.length){ toast('No hay fotos cargadas en este dispositivo'); return; }
-  if(!confirm(`¿Subir ${entries.length} fotos a la nube? Esto puede tardar unos minutos.`)) return;
+  // Sólo fotos locales nuevas (data:...) — las que ya están en la nube quedan guardadas como URL, no hace falta re-subirlas
+  const entries = Object.entries(photos).filter(([,v])=>typeof v==='string'&&v.startsWith('data:'));
+  if(!entries.length){ toast('No hay fotos nuevas para subir'); return; }
+  if(!confirm(`¿Subir ${entries.length} fotos nuevas a la nube? Esto puede tardar unos minutos.`)) return;
   btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 ti-spin" style="font-size:12px"></i> <span class="nav-sync-lbl">Subiendo…</span>';
   let ok=0, err=0;
   for(const [key,dataUrl] of entries){
@@ -20855,6 +20852,106 @@ let _juvCompTab = 'convocados'; // sub-tab dentro de competencia
 let _juvGlobalPlayers = false; // vista "Jugadores" cruzando todas las categorías
 
 function _gnavNorm(s){return(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+
+// ── Búsqueda unificada (jugadores + CT/estructura) ──────────────
+function _gnavCollectResults(q, mode){
+  const jugadores=[], ct=[], seen=new Set(), seenCT=new Set();
+  if(mode!=='ct'){
+    try{ Object.entries(JUGADORES).forEach(([nom,d])=>{
+      if(!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);jugadores.push({nom,sub:'Mayor · '+(d.pos||''),section:'mayor',foto:d.foto||null});}
+    });}catch(_){}
+    try{
+      const localStats=typeof _getLocalStats==='function'?_getLocalStats():{};
+      Object.values(localStats).forEach(d=>{
+        const nom=d.nom;
+        if(nom&&!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);jugadores.push({nom,sub:'Local · '+(d.pos||''),section:'local',foto:null});}
+      });
+    }catch(_){}
+    try{
+      const juvAll={};
+      Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+        const label=catData.label||catKey;
+        Object.values(catData.anos||{}).forEach(anoData=>{
+          (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{if(!juvAll[j.nom])juvAll[j.nom]=new Set();juvAll[j.nom].add(label);}));
+          (anoData.lista||[]).forEach(j=>{if(!juvAll[j.nom])juvAll[j.nom]=new Set();juvAll[j.nom].add(label);});
+        });
+      });
+      Object.entries(juvAll).forEach(([nom,cats])=>{
+        if(!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);jugadores.push({nom,sub:[...cats].join(' · '),section:'juveniles',foto:null});}
+      });
+    }catch(_){}
+    jugadores.sort((a,b)=>a.nom.localeCompare(b.nom));
+  }
+  if(mode!=='jugador'){
+    const nr = r => (typeof _normRol==='function'?_normRol(r):null)||r;
+    const addCT = (nom, sub, section, extra) => {
+      if(!seenCT.has(nom) && _gnavNorm(nom).includes(q)){
+        seenCT.add(nom); ct.push({nom, sub, section, extra:extra||null});
+      }
+    };
+    try{
+      (typeof ESTRUCTURA_PERSONAS!=='undefined'?ESTRUCTURA_PERSONAS:[]).forEach(dept=>{
+        dept.personas.forEach(p=>addCT(p.label, dept.dept+' · '+nr(p.rol), 'estructura', {key:p.key}));
+      });
+    }catch(_){}
+    try{
+      if(typeof JUV_TORNEOS!=='undefined') Object.entries(JUV_TORNEOS).forEach(([tid,t])=>{
+        (t.ct||[]).forEach(m=>addCT(m.name, (t.titulo||tid)+' · '+nr(m.rol), 'juv_ct', {tid}));
+      });
+    }catch(_){}
+    try{
+      if(typeof JUVENILES!=='undefined') Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+        Object.entries(catData.anos||{}).forEach(([anoKey,anoData])=>{
+          (anoData.ct||[]).forEach(m=>addCT(m.name, (catData.label||catKey)+' '+anoKey+' · '+nr(m.rol), 'juv_ct', {}));
+        });
+      });
+    }catch(_){}
+    try{
+      if(typeof BIELSA_CONVOCATORIAS!=='undefined') BIELSA_CONVOCATORIAS.forEach(c=>{
+        (c.ct||[]).forEach(m=>addCT(m.name, 'Mayor · '+(c.titulo||c.competencia||'')+' · '+nr(m.rol), 'estructura', {}));
+      });
+    }catch(_){}
+    ct.sort((a,b)=>a.nom.localeCompare(b.nom));
+  }
+  return {jugadores, ct};
+}
+
+function _gnavPhotoFor(r){
+  try{ return r.foto || (window._estPhotoCache||{})[r.nom] || (window._juvPhotoCache||{})[r.nom] || window._getPhotoByName?.(r.nom) || window._getPersonPhoto?.(r.nom) || null; }
+  catch(_){ return null; }
+}
+const _gnavBadge = {mayor:'Mayor',local:'Local',juveniles:'Juvenil',estructura:'Estructura',juv_ct:'Juvenil'};
+function _gnavRowHTML(r, isJug, theme){
+  const foto = _gnavPhotoFor(r);
+  const initials = r.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const goCall = isJug
+    ? `window._gnavGo('${r.section}','${encodeURIComponent(r.nom)}')`
+    : `window._gnavCTGo('${r.section}','${encodeURIComponent(r.nom)}','${encodeURIComponent((r.extra&&r.extra.key)||'')}')`;
+  const badge = _gnavBadge[r.section]||'';
+  if(theme==='light'){
+    const avatar = foto
+      ? `<img src="${foto}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<div style=\\'width:30px;height:30px;border-radius:50%;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.62em;font-weight:800;color:#6b7280\\'>${initials}</div>'">`
+      : `<div style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.62em;font-weight:800;color:#6b7280">${initials}</div>`;
+    return `<div onclick="${goCall}" style="display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6">
+      ${avatar}
+      <div style="min-width:0;flex:1"><div style="font-size:.84em;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div><div style="font-size:.68em;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.sub}</div></div>
+      ${badge?`<span style="font-size:.6em;font-weight:700;background:#eef2ff;color:#4f46e5;padding:2px 7px;border-radius:6px;white-space:nowrap;flex-shrink:0">${badge}</span>`:''}
+    </div>`;
+  }
+  const avatar = foto
+    ? `<img src="${foto}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(0,157,216,.2);flex-shrink:0" onerror="this.style.display='none'">`
+    : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#152845,#0D1F38);border:1.5px solid rgba(0,157,216,.18);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#5BB8FF;flex-shrink:0">${initials}</div>`;
+  return `<div onclick="${goCall}" style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer" onmouseover="this.style.background='rgba(0,157,216,.08)'" onmouseout="this.style.background=''">
+    ${avatar}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13.5px;font-weight:700;color:#EFF3F8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div>
+      <div style="font-size:11.5px;color:rgba(239,243,248,.5);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.sub}</div>
+    </div>
+    ${badge?`<span style="font-size:9.5px;font-weight:700;background:rgba(0,157,216,.13);color:#5BB8FF;padding:3px 9px;border-radius:7px;white-space:nowrap;flex-shrink:0">${badge}</span>`:''}
+    <i class="ti ti-chevron-right" style="color:rgba(239,243,248,.2);font-size:12px;flex-shrink:0"></i>
+  </div>`;
+}
+
 window._gnavSearch = function(v){
   document.getElementById('gnav-drop')?.remove();
   const q = _gnavNorm(v.trim());
@@ -20862,58 +20959,26 @@ window._gnavSearch = function(v){
   const inp = document.getElementById('gnav-q');
   if(!inp) return;
   const rect = inp.getBoundingClientRect();
-  // Recopilar jugadores Mayor
-  const results = [];
-  const seen = new Set();
-  try{ Object.entries(JUGADORES).forEach(([nom,d])=>{
-    if(!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);results.push({nom,sub:'Mayor · '+(d.pos||''),section:'mayor',foto:d.foto||null});}
-  });}catch(_){}
-  // Recopilar jugadores Local
-  try{
-    const localStats=typeof _getLocalStats==='function'?_getLocalStats():{};
-    Object.values(localStats).forEach(d=>{
-      const nom=d.nom;
-      if(!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);results.push({nom,sub:'Local · '+(d.pos||''),section:'local',foto:null});}
-    });
-  }catch(_){}
-  // Recopilar jugadores Juveniles
-  try{
-    const juvAll={};
-    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
-      const label=catData.label||catKey;
-      Object.values(catData.anos||{}).forEach(anoData=>{
-        (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{if(!juvAll[j.nom])juvAll[j.nom]=new Set();juvAll[j.nom].add(label);}));
-        (anoData.lista||[]).forEach(j=>{if(!juvAll[j.nom])juvAll[j.nom]=new Set();juvAll[j.nom].add(label);});
-      });
-    });
-    Object.entries(juvAll).forEach(([nom,cats])=>{
-      if(!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);results.push({nom,sub:[...cats].join(' · '),section:'juveniles',foto:null});}
-    });
-  }catch(_){}
-  results.sort((a,b)=>a.nom.localeCompare(b.nom));
+  const {jugadores, ct} = _gnavCollectResults(q, 'all');
+  const all = [...jugadores.map(r=>({...r,_isJug:true})), ...ct.map(r=>({...r,_isJug:false}))];
   const drop = document.createElement('div');
   drop.id='gnav-drop';
-  drop.style.cssText=`position:fixed;left:${Math.max(4,rect.right-280)}px;top:${rect.bottom+4}px;width:280px;max-height:360px;overflow-y:auto;background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:99999;font-family:inherit`;
-  const _gnavPhoto = nom => {
-    try{ return (window._estPhotoCache||{})[nom]||(window._juvPhotoCache||{})[nom]||window._getPhotoByName?.(nom)||null; }catch(_){return null;}
-  };
-  drop.innerHTML = !results.length
-    ? `<div style="padding:10px 14px;font-size:.82em;color:#6b7280">Sin resultados</div>`
-    : results.slice(0,12).map(r=>{
-      const foto = r.foto || _gnavPhoto(r.nom);
-      const initials = r.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      const avatar = foto
-        ? `<img src="${foto}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<div style=\\'width:30px;height:30px;border-radius:50%;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.62em;font-weight:800;color:#6b7280\\'>${initials}</div>'">`
-        : `<div style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.62em;font-weight:800;color:#6b7280">${initials}</div>`;
-      return `<div onclick="window._gnavGo('${r.section}','${encodeURIComponent(r.nom)}')" style="display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6">
-        ${avatar}
-        <div style="min-width:0"><div style="font-size:.84em;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div><div style="font-size:.68em;color:#6b7280">${r.sub}</div></div>
-      </div>`;
-    }).join('')+(results.length>12?`<div style="padding:6px 12px;font-size:.72em;color:#6b7280">+${results.length-12} más…</div>`:'');
+  drop.style.cssText=`position:fixed;left:${Math.max(4,rect.left)}px;top:${rect.bottom+4}px;width:300px;max-height:380px;overflow-y:auto;background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:99999;font-family:inherit`;
+  if(!all.length){
+    drop.innerHTML = `<div style="padding:10px 14px;font-size:.82em;color:#6b7280">Sin resultados</div>`;
+  } else {
+    const shown = all.slice(0,10);
+    drop.innerHTML = shown.map(r=>_gnavRowHTML(r, r._isJug, 'light')).join('')
+      + `<div onclick="window._gnavOpenMenu(document.getElementById('gnav-q').value)" style="padding:9px 12px;font-size:.74em;font-weight:700;color:#4f46e5;text-align:center;cursor:pointer;background:#f8f9ff">
+           ${all.length>10?`Ver los ${all.length} resultados en el menú`:'Abrir en menú de búsqueda'} <i class="ti ti-arrow-right" style="font-size:.9em"></i>
+         </div>`;
+  }
   document.body.appendChild(drop);
 };
+
 window._gnavGo = function(section, nomEnc){
   document.getElementById('gnav-drop')?.remove();
+  window._gnavCloseMenu?.();
   const q = document.getElementById('gnav-q'); if(q) q.value='';
   const nom = decodeURIComponent(nomEnc);
   if(section==='mayor'){
@@ -20928,69 +20993,10 @@ window._gnavGo = function(section, nomEnc){
   }
 };
 
-window._gnavCTSearch = function(v){
-  document.getElementById('gnav-ct-drop')?.remove();
-  const q = _gnavNorm(v.trim());
-  if(!q) return;
-  const inp = document.getElementById('gnav-ct-q');
-  if(!inp) return;
-  const rect = inp.getBoundingClientRect();
-  const results = [];
-  const seen = new Set();
-  const add = (nom, sub, section, extra) => {
-    if(!seen.has(nom) && _gnavNorm(nom).includes(q)){
-      seen.add(nom); results.push({nom, sub, section, extra:extra||null});
-    }
-  };
-  const nr = r => _normRol(r)||r;
-  // 1. Estructura actual
-  try{
-    (typeof ESTRUCTURA_PERSONAS!=='undefined'?ESTRUCTURA_PERSONAS:[]).forEach(dept=>{
-      dept.personas.forEach(p=>add(p.label, dept.dept+' · '+nr(p.rol), 'estructura', {key:p.key}));
-    });
-  }catch(_){}
-  // 2. CT de ciclos juveniles (JUV_TORNEOS)
-  try{
-    if(typeof JUV_TORNEOS!=='undefined') Object.entries(JUV_TORNEOS).forEach(([tid,t])=>{
-      (t.ct||[]).forEach(m=>add(m.name, (t.titulo||tid)+' · '+nr(m.rol), 'juv_ct', {tid}));
-    });
-  }catch(_){}
-  // 3. CT de ciclos en JUVENILES (anos.ct)
-  try{
-    if(typeof JUVENILES!=='undefined') Object.entries(JUVENILES).forEach(([catKey,catData])=>{
-      Object.entries(catData.anos||{}).forEach(([anoKey,anoData])=>{
-        (anoData.ct||[]).forEach(m=>add(m.name, (catData.label||catKey)+' '+anoKey+' · '+nr(m.rol), 'juv_ct', {}));
-      });
-    });
-  }catch(_){}
-  // 4. CT Mayor (BIELSA_CONVOCATORIAS ct)
-  try{
-    if(typeof BIELSA_CONVOCATORIAS!=='undefined') BIELSA_CONVOCATORIAS.forEach(c=>{
-      (c.ct||[]).forEach(m=>add(m.name, 'Mayor · '+(c.titulo||c.competencia||'')+' · '+nr(m.rol), 'estructura', {}));
-    });
-  }catch(_){}
-  results.sort((a,b)=>a.nom.localeCompare(b.nom));
-  const drop = document.createElement('div');
-  drop.id='gnav-ct-drop';
-  drop.style.cssText=`position:fixed;left:${Math.max(4,rect.right-260)}px;top:${rect.bottom+4}px;width:260px;max-height:360px;overflow-y:auto;background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:99999;font-family:inherit`;
-  drop.innerHTML = !results.length
-    ? `<div style="padding:10px 14px;font-size:.82em;color:#6b7280">Sin resultados</div>`
-    : results.slice(0,14).map(r=>{
-      const photo = window._getPersonPhoto?.(r.nom)||null;
-      const initials = r.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      const avatar = photo
-        ? `<img src="${photo}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-        : `<div style="width:30px;height:30px;border-radius:50%;background:#f3f4f6;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.62em;font-weight:800;color:#6b7280">${initials}</div>`;
-      return `<div onclick="window._gnavCTGo('${r.section}','${encodeURIComponent(r.nom)}','${encodeURIComponent((r.extra&&r.extra.key)||'')}')" style="display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6">
-        ${avatar}
-        <div style="min-width:0"><div style="font-size:.84em;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nom}</div><div style="font-size:.68em;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.sub}</div></div>
-      </div>`;
-    }).join('')+(results.length>14?`<div style="padding:6px 12px;font-size:.72em;color:#6b7280">+${results.length-14} más…</div>`:'');
-  document.body.appendChild(drop);
-};
 window._gnavCTGo = function(section, nomEnc, keyEnc){
-  document.getElementById('gnav-ct-drop')?.remove();
-  const q = document.getElementById('gnav-ct-q'); if(q) q.value='';
+  document.getElementById('gnav-drop')?.remove();
+  window._gnavCloseMenu?.();
+  const q = document.getElementById('gnav-q'); if(q) q.value='';
   const nom = decodeURIComponent(nomEnc);
   const key = decodeURIComponent(keyEnc||'');
   // Si es jugador Mayor, ir a su ficha de jugador
@@ -21006,6 +21012,77 @@ window._gnavCTGo = function(section, nomEnc, keyEnc){
   }
   // Default: abrir modal ficha CT
   window._openCTFicha?.(nom);
+};
+
+// ── Menú de búsqueda completo (desktop) ──────────────
+let _gnavMenuMode = 'all';
+window._gnavOpenMenu = function(v){
+  document.getElementById('gnav-drop')?.remove();
+  let modal = document.getElementById('gnav-menu');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id='gnav-menu';
+    modal.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(7,17,30,.72);backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;padding:80px 20px 20px';
+    modal.addEventListener('mousedown',(e)=>{ if(e.target===modal) window._gnavCloseMenu(); });
+    modal.innerHTML = `
+      <div style="width:100%;max-width:560px;max-height:calc(100vh - 120px);background:#0D1F38;border:1px solid rgba(0,157,216,.25);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 18px 10px">
+          <div style="font-size:19px;font-weight:900;font-style:italic;letter-spacing:-.02em;color:#EFF3F8;flex:1">Buscar</div>
+          <button onclick="window._gnavCloseMenu()" style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+        <div style="display:flex;gap:8px;padding:4px 18px 12px">
+          <button class="gnav-mpill active" id="gnav-mpill-all" onclick="window._gnavMenuPill('all')">Todos</button>
+          <button class="gnav-mpill" id="gnav-mpill-jugador" onclick="window._gnavMenuPill('jugador')">Jugadores</button>
+          <button class="gnav-mpill" id="gnav-mpill-ct" onclick="window._gnavMenuPill('ct')">CT / Estructura</button>
+        </div>
+        <div style="padding:0 18px 14px">
+          <div style="position:relative;display:flex;align-items:center">
+            <i class="ti ti-search" style="position:absolute;left:14px;color:#5BB8FF;font-size:15px;pointer-events:none"></i>
+            <input id="gnav-menu-inp" type="text" autocomplete="off" spellcheck="false" placeholder="Nombre del jugador, CT o miembro de la estructura…"
+              oninput="window._gnavMenuSearch(this.value)"
+              style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.08);border:1.5px solid rgba(0,157,216,.25);border-radius:12px;padding:11px 14px 11px 40px;color:#EFF3F8;font-size:14px;outline:none">
+          </div>
+        </div>
+        <div id="gnav-menu-results" style="flex:1;overflow-y:auto;border-top:1px solid rgba(255,255,255,.06)"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') window._gnavCloseMenu(); });
+  }
+  modal.style.display='flex';
+  _gnavMenuMode='all';
+  document.querySelectorAll('.gnav-mpill').forEach(p=>p.classList.remove('active'));
+  document.getElementById('gnav-mpill-all')?.classList.add('active');
+  const inp = document.getElementById('gnav-menu-inp');
+  inp.value = (v||'').trim();
+  window._gnavMenuSearch(inp.value);
+  setTimeout(()=>inp.focus(),50);
+};
+
+window._gnavCloseMenu = function(){
+  const modal = document.getElementById('gnav-menu');
+  if(modal) modal.style.display='none';
+};
+
+window._gnavMenuPill = function(mode){
+  _gnavMenuMode = mode;
+  document.querySelectorAll('.gnav-mpill').forEach(p=>p.classList.remove('active'));
+  document.getElementById('gnav-mpill-'+mode)?.classList.add('active');
+  window._gnavMenuSearch(document.getElementById('gnav-menu-inp')?.value||'');
+};
+
+window._gnavMenuSearch = function(v){
+  const res = document.getElementById('gnav-menu-results');
+  if(!res) return;
+  const q = _gnavNorm((v||'').trim());
+  if(!q){ res.innerHTML = `<div style="text-align:center;padding:50px 20px;color:rgba(239,243,248,.35);font-size:14px"><i class="ti ti-search" style="font-size:34px;display:block;margin-bottom:10px;opacity:.4"></i>Escribí para buscar</div>`; return; }
+  const {jugadores, ct} = _gnavCollectResults(q, _gnavMenuMode);
+  const all = [...jugadores.map(r=>({...r,_isJug:true})), ...ct.map(r=>({...r,_isJug:false}))];
+  if(!all.length){ res.innerHTML = `<div style="text-align:center;padding:50px 20px;color:rgba(239,243,248,.35);font-size:14px">Sin resultados</div>`; return; }
+  const shown = all.slice(0,60);
+  res.innerHTML = shown.map(r=>_gnavRowHTML(r, r._isJug, 'dark')).join('')
+    + (all.length>60?`<div style="text-align:center;padding:12px;font-size:11.5px;color:rgba(239,243,248,.3)">+${all.length-60} más resultados</div>`:'');
 };
 window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
@@ -21972,7 +22049,8 @@ async function _pushAllPhotosToServer(btn){
   btn.textContent = '⏳ Subiendo...';
   try {
     const all = await getAllPhotosIDB();
-    const keys = Object.keys(all);
+    // Sólo fotos locales nuevas (data:...) — las que ya están en la nube quedan guardadas como URL
+    const keys = Object.keys(all).filter(k=>typeof all[k]==='string'&&all[k].startsWith('data:'));
     let ok = 0, fail = 0;
     for(const k of keys){
       try {
@@ -22989,7 +23067,7 @@ function _renderJuvenilesSafe(el){
   }
 
   el.innerHTML = `
-    <div style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;border-bottom:1px solid var(--border)">
+    <div class="juv-cat-sticky" style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;border-bottom:1px solid var(--border)">
       <div style="padding:10px 16px 8px;display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;align-items:center;gap:5px">
           <div style="display:flex;gap:5px;flex:1">${catPills}</div>
