@@ -1506,6 +1506,22 @@ footer{text-align:center;font-size:11px;color:var(--hint);padding:1rem;border-to
 .view-mode:has(#sec-juveniles.active)::before { display:none }
 /* Ocultar body hasta que el init de JS lo libere */
 html.auf-gate body { display:none !important }
+/* ══ MOBILE HEADER — must be LAST to win cascade ══ */
+@media(max-width:600px){
+  /* Hide existing nav, show nothing of URUGUAY text */
+  .nav{display:none!important}
+  /* Show dedicated mobile header */
+  #mob-hdr{
+    display:flex!important;align-items:center;justify-content:space-between;
+    padding:0 12px;padding-top:env(safe-area-inset-top);
+    height:calc(44px + env(safe-area-inset-top));box-sizing:border-box;
+    background:#07111E;position:sticky;top:0;z-index:400;
+  }
+  #mob-hdr img{height:28px;width:auto;display:block}
+  #mob-hdr-right{display:flex;align-items:center;gap:8px}
+  .mob-quickbar{top:calc(44px + env(safe-area-inset-top))!important}
+}
+@media(min-width:601px){#mob-hdr{display:none!important}}
 </style>
 <script>
 (function(){
@@ -1573,6 +1589,13 @@ html.auf-gate body { display:none !important }
 </nav>
 
 <!-- Mobile quick-access bar (below nav, mobile only) -->
+<div id="mob-hdr">
+  <img id="mob-hdr-logo" src="" alt="AUF">
+  <div id="mob-hdr-right">
+    <span id="mob-sync-dot2" style="width:8px;height:8px;border-radius:50%;background:#F59E0B;display:none;flex-shrink:0"></span>
+    <button onclick="serverSave()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:none;color:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ti ti-cloud-upload" style="font-size:16px"></i></button>
+  </div>
+</div>
 <div class="mob-quickbar" id="mob-quickbar">
   <button class="mob-qbtn" id="mqb-prensa" onclick="showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
   <button class="mob-qbtn" id="mqb-redes" onclick="showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes</button>
@@ -26915,9 +26938,20 @@ function _mobCloseMore(){
 }
 
 // Sync bottom tabs + quickbar when showSection is called
-// Safari URL bar: just ensure content has enough clearance; don't move the tab bar
+// Mobile header: copy AUF logo src from existing nav-logo-desk
 (function(){
-  document.documentElement.style.setProperty('--mob-safari-extra', '0px');
+  const logo = document.getElementById('mob-hdr-logo');
+  const src = document.querySelector('.nav-logo-desk')?.src;
+  if(logo && src) logo.src = src;
+  // Sync the sync-dot state
+  const dot = document.getElementById('sync-dot');
+  const dot2 = document.getElementById('mob-sync-dot2');
+  if(dot && dot2){
+    dot2.style.display = 'inline-block';
+    dot2.style.background = dot.style.background || '#F59E0B';
+    new MutationObserver(()=>{ dot2.style.background = dot.style.background; })
+      .observe(dot, {attributes:true, attributeFilter:['style']});
+  }
 })();
 
 const _origShowSection=window.showSection;
