@@ -27435,9 +27435,25 @@ const _nameToKey = n => 'ct-p:' + n.toLowerCase()
   if(changed) localStorage.setItem(KEstContract,JSON.stringify(c));
 }catch(_){}})();
 
+// Gente agregada a mano desde la app (no viene hardcodeada en ESTRUCTURA_PERSONAS)
+function _estGetCustomPersonas(){ return stor.get('auf4_est_custom_personas', []); }
+function _estAddPersonaPrompt(dept){
+  const label=(prompt('Nombre de la persona a agregar a '+dept+':')||'').trim();
+  if(!label) return;
+  const rol=(prompt('Rol / cargo:')||'').trim();
+  const list=_estGetCustomPersonas();
+  const key='custom:'+_nameToKey(label).replace('ct-p:','')+'-'+Date.now().toString(36);
+  list.push({dept, key, label, rol});
+  stor.set('auf4_est_custom_personas', list);
+  renderEstructura();
+}
+window._estAddPersonaPrompt=_estAddPersonaPrompt;
+
 function _estBuildAllSections(){
+  const _customPersonas=_estGetCustomPersonas();
   const sections = ESTRUCTURA_PERSONAS.map((d,i)=>({
-    dept:d.dept, color:_DEPT_COLORS[i%_DEPT_COLORS.length], personas:d.personas
+    dept:d.dept, color:_DEPT_COLORS[i%_DEPT_COLORS.length],
+    personas:[...d.personas, ..._customPersonas.filter(c=>c.dept===d.dept)]
   }));
 
   // CT Mayor — Bielsa (activo)
@@ -27567,9 +27583,12 @@ function _renderEstLista(){
         return _renderEstPersonaRow(p,label,rol,_estResolvePhoto(p),contrato);
       }).join('');
       blocks+=`<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
-        <div style="padding:10px 14px;background:${d.color}12;border-bottom:1px solid ${d.color}25">
-          <span style="font-size:.7em;font-weight:800;color:${d.color};text-transform:uppercase;letter-spacing:.07em">${d.dept}</span>
-          <span style="font-size:.68em;color:${d.color};opacity:.7;margin-left:6px">· ${personas.length}</span>
+        <div style="padding:10px 14px;background:${d.color}12;border-bottom:1px solid ${d.color}25;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <span style="font-size:.7em;font-weight:800;color:${d.color};text-transform:uppercase;letter-spacing:.07em">${d.dept}</span>
+            <span style="font-size:.68em;color:${d.color};opacity:.7;margin-left:6px">· ${personas.length}</span>
+          </div>
+          <button onclick="window._estAddPersonaPrompt('${d.dept.replace(/'/g,"\\'")}')" title="Agregar persona a ${d.dept}" style="border:none;background:${d.color}18;color:${d.color};border-radius:6px;width:22px;height:22px;font-size:14px;font-weight:800;cursor:pointer;flex-shrink:0;line-height:1">+</button>
         </div>
         <div style="padding:0 14px">${rows}</div>
       </div>`;
