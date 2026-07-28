@@ -24188,12 +24188,14 @@ function _mediosGetAll(){ try{return JSON.parse(localStorage.getItem(KMedios)||'
 function _mediosSave(list){ stor.set(KMedios, list); cloudPush(KMedios, list); }
 
 // ── Estado de navegación interna de Prensa ─────────────────────────────────
-let _pwView = 'list';   // 'list' | 'ventana' | 'medios'
+let _pwView = 'list';   // 'list' | 'ventana' | 'medios' | 'planificador' | 'plan-evento'
 let _pwCurId = null;
 
 function renderPrensa(){
   if(_pwView==='ventana' && _pwCurId) _renderVentana(_pwCurId);
   else if(_pwView==='medios') _renderMediosDB();
+  else if(_pwView==='plan-evento' && _planCurId) _renderPlanEvento(_planCurId);
+  else if(_pwView==='planificador') _renderPlanificadorLista();
   else _renderListaPrensa();
 }
 
@@ -24642,11 +24644,7 @@ function _renderListaPrensa(){
 
   el.innerHTML = `
     <div style="max-width:700px;margin:0 auto;padding:16px">
-      <!-- Tabs Ventanas / Medios -->
-      <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:24px;gap:0">
-        <button onclick="_pwSetTab('list')" style="padding:10px 20px;border:none;border-bottom:2.5px solid var(--cel);margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:var(--cel);display:flex;align-items:center;gap:6px"><i class="ti ti-microphone-2" style="font-size:.95em"></i>Ventanas de prensa</button>
-        <button onclick="_pwSetTab('medios')" style="padding:10px 20px;border:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:var(--muted);display:flex;align-items:center;gap:6px"><i class="ti ti-device-tv" style="font-size:.95em"></i>Medios y programas</button>
-      </div>
+      ${_pwTabsHtml('list')}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div>
           <div style="font-size:1.1em;font-weight:900;color:var(--text)">Atención a prensa</div>
@@ -26337,6 +26335,246 @@ function _pwSetTab(tab){
   _pwView = tab;
   renderPrensa(); _pwInitSync();
 }
+function _pwTabsHtml(active){
+  const tab=(id,icon,label)=>`<button onclick="_pwSetTab('${id}')" style="padding:10px 20px;border:none;border-bottom:2.5px solid ${active===id?'var(--cel)':'transparent'};margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:${active===id?'var(--cel)':'var(--muted)'};display:flex;align-items:center;gap:6px"><i class="ti ${icon}" style="font-size:.95em"></i>${label}</button>`;
+  return `<div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:24px;gap:0">
+    ${tab('list','ti-microphone-2','Ventanas de prensa')}
+    ${tab('medios','ti-device-tv','Medios y programas')}
+    ${tab('planificador','ti-clipboard-list','Planificador')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PLANIFICADOR — eventos puntuales con hitos/tareas y seguimiento de posteos
+// ═══════════════════════════════════════════════════════════════════════════
+const KPlan='auf4_planificador';
+function _planGetAll(){ return stor.get(KPlan, []); }
+function _planSave(list){ stor.set(KPlan, list); }
+let _planCurId=null;
+
+function _planOpen(id){ _planCurId=id; _pwView='plan-evento'; renderPrensa(); }
+window._planOpen=_planOpen;
+function _planBack(){ _planCurId=null; _pwView='planificador'; renderPrensa(); }
+window._planBack=_planBack;
+
+function _planNuevo(){
+  const titulo=(prompt('Título del evento (ej: Presentación de Diego Forlán):')||'').trim();
+  if(!titulo) return;
+  const list=_planGetAll();
+  const id='pl'+Date.now();
+  list.push({id, titulo, items:[], posteos:[], creado:new Date().toISOString()});
+  _planSave(list);
+  _planOpen(id);
+}
+window._planNuevo=_planNuevo;
+function _planDelete(id){
+  if(!confirm('¿Eliminar este evento del planificador? No se puede deshacer.')) return;
+  _planSave(_planGetAll().filter(e=>e.id!==id));
+  _planBack();
+}
+window._planDelete=_planDelete;
+function _planRename(id){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev) return;
+  const t=(prompt('Título del evento:',ev.titulo)||'').trim();
+  if(!t) return;
+  ev.titulo=t;
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planRename=_planRename;
+
+function _planItemAdd(id){
+  const txt=(prompt('Tarea o hito:')||'').trim();
+  if(!txt) return;
+  const fecha=(prompt('Fecha (opcional, ej: 2026-07-29):')||'').trim();
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev) return;
+  if(!ev.items) ev.items=[];
+  ev.items.push({txt, fecha, done:false});
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planItemAdd=_planItemAdd;
+function _planItemToggle(id,i){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev||!ev.items[i]) return;
+  ev.items[i].done=!ev.items[i].done;
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planItemToggle=_planItemToggle;
+function _planItemDel(id,i){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev) return;
+  ev.items.splice(i,1);
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planItemDel=_planItemDel;
+
+const _PLAN_POST_ESTADOS=['pendiente','aprobado','publicado'];
+const _PLAN_POST_LABEL={pendiente:'Pendiente',aprobado:'Aprobado',publicado:'Publicado'};
+const _PLAN_POST_COLOR={pendiente:'#B45309',aprobado:'#2563EB',publicado:'#16A34A'};
+const _PLAN_POST_BG={pendiente:'#FEF3C7',aprobado:'#DBEAFE',publicado:'#DCFCE7'};
+function _planPostAdd(id){
+  const txt=(prompt('Descripción del posteo (ej: Anuncio oficial - Instagram):')||'').trim();
+  if(!txt) return;
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev) return;
+  if(!ev.posteos) ev.posteos=[];
+  ev.posteos.push({txt, estado:'pendiente', link:''});
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planPostAdd=_planPostAdd;
+function _planPostCycle(id,i){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev||!ev.posteos[i]) return;
+  const cur=ev.posteos[i].estado||'pendiente';
+  ev.posteos[i].estado=_PLAN_POST_ESTADOS[(_PLAN_POST_ESTADOS.indexOf(cur)+1)%_PLAN_POST_ESTADOS.length];
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planPostCycle=_planPostCycle;
+function _planPostLink(id,i){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev||!ev.posteos[i]) return;
+  const url=prompt('Link del posteo publicado:', ev.posteos[i].link||'');
+  if(url===null) return;
+  ev.posteos[i].link=url.trim();
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planPostLink=_planPostLink;
+function _planPostDel(id,i){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev) return;
+  ev.posteos.splice(i,1);
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planPostDel=_planPostDel;
+
+function _renderPlanificadorLista(){
+  const el=document.getElementById('prensa-body');
+  if(!el) return;
+  const list=_planGetAll();
+  const cards=list.length?list.map(ev=>{
+    const items=ev.items||[];
+    const done=items.filter(i=>i.done).length;
+    const posteos=ev.posteos||[];
+    const pubCount=posteos.filter(p=>p.estado==='publicado').length;
+    return `<div onclick="_planOpen('${ev.id}')" style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.98em;font-weight:900;color:var(--text)">${ev.titulo}</div>
+        <div style="font-size:.75em;color:var(--muted);margin-top:2px">${items.length?`${done}/${items.length} hitos/tareas`:'Sin hitos todavía'}${posteos.length?` · ${pubCount}/${posteos.length} posteos publicados`:''}</div>
+      </div>
+      <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.9em;flex-shrink:0"></i>
+    </div>`;
+  }).join('')
+  : `<div style="text-align:center;padding:48px 24px;color:var(--muted)">
+      <i class="ti ti-clipboard-list" style="font-size:2.5em;display:block;margin-bottom:12px;opacity:.3"></i>
+      <div style="font-weight:700;margin-bottom:4px">Sin eventos en el planificador</div>
+      <div style="font-size:.82em">Tocá "+ Nuevo evento" para crear el primero</div>
+    </div>`;
+
+  el.innerHTML=`
+    <div style="max-width:700px;margin:0 auto;padding:16px">
+      ${_pwTabsHtml('planificador')}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:1.1em;font-weight:900;color:var(--text)">Planificador</div>
+          <div style="font-size:.78em;color:var(--muted);margin-top:2px">Eventos con hitos, tareas y posteos</div>
+        </div>
+        <button onclick="_planNuevo()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:10px;background:var(--cel);color:#fff;font-size:.82em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Nuevo evento</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">${cards}</div>
+    </div>`;
+}
+
+function _renderPlanEvento(id){
+  const el=document.getElementById('prensa-body');
+  if(!el) return;
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id);
+  if(!ev){ _planBack(); return; }
+  const itemsSorted=(ev.items||[]).slice().sort((a,b)=>(a.fecha||'zzzz').localeCompare(b.fecha||'zzzz'));
+  const itemRows=itemsSorted.length?itemsSorted.map(it=>{
+    const idx=ev.items.indexOf(it);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <input type="checkbox" ${it.done?'checked':''} onchange="_planItemToggle('${id}',${idx})" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.85em;font-weight:600;color:var(--text);${it.done?'text-decoration:line-through;opacity:.5':''}">${it.txt}</div>
+        ${it.fecha?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${it.fecha}</div>`:''}
+      </div>
+      <button onclick="_planItemDel('${id}',${idx})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
+    </div>`;
+  }).join('')
+  : `<div style="color:var(--muted);font-size:.82em;padding:12px 0">Sin hitos ni tareas todavía.</div>`;
+
+  const posteos=ev.posteos||[];
+  const postRows=posteos.length?posteos.map((p,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.85em;font-weight:600;color:var(--text)">${p.txt}</div>
+        ${p.link?`<a href="${p.link}" target="_blank" rel="noopener" style="font-size:.72em;color:var(--cel-dk)">🔗 Ver posteo</a>`:''}
+      </div>
+      <button onclick="_planPostCycle('${id}',${i})" style="border:1px solid ${_PLAN_POST_COLOR[p.estado||'pendiente']}40;background:${_PLAN_POST_BG[p.estado||'pendiente']};color:${_PLAN_POST_COLOR[p.estado||'pendiente']};border-radius:20px;padding:3px 10px;font-size:.72em;font-weight:700;cursor:pointer;white-space:nowrap">${_PLAN_POST_LABEL[p.estado||'pendiente']}</button>
+      <button onclick="_planPostLink('${id}',${i})" title="Agregar/editar link" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:13px">🔗</button>
+      <button onclick="_planPostDel('${id}',${i})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
+    </div>`).join('')
+  : `<div style="color:var(--muted);font-size:.82em;padding:12px 0">Sin posteos cargados todavía.</div>`;
+
+  el.innerHTML=`
+    <div style="max-width:700px;margin:0 auto;padding:16px">
+      <button onclick="_planBack()" style="display:flex;align-items:center;gap:5px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:.8em;font-weight:700;padding:0;margin-bottom:14px"><i class="ti ti-arrow-left"></i> Planificador</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div onclick="_planRename('${id}')" style="font-size:1.15em;font-weight:900;color:var(--text);cursor:pointer" title="Tocá para renombrar">${ev.titulo}</div>
+        <button onclick="_planDelete('${id}')" style="border:none;background:#FEF2F2;color:#DC2626;border-radius:8px;padding:5px 10px;font-size:.75em;font-weight:700;cursor:pointer;flex-shrink:0">Eliminar evento</button>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">📅 Hitos y tareas</div>
+          <button onclick="_planItemAdd('${id}')" style="border:none;background:var(--surface);border-radius:7px;padding:4px 10px;font-size:.75em;font-weight:700;cursor:pointer;color:var(--text)">+ Agregar</button>
+        </div>
+        ${itemRows}
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">📣 Posteos</div>
+          <button onclick="_planPostAdd('${id}')" style="border:none;background:var(--surface);border-radius:7px;padding:4px 10px;font-size:.75em;font-weight:700;cursor:pointer;color:var(--text)">+ Agregar</button>
+        </div>
+        ${postRows}
+      </div>
+    </div>`;
+}
+
+// Sembrado (una sola vez): evento "Presentación de Diego Forlán" con lo que ya se sabe
+(()=>{try{
+  if(localStorage.getItem('auf4_mig_plan_forlan')) return;
+  localStorage.setItem('auf4_mig_plan_forlan','1');
+  const list=_planGetAll();
+  if(!list.some(e=>e.titulo==='Presentación de Diego Forlán')){
+    list.push({
+      id:'pl_forlan_presentacion',
+      titulo:'Presentación de Diego Forlán',
+      items:[
+        {txt:'Llega a Uruguay',fecha:'2026-07-28 16:00',done:false},
+        {txt:'Recorrida + reuniones en el Complejo Celeste (asume recién el 1/8)',fecha:'2026-07-29',done:false},
+        {txt:'Vlog de la llegada + reel',fecha:'2026-07-29',done:false},
+        {txt:'Definir fecha de los posteos de anuncio',fecha:'',done:false},
+        {txt:'Primer día oficial como DT de la Sub-20 (arranca enfocado ahí)',fecha:'2026-08-03',done:false},
+        {txt:'Conferencia de prensa',fecha:'2026-08-03',done:false},
+      ],
+      posteos:[],
+      creado:new Date().toISOString(),
+    });
+    _planSave(list);
+  }
+}catch(_){}})();
 
 // ── Autocomplete PROGRAMA desde medios DB ─────────────────────────────────────
 function _pwProgramaInput(el){
@@ -26462,11 +26700,7 @@ function _renderMediosDB(){
 
   el.innerHTML = `
     <div style="max-width:700px;margin:0 auto;padding:16px">
-      <!-- Tabs -->
-      <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:24px">
-        <button onclick="_pwSetTab('list')" style="padding:10px 20px;border:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:var(--muted);display:flex;align-items:center;gap:6px"><i class="ti ti-microphone-2" style="font-size:.95em"></i>Ventanas de prensa</button>
-        <button onclick="_pwSetTab('medios')" style="padding:10px 20px;border:none;border-bottom:2.5px solid var(--cel);margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:var(--cel);display:flex;align-items:center;gap:6px"><i class="ti ti-device-tv" style="font-size:.95em"></i>Medios y programas</button>
-      </div>
+      ${_pwTabsHtml('medios')}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div>
           <div style="font-size:1.1em;font-weight:900;color:var(--text)">Medios y programas</div>
@@ -27075,6 +27309,17 @@ function _renderEstPersonaRow(p, label, rol, photo, contrato){
   </div>`;
 }
 
+// Única fuente de verdad para resolver la foto de una persona de Estructura —
+// probar clave exacta, clave sin tildes (así se guarda en Supabase), slug ct-p:
+// derivado del nombre, y por último el cache de Juveniles. Usada tanto en la
+// lista como en la ficha de detalle para que no se desincronicen entre sí.
+function _estResolvePhoto(p){
+  if(!p) return null;
+  const cache=window._estPhotoCache||{};
+  const slug=typeof _nameSlug==='function'?_nameSlug(p.label):null;
+  return cache[p.key]||cache[_sbSafeKey(p.key)]||(slug&&cache[slug])||(window._juvPhotoCache||{})[p.label]||p.foto||null;
+}
+
 function _renderEstLista(){
   const el=document.getElementById('estructura-body');
   if(!el) return;
@@ -27100,7 +27345,7 @@ function _renderEstLista(){
         const label=edits[p.key]?.label||p.label;
         const rol=edits[p.key]?.rolesEdit?.[d.dept]?.rol||p.rol;
         const contrato=d.showAll?(contracts[p.key]||'activo'):(contracts[p.key]||'activo');
-        return _renderEstPersonaRow(p,label,rol,cache[p.key]||cache[_sbSafeKey(p.key)]||p.foto,contrato);
+        return _renderEstPersonaRow(p,label,rol,_estResolvePhoto(p),contrato);
       }).join('');
       blocks+=`<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
         <div style="padding:10px 14px;background:${d.color}12;border-bottom:1px solid ${d.color}25">
@@ -27137,7 +27382,7 @@ function _renderEstLista(){
           const label=edits[p.key]?.label||p.label;
           const allRoles=_estGetAllRoles(p.key);
           const rolDisplay=allRoles.map(r=>(edits[p.key]?.rolesEdit?.[r.dept]?.rol||r.rol)).join(' · ');
-          return _renderEstPersonaRow(p,label,rolDisplay,cache[p.key]||cache[_sbSafeKey(p.key)]||p.foto,c);
+          return _renderEstPersonaRow(p,label,rolDisplay,_estResolvePhoto(p),c);
         }).join('');
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
           <button onclick="_estToggleExGroup('${dkey}')" style="
@@ -27182,9 +27427,7 @@ function _renderEstFicha(key){
   if(!el) return;
   const p=_estGetPerson(key);
   if(!p){ _estBackLista(); return; }
-  const cache=window._estPhotoCache||{};
-  const _slugKey=typeof _nameSlug==='function'?_nameSlug(p.label):('ct-p:'+p.label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''));
-  const photo=cache[key]||cache[_sbSafeKey(key)]||cache[_slugKey]||(window._juvPhotoCache||{})[p.label];
+  const photo=_estResolvePhoto({...p, key});
   const contracts=_estGetContracts();
   const contrato=contracts[key]||'activo';
   const initials=p.label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
