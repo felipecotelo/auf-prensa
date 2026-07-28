@@ -4484,6 +4484,148 @@ function renderInicioHoy(){
     </div>`;
   }catch(_){ return ''; }
 }
+function _inicioBox(title,bodyHtml,color,isMob){
+  return isMob
+    ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${title}</div>
+        <div style="font-size:12.5px;color:rgba(239,243,248,.75);line-height:1.5">${bodyHtml}</div>
+      </div>`
+    : `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;border-left:3px solid ${color}">
+        <div style="font-size:9.5px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${title}</div>
+        <div style="font-size:12.5px;color:var(--text);line-height:1.5">${bodyHtml}</div>
+      </div>`;
+}
+// Resumen de redes — honesto: si no hay números cargados todavía, invita a cargarlos.
+// Si hay al menos 2 relevamientos, calcula sola cuál red creció más y cuál cayó más.
+function renderInicioRedes(){
+  try{
+    const isMob=window.innerWidth<=600;
+    if(typeof _redesData!=='function'||typeof REDES_PLATS==='undefined') return '';
+    const data=_redesData();
+    const snaps=(data.snapshots||[]).filter(s=>Object.keys(REDES_PLATS).some(k=>s[k]?.seguidores!=null||s[k]?.alcance!=null));
+    if(!snaps.length){
+      return _inicioBox('📊 Redes','Todavía no cargaste números de redes de este mes. <a href="#" onclick="event.preventDefault();showSection(\'redes\')" style="color:inherit;font-weight:700;text-decoration:underline">Cargarlos ahora →</a>','#EF4444',isMob);
+    }
+    const latest=snaps[snaps.length-1], prev=snaps.length>1?snaps[snaps.length-2]:null;
+    if(!prev) return _inicioBox('📊 Redes','Cargaste el primer relevamiento real — con el próximo ya vamos a poder comparar crecimiento entre redes.','#EF4444',isMob);
+    let best=null,worst=null;
+    Object.keys(REDES_PLATS).forEach(k=>{
+      const pct=_redesPct(latest[k]?.alcance,prev[k]?.alcance);
+      if(pct===null) return;
+      if(!best||pct>best.pct) best={k,pct};
+      if(!worst||pct<worst.pct) worst={k,pct};
+    });
+    if(!best) return _inicioBox('📊 Redes','Cargá el alcance de cada red para ver cuál viene creciendo más.','#EF4444',isMob);
+    let body=`<b>${REDES_PLATS[best.k].label}</b> es la que más creció en alcance (${best.pct>=0?'+':''}${best.pct.toFixed(1)}%).`;
+    if(worst && worst.pct<0 && worst.k!==best.k) body+=` <b>${REDES_PLATS[worst.k].label}</b> es la que más cayó (${worst.pct.toFixed(1)}%) — capaz vale la pena revisarla.`;
+    return _inicioBox('📊 Redes',body,'#EF4444',isMob);
+  }catch(_){ return ''; }
+}
+// Fotos faltantes — jugadores del plantel actual y de Estructura (activos) sin foto cargada.
+function renderInicioFotos(){
+  try{
+    const isMob=window.innerWidth<=600;
+    let faltanMayor=0, totalMayor=0;
+    if(typeof PLAYERS!=='undefined'){
+      PLAYERS.forEach(p=>{
+        totalMayor++;
+        const has=(_idbPhotos&&_idbPhotos[p.n])||p.photo||window._getPhotoByName?.(p.name);
+        if(!has) faltanMayor++;
+      });
+    }
+    let faltanEst=0, totalEst=0;
+    if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
+      const contracts=typeof _estGetContracts==='function'?_estGetContracts():{};
+      ESTRUCTURA_PERSONAS.forEach(dept=>{
+        (dept.personas||[]).forEach(p=>{
+          const estado=contracts[p.key]||'activo';
+          if(estado==='finalizado'||estado==='desvinculado') return;
+          totalEst++;
+          const has=(window._estPhotoCache||{})[p.key]||p.foto;
+          if(!has) faltanEst++;
+        });
+      });
+    }
+    if(!faltanMayor && !faltanEst) return '';
+    const parts=[];
+    if(faltanMayor) parts.push(`<b>${faltanMayor}</b> de ${totalMayor} jugadores del plantel actual sin foto`);
+    if(faltanEst) parts.push(`<b>${faltanEst}</b> de ${totalEst} integrantes activos de Estructura sin foto`);
+    return _inicioBox('📷 Fotos faltantes',parts.join(' · '),'#F59E0B',isMob);
+  }catch(_){ return ''; }
+}
+// Próxima fecha límite de convocatoria (Forlán / Mayor) — recuerda cargar novedades a tiempo.
+function renderInicioProximo(){
+  try{
+    const isMob=window.innerWidth<=600;
+    if(typeof _FORLAN_CONV_DEFAULTS==='undefined') return '';
+    const dates=stor.get('auf4_forlanconvdates',{});
+    const D=k=>dates[k]||_FORLAN_CONV_DEFAULTS[k];
+    const parseFecha=s=>{
+      if(!s) return null;
+      const m=/(\d{1,2})\/(\d{1,2})/.exec(s);
+      if(!m) return null;
+      return new Date(new Date().getFullYear(), parseInt(m[2])-1, parseInt(m[1]));
+    };
+    const candidatos=[
+      {label:'Lista de reserva · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_reserva'))},
+      {label:'Convocatoria final · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_final'))},
+      {label:'Lista de reserva · Fecha FIFA nov 2026', fecha:parseFecha(D('1_reserva'))},
+      {label:'Convocatoria final · Fecha FIFA nov 2026', fecha:parseFecha(D('1_final'))},
+    ].filter(c=>c.fecha);
+    const hoy0=new Date(); hoy0.setHours(0,0,0,0);
+    const futuros=candidatos.filter(c=>c.fecha>=hoy0).sort((a,b)=>a.fecha-b.fecha);
+    if(!futuros.length) return '';
+    const next=futuros[0];
+    const dias=Math.round((next.fecha-hoy0)/86400000);
+    const cuando=dias===0?'es hoy':dias===1?'es mañana':`en ${dias} días`;
+    const body=`${next.label} ${cuando}. ¿Hay novedades para cargar? <a href="#" onclick="event.preventDefault();showSection('mayor');showTab('tecnicos')" style="color:inherit;font-weight:700;text-decoration:underline">Ver ficha de Forlán →</a>`;
+    return _inicioBox('📅 Se viene',body,'#0EA5E9',isMob);
+  }catch(_){ return ''; }
+}
+// Tareas del día — lista simple, se reinicia cada día (clave por fecha), sincronizada como todo lo demás.
+window._inicioTareaAdd=function(){
+  const inp=document.getElementById('inicio-tarea-inp');
+  const txt=(inp?.value||'').trim();
+  if(!txt) return;
+  const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
+  const list=stor.get(key,[]);
+  list.push({txt,done:false});
+  stor.set(key,list);
+  renderInicio();
+};
+window._inicioTareaToggle=function(i){
+  const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
+  const list=stor.get(key,[]);
+  if(list[i]) list[i].done=!list[i].done;
+  stor.set(key,list);
+  renderInicio();
+};
+window._inicioTareaDel=function(i){
+  const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
+  const list=stor.get(key,[]);
+  list.splice(i,1);
+  stor.set(key,list);
+  renderInicio();
+};
+function renderInicioTareas(){
+  const isMob=window.innerWidth<=600;
+  const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
+  const list=stor.get(key,[]);
+  const rowColor=isMob?'#EFF3F8':'var(--text)';
+  const rows=list.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${i})" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
+      <span style="flex:1;font-size:12.5px;${t.done?'text-decoration:line-through;opacity:.5;':''}color:${rowColor}">${t.txt}</span>
+      <button onclick="window._inicioTareaDel(${i})" style="border:none;background:none;color:${isMob?'rgba(239,243,248,.3)':'var(--hint)'};cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
+    </div>`).join('');
+  const borderCol=isMob?'rgba(255,255,255,.15)':'var(--border)';
+  const bgCol=isMob?'rgba(255,255,255,.05)':'#fff';
+  const inputRow=`<div style="display:flex;gap:6px;margin-top:${list.length?'8px':'0'}">
+    <input id="inicio-tarea-inp" type="text" placeholder="Agregar tarea del día..." onkeydown="if(event.key==='Enter'){window._inicioTareaAdd();}" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid ${borderCol};background:${bgCol};color:${rowColor};font-size:12.5px;outline:none">
+    <button onclick="window._inicioTareaAdd()" style="padding:6px 14px;border-radius:8px;border:none;background:#1A56C4;color:#fff;font-weight:700;font-size:13px;cursor:pointer">+</button>
+  </div>`;
+  return _inicioBox('✅ Tareas de hoy', rows+inputRow, '#8B5CF6', isMob);
+}
 function renderInicio(){
   const el=document.getElementById('inicio-body');
   if(!el)return;
@@ -4539,6 +4681,10 @@ function renderInicio(){
       </div>
 
       ${renderInicioHoy()}
+      ${renderInicioTareas()}
+      ${renderInicioProximo()}
+      ${renderInicioFotos()}
+      ${renderInicioRedes()}
 
       <!-- Selecciones -->
       ${grpHdr('Selecciones')}
@@ -4568,6 +4714,10 @@ function renderInicio(){
   </div>`;
   el.innerHTML=`<div style="padding:0 0 2px">
     ${renderInicioHoy()}
+    ${renderInicioTareas()}
+    ${renderInicioProximo()}
+    ${renderInicioFotos()}
+    ${renderInicioRedes()}
     ${group('Selecciones',`<div style="display:flex;flex-direction:column;gap:6px">${selecciones}</div>`)}
     ${group('Herramientas',tools)}
   </div>`;
@@ -22508,7 +22658,7 @@ window._getPersonPhoto = function(name){
   if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
     for(const dept of ESTRUCTURA_PERSONAS){
       const p=dept.personas.find(p=>p.label===name);
-      if(p && est[p.key]) return est[p.key];
+      if(p && (est[p.key]||est[_sbSafeKey(p.key)])) return est[p.key]||est[_sbSafeKey(p.key)];
     }
   }
   return null;
@@ -27034,7 +27184,7 @@ function _renderEstFicha(key){
   if(!p){ _estBackLista(); return; }
   const cache=window._estPhotoCache||{};
   const _slugKey=typeof _nameSlug==='function'?_nameSlug(p.label):('ct-p:'+p.label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''));
-  const photo=cache[key]||cache[_slugKey]||(window._juvPhotoCache||{})[p.label];
+  const photo=cache[key]||cache[_sbSafeKey(key)]||cache[_slugKey]||(window._juvPhotoCache||{})[p.label];
   const contracts=_estGetContracts();
   const contrato=contracts[key]||'activo';
   const initials=p.label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
