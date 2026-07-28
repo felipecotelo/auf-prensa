@@ -4658,7 +4658,8 @@ function renderInicioProximo(){
       ].forEach(c=>{ if(c.fecha) candidatos.push({label:c.label, fecha:c.fecha, onclick:`showSection('mayor');showTournament('${c.tab}')`}); });
     }
 
-    const futuros=candidatos.filter(c=>c.fecha>=hoy0).sort((a,b)=>a.fecha-b.fecha);
+    const manana0=new Date(hoy0); manana0.setDate(manana0.getDate()+1);
+    const futuros=candidatos.filter(c=>c.fecha>=manana0).sort((a,b)=>a.fecha-b.fecha);
     if(!futuros.length) return '';
     const next=futuros[0];
     const dias=Math.round((next.fecha-hoy0)/86400000);
@@ -4719,6 +4720,13 @@ window._inicioTareaDel=function(idx){
   stor.set(KTareasLog,list);
   renderInicio();
 };
+window._inicioTareaEdit=function(idx,value){
+  const list=_tareasLog();
+  const txt=(value||'').trim();
+  if(!txt || !list[idx]) return;
+  list[idx].txt=txt;
+  stor.set(KTareasLog,list);
+};
 function renderInicioTareas(){
   const isMob=window.innerWidth<=600;
   const isoHoy=new Date().toISOString().slice(0,10);
@@ -4728,7 +4736,7 @@ function renderInicioTareas(){
   const rows=hoyTareas.map(t=>`
     <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
       <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx})" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
-      <span style="flex:1;font-size:12.5px;${t.done?'text-decoration:line-through;opacity:.5;':''}color:${rowColor}">${t.txt}</span>
+      <input value="${t.txt.replace(/"/g,'&quot;')}" onblur="window._inicioTareaEdit(${t.idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;padding:2px 0;font-size:12.5px;${t.done?'text-decoration:line-through;opacity:.5;':''}color:${rowColor}">
       <button onclick="window._inicioTareaDel(${t.idx})" style="border:none;background:none;color:${isMob?'rgba(239,243,248,.3)':'var(--hint)'};cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
     </div>`).join('');
   const borderCol=isMob?'rgba(255,255,255,.15)':'var(--border)';
@@ -26494,7 +26502,7 @@ function _renderTareasHistorial(){
       ${porFecha[f].map(t=>`
         <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">
           <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx});_renderTareasHistorial()" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
-          <span style="flex:1;font-size:.85em;${t.done?'text-decoration:line-through;opacity:.5;':''}color:var(--text)">${t.txt}</span>
+          <input value="${t.txt.replace(/"/g,'&quot;')}" onblur="window._inicioTareaEdit(${t.idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;padding:2px 0;font-size:.85em;${t.done?'text-decoration:line-through;opacity:.5;':''}color:var(--text)">
           <button onclick="window._inicioTareaDel(${t.idx});_renderTareasHistorial()" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
         </div>`).join('')}
     </div>`).join('')
