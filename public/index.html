@@ -4414,34 +4414,18 @@ function countDone(matchId,items){
 
 // Widget "Hoy" — cumpleaños del día entre jugadores (base histórica) y DTs. Se recalcula
 // solo, sin cargar nada a mano: mira la fecha de hoy contra fechaNac de cada uno.
-window._hoyLinkSet=function(lkey){
+const _SALUDO_ESTADOS=['pendiente','saludado','no_aplica'];
+const _SALUDO_LABEL={pendiente:'No lo saludamos todavía',saludado:'✓ Ya lo saludamos',no_aplica:'No aplica saludo'};
+const _SALUDO_COLOR={pendiente:'#B45309',saludado:'#16A34A',no_aplica:'#64748B'};
+const _SALUDO_BG={pendiente:'#FEF3C7',saludado:'#DCFCE7',no_aplica:'#F1F5F9'};
+window._hoySaludoCycle=function(lkey){
   const links=stor.get('auf4_hoylinks',{});
-  const cur=links[lkey]||{};
-  const url=prompt('Link del posteo (X, Instagram, etc.):', cur.url||'');
-  if(url===null) return;
-  links[lkey]={...cur, url:url.trim()};
+  const cur=(links[lkey]||{}).saludo||'pendiente';
+  const next=_SALUDO_ESTADOS[(_SALUDO_ESTADOS.indexOf(cur)+1)%_SALUDO_ESTADOS.length];
+  links[lkey]={...(links[lkey]||{}), saludo:next};
   stor.set('auf4_hoylinks',links);
   renderInicio();
 };
-window._hoyLinkToggle=function(lkey){
-  const links=stor.get('auf4_hoylinks',{});
-  if(!links[lkey]) links[lkey]={};
-  links[lkey].saludado=!links[lkey].saludado;
-  stor.set('auf4_hoylinks',links);
-  renderInicio();
-};
-// Sembrado (una sola vez): posteo del día de Schiaffino que ya se hizo en redes
-(()=>{try{
-  if(localStorage.getItem('auf4_mig_hoylink_schiaffino')) return;
-  localStorage.setItem('auf4_mig_hoylink_schiaffino','1');
-  const isoHoy=new Date().toISOString().slice(0,10);
-  const links=stor.get('auf4_hoylinks',{});
-  const key=isoHoy+'_Juan Schiaffino';
-  if(!links[key]){
-    links[key]={url:'https://x.com/Uruguay/status/2082125420728594759'};
-    stor.set('auf4_hoylinks',links);
-  }
-}catch(_){}})();
 function renderInicioHoy(){
   try{
     const hoy=new Date();
@@ -4471,21 +4455,21 @@ function renderInicioHoy(){
     const isoHoy=hoy.toISOString().slice(0,10);
     const hoyLinks=stor.get('auf4_hoylinks',{});
     const rows=cumples.map(c=>{
+      const foto=window._getPhotoByName?.(c.nom)||null;
+      const initials=c.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatar=foto
+        ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<span style=\\'font-size:18px;flex-shrink:0\\'>${c.fallecido?'🕊️':'🎂'}</span>'">`
+        :`<div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};color:${isMob?'rgba(239,243,248,.6)':'var(--muted)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${initials}</div>`;
       const lkey=isoHoy+'_'+c.nom;
-      const lk=hoyLinks[lkey]||{};
-      const postHtml=lk.url
-        ?`<div style="display:flex;align-items:center;gap:6px;margin-top:5px">
-            <a href="${lk.url}" target="_blank" rel="noopener" style="font-size:${isMob?'11px':'10.5px'};font-weight:700;color:#EC4899;text-decoration:none">🔗 Ver posteo</a>
-            <button onclick="event.stopPropagation();window._hoyLinkToggle('${lkey}')" style="border:1px solid ${lk.saludado?'#22C55E':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${lk.saludado?'#22C55E22':'transparent'};color:${lk.saludado?'#16A34A':(isMob?'rgba(239,243,248,.5)':'var(--muted)')};border-radius:20px;padding:1px 8px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${lk.saludado?'✓ Lo saludamos':'¿Lo saludaste en redes?'}</button>
-          </div>`
-        :`<button onclick="event.stopPropagation();window._hoyLinkSet('${lkey}')" style="margin-top:5px;border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${isMob?'rgba(239,243,248,.4)':'var(--muted)'};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">+ Agregar posteo del día</button>`;
+      const saludo=(hoyLinks[lkey]||{}).saludo||'pendiente';
+      const saludoBtn=`<button onclick="event.stopPropagation();window._hoySaludoCycle('${lkey}')" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
       return `
-      <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
-        <span style="font-size:18px;flex-shrink:0;margin-top:1px">${c.fallecido?'🕊️':'🎂'}</span>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
+        ${avatar}
         <div style="flex:1;min-width:0">
-          <div style="font-size:${isMob?'13.5px':'13px'};font-weight:700;color:${isMob?'#EFF3F8':'var(--text)'}">${c.nom}</div>
+          <div style="font-size:${isMob?'13.5px':'13px'};font-weight:700;color:${isMob?'#EFF3F8':'var(--text)'}">${c.fallecido?'🕊️ ':''}${c.nom}</div>
           <div style="font-size:${isMob?'11px':'10.5px'};color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}">${c.tipo} · ${c.fallecido?`hubiera cumplido ${c.edad} años hoy`:`cumple ${c.edad} años hoy`}</div>
-          ${postHtml}
+          ${saludoBtn}
         </div>
       </div>`;}).join('');
     if(isMob){
