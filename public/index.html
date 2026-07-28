@@ -22668,7 +22668,7 @@ window._getPersonPhoto = function(name){
   if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
     for(const dept of ESTRUCTURA_PERSONAS){
       const p=dept.personas.find(p=>p.label===name);
-      if(p && (est[p.key]||est[_sbSafeKey(p.key)])) return est[p.key]||est[_sbSafeKey(p.key)];
+      if(p){ const ph=_estResolvePhoto(p); if(ph) return ph; }
     }
   }
   return null;
@@ -26574,17 +26574,37 @@ function _renderPlanEvento(id){
     list.push({
       id:'pl_forlan_presentacion',
       titulo:'Presentación de Diego Forlán',
-      items:[
-        {txt:'Llega a Uruguay',fecha:'2026-07-28 16:00',done:false},
-        {txt:'Recorrida + reuniones en el Complejo Celeste (asume recién el 1/8)',fecha:'2026-07-29',done:false},
-        {txt:'Vlog de la llegada + reel',fecha:'2026-07-29',done:false},
-        {txt:'Definir fecha de los posteos de anuncio',fecha:'',done:false},
-        {txt:'Primer día oficial como DT de la Sub-20 (arranca enfocado ahí)',fecha:'2026-08-03',done:false},
-        {txt:'Conferencia de prensa',fecha:'2026-08-03',done:false},
-      ],
+      items:[],
       posteos:[],
       creado:new Date().toISOString(),
     });
+    _planSave(list);
+  }
+}catch(_){}})();
+// Actualización (una sola vez): cronograma y plan de publicaciones definitivo (📌 CRONOGRAMA DF—DT)
+(()=>{try{
+  if(localStorage.getItem('auf4_mig_plan_forlan_v2')) return;
+  localStorage.setItem('auf4_mig_plan_forlan_v2','1');
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id==='pl_forlan_presentacion');
+  if(ev){
+    ev.items=[
+      {txt:'Viaja a Uruguay, llega 16h',fecha:'2026-07-28',done:false},
+      {txt:'Va al Complejo Celeste a conocer al staff y reunirse con posibles asistentes',fecha:'2026-07-29',done:false},
+      {txt:'Vence el contrato de Marcelo Bielsa',fecha:'2026-07-31',done:false},
+      {txt:'Comienza su contrato',fecha:'2026-08-01',done:false},
+      {txt:'Conferencia de prensa — Plan B (implica publicar antes el set de redes, incluida la nota)',fecha:'2026-08-01',done:false},
+      {txt:'Primer entrenamiento como DT de la Sub-20 — su "primer día"',fecha:'2026-08-03',done:false},
+      {txt:'Conferencia de prensa — Plan A (después del anuncio en redes y su primer día de trabajo)',fecha:'2026-08-03',done:false},
+    ];
+    ev.posteos=[
+      {txt:'[Julio, a definir] Video 1 — compilado de imágenes dándole fuerza a la figura de Forlán · Mensaje: "Diego Forlán vuelve a la Selección"',estado:'pendiente',link:''},
+      {txt:'[Julio, a definir] Diseño 1 — foto de Forlán como DT + texto informativo · Mensaje: "Diego Forlán se suma a la Estructura Técnica de la Selección"',estado:'pendiente',link:''},
+      {txt:'[Julio, a definir] Video vestuario (sin Forlán) — el Complejo ya está listo para esperarlo · Mensaje: "Estamos listos para la vuelta de Forlán"',estado:'pendiente',link:''},
+      {txt:'[Agosto, antes de la conferencia] Vlog de la llegada — largo, para YouTube (grabado 29/7, se publica editado/posterior)',estado:'pendiente',link:''},
+      {txt:'[Agosto, antes de la conferencia] Mediaday a redes — nota en vestuario + fotos con la ropa de la Selección',estado:'pendiente',link:''},
+      {txt:'[Agosto, después de la conferencia] Forlán trabajando en el Complejo — ya en funciones, entrenamiento Sub-20',estado:'pendiente',link:''},
+    ];
     _planSave(list);
   }
 }catch(_){}})();
