@@ -15727,10 +15727,7 @@ function lgCopy(i,url){
     renderLineup('uru-ksa');
     await renderPlantel();
     renderLog('all');
-    const _savedTab=stor.get('auf4_lastTab',null);
-    if(_savedTab&&_savedTab!=='inicio'&&document.getElementById(_savedTab)){
-      showTab(_savedTab);
-    }
+    // La app siempre abre en Inicio — no se restaura la última pestaña visitada.
   }
   // Auto-sync ESPN al abrir — detecta si hay partido en curso o recién terminado
   autoSyncCheck();
@@ -26579,6 +26576,15 @@ function _planItemDel(id,i){
   _renderPlanEvento(id);
 }
 window._planItemDel=_planItemDel;
+function _planItemEdit(id,i,value){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev||!ev.items[i]) return;
+  const txt=(value||'').trim();
+  if(!txt) return;
+  ev.items[i].txt=txt;
+  _planSave(list);
+}
+window._planItemEdit=_planItemEdit;
 
 const _PLAN_POST_ESTADOS=['pendiente','aprobado','publicado'];
 const _PLAN_POST_LABEL={pendiente:'Pendiente',aprobado:'Aprobado',publicado:'Publicado'};
@@ -26624,6 +26630,13 @@ function _planPostDel(id,i){
   _renderPlanEvento(id);
 }
 window._planPostDel=_planPostDel;
+function _planPostEdit(id,i,field,value){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev||!ev.posteos[i]) return;
+  ev.posteos[i][field]=(value||'').trim();
+  _planSave(list);
+}
+window._planPostEdit=_planPostEdit;
 
 function _renderPlanificadorLista(){
   const el=document.getElementById('planificador-body');
@@ -26678,7 +26691,7 @@ function _renderPlanEvento(id){
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)">
       <input type="checkbox" ${it.done?'checked':''} onchange="_planItemToggle('${id}',${idx})" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
       <div style="flex:1;min-width:0">
-        <div style="font-size:.85em;font-weight:600;color:var(--text);${it.done?'text-decoration:line-through;opacity:.5':''}">${it.txt}</div>
+        <input value="${it.txt.replace(/"/g,'&quot;')}" onblur="_planItemEdit('${id}',${idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;font-size:.85em;font-weight:600;color:var(--text);${it.done?'text-decoration:line-through;opacity:.5':''}">
         ${it.fecha?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${it.fecha}</div>`:''}
       </div>
       <button onclick="_planItemDel('${id}',${idx})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
@@ -26699,8 +26712,8 @@ function _renderPlanEvento(id){
       ${porGrupo[g].map(p=>`
         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border-radius:9px;margin-bottom:4px">
           <div style="flex:1;min-width:0">
-            <div style="font-size:.82em;font-weight:700;color:var(--text)">${p.titulo||p.txt||''}</div>
-            ${p.mensaje?`<div style="font-size:.72em;color:var(--muted);font-style:italic;margin-top:1px">"${p.mensaje}"</div>`:''}
+            <input value="${(p.titulo||p.txt||'').replace(/"/g,'&quot;')}" onblur="_planPostEdit('${id}',${p._i},'titulo',this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;font-size:.82em;font-weight:700;color:var(--text)">
+            <input value="${(p.mensaje||'').replace(/"/g,'&quot;')}" placeholder="Mensaje a transmitir…" onblur="_planPostEdit('${id}',${p._i},'mensaje',this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;margin-top:1px;font-size:.72em;color:var(--muted);font-style:italic">
             <div style="display:flex;gap:8px;margin-top:2px">
               ${p.fecha?`<span style="font-size:.68em;color:var(--muted)">📅 ${p.fecha}</span>`:''}
               ${p.link?`<a href="${p.link}" target="_blank" rel="noopener" style="font-size:.68em;color:var(--cel-dk)">🔗 Ver posteo</a>`:''}
