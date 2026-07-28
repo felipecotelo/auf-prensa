@@ -9274,9 +9274,9 @@ function renderTecnicos(){
     ],
     forlan_mayor:[
       {iso:'uy',name:'Diego Forlán',       rol:'Director técnico (interino)', dt:true},
-      {iso:'uy',name:'Santiago Ferro',     rol:'Profe principal',       key:'sferro'},
-      {iso:'uy',name:'Diego Estavillo',    rol:'Profe secundario',      key:'destavillo'},
-      {iso:'uy',name:'Enzo Ferrari',       rol:'Entrenador de arqueros', key:'eferrari',     pendiente:true},
+      {iso:'uy',name:'Santiago Ferro',     rol:'Profe principal',       key:'ct-p:santiago-ferro'},
+      {iso:'uy',name:'Diego Estavillo',    rol:'Profe secundario',      key:'ct-p:diego-estavillo'},
+      {iso:'uy',name:'Enzo Ferrari',       rol:'Entrenador de arqueros', key:'ct-p:enzo-ferrari',     pendiente:true},
       {iso:'uy',name:'Kevin Beckman',      rol:'Videoanalista',          key:'kbekmann',     pendiente:true},
       {iso:'uy',name:'Gonzalo Rodríguez',  rol:'Videoanalista',          key:'grodriguezva', pendiente:true},
       {iso:'uy',name:'Facundo Leiton',     rol:'Videoanalista',          key:'fleiton',      pendiente:true},
@@ -23856,9 +23856,9 @@ const ESTRUCTURA_PERSONAS = [
     {key:'mcasado',       label:'María Casado',        rol:'Cocinera'},
   ]},
   {dept:'Cuerpo técnico Selección Mayor', personas:[
-    {key:'sferro',        label:'Santiago Ferro',      rol:'Profe principal'},
-    {key:'destavillo',    label:'Diego Estavillo',     rol:'Profe secundario'},
-    {key:'eferrari',      label:'Enzo Ferrari',        rol:'Entrenador de arqueros (ex Sub-15 con López Báez, luego Sub-17, luego Mayor)'},
+    {key:'ct-p:santiago-ferro',   label:'Santiago Ferro',      rol:'Profe principal'},
+    {key:'ct-p:diego-estavillo',  label:'Diego Estavillo',     rol:'Profe secundario'},
+    {key:'ct-p:enzo-ferrari',     label:'Enzo Ferrari',        rol:'Entrenador de arqueros (ex Sub-15 con López Báez, luego Sub-17, luego Mayor)'},
   ]},
   {dept:'Videoanalistas', personas:[
     {key:'kbekmann',      label:'Kevin Bekmann',       rol:'Analista Selección Mayor'},
@@ -26616,13 +26616,33 @@ const KEstEdits    = 'auf4_est_edits';
 const KEstContract = 'auf4_est_contract';
 function _estGetEdits(){ try{return JSON.parse(localStorage.getItem(KEstEdits)||'{}')}catch(_){return{}} }
 function _estSaveEdits(obj){ stor.set(KEstEdits, obj); }
+// Migración (una sola vez): las claves cortas sferro/destavillo/eferrari se unificaron con
+// su identidad real ct-p:* (ya tenían foto propia como ex jugadores/Sub-20 campeones) —
+// mudar cualquier edición/contrato que haya quedado bajo la clave vieja.
+(()=>{try{
+  if(localStorage.getItem('auf4_mig_estructura_keys_ctp')) return;
+  localStorage.setItem('auf4_mig_estructura_keys_ctp','1');
+  const RENAME={sferro:'ct-p:santiago-ferro',destavillo:'ct-p:diego-estavillo',eferrari:'ct-p:enzo-ferrari'};
+  const e=_estGetEdits();
+  let changedE=false;
+  Object.entries(RENAME).forEach(([oldK,newK])=>{
+    if(e[oldK] && !e[newK]){ e[newK]=e[oldK]; delete e[oldK]; changedE=true; }
+  });
+  if(changedE) _estSaveEdits(e);
+  const c=_estGetContracts();
+  let changedC=false;
+  Object.entries(RENAME).forEach(([oldK,newK])=>{
+    if(c[oldK] && !c[newK]){ c[newK]=c[oldK]; delete c[oldK]; changedC=true; }
+  });
+  if(changedC) _estSaveContracts(c);
+}catch(_){}})();
 // Migración (una sola vez): Ferro y Estavillo ingresaron en 2022 (Broli → Bielsa → Forlán) — sembrar período
 (()=>{try{
   if(localStorage.getItem('auf4_mig_ferro_estavillo_2022')) return;
   localStorage.setItem('auf4_mig_ferro_estavillo_2022','1');
   const e=_estGetEdits();
   let changed=false;
-  ['sferro','destavillo'].forEach(k=>{
+  ['ct-p:santiago-ferro','ct-p:diego-estavillo'].forEach(k=>{
     if(!e[k]) e[k]={};
     if(!e[k].periodos || !e[k].periodos.length){
       e[k].periodos=[{desde:'2022',hasta:'',rol:'Preparador físico'}];
@@ -26880,7 +26900,7 @@ function _renderEstLista(){
         const label=edits[p.key]?.label||p.label;
         const rol=edits[p.key]?.rolesEdit?.[d.dept]?.rol||p.rol;
         const contrato=d.showAll?(contracts[p.key]||'activo'):(contracts[p.key]||'activo');
-        return _renderEstPersonaRow(p,label,rol,cache[p.key]||p.foto,contrato);
+        return _renderEstPersonaRow(p,label,rol,cache[p.key]||cache[_sbSafeKey(p.key)]||p.foto,contrato);
       }).join('');
       blocks+=`<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
         <div style="padding:10px 14px;background:${d.color}12;border-bottom:1px solid ${d.color}25">
@@ -26917,7 +26937,7 @@ function _renderEstLista(){
           const label=edits[p.key]?.label||p.label;
           const allRoles=_estGetAllRoles(p.key);
           const rolDisplay=allRoles.map(r=>(edits[p.key]?.rolesEdit?.[r.dept]?.rol||r.rol)).join(' · ');
-          return _renderEstPersonaRow(p,label,rolDisplay,cache[p.key]||p.foto,c);
+          return _renderEstPersonaRow(p,label,rolDisplay,cache[p.key]||cache[_sbSafeKey(p.key)]||p.foto,c);
         }).join('');
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
           <button onclick="_estToggleExGroup('${dkey}')" style="
