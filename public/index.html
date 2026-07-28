@@ -4079,7 +4079,7 @@ function renderClosedBanner(){
   if(!closed)return;
   if(window._activeTournament&&window._activeTournament!=='cm2026')return;
   // Solo mostrar en el contexto de Selección Mayor (tabs de torneo o globales de Mayor)
-  const mayorIds=['inicio','fixture','partidos','estadisticas','grafica','plantel','disponibilidad','pizarra','infogeneral'];
+  const mayorIds=['fixture','partidos','estadisticas','grafica','plantel','disponibilidad','pizarra','infogeneral'];
   const inMayor=mayorIds.some(id=>document.getElementById(id)?.classList.contains('active'));
   if(!inMayor)return;
   const banner=document.createElement('div');
@@ -4412,6 +4412,52 @@ function countDone(matchId,items){
   return items.filter(i=>c[i.id]&&c[i.id].done).length;
 }
 
+// Widget "Hoy" — cumpleaños del día entre jugadores (base histórica) y DTs. Se recalcula
+// solo, sin cargar nada a mano: mira la fecha de hoy contra fechaNac de cada uno.
+function renderInicioHoy(){
+  try{
+    const hoy=new Date();
+    const mesHoy=hoy.getMonth()+1, diaHoy=hoy.getDate();
+    const mmdd=String(mesHoy).padStart(2,'0')+'-'+String(diaHoy).padStart(2,'0');
+    const cumples=[];
+    if(typeof JUGADORES!=='undefined'){
+      Object.entries(JUGADORES).forEach(([nom,d])=>{
+        if(d?.fechaNac && d.fechaNac.length>=10 && d.fechaNac.slice(5,10)===mmdd){
+          cumples.push({nom, edad:hoy.getFullYear()-parseInt(d.fechaNac.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', key:'jugador'});
+        }
+      });
+    }
+    if(typeof DT_CATALOG!=='undefined'){
+      const MESES={ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
+      DT_CATALOG.forEach(dt=>{
+        const m=/(\d{1,2})\s+(\w{3})\s+(\d{4})/.exec(dt.born||'');
+        if(m && MESES[m[2].toLowerCase()]===mesHoy && parseInt(m[1])===diaHoy){
+          cumples.push({nom:dt.full, edad:hoy.getFullYear()-parseInt(m[3]), tipo:'Director técnico', key:'dt'});
+        }
+      });
+    }
+    if(!cumples.length) return '';
+    const isMob=window.innerWidth<=600;
+    const rows=cumples.map(c=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
+        <span style="font-size:18px;flex-shrink:0">🎂</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:${isMob?'13.5px':'13px'};font-weight:700;color:${isMob?'#EFF3F8':'var(--text)'}">${c.nom}</div>
+          <div style="font-size:${isMob?'11px':'10.5px'};color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}">${c.tipo} · cumple ${c.edad} años hoy</div>
+        </div>
+      </div>`).join('');
+    if(isMob){
+      return `<div style="background:linear-gradient(135deg,#1a1030 0%,#0D1F38 100%);border-radius:16px;padding:14px 16px;margin-bottom:16px;border:1px solid rgba(236,72,153,.25)">
+        <div style="font-size:11px;font-weight:800;color:#F472B6;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🎉 Hoy en la Selección</div>
+        ${rows}
+      </div>`;
+    }
+    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;border-left:3px solid #EC4899">
+      <div style="font-size:9.5px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🎉 Hoy en la Selección</div>
+      ${rows}
+    </div>`;
+  }catch(_){ return ''; }
+}
 function renderInicio(){
   const el=document.getElementById('inicio-body');
   if(!el)return;
@@ -4461,10 +4507,12 @@ function renderInicio(){
       <!-- Hero banner -->
       <div style="background:linear-gradient(135deg,#0D1F38 0%,#091628 60%,#0D1A2E 100%);border-radius:18px;padding:18px 16px;margin-bottom:20px;border:1px solid rgba(0,157,216,.15);position:relative;overflow:hidden">
         <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(0,157,216,.12) 0%,transparent 70%)"></div>
-        <div style="font-size:11px;font-weight:700;color:rgba(0,157,216,.8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🏆 Copa Mundial 2026</div>
-        <div style="font-size:22px;font-weight:900;color:#EFF3F8;line-height:1.1">Selección Uruguaya</div>
-        <div style="font-size:12px;color:rgba(239,243,248,.5);margin-top:4px">Mi plataforma · TMO Interno</div>
+        <div style="font-size:11px;font-weight:700;color:rgba(0,157,216,.8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Selección Uruguaya</div>
+        <div style="font-size:22px;font-weight:900;color:#EFF3F8;line-height:1.1">Mi plataforma</div>
+        <div style="font-size:12px;color:rgba(239,243,248,.5);margin-top:4px">TMO Interno</div>
       </div>
+
+      ${renderInicioHoy()}
 
       <!-- Selecciones -->
       ${grpHdr('Selecciones')}
@@ -4475,20 +4523,6 @@ function renderInicio(){
         ${card('Prensa','ti-microphone-2','#F59E0B','Agenda de ventanas y medios',`showSection('prensa')`)}
         ${card('Redes','ti-chart-arrows-vertical','#EF4444','Métricas y análisis',`showSection('redes')`)}
         ${card('Estructura AUF','ti-sitemap','#22C55E','Organigrama y staff',`showSection('estructura')`)}
-      </div>
-
-      <!-- CM 2026 herramientas -->
-      ${grpHdr('Copa Mundial 2026')}
-      <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
-        ${fwcPill('Jugadores','ti-users','#5BB8FF','jugadores')}
-        ${fwcPill('Técnicos','ti-clipboard-list','#60A5FA','tecnicos')}
-        ${fwcPill('Convocados','ti-user-check','#34D399','plantel')}
-        ${fwcPill('Fixture','ti-tournament','#A78BFA','fixture')}
-        ${fwcPill('Partidos','ti-world','#94A3B8','partidos')}
-        ${fwcPill('Calendario','ti-calendar','#F87171','calendario')}
-        ${fwcPill('Stats','ti-chart-bar','#FBBF24','estadisticas')}
-        ${fwcPill('Pizarra','ti-ball-football','#FB923C','pizarra')}
-        ${fwcPill('Disponib.','ti-list-check','#2DD4BF','disponibilidad')}
       </div>
     `;
     return;
@@ -4502,26 +4536,13 @@ function renderInicio(){
     secBtn('Prensa','ti-microphone-2','#F59E0B',"showSection('prensa')"),
     secBtn('Estructura AUF','ti-sitemap','#22C55E',"showSection('estructura')"),
   ].join('');
-  const fwcTabs = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:7px">
-    ${tabBtn('Jugadores','ti-users','#1A56C4','jugadores')}
-    ${tabBtn('Técnicos','ti-clipboard-list','#0EA5E9','tecnicos')}
-    ${tabBtn('Stats','ti-chart-bar','#8B5CF6','estadisticas')}
-    ${tabBtn('Convocados','ti-user-check','#22C55E','plantel')}
-    ${tabBtn('Pizarra','ti-ball-football','#F59E0B','pizarra')}
-    ${tabBtn('Fixture','ti-tournament','#06B6D4','fixture')}
-    ${tabBtn('Partidos','ti-world','#64748B','partidos')}
-    ${tabBtn('Calendario','ti-calendar','#E11D48','calendario')}
-    ${tabBtn('Disponib.','ti-list-check','#10B981','disponibilidad')}
-    ${tabBtn('Info','ti-info-circle','#94A3B8','infogeneral')}
-    ${tabBtn('Diseño','ti-photo','#EC4899','grafica')}
-  </div>`;
   const tools = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
     ${secBtn('Mi Periplo','ti-map-2','#F59E0B',"showTab('periplo')")}
     ${secBtn('Links','ti-link','#8B5CF6',"showTab('linkgen')")}
   </div>`;
   el.innerHTML=`<div style="padding:0 0 2px">
+    ${renderInicioHoy()}
     ${group('Selecciones',`<div style="display:flex;flex-direction:column;gap:6px">${selecciones}</div>`)}
-    ${group('Copa Mundial 2026',fwcTabs)}
     ${group('Herramientas',tools)}
   </div>`;
 }
