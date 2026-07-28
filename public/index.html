@@ -4443,11 +4443,12 @@ function renderInicioHoy(){
     const mmdd=String(mesHoy).padStart(2,'0')+'-'+String(diaHoy).padStart(2,'0');
     const cumples=[];
     const fallecidoMayorLS=stor.get('auf4_fallecido_mayor',{});
+    const legends=typeof getLegends==='function'?getLegends():new Set();
     if(typeof JUGADORES!=='undefined'){
       Object.entries(JUGADORES).forEach(([nom,d])=>{
         if(d?.fechaNac && d.fechaNac.length>=10 && d.fechaNac.slice(5,10)===mmdd){
           const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
-          cumples.push({nom, edad:hoy.getFullYear()-parseInt(d.fechaNac.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', fallecido});
+          cumples.push({nom, edad:hoy.getFullYear()-parseInt(d.fechaNac.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('mayor','${encodeURIComponent(nom)}')`});
         }
       });
     }
@@ -4456,7 +4457,7 @@ function renderInicioHoy(){
       DT_CATALOG.forEach(dt=>{
         const m=/(\d{1,2})\s+(\w{3})\s+(\d{4})/.exec(dt.born||'');
         if(m && MESES[m[2].toLowerCase()]===mesHoy && parseInt(m[1])===diaHoy){
-          cumples.push({nom:dt.full, edad:hoy.getFullYear()-parseInt(m[3]), tipo:'Director técnico', fallecido:false});
+          cumples.push({nom:dt.full, edad:hoy.getFullYear()-parseInt(m[3]), tipo:'Director técnico', fallecido:false, leyenda:false, onclick:`showSection('mayor');showTab('tecnicos');selectDT('${dt.id}')`});
         }
       });
     }
@@ -4468,28 +4469,30 @@ function renderInicioHoy(){
       const foto=window._getPhotoByName?.(c.nom)||null;
       const initials=c.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const avatar=foto
-        ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<span style=\\'font-size:18px;flex-shrink:0\\'>${c.fallecido?'🕊️':'🎂'}</span>'">`
+        ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<span style=\\'font-size:18px;flex-shrink:0\\'>🎂</span>'">`
         :`<div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};color:${isMob?'rgba(239,243,248,.6)':'var(--muted)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${initials}</div>`;
       const lkey=isoHoy+'_'+c.nom;
       const saludo=(hoyLinks[lkey]||{}).saludo||'pendiente';
       const saludoBtn=`<button onclick="event.stopPropagation();window._hoySaludoCycle('${lkey}')" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
+      const leyendaBadge=c.leyenda?`<span style="font-size:8px;font-weight:800;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">⭐ LEYENDA</span>`:'';
       return `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
+      <div onclick="${c.onclick}" style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
         ${avatar}
         <div style="flex:1;min-width:0">
-          <div style="font-size:${isMob?'13.5px':'13px'};font-weight:700;color:${isMob?'#EFF3F8':'var(--text)'}">${c.fallecido?'🕊️ ':''}${c.nom}</div>
+          <div style="font-size:${isMob?'13.5px':'13px'};font-weight:700;color:${isMob?'#EFF3F8':'var(--text)'}">${c.nom}${leyendaBadge}</div>
           <div style="font-size:${isMob?'11px':'10.5px'};color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}">${c.tipo} · ${c.fallecido?`hubiera cumplido ${c.edad} años hoy`:`cumple ${c.edad} años hoy`}</div>
           ${saludoBtn}
         </div>
+        <i class="ti ti-chevron-right" style="color:${isMob?'rgba(239,243,248,.25)':'var(--hint)'};font-size:13px;flex-shrink:0"></i>
       </div>`;}).join('');
     if(isMob){
       return `<div style="background:linear-gradient(135deg,#1a1030 0%,#0D1F38 100%);border-radius:16px;padding:14px 16px;margin-bottom:16px;border:1px solid rgba(236,72,153,.25)">
-        <div style="font-size:11px;font-weight:800;color:#F472B6;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🎉 Hoy en la Selección</div>
+        <div style="font-size:11px;font-weight:800;color:#F472B6;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Hoy en la Selección</div>
         ${rows}
       </div>`;
     }
     return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;border-left:3px solid #EC4899">
-      <div style="font-size:9.5px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🎉 Hoy en la Selección</div>
+      <div style="font-size:9.5px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Hoy en la Selección</div>
       ${rows}
     </div>`;
   }catch(_){ return ''; }
@@ -4535,32 +4538,41 @@ function renderInicioRedes(){
 function renderInicioFotos(){
   try{
     const isMob=window.innerWidth<=600;
-    let faltanMayor=0, totalMayor=0;
+    const faltantes=[]; // {nom, sub, onclick}
     if(typeof PLAYERS!=='undefined'){
       PLAYERS.forEach(p=>{
-        totalMayor++;
         const has=(_idbPhotos&&_idbPhotos[p.n])||p.photo||window._getPhotoByName?.(p.name);
-        if(!has) faltanMayor++;
+        if(!has) faltantes.push({nom:p.name, sub:'Plantel actual', onclick:`window._gnavGo('mayor','${encodeURIComponent(p.name)}')`});
       });
     }
-    let faltanEst=0, totalEst=0;
     if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
       const contracts=typeof _estGetContracts==='function'?_estGetContracts():{};
       ESTRUCTURA_PERSONAS.forEach(dept=>{
         (dept.personas||[]).forEach(p=>{
           const estado=contracts[p.key]||'activo';
           if(estado==='finalizado'||estado==='desvinculado') return;
-          totalEst++;
           const has=(window._estPhotoCache||{})[p.key]||p.foto;
-          if(!has) faltanEst++;
+          if(!has) faltantes.push({nom:p.label, sub:dept.dept, onclick:`showSection('estructura');window._estOpenFicha('${p.key}')`});
         });
       });
     }
-    if(!faltanMayor && !faltanEst) return '';
-    const parts=[];
-    if(faltanMayor) parts.push(`<b>${faltanMayor}</b> de ${totalMayor} jugadores del plantel actual sin foto`);
-    if(faltanEst) parts.push(`<b>${faltanEst}</b> de ${totalEst} integrantes activos de Estructura sin foto`);
-    return _inicioBox('📷 Fotos faltantes',parts.join(' · '),'#F59E0B',isMob);
+    if(!faltantes.length) return '';
+    const shown=faltantes.slice(0,8);
+    const rowColor=isMob?'#EFF3F8':'var(--text)';
+    const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
+    const rows=shown.map(f=>{
+      const initials=f.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      return `<div onclick="${f.onclick}" style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer">
+        <div style="width:24px;height:24px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};color:${subColor};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <span style="font-size:12px;font-weight:700;color:${rowColor}">${f.nom}</span>
+          <span style="font-size:10.5px;color:${subColor}"> · ${f.sub}</span>
+        </div>
+        <i class="ti ti-camera-plus" style="font-size:13px;color:${subColor};flex-shrink:0"></i>
+      </div>`;
+    }).join('');
+    const more=faltantes.length>shown.length?`<div style="font-size:11px;color:${subColor};margin-top:4px">+${faltantes.length-shown.length} más</div>`:'';
+    return _inicioBox('📷 Fotos faltantes — tocá para agregar',rows+more,'#F59E0B',isMob);
   }catch(_){ return ''; }
 }
 // Próxima fecha límite de convocatoria (Forlán / Mayor) — recuerda cargar novedades a tiempo.
@@ -4617,6 +4629,36 @@ window._inicioTareaDel=function(i){
   stor.set(key,list);
   renderInicio();
 };
+// Hitos/posteos del Planificador que caen hoy — conecta Planificador con Inicio.
+function renderInicioPlanHoy(){
+  try{
+    if(typeof _planGetAll!=='function') return '';
+    const isMob=window.innerWidth<=600;
+    const isoHoy=new Date().toISOString().slice(0,10);
+    const hoyItems=[];
+    _planGetAll().forEach(ev=>{
+      (ev.items||[]).forEach((it,i)=>{
+        if(it.done) return;
+        if((it.fecha||'').slice(0,10)===isoHoy) hoyItems.push({txt:it.txt, evTitulo:ev.titulo, evId:ev.id});
+      });
+      (ev.posteos||[]).forEach(p=>{
+        if((p.fecha||'').slice(0,10)===isoHoy) hoyItems.push({txt:p.titulo||p.txt, evTitulo:ev.titulo, evId:ev.id, esPosteo:true});
+      });
+    });
+    if(!hoyItems.length) return '';
+    const rowColor=isMob?'#EFF3F8':'var(--text)';
+    const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
+    const rows=hoyItems.map(h=>`
+      <div onclick="showSection('planificador');window._planOpen('${h.evId}')" style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">
+        <span style="font-size:14px;flex-shrink:0">${h.esPosteo?'📣':'📌'}</span>
+        <div style="flex:1;min-width:0">
+          <span style="font-size:12.5px;font-weight:700;color:${rowColor}">${h.txt}</span>
+          <span style="font-size:11px;color:${subColor}"> · ${h.evTitulo}</span>
+        </div>
+      </div>`).join('');
+    return _inicioBox('📅 Hoy en el Planificador', rows, '#0EA5E9', isMob);
+  }catch(_){ return ''; }
+}
 function renderInicioTareas(){
   const isMob=window.innerWidth<=600;
   const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
@@ -4691,6 +4733,7 @@ function renderInicio(){
       </div>
 
       ${renderInicioHoy()}
+      ${renderInicioPlanHoy()}
       ${renderInicioTareas()}
       ${renderInicioProximo()}
       ${renderInicioFotos()}
@@ -4724,6 +4767,7 @@ function renderInicio(){
   </div>`;
   el.innerHTML=`<div style="padding:0 0 2px">
     ${renderInicioHoy()}
+    ${renderInicioPlanHoy()}
     ${renderInicioTareas()}
     ${renderInicioProximo()}
     ${renderInicioFotos()}
@@ -26432,12 +26476,14 @@ const _PLAN_POST_LABEL={pendiente:'Pendiente',aprobado:'Aprobado',publicado:'Pub
 const _PLAN_POST_COLOR={pendiente:'#B45309',aprobado:'#2563EB',publicado:'#16A34A'};
 const _PLAN_POST_BG={pendiente:'#FEF3C7',aprobado:'#DBEAFE',publicado:'#DCFCE7'};
 function _planPostAdd(id){
-  const txt=(prompt('Descripción del posteo (ej: Anuncio oficial - Instagram):')||'').trim();
-  if(!txt) return;
+  const titulo=(prompt('Título del posteo (ej: Video 1 — compilado de imágenes):')||'').trim();
+  if(!titulo) return;
+  const mensaje=(prompt('Mensaje a transmitir (opcional):')||'').trim();
+  const grupo=(prompt('Momento (ej: Julio, Agosto — antes de la conferencia):')||'').trim();
   const list=_planGetAll();
   const ev=list.find(e=>e.id===id); if(!ev) return;
   if(!ev.posteos) ev.posteos=[];
-  ev.posteos.push({txt, estado:'pendiente', link:''});
+  ev.posteos.push({titulo, mensaje, grupo, estado:'pendiente', link:''});
   _planSave(list);
   _renderPlanEvento(id);
 }
@@ -26527,15 +26573,29 @@ function _renderPlanEvento(id){
   : `<div style="color:var(--muted);font-size:.82em;padding:12px 0">Sin hitos ni tareas todavía.</div>`;
 
   const posteos=ev.posteos||[];
-  const postRows=posteos.length?posteos.map((p,i)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:.85em;font-weight:600;color:var(--text)">${p.txt}</div>
-        ${p.link?`<a href="${p.link}" target="_blank" rel="noopener" style="font-size:.72em;color:var(--cel-dk)">🔗 Ver posteo</a>`:''}
-      </div>
-      <button onclick="_planPostCycle('${id}',${i})" style="border:1px solid ${_PLAN_POST_COLOR[p.estado||'pendiente']}40;background:${_PLAN_POST_BG[p.estado||'pendiente']};color:${_PLAN_POST_COLOR[p.estado||'pendiente']};border-radius:20px;padding:3px 10px;font-size:.72em;font-weight:700;cursor:pointer;white-space:nowrap">${_PLAN_POST_LABEL[p.estado||'pendiente']}</button>
-      <button onclick="_planPostLink('${id}',${i})" title="Agregar/editar link" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:13px">🔗</button>
-      <button onclick="_planPostDel('${id}',${i})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
+  const gruposOrder=[]; const porGrupo={};
+  posteos.forEach((p,i)=>{
+    const g=p.grupo||'Sin agrupar';
+    if(!porGrupo[g]){porGrupo[g]=[];gruposOrder.push(g);}
+    porGrupo[g].push({...p,_i:i});
+  });
+  const postRows=posteos.length?gruposOrder.map(g=>`
+    <div style="margin-bottom:10px">
+      <div style="font-size:.66em;font-weight:800;color:var(--cel-dk);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">${g}</div>
+      ${porGrupo[g].map(p=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border-radius:9px;margin-bottom:4px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.82em;font-weight:700;color:var(--text)">${p.titulo||p.txt||''}</div>
+            ${p.mensaje?`<div style="font-size:.72em;color:var(--muted);font-style:italic;margin-top:1px">"${p.mensaje}"</div>`:''}
+            <div style="display:flex;gap:8px;margin-top:2px">
+              ${p.fecha?`<span style="font-size:.68em;color:var(--muted)">📅 ${p.fecha}</span>`:''}
+              ${p.link?`<a href="${p.link}" target="_blank" rel="noopener" style="font-size:.68em;color:var(--cel-dk)">🔗 Ver posteo</a>`:''}
+            </div>
+          </div>
+          <button onclick="_planPostCycle('${id}',${p._i})" style="border:1px solid ${_PLAN_POST_COLOR[p.estado||'pendiente']}40;background:${_PLAN_POST_BG[p.estado||'pendiente']};color:${_PLAN_POST_COLOR[p.estado||'pendiente']};border-radius:20px;padding:3px 9px;font-size:.68em;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">${_PLAN_POST_LABEL[p.estado||'pendiente']}</button>
+          <button onclick="_planPostLink('${id}',${p._i})" title="Agregar/editar link" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px;flex-shrink:0">🔗</button>
+          <button onclick="_planPostDel('${id}',${p._i})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:11px;flex-shrink:0">✕</button>
+        </div>`).join('')}
     </div>`).join('')
   : `<div style="color:var(--muted);font-size:.82em;padding:12px 0">Sin posteos cargados todavía.</div>`;
 
@@ -26581,33 +26641,57 @@ function _renderPlanEvento(id){
     _planSave(list);
   }
 }catch(_){}})();
-// Actualización (una sola vez): cronograma y plan de publicaciones definitivo (📌 CRONOGRAMA DF—DT)
-(()=>{try{
-  if(localStorage.getItem('auf4_mig_plan_forlan_v2')) return;
-  localStorage.setItem('auf4_mig_plan_forlan_v2','1');
-  const list=_planGetAll();
-  const ev=list.find(e=>e.id==='pl_forlan_presentacion');
-  if(ev){
-    ev.items=[
-      {txt:'Viaja a Uruguay, llega 16h',fecha:'2026-07-28',done:false},
-      {txt:'Va al Complejo Celeste a conocer al staff y reunirse con posibles asistentes',fecha:'2026-07-29',done:false},
-      {txt:'Vence el contrato de Marcelo Bielsa',fecha:'2026-07-31',done:false},
-      {txt:'Comienza su contrato',fecha:'2026-08-01',done:false},
-      {txt:'Conferencia de prensa — Plan B (implica publicar antes el set de redes, incluida la nota)',fecha:'2026-08-01',done:false},
-      {txt:'Primer entrenamiento como DT de la Sub-20 — su "primer día"',fecha:'2026-08-03',done:false},
-      {txt:'Conferencia de prensa — Plan A (después del anuncio en redes y su primer día de trabajo)',fecha:'2026-08-03',done:false},
-    ];
-    ev.posteos=[
-      {txt:'[Julio, a definir] Video 1 — compilado de imágenes dándole fuerza a la figura de Forlán · Mensaje: "Diego Forlán vuelve a la Selección"',estado:'pendiente',link:''},
-      {txt:'[Julio, a definir] Diseño 1 — foto de Forlán como DT + texto informativo · Mensaje: "Diego Forlán se suma a la Estructura Técnica de la Selección"',estado:'pendiente',link:''},
-      {txt:'[Julio, a definir] Video vestuario (sin Forlán) — el Complejo ya está listo para esperarlo · Mensaje: "Estamos listos para la vuelta de Forlán"',estado:'pendiente',link:''},
-      {txt:'[Agosto, antes de la conferencia] Vlog de la llegada — largo, para YouTube (grabado 29/7, se publica editado/posterior)',estado:'pendiente',link:''},
-      {txt:'[Agosto, antes de la conferencia] Mediaday a redes — nota en vestuario + fotos con la ropa de la Selección',estado:'pendiente',link:''},
-      {txt:'[Agosto, después de la conferencia] Forlán trabajando en el Complejo — ya en funciones, entrenamiento Sub-20',estado:'pendiente',link:''},
-    ];
-    _planSave(list);
-  }
-}catch(_){}})();
+// Actualización (idempotente, con reintento): cronograma y plan de publicaciones definitivo
+// de Forlán + evento "Calendario Selección" con lo que ya está en el Google Calendar real.
+// No se gatea con una bandera fija: chequea la forma del dato, así que si corre antes de que
+// baje la nube (localStorage todavía vacío) puede reintentar sin duplicar ni pisar ediciones.
+function _planMigracionCalendario(){
+  try{
+    const list=_planGetAll();
+    let changed=false;
+
+    const ev=list.find(e=>e.id==='pl_forlan_presentacion');
+    if(ev && !(ev.posteos||[]).some(p=>p.titulo)){
+      ev.items=[
+        {txt:'Viaja a Uruguay, llega 16h',fecha:'2026-07-28',done:false},
+        {txt:'Va al Complejo Celeste a conocer al staff y reunirse con posibles asistentes',fecha:'2026-07-29',done:false},
+        {txt:'Vence el contrato de Marcelo Bielsa',fecha:'2026-07-31',done:false},
+        {txt:'Comienza su contrato',fecha:'2026-08-01',done:false},
+        {txt:'Conferencia de prensa — Plan B (implica publicar antes el set de redes, incluida la nota)',fecha:'2026-08-01',done:false},
+        {txt:'Primer entrenamiento como DT de la Sub-20 — su "primer día"',fecha:'2026-08-03',done:false},
+        {txt:'Conferencia de prensa — Plan A (después del anuncio en redes y su primer día de trabajo)',fecha:'2026-08-03',done:false},
+      ];
+      ev.posteos=[
+        {titulo:'Video 1 — compilado de imágenes',mensaje:'Diego Forlán vuelve a la Selección',grupo:'Julio (fecha a definir)',estado:'pendiente',link:''},
+        {titulo:'Diseño 1 — foto de Forlán como DT + texto informativo',mensaje:'Diego Forlán se suma a la Estructura Técnica de la Selección',grupo:'Julio (fecha a definir)',estado:'pendiente',link:''},
+        {titulo:'Video vestuario (sin Forlán) — el Complejo ya está listo',mensaje:'Estamos listos para la vuelta de Forlán',grupo:'Julio (fecha a definir)',estado:'pendiente',link:''},
+        {titulo:'Vlog de la llegada — largo, para YouTube (grabado 29/7)',mensaje:'',grupo:'Agosto · antes de la conferencia',estado:'pendiente',link:''},
+        {titulo:'Mediaday a redes — nota en vestuario + fotos con la ropa de la Selección',mensaje:'',grupo:'Agosto · antes de la conferencia',fecha:'2026-07-30',estado:'pendiente',link:''},
+        {titulo:'Forlán trabajando en el Complejo — ya en funciones, entrenamiento Sub-20',mensaje:'',grupo:'Agosto · después de la conferencia',estado:'pendiente',link:''},
+      ];
+      changed=true;
+    }
+
+    if(!list.some(e=>e.id==='pl_calendario_seleccion')){
+      list.push({
+        id:'pl_calendario_seleccion',
+        titulo:'Calendario Selección',
+        items:[
+          {txt:'Sub-17 · Amistoso vs. Brasil',fecha:'2026-07-30',done:false},
+          {txt:'Aniversario — Uruguay Campeón del Mundo 1930',fecha:'2026-07-30',done:false},
+        ],
+        posteos:[],
+        creado:new Date().toISOString(),
+      });
+      changed=true;
+    }
+
+    if(changed) _planSave(list);
+    return changed;
+  }catch(_){ return false; }
+}
+_planMigracionCalendario();
+setTimeout(_planMigracionCalendario, 4000); // reintento post-cloudPull por si corrió antes de tiempo
 
 // ── Autocomplete PROGRAMA desde medios DB ─────────────────────────────────────
 function _pwProgramaInput(el){
