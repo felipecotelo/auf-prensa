@@ -4436,11 +4436,28 @@ window._hoySaludoCycle=function(lkey){
   stor.set('auf4_hoylinks',links);
   renderInicio();
 };
-function renderInicioHoy(){
+// Aniversarios/actividades puntuales tomadas a mano del Google Calendar real
+// ("Selección | Planificación") — no hay integración en vivo, así que esto se
+// actualiza cada vez que se revisa el calendario. mmdd = se repite cada año,
+// fecha = fecha puntual única.
+const CALENDARIO_SELECCION_SEED=[
+  {mmdd:'07-30', txt:'Uruguay Campeón del Mundo 1930', tipo:'aniversario'},
+  {fecha:'2026-07-30', txt:'Sub-17 · Amistoso vs. Brasil', tipo:'actividad'},
+];
+
+function renderInicioHoySeleccion(){
   try{
     const hoy=new Date();
     const mesHoy=hoy.getMonth()+1, diaHoy=hoy.getDate();
     const mmdd=String(mesHoy).padStart(2,'0')+'-'+String(diaHoy).padStart(2,'0');
+    const isoHoy=hoy.toISOString().slice(0,10);
+    const isMob=window.innerWidth<=600;
+    const rowColor=isMob?'#EFF3F8':'var(--text)';
+    const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
+    const borderCss=isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)';
+    const subHdr=t=>`<div style="font-size:9px;font-weight:800;color:${subColor};text-transform:uppercase;letter-spacing:.07em;margin:10px 0 4px">${t}</div>`;
+
+    // ── Cumpleaños ──────────────────────────────────────────────────────────
     const cumples=[];
     const fallecidoMayorLS=stor.get('auf4_fallecido_mayor',{});
     const legends=typeof getLegends==='function'?getLegends():new Set();
@@ -4461,40 +4478,64 @@ function renderInicioHoy(){
         }
       });
     }
-    if(!cumples.length) return '';
-    const isMob=window.innerWidth<=600;
-    const isoHoy=hoy.toISOString().slice(0,10);
     const hoyLinks=stor.get('auf4_hoylinks',{});
-    const rows=cumples.map(c=>{
+    const cumpleRows=cumples.map(c=>{
       const foto=window._getPhotoByName?.(c.nom)||null;
       const initials=c.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const avatar=foto
         ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<span style=\\'font-size:18px;flex-shrink:0\\'>🎂</span>'">`
-        :`<div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};color:${isMob?'rgba(239,243,248,.6)':'var(--muted)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${initials}</div>`;
+        :`<div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};color:${subColor};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${initials}</div>`;
       const lkey=isoHoy+'_'+c.nom;
       const saludo=(hoyLinks[lkey]||{}).saludo||'pendiente';
       const saludoBtn=`<button onclick="event.stopPropagation();window._hoySaludoCycle('${lkey}')" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
       const leyendaBadge=c.leyenda?`<span style="font-size:8px;font-weight:800;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">⭐ LEYENDA</span>`:'';
       return `
-      <div onclick="${c.onclick}" style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
+      <div onclick="${c.onclick}" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;${borderCss}">
         ${avatar}
         <div style="flex:1;min-width:0">
-          <div style="font-size:${isMob?'13.5px':'13px'};font-weight:700;color:${isMob?'#EFF3F8':'var(--text)'}">${c.nom}${leyendaBadge}</div>
-          <div style="font-size:${isMob?'11px':'10.5px'};color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}">${c.tipo} · ${c.fallecido?`hubiera cumplido ${c.edad} años hoy`:`cumple ${c.edad} años hoy`}</div>
+          <div style="font-size:${isMob?'13px':'12.5px'};font-weight:700;color:${rowColor}">${c.nom}${leyendaBadge}</div>
+          <div style="font-size:${isMob?'11px':'10.5px'};color:${subColor}">${c.tipo} · ${c.fallecido?`hubiera cumplido ${c.edad} años hoy`:`cumple ${c.edad} años hoy`}</div>
           ${saludoBtn}
         </div>
-        <i class="ti ti-chevron-right" style="color:${isMob?'rgba(239,243,248,.25)':'var(--hint)'};font-size:13px;flex-shrink:0"></i>
+        <i class="ti ti-chevron-right" style="color:${subColor};font-size:13px;flex-shrink:0"></i>
       </div>`;}).join('');
-    if(isMob){
-      return `<div style="background:linear-gradient(135deg,#1a1030 0%,#0D1F38 100%);border-radius:16px;padding:14px 16px;margin-bottom:16px;border:1px solid rgba(236,72,153,.25)">
-        <div style="font-size:11px;font-weight:800;color:#F472B6;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Hoy en la Selección</div>
-        ${rows}
-      </div>`;
+
+    // ── Aniversarios / actividades del calendario ──────────────────────────
+    const aniversarios=CALENDARIO_SELECCION_SEED.filter(c=>c.tipo==='aniversario'&&c.mmdd===mmdd);
+    const actividades=CALENDARIO_SELECCION_SEED.filter(c=>c.tipo==='actividad'&&(c.fecha||'').slice(5,10)===mmdd);
+    const aniversarioRows=[...aniversarios,...actividades].map(c=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+        <span style="font-size:15px;flex-shrink:0">${c.tipo==='aniversario'?'🏆':'⚽'}</span>
+        <span style="font-size:${isMob?'12.5px':'12px'};font-weight:600;color:${rowColor}">${c.txt}</span>
+      </div>`).join('');
+
+    // ── Planificador de hoy ─────────────────────────────────────────────────
+    const planHoy=[];
+    if(typeof _planGetAll==='function'){
+      _planGetAll().forEach(ev=>{
+        (ev.items||[]).forEach(it=>{
+          if(it.done) return;
+          if((it.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:it.txt, evTitulo:ev.titulo, evId:ev.id});
+        });
+        (ev.posteos||[]).forEach(p=>{
+          if((p.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:p.titulo||p.txt, evTitulo:ev.titulo, evId:ev.id, esPosteo:true});
+        });
+      });
     }
-    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;border-left:3px solid #EC4899">
-      <div style="font-size:9.5px;font-weight:800;color:#EC4899;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Hoy en la Selección</div>
-      ${rows}
-    </div>`;
+    const planRows=planHoy.map(h=>`
+      <div onclick="showSection('planificador');window._planOpen('${h.evId}')" style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer">
+        <span style="font-size:14px;flex-shrink:0">${h.esPosteo?'📣':'📌'}</span>
+        <div style="flex:1;min-width:0">
+          <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${h.txt}</span>
+          <span style="font-size:11px;color:${subColor}"> · ${h.evTitulo}</span>
+        </div>
+      </div>`).join('');
+
+    if(!cumples.length && !aniversarioRows && !planHoy.length) return '';
+    const body=(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
+      +(aniversarioRows?subHdr('🏆 Aniversarios y actividades')+aniversarioRows:'')
+      +(planHoy.length?subHdr('📌 Planificador')+planRows:'');
+    return _inicioBox('Hoy en Selección', body, '#EC4899', isMob);
   }catch(_){ return ''; }
 }
 function _inicioBox(title,bodyHtml,color,isMob){
@@ -4579,100 +4620,91 @@ function renderInicioFotos(){
 function renderInicioProximo(){
   try{
     const isMob=window.innerWidth<=600;
-    if(typeof _FORLAN_CONV_DEFAULTS==='undefined') return '';
-    const dates=stor.get('auf4_forlanconvdates',{});
-    const D=k=>dates[k]||_FORLAN_CONV_DEFAULTS[k];
-    const parseFecha=s=>{
-      if(!s) return null;
-      const m=/(\d{1,2})\/(\d{1,2})/.exec(s);
-      if(!m) return null;
-      return new Date(new Date().getFullYear(), parseInt(m[2])-1, parseInt(m[1]));
-    };
-    const candidatos=[
-      {label:'Lista de reserva · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_reserva'))},
-      {label:'Convocatoria final · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_final'))},
-      {label:'Lista de reserva · Fecha FIFA nov 2026', fecha:parseFecha(D('1_reserva'))},
-      {label:'Convocatoria final · Fecha FIFA nov 2026', fecha:parseFecha(D('1_final'))},
-    ].filter(c=>c.fecha);
     const hoy0=new Date(); hoy0.setHours(0,0,0,0);
+    const candidatos=[];
+
+    // Hitos y posteos pendientes de cualquier evento del Planificador
+    if(typeof _planGetAll==='function'){
+      _planGetAll().forEach(ev=>{
+        (ev.items||[]).forEach(it=>{
+          if(it.done || !it.fecha) return;
+          const d=new Date((it.fecha||'').slice(0,10)+'T00:00:00');
+          if(!isNaN(d)) candidatos.push({label:it.txt, fecha:d, onclick:`showSection('planificador');window._planOpen('${ev.id}')`});
+        });
+        (ev.posteos||[]).forEach(p=>{
+          if(p.estado==='publicado' || !p.fecha) return;
+          const d=new Date((p.fecha||'').slice(0,10)+'T00:00:00');
+          if(!isNaN(d)) candidatos.push({label:p.titulo||p.txt, fecha:d, onclick:`showSection('planificador');window._planOpen('${ev.id}')`});
+        });
+      });
+    }
+    // Fechas límite de convocatoria Mayor (Fecha FIFA) — llevan al torneo dentro de Selección Mayor
+    if(typeof _FORLAN_CONV_DEFAULTS!=='undefined'){
+      const dates=stor.get('auf4_forlanconvdates',{});
+      const D=k=>dates[k]||_FORLAN_CONV_DEFAULTS[k];
+      const parseFecha=s=>{
+        if(!s) return null;
+        const m=/(\d{1,2})\/(\d{1,2})/.exec(s);
+        if(!m) return null;
+        return new Date(new Date().getFullYear(), parseInt(m[2])-1, parseInt(m[1]));
+      };
+      [
+        {label:'Lista de reserva · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_reserva')), tab:'fifasep26'},
+        {label:'Convocatoria final · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_final')), tab:'fifasep26'},
+        {label:'Lista de reserva · Fecha FIFA nov 2026', fecha:parseFecha(D('1_reserva')), tab:'fifasep26'},
+        {label:'Convocatoria final · Fecha FIFA nov 2026', fecha:parseFecha(D('1_final')), tab:'fifasep26'},
+      ].forEach(c=>{ if(c.fecha) candidatos.push({label:c.label, fecha:c.fecha, onclick:`showSection('mayor');showTournament('${c.tab}')`}); });
+    }
+
     const futuros=candidatos.filter(c=>c.fecha>=hoy0).sort((a,b)=>a.fecha-b.fecha);
     if(!futuros.length) return '';
     const next=futuros[0];
     const dias=Math.round((next.fecha-hoy0)/86400000);
     const cuando=dias===0?'es hoy':dias===1?'es mañana':`en ${dias} días`;
-    const body=`${next.label} ${cuando}. ¿Hay novedades para cargar? <a href="#" onclick="event.preventDefault();showSection('mayor');showTab('tecnicos')" style="color:inherit;font-weight:700;text-decoration:underline">Ver ficha de Forlán →</a>`;
-    return _inicioBox('📅 Se viene',body,'#0EA5E9',isMob);
+    const body=`<span onclick="${next.onclick}" style="cursor:pointer"><b>${next.label}</b> ${cuando}. <span style="text-decoration:underline">Ver →</span></span>`;
+    return _inicioBox('Se viene',body,'#0EA5E9',isMob);
   }catch(_){ return ''; }
 }
-// Tareas del día — lista simple, se reinicia cada día (clave por fecha), sincronizada como todo lo demás.
+// Tareas — un solo registro corrido (no uno por día), así queda historial de todo lo
+// que se va agregando. "Tareas de hoy" filtra por fecha de hoy nomás.
+const KTareasLog='auf4_tareas_log';
+function _tareasLog(){ return stor.get(KTareasLog,[]); }
 window._inicioTareaAdd=function(){
   const inp=document.getElementById('inicio-tarea-inp');
   const txt=(inp?.value||'').trim();
   if(!txt) return;
-  const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
-  const list=stor.get(key,[]);
-  list.push({txt,done:false});
-  stor.set(key,list);
+  const list=_tareasLog();
+  list.push({txt,done:false,fecha:new Date().toISOString().slice(0,10)});
+  stor.set(KTareasLog,list);
   renderInicio();
 };
-window._inicioTareaToggle=function(i){
-  const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
-  const list=stor.get(key,[]);
-  if(list[i]) list[i].done=!list[i].done;
-  stor.set(key,list);
+window._inicioTareaToggle=function(idx){
+  const list=_tareasLog();
+  if(list[idx]) list[idx].done=!list[idx].done;
+  stor.set(KTareasLog,list);
   renderInicio();
 };
-window._inicioTareaDel=function(i){
-  const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
-  const list=stor.get(key,[]);
-  list.splice(i,1);
-  stor.set(key,list);
+window._inicioTareaDel=function(idx){
+  const list=_tareasLog();
+  list.splice(idx,1);
+  stor.set(KTareasLog,list);
   renderInicio();
 };
-// Hitos/posteos del Planificador que caen hoy — conecta Planificador con Inicio.
-function renderInicioPlanHoy(){
-  try{
-    if(typeof _planGetAll!=='function') return '';
-    const isMob=window.innerWidth<=600;
-    const isoHoy=new Date().toISOString().slice(0,10);
-    const hoyItems=[];
-    _planGetAll().forEach(ev=>{
-      (ev.items||[]).forEach((it,i)=>{
-        if(it.done) return;
-        if((it.fecha||'').slice(0,10)===isoHoy) hoyItems.push({txt:it.txt, evTitulo:ev.titulo, evId:ev.id});
-      });
-      (ev.posteos||[]).forEach(p=>{
-        if((p.fecha||'').slice(0,10)===isoHoy) hoyItems.push({txt:p.titulo||p.txt, evTitulo:ev.titulo, evId:ev.id, esPosteo:true});
-      });
-    });
-    if(!hoyItems.length) return '';
-    const rowColor=isMob?'#EFF3F8':'var(--text)';
-    const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
-    const rows=hoyItems.map(h=>`
-      <div onclick="showSection('planificador');window._planOpen('${h.evId}')" style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">
-        <span style="font-size:14px;flex-shrink:0">${h.esPosteo?'📣':'📌'}</span>
-        <div style="flex:1;min-width:0">
-          <span style="font-size:12.5px;font-weight:700;color:${rowColor}">${h.txt}</span>
-          <span style="font-size:11px;color:${subColor}"> · ${h.evTitulo}</span>
-        </div>
-      </div>`).join('');
-    return _inicioBox('📅 Hoy en el Planificador', rows, '#0EA5E9', isMob);
-  }catch(_){ return ''; }
-}
 function renderInicioTareas(){
   const isMob=window.innerWidth<=600;
-  const key='auf4_tareas_'+new Date().toISOString().slice(0,10);
-  const list=stor.get(key,[]);
+  const isoHoy=new Date().toISOString().slice(0,10);
+  const log=_tareasLog();
+  const hoyTareas=log.map((t,idx)=>({...t,idx})).filter(t=>t.fecha===isoHoy);
   const rowColor=isMob?'#EFF3F8':'var(--text)';
-  const rows=list.map((t,i)=>`
+  const rows=hoyTareas.map(t=>`
     <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-      <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${i})" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
+      <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx})" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
       <span style="flex:1;font-size:12.5px;${t.done?'text-decoration:line-through;opacity:.5;':''}color:${rowColor}">${t.txt}</span>
-      <button onclick="window._inicioTareaDel(${i})" style="border:none;background:none;color:${isMob?'rgba(239,243,248,.3)':'var(--hint)'};cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
+      <button onclick="window._inicioTareaDel(${t.idx})" style="border:none;background:none;color:${isMob?'rgba(239,243,248,.3)':'var(--hint)'};cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
     </div>`).join('');
   const borderCol=isMob?'rgba(255,255,255,.15)':'var(--border)';
   const bgCol=isMob?'rgba(255,255,255,.05)':'#fff';
-  const inputRow=`<div style="display:flex;gap:6px;margin-top:${list.length?'8px':'0'}">
+  const inputRow=`<div style="display:flex;gap:6px;margin-top:${hoyTareas.length?'8px':'0'}">
     <input id="inicio-tarea-inp" type="text" placeholder="Agregar tarea del día..." onkeydown="if(event.key==='Enter'){window._inicioTareaAdd();}" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid ${borderCol};background:${bgCol};color:${rowColor};font-size:12.5px;outline:none">
     <button onclick="window._inicioTareaAdd()" style="padding:6px 14px;border-radius:8px;border:none;background:#1A56C4;color:#fff;font-weight:700;font-size:13px;cursor:pointer">+</button>
   </div>`;
@@ -4732,8 +4764,7 @@ function renderInicio(){
         <div style="font-size:12px;color:rgba(239,243,248,.5);margin-top:4px">TMO Interno</div>
       </div>
 
-      ${renderInicioHoy()}
-      ${renderInicioPlanHoy()}
+      ${renderInicioHoySeleccion()}
       ${renderInicioTareas()}
       ${renderInicioProximo()}
       ${renderInicioFotos()}
@@ -4766,8 +4797,7 @@ function renderInicio(){
     ${secBtn('Links','ti-link','#8B5CF6',"showTab('linkgen')")}
   </div>`;
   el.innerHTML=`<div style="padding:0 0 2px">
-    ${renderInicioHoy()}
-    ${renderInicioPlanHoy()}
+    ${renderInicioHoySeleccion()}
     ${renderInicioTareas()}
     ${renderInicioProximo()}
     ${renderInicioFotos()}
@@ -26406,6 +26436,7 @@ let _planView='list'; // 'list' | 'evento'
 
 function renderPlanificadorTop(){
   if(_planView==='evento' && _planCurId) _renderPlanEvento(_planCurId);
+  else if(_planView==='historial') _renderTareasHistorial();
   else _renderPlanificadorLista();
 }
 window.renderPlanificadorTop=renderPlanificadorTop;
@@ -26414,6 +26445,41 @@ function _planOpen(id){ _planCurId=id; _planView='evento'; renderPlanificadorTop
 window._planOpen=_planOpen;
 function _planBack(){ _planCurId=null; _planView='list'; renderPlanificadorTop(); }
 window._planBack=_planBack;
+function _planOpenHistorial(){ _planView='historial'; renderPlanificadorTop(); }
+window._planOpenHistorial=_planOpenHistorial;
+
+function _renderTareasHistorial(){
+  const el=document.getElementById('planificador-body');
+  if(!el) return;
+  const log=typeof _tareasLog==='function'?_tareasLog():[];
+  const porFecha={}; const fechas=[];
+  log.forEach((t,idx)=>{
+    const f=t.fecha||'Sin fecha';
+    if(!porFecha[f]){porFecha[f]=[];fechas.push(f);}
+    porFecha[f].push({...t,idx});
+  });
+  fechas.sort().reverse();
+  const blocks=fechas.length?fechas.map(f=>`
+    <div style="margin-bottom:14px">
+      <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${f}</div>
+      ${porFecha[f].map(t=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+          <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx});_renderTareasHistorial()" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
+          <span style="flex:1;font-size:.85em;${t.done?'text-decoration:line-through;opacity:.5;':''}color:var(--text)">${t.txt}</span>
+          <button onclick="window._inicioTareaDel(${t.idx});_renderTareasHistorial()" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
+        </div>`).join('')}
+    </div>`).join('')
+  : `<div style="text-align:center;padding:48px 24px;color:var(--muted)">
+      <i class="ti ti-checklist" style="font-size:2.5em;display:block;margin-bottom:12px;opacity:.3"></i>
+      <div style="font-weight:700">Todavía no cargaste tareas</div>
+    </div>`;
+  el.innerHTML=`
+    <div style="max-width:700px;margin:0 auto;padding:16px">
+      <button onclick="_planBack()" style="display:flex;align-items:center;gap:5px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:.8em;font-weight:700;padding:0;margin-bottom:14px"><i class="ti ti-arrow-left"></i> Planificador</button>
+      <div style="font-size:1.15em;font-weight:900;color:var(--text);margin-bottom:16px">Historial de tareas</div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px">${blocks}</div>
+    </div>`;
+}
 
 function _planNuevo(){
   const titulo=(prompt('Título del evento (ej: Presentación de Diego Forlán):')||'').trim();
@@ -26548,6 +26614,11 @@ function _renderPlanificadorLista(){
         </div>
         <button onclick="_planNuevo()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:10px;background:var(--cel);color:#fff;font-size:.82em;font-weight:800;cursor:pointer"><i class="ti ti-plus"></i>Nuevo evento</button>
       </div>
+      <div onclick="_planOpenHistorial()" style="background:var(--surface);border:1px dashed var(--border);border-radius:14px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <i class="ti ti-checklist" style="font-size:16px;color:var(--muted)"></i>
+        <span style="flex:1;font-size:.85em;font-weight:700;color:var(--text)">Historial de tareas</span>
+        <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.9em"></i>
+      </div>
       <div style="display:flex;flex-direction:column;gap:10px">${cards}</div>
     </div>`;
 }
@@ -26672,21 +26743,15 @@ function _planMigracionCalendario(){
       changed=true;
     }
 
-    if(!list.some(e=>e.id==='pl_calendario_seleccion')){
-      list.push({
-        id:'pl_calendario_seleccion',
-        titulo:'Calendario Selección',
-        items:[
-          {txt:'Sub-17 · Amistoso vs. Brasil',fecha:'2026-07-30',done:false},
-          {txt:'Aniversario — Uruguay Campeón del Mundo 1930',fecha:'2026-07-30',done:false},
-        ],
-        posteos:[],
-        creado:new Date().toISOString(),
-      });
+    // El calendario de Google no es un evento de gestión del Planificador — se saca de acá
+    // si había quedado creado por error, y vive solo como fuente de info para Inicio (ver
+    // CALENDARIO_SELECCION_SEED / renderInicioCalendario más abajo).
+    if(list.some(e=>e.id==='pl_calendario_seleccion')){
+      _planSave(list.filter(e=>e.id!=='pl_calendario_seleccion'));
       changed=true;
+    } else if(changed){
+      _planSave(list);
     }
-
-    if(changed) _planSave(list);
     return changed;
   }catch(_){ return false; }
 }
