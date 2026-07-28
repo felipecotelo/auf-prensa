@@ -4414,6 +4414,22 @@ function countDone(matchId,items){
 
 // Widget "Hoy" — cumpleaños del día entre jugadores (base histórica) y DTs. Se recalcula
 // solo, sin cargar nada a mano: mira la fecha de hoy contra fechaNac de cada uno.
+window._hoyLinkSet=function(lkey){
+  const links=stor.get('auf4_hoylinks',{});
+  const cur=links[lkey]||{};
+  const url=prompt('Link del posteo (X, Instagram, etc.):', cur.url||'');
+  if(url===null) return;
+  links[lkey]={...cur, url:url.trim()};
+  stor.set('auf4_hoylinks',links);
+  renderInicio();
+};
+window._hoyLinkToggle=function(lkey){
+  const links=stor.get('auf4_hoylinks',{});
+  if(!links[lkey]) links[lkey]={};
+  links[lkey].saludado=!links[lkey].saludado;
+  stor.set('auf4_hoylinks',links);
+  renderInicio();
+};
 function renderInicioHoy(){
   try{
     const hoy=new Date();
@@ -4440,14 +4456,26 @@ function renderInicioHoy(){
     }
     if(!cumples.length) return '';
     const isMob=window.innerWidth<=600;
-    const rows=cumples.map(c=>`
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
-        <span style="font-size:18px;flex-shrink:0">${c.fallecido?'🕊️':'🎂'}</span>
+    const isoHoy=hoy.toISOString().slice(0,10);
+    const hoyLinks=stor.get('auf4_hoylinks',{});
+    const rows=cumples.map(c=>{
+      const lkey=isoHoy+'_'+c.nom;
+      const lk=hoyLinks[lkey]||{};
+      const postHtml=lk.url
+        ?`<div style="display:flex;align-items:center;gap:6px;margin-top:5px">
+            <a href="${lk.url}" target="_blank" rel="noopener" style="font-size:${isMob?'11px':'10.5px'};font-weight:700;color:#EC4899;text-decoration:none">🔗 Ver posteo</a>
+            <button onclick="event.stopPropagation();window._hoyLinkToggle('${lkey}')" style="border:1px solid ${lk.saludado?'#22C55E':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${lk.saludado?'#22C55E22':'transparent'};color:${lk.saludado?'#16A34A':(isMob?'rgba(239,243,248,.5)':'var(--muted)')};border-radius:20px;padding:1px 8px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${lk.saludado?'✓ Lo saludamos':'¿Lo saludaste en redes?'}</button>
+          </div>`
+        :`<button onclick="event.stopPropagation();window._hoyLinkSet('${lkey}')" style="margin-top:5px;border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${isMob?'rgba(239,243,248,.4)':'var(--muted)'};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">+ Agregar posteo del día</button>`;
+      return `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
+        <span style="font-size:18px;flex-shrink:0;margin-top:1px">${c.fallecido?'🕊️':'🎂'}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:${isMob?'13.5px':'13px'};font-weight:700;color:${isMob?'#EFF3F8':'var(--text)'}">${c.nom}</div>
           <div style="font-size:${isMob?'11px':'10.5px'};color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}">${c.tipo} · ${c.fallecido?`hubiera cumplido ${c.edad} años hoy`:`cumple ${c.edad} años hoy`}</div>
+          ${postHtml}
         </div>
-      </div>`).join('');
+      </div>`;}).join('');
     if(isMob){
       return `<div style="background:linear-gradient(135deg,#1a1030 0%,#0D1F38 100%);border-radius:16px;padding:14px 16px;margin-bottom:16px;border:1px solid rgba(236,72,153,.25)">
         <div style="font-size:11px;font-weight:800;color:#F472B6;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">🎉 Hoy en la Selección</div>
