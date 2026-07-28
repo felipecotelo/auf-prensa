@@ -6456,9 +6456,9 @@ function renderLog(f){
 // EXPORT / IMPORT / CLEAR
 // ═══════════════════════════════════════════════════════════════════════════
 function fixHidden18(){
-  const h=JSON.parse(localStorage.getItem('auf4_evhidden')||'{}');
+  const h=getEvHidden();
   Object.keys(h).filter(k=>k.startsWith('2026-06-18')).forEach(k=>delete h[k]);
-  localStorage.setItem('auf4_evhidden',JSON.stringify(h));
+  stor.set(KEvHidden,h);
   const btn=document.getElementById('btn-fix-hidden');
   if(btn)btn.remove();
   renderCal();
@@ -6488,7 +6488,10 @@ async function handleImport(e){
 
       // Formato v6 — todo en localStorage + photos IDB
       if(d.localStorage){
-        Object.entries(d.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
+        Object.entries(d.localStorage).forEach(([k,v])=>{
+          localStorage.setItem(k,v);
+          try{ cloudPush(k, JSON.parse(v)); }catch(_){ cloudPush(k, v); }
+        });
       } else {
         // Compatibilidad con formato viejo (v5)
         if(d.log)setLog(d.log);if(d.chk)setChk(d.chk);
