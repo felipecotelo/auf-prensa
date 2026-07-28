@@ -3897,9 +3897,16 @@ async function deletePhotoIDB(num){
 
 // ── Supabase Storage para fotos ─────────────────────────────────────────────
 const _SB_BUCKET = 'auf-fotos';
+// Supabase Storage rechaza claves con tildes/ñ ("Invalid key") incluso codificadas con
+// encodeURIComponent — la validación es sobre el path ya decodificado. Por eso las claves
+// que usamos en la nube van sin diacríticos; el nombre real (con tildes) sigue viviendo
+// en el cache local y se resuelve por el fallback normalizado de _juvGetPhoto/_getPersonPhoto.
+function _sbSafeKey(key){
+  return String(key).normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
 function _sbPhotoUrl(key){
   // URL pública directa — no requiere auth ni listado previo
-  return `${_SB_URL}/storage/v1/object/public/${_SB_BUCKET}/${encodeURIComponent(String(key))}`;
+  return `${_SB_URL}/storage/v1/object/public/${_SB_BUCKET}/${encodeURIComponent(_sbSafeKey(key))}`;
 }
 
 // Sube UNA foto a Supabase Storage — con reintento/backoff por si se pega
@@ -3910,7 +3917,7 @@ async function _sbUploadPhoto(key, dataUrl, _attempt){
   try{
     const res = await fetch(dataUrl);
     const blob = await res.blob();
-    const { error } = await _sb.storage.from(_SB_BUCKET).upload(String(key), blob, {
+    const { error } = await _sb.storage.from(_SB_BUCKET).upload(_sbSafeKey(key), blob, {
       upsert: true, contentType: blob.type || 'image/jpeg'
     });
     if(error) throw error;
