@@ -1628,6 +1628,7 @@ html.auf-gate body { display:none !important }
   <button class="mob-qbtn" id="mqb-prensa" onclick="showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
   <button class="mob-qbtn" id="mqb-redes" onclick="showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes</button>
   <button class="mob-qbtn" id="mqb-estr" onclick="showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura</button>
+  <button class="mob-qbtn" id="mqb-plan" onclick="showSection('planificador')"><i class="ti ti-clipboard-list"></i>Planificador</button>
 </div>
 
 <div id="tabs-bar" style="opacity:0">
@@ -1640,6 +1641,7 @@ html.auf-gate body { display:none !important }
     <button class="nav-l0-section" data-section="prensa" onclick="showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
     <button class="nav-l0-section" data-section="redes" onclick="showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes</button>
     <button class="nav-l0-section" data-section="estructura" onclick="showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura</button>
+    <button class="nav-l0-section" data-section="planificador" onclick="showSection('planificador')"><i class="ti ti-clipboard-list"></i>Planificador</button>
     <div class="nav-l0-sep"></div>
     <div style="position:relative;flex-shrink:0;display:flex;align-items:center;gap:6px" id="gnav-wrap">
       <div style="position:relative;display:flex;align-items:center">
@@ -2158,6 +2160,10 @@ html.auf-gate body { display:none !important }
 
 <div id="sec-estructura" class="section">
   <div id="estructura-body" style="padding-bottom:3rem"></div>
+</div>
+
+<div id="sec-planificador" class="section">
+  <div id="planificador-body" style="padding-bottom:3rem"></div>
 </div>
 
 </main>
@@ -4272,6 +4278,8 @@ function _updateNavState(id){
     document.querySelector('.nav-l0-section[data-section="redes"]')?.classList.add('active');
   } else if(id==='sec-estructura'){
     document.querySelector('.nav-l0-section[data-section="estructura"]')?.classList.add('active');
+  } else if(id==='sec-planificador'){
+    document.querySelector('.nav-l0-section[data-section="planificador"]')?.classList.add('active');
   } else if(id==='sec-local'){
     document.querySelector('.nav-l0-section[data-section="local"]')?.classList.add('active');
   } else if(inMayor){
@@ -4301,6 +4309,7 @@ function showSection(sec){
   if(sec==='prensa'){showTab('sec-prensa');}
   if(sec==='redes'){showTab('sec-redes');}
   if(sec==='estructura'){showTab('sec-estructura');}
+  if(sec==='planificador'){showTab('sec-planificador');}
 }
 
 const TOURNAMENTS = {
@@ -4378,6 +4387,7 @@ function showTab(id){
   if(id==='sec-prensa'){renderPrensa?.()}
   if(id==='sec-redes'){window.renderRedes?.()}
   if(id==='sec-estructura'){renderEstructura?.()}
+  if(id==='sec-planificador'){window.renderPlanificadorTop?.()}
   if(id==='infogeneral'){renderInfoGeneral()}
   if(id==='grafica'){renderGrafica()}
   if(id==='periplo'){renderPeriplo()}
@@ -24194,8 +24204,6 @@ let _pwCurId = null;
 function renderPrensa(){
   if(_pwView==='ventana' && _pwCurId) _renderVentana(_pwCurId);
   else if(_pwView==='medios') _renderMediosDB();
-  else if(_pwView==='plan-evento' && _planCurId) _renderPlanEvento(_planCurId);
-  else if(_pwView==='planificador') _renderPlanificadorLista();
   else _renderListaPrensa();
 }
 
@@ -26340,7 +26348,6 @@ function _pwTabsHtml(active){
   return `<div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:24px;gap:0">
     ${tab('list','ti-microphone-2','Ventanas de prensa')}
     ${tab('medios','ti-device-tv','Medios y programas')}
-    ${tab('planificador','ti-clipboard-list','Planificador')}
   </div>`;
 }
 
@@ -26351,10 +26358,17 @@ const KPlan='auf4_planificador';
 function _planGetAll(){ return stor.get(KPlan, []); }
 function _planSave(list){ stor.set(KPlan, list); }
 let _planCurId=null;
+let _planView='list'; // 'list' | 'evento'
 
-function _planOpen(id){ _planCurId=id; _pwView='plan-evento'; renderPrensa(); }
+function renderPlanificadorTop(){
+  if(_planView==='evento' && _planCurId) _renderPlanEvento(_planCurId);
+  else _renderPlanificadorLista();
+}
+window.renderPlanificadorTop=renderPlanificadorTop;
+
+function _planOpen(id){ _planCurId=id; _planView='evento'; renderPlanificadorTop(); }
 window._planOpen=_planOpen;
-function _planBack(){ _planCurId=null; _pwView='planificador'; renderPrensa(); }
+function _planBack(){ _planCurId=null; _planView='list'; renderPlanificadorTop(); }
 window._planBack=_planBack;
 
 function _planNuevo(){
@@ -26457,7 +26471,7 @@ function _planPostDel(id,i){
 window._planPostDel=_planPostDel;
 
 function _renderPlanificadorLista(){
-  const el=document.getElementById('prensa-body');
+  const el=document.getElementById('planificador-body');
   if(!el) return;
   const list=_planGetAll();
   const cards=list.length?list.map(ev=>{
@@ -26481,7 +26495,6 @@ function _renderPlanificadorLista(){
 
   el.innerHTML=`
     <div style="max-width:700px;margin:0 auto;padding:16px">
-      ${_pwTabsHtml('planificador')}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div>
           <div style="font-size:1.1em;font-weight:900;color:var(--text)">Planificador</div>
@@ -26494,7 +26507,7 @@ function _renderPlanificadorLista(){
 }
 
 function _renderPlanEvento(id){
-  const el=document.getElementById('prensa-body');
+  const el=document.getElementById('planificador-body');
   if(!el) return;
   const list=_planGetAll();
   const ev=list.find(e=>e.id===id);
@@ -27746,6 +27759,7 @@ async function exportarFotosIDB(){
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes sociales</button>
   <button class="mob-more-item" onclick="_mobCloseMore();showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura AUF</button>
+  <button class="mob-more-item" onclick="_mobCloseMore();showSection('planificador')"><i class="ti ti-clipboard-list"></i>Planificador</button>
   <div style="height:1px;background:rgba(255,255,255,.08);margin:4px 0"></div>
   <button class="mob-more-item" onclick="_mobCloseMore();serverLoad()"><i class="ti ti-cloud-download"></i>Cargar datos</button>
   <button class="mob-more-item" onclick="_mobCloseMore();serverSave()"><i class="ti ti-cloud-upload"></i>Guardar datos</button>
