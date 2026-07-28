@@ -4420,10 +4420,12 @@ function renderInicioHoy(){
     const mesHoy=hoy.getMonth()+1, diaHoy=hoy.getDate();
     const mmdd=String(mesHoy).padStart(2,'0')+'-'+String(diaHoy).padStart(2,'0');
     const cumples=[];
+    const fallecidoMayorLS=stor.get('auf4_fallecido_mayor',{});
     if(typeof JUGADORES!=='undefined'){
       Object.entries(JUGADORES).forEach(([nom,d])=>{
         if(d?.fechaNac && d.fechaNac.length>=10 && d.fechaNac.slice(5,10)===mmdd){
-          cumples.push({nom, edad:hoy.getFullYear()-parseInt(d.fechaNac.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', key:'jugador'});
+          const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
+          cumples.push({nom, edad:hoy.getFullYear()-parseInt(d.fechaNac.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', fallecido});
         }
       });
     }
@@ -4432,7 +4434,7 @@ function renderInicioHoy(){
       DT_CATALOG.forEach(dt=>{
         const m=/(\d{1,2})\s+(\w{3})\s+(\d{4})/.exec(dt.born||'');
         if(m && MESES[m[2].toLowerCase()]===mesHoy && parseInt(m[1])===diaHoy){
-          cumples.push({nom:dt.full, edad:hoy.getFullYear()-parseInt(m[3]), tipo:'Director técnico', key:'dt'});
+          cumples.push({nom:dt.full, edad:hoy.getFullYear()-parseInt(m[3]), tipo:'Director técnico', fallecido:false});
         }
       });
     }
@@ -4440,10 +4442,10 @@ function renderInicioHoy(){
     const isMob=window.innerWidth<=600;
     const rows=cumples.map(c=>`
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)'}">
-        <span style="font-size:18px;flex-shrink:0">🎂</span>
+        <span style="font-size:18px;flex-shrink:0">${c.fallecido?'🕊️':'🎂'}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:${isMob?'13.5px':'13px'};font-weight:700;color:${isMob?'#EFF3F8':'var(--text)'}">${c.nom}</div>
-          <div style="font-size:${isMob?'11px':'10.5px'};color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}">${c.tipo} · cumple ${c.edad} años hoy</div>
+          <div style="font-size:${isMob?'11px':'10.5px'};color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}">${c.tipo} · ${c.fallecido?`hubiera cumplido ${c.edad} años hoy`:`cumple ${c.edad} años hoy`}</div>
         </div>
       </div>`).join('');
     if(isMob){
@@ -7349,8 +7351,8 @@ async function syncMatchScore(matchId){
   }catch(_){}
 }
 
-async function syncMatchFull(matchId){
-  if(isMatchLocked(matchId)){toast('🔒 Partido cerrado con formulario oficial — desbloqueá para sincronizar ESPN');return;}
+async function syncMatchFull(matchId, silent){
+  if(isMatchLocked(matchId)){ if(!silent) toast('🔒 Partido cerrado con formulario oficial — desbloqueá para sincronizar ESPN'); return; }
   const btn=document.getElementById(`piz-sync-btn-${matchId}`);
   if(btn){btn.disabled=true;btn.textContent='Actualizando...';}
   const fotmobId=FOTMOB_EVENTS[matchId];
@@ -7372,7 +7374,7 @@ async function syncMatchFull(matchId){
     }catch(_){}
   }
 
-  if(!espnId){msgs.push('Sin ID ESPN para este partido');toast(msgs.join(' · '));if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar datos';}return;}
+  if(!espnId){msgs.push('Sin ID ESPN para este partido');if(!silent)toast(msgs.join(' · '));if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar datos';}return;}
 
   // 1. ESPN summary directo (CORS abierto)
   try{
@@ -7454,7 +7456,7 @@ async function syncMatchFull(matchId){
   renderPizarra(matchId);
   renderFixture();
   if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar datos';}
-  toast('✅ '+msgs.join(' · '));
+  if(!silent) toast('✅ '+msgs.join(' · '));
 }
 
 async function syncEspnIncidents(mId, pizMatchId){
@@ -15109,7 +15111,7 @@ function lgCopy(i,url){
       const fixId=PIZ_TO_FIX[m.id];
       const matchDate=GROUP_H.matches.find(x=>x.id===fixId)?.isoDate;
       if(!matchDate||matchDate>=TODAY) continue;
-      if(!isMatchLocked(m.id)) await syncMatchFull(m.id);
+      if(!isMatchLocked(m.id)) await syncMatchFull(m.id, true);
     }
   })();
   // Migración: limpiar overrides "Obligatorio" guardados por error en eventos tipo:'info'
