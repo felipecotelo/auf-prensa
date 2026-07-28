@@ -3902,8 +3902,11 @@ function _sbPhotoUrl(key){
   return `${_SB_URL}/storage/v1/object/public/${_SB_BUCKET}/${encodeURIComponent(String(key))}`;
 }
 
-// Sube UNA foto a Supabase Storage
-async function _sbUploadPhoto(key, dataUrl){
+// Sube UNA foto a Supabase Storage — con reintento/backoff por si se pega
+// contra el rate limit de la API (en tandas grandes, todo lo que viene
+// después del límite fallaba en cadena y se perdía para siempre).
+async function _sbUploadPhoto(key, dataUrl, _attempt){
+  _attempt = _attempt || 1;
   try{
     const res = await fetch(dataUrl);
     const blob = await res.blob();
@@ -3912,7 +3915,14 @@ async function _sbUploadPhoto(key, dataUrl){
     });
     if(error) throw error;
     return true;
-  }catch(e){ console.warn('sbUpload error', key, e); return false; }
+  }catch(e){
+    console.warn('sbUpload error', key, 'intento', _attempt, e?.message||e);
+    if(_attempt < 3){
+      await new Promise(r=>setTimeout(r, 500 * _attempt));
+      return _sbUploadPhoto(key, dataUrl, _attempt + 1);
+    }
+    return false;
+  }
 }
 
 // Sube TODAS las fotos de IDB a Supabase Storage (migración única)
@@ -3927,6 +3937,7 @@ window.uploadAllPhotosToSupabase = async function(){
   for(const [key, dataUrl] of entries){
     const r = await _sbUploadPhoto(key, dataUrl);
     if(r) ok++; else err++;
+    await new Promise(res=>setTimeout(res, 80));
   }
   document.querySelector('[data-sbtoast]')?.remove();
   toast2(`✅ ${ok} fotos subidas a la nube${err?` (${err} errores)`:''}`, 5000);
@@ -3941,14 +3952,17 @@ window._btnSubirFotos = async function(){
   if(!confirm(`¿Subir ${entries.length} fotos nuevas a la nube? Esto puede tardar unos minutos.`)) return;
   btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2 ti-spin" style="font-size:12px"></i> <span class="nav-sync-lbl">Subiendo…</span>';
   let ok=0, err=0;
+  const failed=[];
   for(const [key,dataUrl] of entries){
     const r = await _sbUploadPhoto(key, dataUrl);
-    if(r) ok++; else err++;
+    if(r) ok++; else { err++; failed.push(key); }
     if((ok+err)%20===0) btn.querySelector('.nav-sync-lbl').textContent=`${ok+err}/${entries.length}`;
+    await new Promise(res=>setTimeout(res, 80)); // espaciar requests para no pegar contra el rate limit de Supabase
   }
   btn.disabled=false;
   btn.innerHTML='<i class="ti ti-photo-check" style="font-size:12px"></i> <span class="nav-sync-lbl">Fotos</span>';
   toast(`✅ ${ok} fotos subidas${err?` · ${err} errores`:''}`);
+  if(failed.length) console.warn('Fotos que fallaron tras 3 intentos:', failed);
 };
 
 // Hook: auto-sube cada foto nueva que se guarda
@@ -22286,6 +22300,7 @@ async function _autoBackupPhotosToSupabase(){
     for(const [key,dataUrl] of entries){
       const r = await _sbUploadPhoto(key, dataUrl);
       if(r) ok++; else err++;
+      await new Promise(res=>setTimeout(res, 80));
     }
     if(ok) toast(`🔄 Respaldo automático: ${ok} foto${ok===1?'':'s'} guardada${ok===1?'':'s'} en la nube`);
     if(err) console.warn(`[auto-backup fotos] ${err} fallaron, se reintentará en el próximo ciclo`);
@@ -23956,7 +23971,7 @@ function _mediosGetAll(){ try{return JSON.parse(localStorage.getItem(KMedios)||'
   }));
   if(recovered.length) _mediosSave(recovered);
 }catch(_){}})();
-function _mediosSave(list){ stor.set(KMedios, list); }
+function _mediosSave(list){ stor.set(KMedios, list); cloudPush(KMedios, list); }
 
 // ── Estado de navegación interna de Prensa ─────────────────────────────────
 let _pwView = 'list';   // 'list' | 'ventana' | 'medios'
