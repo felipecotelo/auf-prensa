@@ -4671,6 +4671,33 @@ function renderInicioProximo(){
 // que se va agregando. "Tareas de hoy" filtra por fecha de hoy nomás.
 const KTareasLog='auf4_tareas_log';
 function _tareasLog(){ return stor.get(KTareasLog,[]); }
+// Migración (idempotente, con reintento): las tareas vivían antes en una clave por día
+// (auf4_tareas_YYYY-MM-DD). Las junta todas en el registro único sin perder nada.
+function _migrarTareasViejas(){
+  try{
+    const log=_tareasLog();
+    const yaMigrado=new Set(log.map(t=>t.fecha+'|'+t.txt));
+    let changed=false;
+    Object.keys(localStorage).forEach(k=>{
+      const m=/^auf4_tareas_(\d{4}-\d{2}-\d{2})$/.exec(k);
+      if(!m) return;
+      const fecha=m[1];
+      let viejas=[];
+      try{ viejas=JSON.parse(localStorage.getItem(k))||[]; }catch(_){ return; }
+      viejas.forEach(t=>{
+        const key=fecha+'|'+t.txt;
+        if(!yaMigrado.has(key)){
+          log.push({txt:t.txt, done:!!t.done, fecha});
+          yaMigrado.add(key);
+          changed=true;
+        }
+      });
+    });
+    if(changed) stor.set(KTareasLog,log);
+  }catch(_){}
+}
+_migrarTareasViejas();
+setTimeout(_migrarTareasViejas, 4000);
 window._inicioTareaAdd=function(){
   const inp=document.getElementById('inicio-tarea-inp');
   const txt=(inp?.value||'').trim();
@@ -26726,7 +26753,7 @@ function _planMigracionCalendario(){
     const ev=list.find(e=>e.id==='pl_forlan_presentacion');
     if(ev && !(ev.posteos||[]).some(p=>p.titulo)){
       ev.items=[
-        {txt:'Viaja a Uruguay, llega 16h',fecha:'2026-07-28',done:false},
+        {txt:'Forlán viaja a Uruguay, llega 16h',fecha:'2026-07-28',done:false},
         {txt:'Va al Complejo Celeste a conocer al staff y reunirse con posibles asistentes',fecha:'2026-07-29',done:false},
         {txt:'Vence el contrato de Marcelo Bielsa',fecha:'2026-07-31',done:false},
         {txt:'Comienza su contrato',fecha:'2026-08-01',done:false},
@@ -27920,6 +27947,7 @@ async function exportarFotosIDB(){
     if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
     if(typeof _patchStatPhotos==='function') _patchStatPhotos();
     if(window._juvGlobalPlayers && typeof window.renderJuveniles==='function') window.renderJuveniles();
+    if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
   }catch(_){ window._estPhotoCache={}; }
 })();
 </script>
