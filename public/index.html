@@ -4436,14 +4436,15 @@ window._hoySaludoCycle=function(lkey){
   stor.set('auf4_hoylinks',links);
   renderInicio();
 };
-// Aniversarios/actividades puntuales tomadas a mano del Google Calendar real
-// ("Selección | Planificación") — no hay integración en vivo, así que esto se
-// actualiza cada vez que se revisa el calendario. mmdd = se repite cada año,
-// fecha = fecha puntual única.
-const CALENDARIO_SELECCION_SEED=[
+// Aniversarios/actividades del Google Calendar real ("Selección | Planificación").
+// Vive en la nube (KCalendarioHoy), actualizado por una tarea programada diaria que lee
+// el calendario y reescribe esta clave — la app solo lee, no hay integración en vivo acá.
+// mmdd = se repite cada año (aniversarios), fecha = fecha puntual única (actividades).
+const KCalendarioHoy='auf4_calendario_hoy';
+const CALENDARIO_SELECCION_DEFAULT=[
   {mmdd:'07-30', txt:'Uruguay Campeón del Mundo 1930', tipo:'aniversario'},
-  {fecha:'2026-07-30', txt:'Sub-17 · Amistoso vs. Brasil', tipo:'actividad'},
 ];
+function getCalendarioSeleccion(){ return stor.get(KCalendarioHoy, CALENDARIO_SELECCION_DEFAULT); }
 
 function renderInicioHoySeleccion(){
   try{
@@ -4501,8 +4502,9 @@ function renderInicioHoySeleccion(){
       </div>`;}).join('');
 
     // ── Aniversarios / actividades del calendario ──────────────────────────
-    const aniversarios=CALENDARIO_SELECCION_SEED.filter(c=>c.tipo==='aniversario'&&c.mmdd===mmdd);
-    const actividades=CALENDARIO_SELECCION_SEED.filter(c=>c.tipo==='actividad'&&(c.fecha||'').slice(5,10)===mmdd);
+    const calendarioSel=getCalendarioSeleccion();
+    const aniversarios=calendarioSel.filter(c=>c.tipo==='aniversario'&&c.mmdd===mmdd);
+    const actividades=calendarioSel.filter(c=>c.tipo==='actividad'&&(c.fecha||'').slice(5,10)===mmdd);
     const aniversarioRows=[...aniversarios,...actividades].map(c=>`
       <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
         <span style="font-size:15px;flex-shrink:0">${c.tipo==='aniversario'?'🏆':'⚽'}</span>
@@ -26744,8 +26746,8 @@ function _planMigracionCalendario(){
     }
 
     // El calendario de Google no es un evento de gestión del Planificador — se saca de acá
-    // si había quedado creado por error, y vive solo como fuente de info para Inicio (ver
-    // CALENDARIO_SELECCION_SEED / renderInicioCalendario más abajo).
+    // si había quedado creado por error, y vive solo como fuente de info para Inicio
+    // (ver getCalendarioSeleccion() / KCalendarioHoy, actualizado por tarea programada).
     if(list.some(e=>e.id==='pl_calendario_seleccion')){
       _planSave(list.filter(e=>e.id!=='pl_calendario_seleccion'));
       changed=true;
