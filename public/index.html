@@ -23933,6 +23933,26 @@ const _pwFmtDate = d=>{ if(!d) return ''; const [y,m,dd]=d.split('-'); return `$
 // ── Base de datos de medios y programas ───────────────────────────────────
 const KMedios = 'auf4_medios';
 function _mediosGetAll(){ try{return JSON.parse(localStorage.getItem(KMedios)||'[]')}catch(_){return[]} }
+// Recupero (una sola vez): reconstruye el catálogo de Medios y programas a partir de los
+// programas/medios que ya aparecen en solicitudes reales de Ventanas de prensa (esos sí
+// estaban sincronizados). No trae periodistas/productores/formato — solo programa+medio.
+(()=>{try{
+  if(localStorage.getItem('auf4_mig_medios_recovery')) return;
+  localStorage.setItem('auf4_mig_medios_recovery','1');
+  const existing=_mediosGetAll();
+  if(existing.length) return; // ya hay algo cargado, no tocar
+  const vws=_pwGetAll();
+  const seen=new Set(existing.map(m=>(m.programa||'')+'|'+(m.medio||'')));
+  const recovered=[];
+  vws.forEach(vw=>(vw.solicitudes||[]).forEach(s=>{
+    if(!s.programa && !s.medio) return;
+    const k=(s.programa||'')+'|'+(s.medio||'');
+    if(seen.has(k)) return;
+    seen.add(k);
+    recovered.push({programa:s.programa||'',medio:s.medio||'',formatos:[],pais:'',periodistas:[],productores:[],notas:'Recuperado automáticamente de una solicitud — completar datos faltantes'});
+  }));
+  if(recovered.length) _mediosSave(recovered);
+}catch(_){}})();
 function _mediosSave(list){ stor.set(KMedios, list); }
 
 // ── Estado de navegación interna de Prensa ─────────────────────────────────
