@@ -24381,26 +24381,6 @@ const _pwFmtDate = d=>{ if(!d) return ''; const [y,m,dd]=d.split('-'); return `$
 // ── Base de datos de medios y programas ───────────────────────────────────
 const KMedios = 'auf4_medios';
 function _mediosGetAll(){ try{return JSON.parse(localStorage.getItem(KMedios)||'[]')}catch(_){return[]} }
-// Recupero (una sola vez): reconstruye el catálogo de Medios y programas a partir de los
-// programas/medios que ya aparecen en solicitudes reales de Ventanas de prensa (esos sí
-// estaban sincronizados). No trae periodistas/productores/formato — solo programa+medio.
-(()=>{try{
-  if(localStorage.getItem('auf4_mig_medios_recovery')) return;
-  localStorage.setItem('auf4_mig_medios_recovery','1');
-  const existing=_mediosGetAll();
-  if(existing.length) return; // ya hay algo cargado, no tocar
-  const vws=_pwGetAll();
-  const seen=new Set(existing.map(m=>(m.programa||'')+'|'+(m.medio||'')));
-  const recovered=[];
-  vws.forEach(vw=>(vw.solicitudes||[]).forEach(s=>{
-    if(!s.programa && !s.medio) return;
-    const k=(s.programa||'')+'|'+(s.medio||'');
-    if(seen.has(k)) return;
-    seen.add(k);
-    recovered.push({programa:s.programa||'',medio:s.medio||'',formatos:[],pais:'',periodistas:[],productores:[],notas:'Recuperado automáticamente de una solicitud — completar datos faltantes'});
-  }));
-  if(recovered.length) _mediosSave(recovered);
-}catch(_){}})();
 function _mediosSave(list){ stor.set(KMedios, list); cloudPush(KMedios, list); }
 
 // ── Estado de navegación interna de Prensa ─────────────────────────────────
@@ -26794,7 +26774,7 @@ function _renderPlanEvento(id){
         <input value="${it.txt.replace(/"/g,'&quot;')}" onblur="_planItemEdit('${id}',${idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;font-size:.85em;font-weight:600;color:var(--text);${it.done?'text-decoration:line-through;opacity:.5':''}">
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
           ${it.tbd?`<span style="font-size:.68em;font-weight:800;color:#F59E0B;background:#FEF3C7;border-radius:5px;padding:1px 6px">A definir</span>`:''}
-          <input type="date" value="${it.fecha||''}" onchange="_planItemSetFecha('${id}',${idx},this.value)" style="border:none;background:transparent;outline:none;font-size:.7em;color:var(--muted);padding:0;font-family:inherit;cursor:pointer">
+          <input type="date" value="${it.fecha||''}" onblur="_planItemSetFecha('${id}',${idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="border:none;background:transparent;outline:none;font-size:.7em;color:var(--muted);padding:0;font-family:inherit;cursor:pointer">
         </div>
       </div>
       <button onclick="_planItemDel('${id}',${idx})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
