@@ -26781,6 +26781,7 @@ function _renderPlanEvento(id){
         <input value="${it.txt.replace(/"/g,'&quot;')}" onblur="_planItemEdit('${id}',${idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;font-size:.85em;font-weight:600;color:var(--text);${it.done?'text-decoration:line-through;opacity:.5':''}">
         <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
           ${it.tbd?`<span style="font-size:.68em;font-weight:800;color:#F59E0B;background:#FEF3C7;border-radius:5px;padding:1px 6px">A definir</span>`:''}
+          ${it.externo?`<span style="font-size:.68em;font-weight:800;color:#64748B;background:#F1F5F9;border-radius:5px;padding:1px 6px">Dato externo</span>`:''}
           <input type="date" value="${it.fecha||''}" onblur="_planItemSetFecha('${id}',${idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="border:none;background:transparent;outline:none;font-size:.7em;color:var(--muted);padding:0;font-family:inherit;cursor:pointer">
         </div>
       </div>
@@ -26925,6 +26926,28 @@ function _planMarcarTBD(){
 }
 _planMarcarTBD();
 setTimeout(_planMarcarTBD, 4000);
+
+// Marca como "dato externo" los hitos que no son una acción de Forlán/prensa,
+// sino un dato de contexto (ajeno) que igual afecta el cronograma.
+function _planMarcarExterno(){
+  try{
+    const list=_planGetAll();
+    let changed=false;
+    const ev=list.find(e=>e.id==='pl_forlan_presentacion');
+    if(ev){
+      (ev.items||[]).forEach(it=>{
+        if(/Vence el contrato de Marcelo Bielsa/.test(it.txt) && !it.externo){
+          it.externo=true;
+          changed=true;
+        }
+      });
+    }
+    if(changed) _planSave(list);
+    return changed;
+  }catch(_){ return false; }
+}
+_planMarcarExterno();
+setTimeout(_planMarcarExterno, 4000);
 
 // ── Autocomplete PROGRAMA desde medios DB ─────────────────────────────────────
 function _pwProgramaInput(el){
