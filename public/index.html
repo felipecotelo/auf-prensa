@@ -4564,11 +4564,13 @@ function renderInicioHoySeleccion(){
     const calendarioSel=getCalendarioSeleccion();
     const aniversarios=calendarioSel.filter(c=>c.tipo==='aniversario'&&c.mmdd===mmdd);
     const actividades=calendarioSel.filter(c=>c.tipo==='actividad'&&(c.fecha||'').slice(5,10)===mmdd);
-    const aniversarioRows=[...aniversarios,...actividades].map(c=>`
+    const rowHtml=(icon,txt)=>`
       <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
-        <span style="font-size:15px;flex-shrink:0">${c.tipo==='aniversario'?'🏆':'⚽'}</span>
-        <span style="font-size:${isMob?'12.5px':'12px'};font-weight:600;color:${rowColor}">${c.txt}</span>
-      </div>`).join('');
+        <span style="font-size:15px;flex-shrink:0">${icon}</span>
+        <span style="font-size:${isMob?'12.5px':'12px'};font-weight:600;color:${rowColor}">${txt}</span>
+      </div>`;
+    const aniversarioRows=aniversarios.map(c=>rowHtml('🏆',c.txt)).join('');
+    const actividadRows=actividades.map(c=>rowHtml('⚽',c.txt)).join('');
 
     // ── Planificador de hoy ─────────────────────────────────────────────────
     const planHoy=[];
@@ -4592,9 +4594,10 @@ function renderInicioHoySeleccion(){
         </div>
       </div>`).join('');
 
-    if(!cumples.length && !aniversarioRows && !planHoy.length) return '';
+    if(!cumples.length && !aniversarioRows && !actividadRows && !planHoy.length) return '';
     const body=(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
-      +(aniversarioRows?subHdr('🏆 Aniversarios y actividades')+aniversarioRows:'')
+      +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
+      +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
       +(planHoy.length?subHdr('Planificador')+planRows:'');
     return _inicioBox('Hoy en Selección', body, '#EC4899', isMob);
   }catch(_){ return ''; }
@@ -26966,49 +26969,6 @@ function _planMigracionCalendario(){
 _planMigracionCalendario();
 setTimeout(_planMigracionCalendario, 4000); // reintento post-cloudPull por si corrió antes de tiempo
 
-// Marca "a definir" los hitos que dependen de una decisión todavía no tomada
-// (Plan A vs Plan B de la conferencia de Forlán: solo se hace uno de los dos).
-function _planMarcarTBD(){
-  try{
-    const list=_planGetAll();
-    let changed=false;
-    const ev=list.find(e=>e.id==='pl_forlan_presentacion');
-    if(ev){
-      (ev.items||[]).forEach(it=>{
-        if(/Conferencia de prensa — Plan [AB]/.test(it.txt) && !it.tbd){
-          it.tbd=true;
-          changed=true;
-        }
-      });
-    }
-    if(changed) _planSave(list);
-    return changed;
-  }catch(_){ return false; }
-}
-_planMarcarTBD();
-setTimeout(_planMarcarTBD, 4000);
-
-// Marca como "dato externo" los hitos que no son una acción de Forlán/prensa,
-// sino un dato de contexto (ajeno) que igual afecta el cronograma.
-function _planMarcarExterno(){
-  try{
-    const list=_planGetAll();
-    let changed=false;
-    const ev=list.find(e=>e.id==='pl_forlan_presentacion');
-    if(ev){
-      (ev.items||[]).forEach(it=>{
-        if(/Vence el contrato de Marcelo Bielsa/.test(it.txt) && !it.externo){
-          it.externo=true;
-          changed=true;
-        }
-      });
-    }
-    if(changed) _planSave(list);
-    return changed;
-  }catch(_){ return false; }
-}
-_planMarcarExterno();
-setTimeout(_planMarcarExterno, 4000);
 
 // ── Autocomplete PROGRAMA desde medios DB ─────────────────────────────────────
 function _pwProgramaInput(el){
