@@ -6884,8 +6884,15 @@ function fixHidden18(){
 async function exportData(){
   toast('Preparando backup completo...');
   const lsData={};
-  [KL,KC,KD,KP,KPart,KPhoto,KFix,KCalT,KEvN,KEvS,KEvP,KDayClosed,KDayActs,KInj,KEvC,KEvTxt,KEvLink,KEvFifa,KEvFifaOrig,KEvManualAt]
-    .forEach(k=>{const v=localStorage.getItem(k);if(v)lsData[k]=v;});
+  // Todo lo que la app guarda vive bajo claves 'auf4_' — se toma TODO lo que haya
+  // (no una lista fija) para que un módulo nuevo quede respaldado automáticamente,
+  // sin depender de acordarse de sumarlo acá cada vez.
+  Object.keys(localStorage).forEach(k=>{
+    if(!k.startsWith('auf4_')) return;
+    if(k.startsWith('auf4_mig_')) return; // flags internas de migración, no son datos
+    const v=localStorage.getItem(k);
+    if(v) lsData[k]=v;
+  });
   const idbPhotos=await getAllPhotosIDB();
   const payload={v:6,date:new Date().toISOString(),localStorage:lsData,photos:idbPhotos};
   const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
@@ -9957,7 +9964,7 @@ function renderJugadores(){
       <div style="flex:1;position:relative">
         <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px"></i>
         <input id="jug-search" type="text" placeholder="Buscar jugador..." value="${window._jSearch}"
-          oninput="window._jSearch=this.value;renderJugadores()"
+          oninput="window._jSearch=this.value;const _p=this.selectionStart;renderJugadores();const _i=document.getElementById('jug-search');if(_i){_i.focus();_i.setSelectionRange(_p,_p);}"
           style="width:100%;padding:9px 12px 9px 32px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);font-size:.88em;box-sizing:border-box;outline:none">
       </div>
       ${window._jSearch?`<button onclick="window._jSearch='';renderJugadores()" style="padding:0 12px;border-radius:10px;border:1px solid var(--border);background:none;cursor:pointer;font-size:.8em;color:var(--muted)">✕</button>`:''}
