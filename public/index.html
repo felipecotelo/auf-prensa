@@ -4692,12 +4692,22 @@ function renderInicioFotos(){
     return _inicioBox('📷 Fotos faltantes — tocá para agregar',rows+more,'#F59E0B',isMob);
   }catch(_){ return ''; }
 }
-// Próxima fecha límite de convocatoria (Forlán / Mayor) — recuerda cargar novedades a tiempo.
+// Cosas importantes que se vienen (1-2 meses): hitos del Planificador, Fechas FIFA,
+// aniversarios fijos y cumpleaños de leyendas/plantel actual. A propósito NO entran acá
+// entrenamientos ni prácticas — esos son rutina, no algo para destacar con anticipación.
 function renderInicioProximo(){
   try{
     const isMob=window.innerWidth<=600;
     const hoy0=new Date(); hoy0.setHours(0,0,0,0);
+    const manana0=new Date(hoy0); manana0.setDate(manana0.getDate()+1);
+    const ventanaFin=new Date(hoy0); ventanaFin.setDate(ventanaFin.getDate()+60);
     const candidatos=[];
+    const nextOcurrencia=md=>{
+      const mm=parseInt(md.slice(0,2),10), dd=parseInt(md.slice(3,5),10);
+      let d=new Date(hoy0.getFullYear(), mm-1, dd);
+      if(d<hoy0) d=new Date(hoy0.getFullYear()+1, mm-1, dd);
+      return d;
+    };
 
     // Hitos y posteos pendientes de cualquier evento del Planificador
     if(typeof _planGetAll==='function'){
@@ -4731,21 +4741,57 @@ function renderInicioProximo(){
         {label:'Convocatoria final · Fecha FIFA nov 2026', fecha:parseFecha(D('1_final')), tab:'fifasep26'},
       ].forEach(c=>{ if(c.fecha) candidatos.push({label:c.label, fecha:c.fecha, onclick:`showSection('mayor');showTournament('${c.tab}')`}); });
     }
+    // Aniversarios fijos del calendario real (NO las actividades/entrenamientos de ese mismo calendario — se descartan a propósito)
+    if(typeof getCalendarioSeleccion==='function'){
+      getCalendarioSeleccion().filter(c=>c.tipo==='aniversario'&&c.mmdd).forEach(c=>{
+        candidatos.push({label:'🏆 '+c.txt, fecha:nextOcurrencia(c.mmdd), onclick:''});
+      });
+    }
+    // Cumpleaños de leyendas y del plantel actual (no de toda la base histórica, para no llenar de ruido)
+    const legends=typeof getLegends==='function'?getLegends():new Set();
+    const fallecidoMayorLS=stor.get('auf4_fallecido_mayor',{});
+    const cumpleNombres=new Set(legends);
+    if(typeof PLAYERS!=='undefined') PLAYERS.forEach(p=>cumpleNombres.add(p.name));
+    if(typeof JUGADORES!=='undefined'){
+      cumpleNombres.forEach(nom=>{
+        const d=JUGADORES[nom];
+        if(d?.fechaNac && d.fechaNac.length>=10){
+          const fecha=nextOcurrencia(d.fechaNac.slice(5,10));
+          const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
+          const edad=fecha.getFullYear()-parseInt(d.fechaNac.slice(0,4));
+          candidatos.push({label:`🎂 Cumpleaños de ${nom}`+(fallecido?` (hubiera cumplido ${edad})`:` (${edad} años)`), fecha, onclick:`window._gnavGo('mayor','${encodeURIComponent(nom)}')`});
+        }
+      });
+    }
+    // Cumpleaños de directores técnicos (histórico + actuales)
+    if(typeof DT_CATALOG!=='undefined'){
+      const MESES={ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12};
+      DT_CATALOG.forEach(dt=>{
+        const m=/(\d{1,2})\s+(\w{3})\s+(\d{4})/.exec(dt.born||'');
+        if(m && MESES[m[2].toLowerCase()]){
+          const md=String(MESES[m[2].toLowerCase()]).padStart(2,'0')+'-'+String(parseInt(m[1])).padStart(2,'0');
+          const fecha=nextOcurrencia(md);
+          const edad=fecha.getFullYear()-parseInt(m[3]);
+          candidatos.push({label:`🎂 Cumpleaños de ${dt.full} (${edad} años)`, fecha, onclick:`showSection('mayor');showTab('tecnicos');selectDT('${dt.id}')`});
+        }
+      });
+    }
 
-    const manana0=new Date(hoy0); manana0.setDate(manana0.getDate()+1);
-    const futuros=candidatos.filter(c=>c.fecha>=manana0).sort((a,b)=>a.fecha-b.fecha);
-    if(!futuros.length) return '';
-    const next=futuros[0];
-    const dias=Math.round((next.fecha-hoy0)/86400000);
     const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-    const diaSemana=DIAS[next.fecha.getDay()];
-    const ddmm=`${next.fecha.getDate()}/${next.fecha.getMonth()+1}`;
-    const cuando=dias===1?`Mañana, ${diaSemana} ${ddmm}`:`El ${diaSemana} ${ddmm} (en ${dias} días)`;
-    const body=`<div onclick="${next.onclick}" style="cursor:pointer">
-      <div style="font-size:12.5px;font-weight:700">${next.label}</div>
-      <div style="font-size:11px;opacity:.75;margin-top:3px">📅 ${cuando} · <span style="text-decoration:underline">Ver →</span></div>
-    </div>`;
-    return _inicioBox('Se viene',body,'#0EA5E9',isMob);
+    const futuros=candidatos.filter(c=>c.fecha>=manana0 && c.fecha<=ventanaFin).sort((a,b)=>a.fecha-b.fecha).slice(0,8);
+    if(!futuros.length) return '';
+    const rows=futuros.map((next,i)=>{
+      const dias=Math.round((next.fecha-hoy0)/86400000);
+      const diaSemana=DIAS[next.fecha.getDay()];
+      const ddmm=`${next.fecha.getDate()}/${next.fecha.getMonth()+1}`;
+      const cuando=dias===1?`Mañana, ${diaSemana} ${ddmm}`:`${diaSemana} ${ddmm} (en ${dias} días)`;
+      const clickable=!!next.onclick;
+      return `<div ${clickable?`onclick="${next.onclick}"`:''} style="${clickable?'cursor:pointer;':''}padding:6px 0;${i<futuros.length-1?'border-bottom:0.5px solid var(--border)':''}">
+        <div style="font-size:12.5px;font-weight:700">${next.label}</div>
+        <div style="font-size:11px;opacity:.75;margin-top:2px">📅 ${cuando}${clickable?' · <span style="text-decoration:underline">Ver →</span>':''}</div>
+      </div>`;
+    }).join('');
+    return _inicioBox('Se viene',rows,'#0EA5E9',isMob);
   }catch(_){ return ''; }
 }
 // Tareas — un solo registro corrido (no uno por día), así queda historial de todo lo
