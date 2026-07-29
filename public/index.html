@@ -4577,19 +4577,18 @@ function renderInicioHoySeleccion(){
     if(typeof _planGetAll==='function'){
       _planGetAll().forEach(ev=>{
         (ev.items||[]).forEach(it=>{
-          if(it.done) return;
-          if((it.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:it.txt, evTitulo:ev.titulo, evId:ev.id});
+          if((it.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:it.txt, evTitulo:ev.titulo, evId:ev.id, done:!!it.done});
         });
         (ev.posteos||[]).forEach(p=>{
-          if((p.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:p.titulo||p.txt, evTitulo:ev.titulo, evId:ev.id, esPosteo:true});
+          if((p.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:p.titulo||p.txt, evTitulo:ev.titulo, evId:ev.id, esPosteo:true, done:p.estado==='publicado'});
         });
       });
     }
     const planRows=planHoy.map(h=>`
-      <div onclick="showSection('planificador');window._planOpen('${h.evId}')" style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer">
+      <div onclick="showSection('planificador');window._planOpen('${h.evId}')" style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer${h.done?';opacity:.5':''}">
         <span style="font-size:14px;flex-shrink:0">${h.esPosteo?'📣':'📌'}</span>
         <div style="flex:1;min-width:0">
-          <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${h.txt}</span>
+          <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}${h.done?';text-decoration:line-through':''}">${h.txt}</span>
           <span style="font-size:11px;color:${subColor}"> · ${h.evTitulo}</span>
         </div>
       </div>`).join('');
