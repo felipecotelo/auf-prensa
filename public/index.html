@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-build="2026-07-28T20:30:00Z">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -4108,6 +4108,10 @@ const _sb=supabase.createClient(_SB_URL,_SB_KEY);
 const _SKIP_SYNC=new Set([KWCCache]); // caché ESPN: no sincronizar entre dispositivos
 let _syncDebounceTimers={};
 let _syncStatus='idle'; // 'idle'|'syncing'|'ok'|'error'
+// Marca de tiempo del último push propio por clave — el polling de "actualización en
+// vivo" ignora una clave un rato después de que la escribimos nosotros, para no
+// pisarnos nuestro propio cambio con la vuelta del round-trip a la nube.
+let _recentlyPushed={};
 
 function _setSyncStatus(s){
   _syncStatus=s;
@@ -4119,6 +4123,7 @@ function _setSyncStatus(s){
 
 async function cloudPush(key,value){
   if(_SKIP_SYNC.has(key))return;
+  _recentlyPushed[key]=Date.now();
   try{
     _setSyncStatus('syncing');
     await _sb.from('sync_data').upsert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()},{onConflict:'key'});
@@ -4395,6 +4400,60 @@ function showTab(id){
   if(id==='jugadores'){renderJugadores()}
   if(id==='tecnicos'){renderTecnicos()}
 }
+
+// Vuelve a llamar el mismo render que usa showTab() para el id dado, sin tocar scroll
+// ni estado de navegación — usado por el polling de "actualización en vivo" para
+// refrescar en el lugar cuando llega un cambio de otro dispositivo.
+function _rerenderTab(id){
+  if(id==='inicio'){renderInicio()}
+  else if(id==='disponibilidad'){renderDisponibilidad()}
+  else if(id==='calendario'){renderCal()}
+  else if(id==='fixture'){renderFixture()}
+  else if(id==='partidos'){renderPartidos()}
+  else if(id==='plantel'){renderPlantel()}
+  else if(id==='pizarra'){renderPizarra(_pizMatch)}
+  else if(id==='estadisticas'){renderEstadisticas()}
+  else if(id==='registro'){renderLog(curLog)}
+  else if(id==='linkgen'){renderLinkGen()}
+  else if(id==='sec-local'){window.renderSecLocal?.()}
+  else if(id==='sec-juveniles'){window.renderJuveniles?.()}
+  else if(id==='sec-prensa'){renderPrensa?.()}
+  else if(id==='sec-redes'){window.renderRedes?.()}
+  else if(id==='sec-estructura'){renderEstructura?.()}
+  else if(id==='sec-planificador'){window.renderPlanificadorTop?.()}
+  else if(id==='infogeneral'){renderInfoGeneral()}
+  else if(id==='grafica'){renderGrafica()}
+  else if(id==='periplo'){renderPeriplo()}
+  else if(id.startsWith('fifasep26-')){renderFifaSep26(id)}
+  else if(id==='jugadores'){renderJugadores()}
+  else if(id==='tecnicos'){renderTecnicos()}
+}
+
+// ── Actualización en vivo ────────────────────────────────────────────────────
+// Mientras la app queda abierta, revisa cada 20s si cambió algo en otro dispositivo
+// y lo refleja en el lugar (sin recargar). No pisa una clave que nosotros mismos
+// acabamos de escribir hace poco, para no clobbearnos con la vuelta del round-trip.
+async function _livePollSync(){
+  if(document.hidden) return;
+  try{
+    const {data,error}=await _sb.from('sync_data').select('key,value');
+    if(error||!data) return;
+    let changed=false;
+    data.forEach(row=>{
+      if(_SKIP_SYNC.has(row.key)||row.value==null) return;
+      if(_recentlyPushed[row.key] && Date.now()-_recentlyPushed[row.key]<4000) return;
+      if(localStorage.getItem(row.key)!==row.value){
+        localStorage.setItem(row.key,row.value);
+        changed=true;
+      }
+    });
+    if(changed){
+      const activeEl=document.querySelector('.section.active');
+      if(activeEl) _rerenderTab(activeEl.id);
+    }
+  }catch(e){ console.warn('live sync poll error',e); }
+}
+setInterval(_livePollSync, 20000);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INICIO
@@ -4738,16 +4797,23 @@ function renderInicioTareas(){
   const isoHoy=new Date().toISOString().slice(0,10);
   const log=_tareasLog();
   const hoyTareas=log.map((t,idx)=>({...t,idx})).filter(t=>t.fecha===isoHoy);
+  const pendientesViejas=log.map((t,idx)=>({...t,idx})).filter(t=>t.fecha<isoHoy && !t.done);
+  const todas=[...pendientesViejas, ...hoyTareas];
   const rowColor=isMob?'#EFF3F8':'var(--text)';
-  const rows=hoyTareas.map(t=>`
+  const rows=todas.map(t=>{
+    const esVieja=t.fecha<isoHoy;
+    const [y,mo,d]=t.fecha.split('-');
+    const tagVieja=esVieja?`<span style="font-size:10px;font-weight:700;color:#F59E0B;background:${isMob?'rgba(245,158,11,.15)':'#FEF3C7'};border-radius:5px;padding:1px 5px;flex-shrink:0">pend. ${d}/${mo}</span>`:'';
+    return `
     <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
       <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx})" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
       <input value="${t.txt.replace(/"/g,'&quot;')}" onblur="window._inicioTareaEdit(${t.idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;padding:2px 0;font-size:12.5px;${t.done?'text-decoration:line-through;opacity:.5;':''}color:${rowColor}">
+      ${tagVieja}
       <button onclick="window._inicioTareaDel(${t.idx})" style="border:none;background:none;color:${isMob?'rgba(239,243,248,.3)':'var(--hint)'};cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
-    </div>`).join('');
+    </div>`;}).join('');
   const borderCol=isMob?'rgba(255,255,255,.15)':'var(--border)';
   const bgCol=isMob?'rgba(255,255,255,.05)':'#fff';
-  const inputRow=`<div style="display:flex;gap:6px;margin-top:${hoyTareas.length?'8px':'0'}">
+  const inputRow=`<div style="display:flex;gap:6px;margin-top:${todas.length?'8px':'0'}">
     <input id="inicio-tarea-inp" type="text" placeholder="Agregar tarea del día..." onkeydown="if(event.key==='Enter'){window._inicioTareaAdd();}" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid ${borderCol};background:${bgCol};color:${rowColor};font-size:12.5px;outline:none">
     <button onclick="window._inicioTareaAdd()" style="padding:6px 14px;border-radius:8px;border:none;background:#1A56C4;color:#fff;font-weight:700;font-size:13px;cursor:pointer">+</button>
   </div>`;
@@ -18387,10 +18453,10 @@ const JUVENILES = {
             {nom:'Bruno Meza',            pos:'MED', club:'Racing'},
             {nom:'Kevin Miguelez',        pos:'MED', club:'Defensor Sporting'},
             {nom:'Santiago Larrosa',      pos:'MED', club:'River Plate'},
-            {nom:'Thiago Guimaraes',      pos:'MED', club:'Nacional'},
+            {nom:'Thiago Guimaraens',      pos:'MED', club:'Nacional'},
             {nom:'Maximo Bentancor',      pos:'MED', club:'Boston River'},
             {nom:'Kevin Bueno',           pos:'MED', club:'Montevideo City Torque'},
-            {nom:'Ezequiel Alvarez',      pos:'DEL', club:'Boston River'},
+            {nom:'Ezequiel Álvarez',      pos:'DEL', club:'Boston River'},
             {nom:'Manuel Moraes',         pos:'DEL', club:'Liverpool'},
             {nom:'Enzo Scagni',           pos:'DEL', club:'Defensor Sporting'},
             {nom:'Lucio López',           pos:'DEL', club:'Al Ain',           pais:'ae', inv:true},
@@ -18450,7 +18516,7 @@ const JUVENILES = {
             {nom:'Bruno Salvagno',        pos:'DEL', club:'Danubio'},
             {nom:'Maximo Bentancor',      pos:'DEL', club:'Boston River'},
             {nom:'Nahuel Erediez',        pos:'DEL', club:'Peñarol'},
-            {nom:'Ezequiel Alvarez',      pos:'DEL', club:'Boston River'},
+            {nom:'Ezequiel Álvarez',      pos:'DEL', club:'Boston River'},
             {nom:'Thiago Paredes',        pos:'DEL', club:'Nacional'},
             {nom:'Enzo Scagni',           pos:'DEL', club:'Defensor Sporting'},
             {nom:'Matías Pérez',          pos:'MED', club:'AD Alcorcón',        pais:'es', inv:true},
@@ -20685,7 +20751,7 @@ const TORNEO_DESARROLLO_SUB15_2026 = {
       {nom:'Thian Suárez',club:'Deportivo Maldonado'},{nom:'Federico Pereira',club:'Nacional'},{nom:'Bautista González',club:'Racing'},{nom:'Enzo Ferreira',club:'Nacional'},
       {nom:'Joaquín Míguez',club:'Montevideo City Torque'},{nom:'Martín Sagasta',club:'Defensor Sporting'},{nom:'Rafael Feller',club:'Peñarol'},{nom:'Tiziano García',club:'Racing'},
       {nom:'Felipe Newton',club:'Liverpool'},{nom:'Bautista Casco',club:'Liverpool'},{nom:'Bruno Meza',club:'Racing'},{nom:'Kevin Miguelez',club:'Defensor Sporting'},
-      {nom:'Bruno Lotito',club:'Montevideo City Torque'},{nom:'Santiago Larrosa',club:'River Plate'},{nom:'Thiago Guimaraes',club:'Nacional'},{nom:'Máximo Bentancor',club:'Boston River'},
+      {nom:'Bruno Lotito',club:'Montevideo City Torque'},{nom:'Santiago Larrosa',club:'River Plate'},{nom:'Thiago Guimaraens',club:'Nacional'},{nom:'Máximo Bentancor',club:'Boston River'},
       {nom:'Kevin Bueno',club:'Montevideo City Torque'},{nom:'Ezequiel Álvarez',club:'Boston River'},{nom:'Manuel Moraes',club:'Liverpool'},{nom:'Enzo Scagni',club:'Defensor Sporting'},
     ]},
     {fecha:'Microciclo 5 · Jul 2026', jugadores:[
@@ -20722,7 +20788,7 @@ const TORNEO_DESARROLLO_SUB15_2026 = {
     {nom:'Mateo Rodríguez',club:'Plaza Colonia'},{nom:'Enzo Ferreira',club:'Nacional'},
     {nom:'Federico Pereira',club:'Nacional'},{nom:'Juan Raymundo',club:'Liverpool'},
     {nom:'Enzo Scagni',club:'Defensor Sporting'},{nom:'Bautista González',club:'Racing'},
-    {nom:'Thiago Guimaraes',club:'Nacional'},
+    {nom:'Thiago Guimaraens',club:'Nacional'},
     {nom:'Nahuel Matonte',club:'Leganés',pais:'es'},{nom:'Lucio López',club:'Al Ain',pais:'ae'},
     {nom:'Francesco Lopez',club:'Montevideo City Torque'},{nom:'Luca Di Mateo',club:'Nacional'},
     {nom:'Bruno Salvagno',club:'Danubio'},{nom:'Nahuel Erediez',club:'Peñarol'},
@@ -22645,6 +22711,32 @@ async function _autoBackupPhotosToSupabase(){
   }catch(e){ console.warn('auto-backup fotos error', e); }
 }
 window._autoBackupPhotosToSupabase = _autoBackupPhotosToSupabase;
+
+// Detección de versión vieja: la app se fija sola si hay una versión más nueva
+// publicada en el servidor y avisa para actualizar (evita ver datos "viejos" en
+// una pestaña que quedó abierta sin refrescar).
+const APP_BUILD = document.documentElement.dataset.build;
+async function _checkForNewVersion(){
+  try{
+    const r = await fetch('/?_cb=' + Date.now(), { cache:'no-store' });
+    const txt = await r.text();
+    const m = /data-build="([^"]+)"/.exec(txt);
+    if(m && m[1] && m[1] !== APP_BUILD) _showUpdateBanner();
+  }catch(e){ /* sin red o error de fetch: no molestar */ }
+}
+function _showUpdateBanner(){
+  if(document.getElementById('update-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'update-banner';
+  b.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1A56C4;color:#fff;padding:12px 18px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);z-index:999999;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700;max-width:90vw';
+  b.innerHTML = '<span>Hay una versión más nueva de la app</span><button style="background:#fff;color:#1A56C4;border:none;border-radius:9px;padding:7px 14px;font-weight:800;cursor:pointer;font-size:13px">Actualizar</button>';
+  b.querySelector('button').onclick = () => location.reload();
+  document.body.appendChild(b);
+}
+setTimeout(_checkForNewVersion, 15000);
+setInterval(_checkForNewVersion, 120000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) _checkForNewVersion(); });
+
 async function _loadJuvPhotoCache(){
   const all = await getAllPhotosIDB();
   const out = {};
@@ -26692,7 +26784,7 @@ function _renderPlanEvento(id){
       <input type="checkbox" ${it.done?'checked':''} onchange="_planItemToggle('${id}',${idx})" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
       <div style="flex:1;min-width:0">
         <input value="${it.txt.replace(/"/g,'&quot;')}" onblur="_planItemEdit('${id}',${idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;font-size:.85em;font-weight:600;color:var(--text);${it.done?'text-decoration:line-through;opacity:.5':''}">
-        ${it.fecha?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${it.fecha}</div>`:''}
+        ${it.tbd?`<div style="margin-top:2px"><span style="font-size:.68em;font-weight:800;color:#F59E0B;background:#FEF3C7;border-radius:5px;padding:1px 6px">A definir</span></div>`:(it.fecha?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${it.fecha}</div>`:'')}
       </div>
       <button onclick="_planItemDel('${id}',${idx})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
     </div>`;
@@ -26813,6 +26905,28 @@ function _planMigracionCalendario(){
 }
 _planMigracionCalendario();
 setTimeout(_planMigracionCalendario, 4000); // reintento post-cloudPull por si corrió antes de tiempo
+
+// Marca "a definir" los hitos que dependen de una decisión todavía no tomada
+// (Plan A vs Plan B de la conferencia de Forlán: solo se hace uno de los dos).
+function _planMarcarTBD(){
+  try{
+    const list=_planGetAll();
+    let changed=false;
+    const ev=list.find(e=>e.id==='pl_forlan_presentacion');
+    if(ev){
+      (ev.items||[]).forEach(it=>{
+        if(/Conferencia de prensa — Plan [AB]/.test(it.txt) && !it.tbd){
+          it.tbd=true;
+          changed=true;
+        }
+      });
+    }
+    if(changed) _planSave(list);
+    return changed;
+  }catch(_){ return false; }
+}
+_planMarcarTBD();
+setTimeout(_planMarcarTBD, 4000);
 
 // ── Autocomplete PROGRAMA desde medios DB ─────────────────────────────────────
 function _pwProgramaInput(el){
