@@ -4658,6 +4658,21 @@ function renderInicioFotos(){
         });
       });
     }
+    // Juveniles: última convocatoria de cada categoría activa (mismo criterio que usa la pestaña Juveniles)
+    if(typeof JUVENILES!=='undefined'){
+      Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+        if(!catData.activa) return;
+        const anos=Object.keys(catData.anos||{}).sort((a,b)=>parseInt(b)-parseInt(a));
+        const yr=anos[0]; if(!yr) return;
+        const convs=(catData.anos[yr]||{}).convocatorias||[];
+        if(!convs.length) return;
+        const last=convs[convs.length-1];
+        (last.jugadores||[]).forEach(j=>{
+          const has=window._juvGetPhoto?.(j.nom);
+          if(!has) faltantes.push({nom:j.nom, sub:catData.label, onclick:`showSection('juveniles');window._setJuvCat('${catKey}')`});
+        });
+      });
+    }
     if(!faltantes.length) return '';
     const shown=faltantes.slice(0,8);
     const rowColor=isMob?'#EFF3F8':'var(--text)';
