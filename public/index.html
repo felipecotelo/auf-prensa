@@ -4595,7 +4595,7 @@ function renderInicioHoySeleccion(){
     if(!cumples.length && !aniversarioRows && !planHoy.length) return '';
     const body=(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
       +(aniversarioRows?subHdr('🏆 Aniversarios y actividades')+aniversarioRows:'')
-      +(planHoy.length?subHdr('📌 Planificador')+planRows:'');
+      +(planHoy.length?subHdr('Planificador')+planRows:'');
     return _inicioBox('Hoy en Selección', body, '#EC4899', isMob);
   }catch(_){ return ''; }
 }
@@ -26643,15 +26643,23 @@ window._planRename=_planRename;
 function _planItemAdd(id){
   const txt=(prompt('Tarea o hito:')||'').trim();
   if(!txt) return;
-  const fecha=(prompt('Fecha (opcional, ej: 2026-07-29):')||'').trim();
   const list=_planGetAll();
   const ev=list.find(e=>e.id===id); if(!ev) return;
   if(!ev.items) ev.items=[];
-  ev.items.push({txt, fecha, done:false});
+  ev.items.push({txt, fecha:'', done:false});
   _planSave(list);
   _renderPlanEvento(id);
 }
 window._planItemAdd=_planItemAdd;
+function _planItemSetFecha(id,i,value){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev||!ev.items[i]) return;
+  ev.items[i].fecha=value||'';
+  if(value) ev.items[i].tbd=false;
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planItemSetFecha=_planItemSetFecha;
 function _planItemToggle(id,i){
   const list=_planGetAll();
   const ev=list.find(e=>e.id===id); if(!ev||!ev.items[i]) return;
@@ -26784,7 +26792,10 @@ function _renderPlanEvento(id){
       <input type="checkbox" ${it.done?'checked':''} onchange="_planItemToggle('${id}',${idx})" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">
       <div style="flex:1;min-width:0">
         <input value="${it.txt.replace(/"/g,'&quot;')}" onblur="_planItemEdit('${id}',${idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;font-size:.85em;font-weight:600;color:var(--text);${it.done?'text-decoration:line-through;opacity:.5':''}">
-        ${it.tbd?`<div style="margin-top:2px"><span style="font-size:.68em;font-weight:800;color:#F59E0B;background:#FEF3C7;border-radius:5px;padding:1px 6px">A definir</span></div>`:(it.fecha?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${it.fecha}</div>`:'')}
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+          ${it.tbd?`<span style="font-size:.68em;font-weight:800;color:#F59E0B;background:#FEF3C7;border-radius:5px;padding:1px 6px">A definir</span>`:''}
+          <input type="date" value="${it.fecha||''}" onchange="_planItemSetFecha('${id}',${idx},this.value)" style="border:none;background:transparent;outline:none;font-size:.7em;color:var(--muted);padding:0;font-family:inherit;cursor:pointer">
+        </div>
       </div>
       <button onclick="_planItemDel('${id}',${idx})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px">✕</button>
     </div>`;
