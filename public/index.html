@@ -26740,11 +26740,10 @@ function _planPostAdd(id){
   const titulo=(prompt('Título del posteo (ej: Video 1 — compilado de imágenes):')||'').trim();
   if(!titulo) return;
   const mensaje=(prompt('Mensaje a transmitir (opcional):')||'').trim();
-  const grupo=(prompt('Momento (ej: Julio, Agosto — antes de la conferencia):')||'').trim();
   const list=_planGetAll();
   const ev=list.find(e=>e.id===id); if(!ev) return;
   if(!ev.posteos) ev.posteos=[];
-  ev.posteos.push({titulo, mensaje, grupo, estado:'pendiente', link:''});
+  ev.posteos.push({titulo, mensaje, estado:'pendiente', link:''});
   _planSave(list);
   _renderPlanEvento(id);
 }
@@ -26850,16 +26849,8 @@ function _renderPlanEvento(id){
   : `<div style="color:var(--muted);font-size:.82em;padding:12px 0">Sin hitos ni tareas todavía.</div>`;
 
   const posteos=ev.posteos||[];
-  const gruposOrder=[]; const porGrupo={};
-  posteos.forEach((p,i)=>{
-    const g=p.grupo||'Sin agrupar';
-    if(!porGrupo[g]){porGrupo[g]=[];gruposOrder.push(g);}
-    porGrupo[g].push({...p,_i:i});
-  });
-  const postRows=posteos.length?gruposOrder.map(g=>`
-    <div style="margin-bottom:10px">
-      <div style="font-size:.66em;font-weight:800;color:var(--cel-dk);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">${g}</div>
-      ${porGrupo[g].map(p=>`
+  const posteosSorted=posteos.map((p,i)=>({...p,_i:i})).sort((a,b)=>(a.fecha||'zzzz').localeCompare(b.fecha||'zzzz'));
+  const postRows=posteosSorted.length?posteosSorted.map(p=>`
         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border-radius:9px;margin-bottom:4px">
           <div style="flex:1;min-width:0">
             <input value="${(p.titulo||p.txt||'').replace(/"/g,'&quot;')}" onblur="_planPostEdit('${id}',${p._i},'titulo',this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;font-size:.82em;font-weight:700;color:var(--text)">
@@ -26872,8 +26863,7 @@ function _renderPlanEvento(id){
           <button onclick="_planPostCycle('${id}',${p._i})" style="border:1px solid ${_PLAN_POST_COLOR[p.estado||'pendiente']}40;background:${_PLAN_POST_BG[p.estado||'pendiente']};color:${_PLAN_POST_COLOR[p.estado||'pendiente']};border-radius:20px;padding:3px 9px;font-size:.68em;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">${_PLAN_POST_LABEL[p.estado||'pendiente']}</button>
           <button onclick="_planPostLink('${id}',${p._i})" title="Agregar/editar link" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:12px;flex-shrink:0">🔗</button>
           <button onclick="_planPostDel('${id}',${p._i})" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:11px;flex-shrink:0">✕</button>
-        </div>`).join('')}
-    </div>`).join('')
+        </div>`).join('')
   : `<div style="color:var(--muted);font-size:.82em;padding:12px 0">Sin posteos cargados todavía.</div>`;
 
   el.innerHTML=`
