@@ -2993,7 +2993,28 @@ async function _tmSyncAll(force){
     .filter(s=>s.tmId&&(force||!lastSync[s.tmId]||now-lastSync[s.tmId]>TM_TTL))
     .map(s=>({nom:s.nom,tmId:s.tmId,source:'local'}));
 
-  const toSync=[...mayorList,...localList];
+  // Jugadores Juveniles (de las convocatorias de JUVENILES) — un jugador puede
+  // aparecer en varios microciclos/años con el mismo tmId, solo hace falta sincronizarlo una vez.
+  const juvClubOvr=typeof getJuvClub==='function'?getJuvClub():{};
+  const juvSeenTm=new Set();
+  const juvList=[];
+  if(typeof JUVENILES!=='undefined'){
+    Object.values(JUVENILES).forEach(catData=>{
+      Object.values(catData.anos||{}).forEach(anoData=>{
+        (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+          if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId}); }
+        }));
+        (anoData.lista||[]).forEach(j=>{
+          if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId}); }
+        });
+      });
+    });
+  }
+  const juvSyncList=juvList
+    .filter(j=>force||!lastSync[j.tmId]||now-lastSync[j.tmId]>TM_TTL)
+    .map(j=>({nom:j.nom,tmId:j.tmId,source:'juv'}));
+
+  const toSync=[...mayorList,...localList,...juvSyncList];
   if(!toSync.length) return 0;
   let updated=0;
   for(const {nom,tmId,source} of toSync){
@@ -3013,10 +3034,22 @@ async function _tmSyncAll(force){
           jugClub[nom]=clubName;
           const flag=TM_FLAG[countryName]||'';
           if(flag) jugClub[nom+'__pais']=flag;
-        } else {
+        } else if(source==='local'){
           // Local: guardar en KLocalClub
           if(!localClubOvr[nom]) localClubOvr[nom]={};
           localClubOvr[nom].actual=clubName;
+        } else if(source==='juv'){
+          // Juveniles: guardar en KJuvClub
+          if(!juvClubOvr[nom]) juvClubOvr[nom]={exClubs:[]};
+          const prevJuv=juvClubOvr[nom].actual;
+          if(prevJuv && prevJuv!==clubName){
+            const exListJ=juvClubOvr[nom].exClubs||[];
+            if(!exListJ.includes(prevJuv)) exListJ.push(prevJuv);
+            juvClubOvr[nom].exClubs=exListJ;
+          }
+          juvClubOvr[nom].actual=clubName;
+          // Nota: TM_FLAG da emoji (para Mayor); Juveniles usa código ISO de 2 letras
+          // para flagcdn.com, así que acá no tocamos "pais" — se deja el que ya tenía.
         }
         lastSync[tmId]=now;
         updated++;
@@ -3028,19 +3061,25 @@ async function _tmSyncAll(force){
     stor.set(KJugClub,jugClub);
     stor.set(KJugExClubs,exClubs);
     if(localList.length) stor.set(KLocalClub,localClubOvr);
+    if(juvSyncList.length) stor.set(KJuvClub,juvClubOvr);
     stor.set(KTmSync,lastSync);
   }
   return updated;
 }
+function _tmRefreshViews(){
+  if(typeof renderJugadores==='function') renderJugadores();
+  if(typeof window.renderJuveniles==='function') window.renderJuveniles();
+  if(typeof renderSecLocal==='function') renderSecLocal();
+}
 // Auto-sync on load (background, sin bloquear render)
 window.addEventListener('load',()=>setTimeout(()=>_tmSyncAll(false).then(n=>{
-  if(n>0){console.log(`TM sync: ${n} clubes actualizados`);if(typeof renderJugadores==='function')renderJugadores();}
+  if(n>0){console.log(`TM sync: ${n} clubes actualizados`);_tmRefreshViews();}
 }),2000));
 window._tmSyncManual=async function(){
   const btn=document.getElementById('tm-sync-btn'); if(!btn) return;
   btn.disabled=true; btn.textContent='⏳ Sincronizando…';
   const n=await _tmSyncAll(true);
-  if(typeof renderJugadores==='function') renderJugadores();
+  _tmRefreshViews();
   btn.disabled=false; btn.textContent=n>0?`✓ ${n} clubes actualizados`:'✓ Todo al día';
   setTimeout(()=>{if(btn)btn.textContent='↻ Sincronizar clubes (TM)';},3000);
 };
