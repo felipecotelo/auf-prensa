@@ -24560,6 +24560,17 @@ function _pwId(){ return Date.now().toString(36)+Math.random().toString(36).slic
   if(changed) _pwSave(list);
 })();
 
+// Migración: unifica los formatos viejos (Individual/Conferencia/Stand-up eran presenciales
+// en la práctica) al mismo set de 5 opciones en todas las solicitudes: presencial, zoom,
+// telefonica, movil, escrita.
+(function _pwMigrateFormatos(){
+  const MAP={individual:'presencial',conferencia:'presencial',standup:'presencial'};
+  const list=_pwGetAll();
+  let changed=false;
+  list.forEach(vw=>(vw.solicitudes||[]).forEach(s=>{if(MAP[s.formato]){s.formato=MAP[s.formato];changed=true;}}));
+  if(changed) _pwSave(list);
+})();
+
 function _pwPersonOptions(){
   const opts = [];
   // Una sola marca de "ya visto" para TODAS las fuentes — antes cada lista se
@@ -24604,8 +24615,8 @@ function _pwPersonSelect(selected=''){
   return html;
 }
 
-const _pwFmtLabel = t=>({individual:'Individual',conferencia:'Conferencia de prensa',standup:'Stand-up',escrita:'Nota escrita',telefonica:'Telefónica'}[t]||t||'—');
-const _pwFmtColor = t=>({individual:'#1D4ED8',conferencia:'#7C3AED',standup:'#0F766E',escrita:'#B45309',telefonica:'#6B7280'}[t]||'#6B7280');
+const _pwFmtLabel = t=>({presencial:'Presencial',zoom:'Zoom',telefonica:'Telefónica',movil:'Móvil',escrita:'Escrita'}[t]||t||'—');
+const _pwFmtColor = t=>({presencial:'#1D4ED8',zoom:'#0F766E',telefonica:'#6B7280',movil:'#7C3AED',escrita:'#B45309'}[t]||'#6B7280');
 const _pwEstColor = s=>({pendiente:'#D97706',aceptada:'#16A34A',rechazada:'#DC2626',realizada:'#0F766E',cancelada:'#9CA3AF'}[s]||'#6B7280');
 const _pwFmtDate = d=>{ if(!d) return ''; const [y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; };
 
@@ -25115,7 +25126,7 @@ function _pwEnsureAgModal(){
         <div>
           <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:6px">FORMATO</label>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${['Presencial','Telefónica','Zoom','Móvil'].map(f=>`<button type="button" onclick="_pwAgFmt('${f}')" id="pw-agfmt-${f.toLowerCase().replace('ó','o')}" style="padding:6px 14px;border-radius:20px;font-size:.8em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${f}</button>`).join('')}
+            ${['Presencial','Zoom','Telefónica','Móvil','Escrita'].map(f=>`<button type="button" onclick="_pwAgFmt('${f}')" id="pw-agfmt-${f.toLowerCase().replace('ó','o')}" style="padding:6px 14px;border-radius:20px;font-size:.8em;font-weight:700;cursor:pointer;border:1.5px solid #CBD5E1;background:transparent;color:#64748B">${f}</button>`).join('')}
           </div>
         </div>
       </div>
@@ -25872,7 +25883,7 @@ function _pwSolQuienInput(inp){
 }
 
 // ── Registro libre: vista y CRUD de atenciones ────────────────────────────────
-const _pwFmtAten={individual:'Individual',conferencia:'Conferencia',standup:'Stand-up',escrita:'Nota escrita',telefonica:'Telefónica',zoom:'Zoom'};
+const _pwFmtAten={presencial:'Presencial',zoom:'Zoom',telefonica:'Telefónica',movil:'Móvil',escrita:'Escrita'};
 let _pwAtenEditIdx=null;
 
 function _renderVentanaRegistro(vw, list){
@@ -26197,7 +26208,7 @@ function _pwAgTab(mode){
 }
 function _pwAgFmt(f){
   _pwAgFmtVal=_pwAgFmtVal===f?'':f;
-  ['Presencial','Telefónica','Zoom','Móvil'].forEach(k=>{
+  ['Presencial','Zoom','Telefónica','Móvil','Escrita'].forEach(k=>{
     const btn=document.getElementById('pw-agfmt-'+k.toLowerCase().replace('ó','o'));
     if(!btn)return;
     const on=_pwAgFmtVal===k;
