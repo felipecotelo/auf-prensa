@@ -21639,6 +21639,20 @@ function _gnavCollectResults(q, mode){
         if(!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);jugadores.push({nom,sub:[...cats].join(' · '),section:'juveniles',foto:null});}
       });
     }catch(_){}
+    // Jugadores que solo viven en el convocados/preparación de una competencia puntual
+    // (torneos, amistosos) y no se repiten en las convocatorias del ciclo/año.
+    try{
+      if(typeof COMP_DATA!=='undefined') Object.values(COMP_DATA).forEach(comp=>{
+        if(!comp) return;
+        const label=comp.label||'';
+        const all=[...(comp.convocados||[]), ...(comp.preparacion||[]), ...(comp.lista||[])];
+        (comp.convocatorias||[]).forEach(c=>all.push(...(c.jugadores||[])));
+        all.forEach(j=>{
+          const nom=j.nom;
+          if(nom&&!seen.has(nom)&&_gnavNorm(nom).includes(q)){seen.add(nom);jugadores.push({nom,sub:label,section:'juveniles',foto:null});}
+        });
+      });
+    }catch(_){}
     jugadores.sort((a,b)=>a.nom.localeCompare(b.nom));
   }
   if(mode!=='jugador'){
