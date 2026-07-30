@@ -21001,7 +21001,35 @@ const SUD20_2027 = {
     {iso:'uy', name:'Gabriel Skrilec', rol:'Videoanalista'},
   ],
   delegacion:[],
-  convocados:[],
+  convocados:[
+    {num:1,  nom:'Lucas Quimbo',          club:'Juventud',                  pos:'POR', pais:'uy'},
+    {num:2,  nom:'Felipe Ortiz',          club:'Deportivo Maldonado',       pos:'POR', pais:'uy'},
+    {num:3,  nom:'Paulo Da Costa',        club:'Peñarol',                   pos:'POR', pais:'uy'},
+    {num:4,  nom:'Ian Colina',            club:'River Plate',               pos:'POR', pais:'uy'},
+    {num:5,  nom:'Pablo Cardozo',         club:'Danubio',                   pos:'DEF', pais:'uy'},
+    {num:6,  nom:'Benjamín García',       club:'Montevideo City Torque',    pos:'DEF', pais:'uy'},
+    {num:7,  nom:'Mateo Caballero',       club:'Defensor Sporting',         pos:'DEF', pais:'uy'},
+    {num:8,  nom:'Rodrigo Álvez',         club:'Peñarol',                   pos:'DEF', pais:'uy'},
+    {num:9,  nom:'Yuri Oyarzo',           club:'Racing',                    pos:'DEF', pais:'uy'},
+    {num:10, nom:'Román Clematte',        club:'Nacional',                  pos:'DEF', pais:'uy'},
+    {num:11, nom:'Mateo Soria',           club:'Nacional',                  pos:'MED', pais:'uy'},
+    {num:12, nom:'Tomás Shaw',            club:'Montevideo City Torque',    pos:'MED', pais:'uy'},
+    {num:13, nom:'Germán Barbas',         club:'Peñarol',                   pos:'MED', pais:'uy'},
+    {num:14, nom:'Lautaro Ultra',         club:'Oriental de la Paz',        pos:'MED', pais:'uy'},
+    {num:15, nom:'Alexander Velázquez',   club:'Danubio',                   pos:'DEL', pais:'uy'},
+    {num:16, nom:'Facundo Martínez',      club:'Montevideo City Torque',    pos:'DEL', pais:'uy'},
+    {num:17, nom:'Alan Torterolo',        club:'Defensor Sporting',         pos:'DEL', pais:'uy'},
+    {num:18, nom:'Lautaro Navarro',       club:'Defensor Sporting',         pos:'DEL', pais:'uy'},
+    {num:19, nom:'Thiago Fernández',      club:'Racing',                    pos:'DEL', pais:'uy'},
+    {num:20, nom:'Ramiro Lecchini',       club:'Montevideo City Torque',    pos:'DEL', pais:'uy'},
+    {num:21, nom:'Nicolás Pérez',         club:'Montevideo City Torque',    pos:'DEF', pais:'uy'},
+    {num:22, nom:'Diego Abella',          club:'Defensor Sporting',         pos:'DEF', pais:'uy'},
+    {num:23, nom:'Damián García',         club:'Danubio',                   pos:'DEF', pais:'uy'},
+    {num:24, nom:'Kevin Suárez',          club:'Defensor Sporting',         pos:'MED', pais:'uy'},
+    {num:25, nom:'Facundo Carámbula',     club:'Rentistas',                 pos:'MED', pais:'uy'},
+    {num:26, nom:'Luciano Rodríguez',     club:'Nacional',                  pos:'DEF', pais:'uy'},
+    {num:27, nom:'Ezequiel Amaro',        club:'Paysandú Fútbol Club',      pos:'MED', pais:'uy'},
+  ],
   preparacion:[],
   partidos:[],
   fixture:[],
@@ -21016,7 +21044,9 @@ const ODESUR_2026 = {
   tipo:'oficial',
   fecha:'12 – 26 de setiembre de 2026 · Argentina',
   ct:[],
-  convocados:[
+  convocados:[],
+  // 44 reservados — la convocatoria final va a ser más chica, todavía no está definida.
+  preparacion:[
     {num:1,  nom:'Axell Amaral',               club:'Al Ain',                     pos:'POR', pais:'ae'},
     {num:2,  nom:'Felipe Ortiz',               club:'Deportivo Maldonado',         pos:'POR', pais:'uy'},
     {num:3,  nom:'Paulo Da Costa',             club:'Peñarol',                     pos:'POR', pais:'uy'},
@@ -24532,33 +24562,35 @@ function _pwId(){ return Date.now().toString(36)+Math.random().toString(36).slic
 
 function _pwPersonOptions(){
   const opts = [];
+  // Una sola marca de "ya visto" para TODAS las fuentes — antes cada lista se
+  // deduplicaba contra sí misma nomás, así que alguien presente en dos listas
+  // (ej. Estructura + Delegación) aparecía dos veces en el buscador.
+  const seen = new Set();
+  const push = (key,label,rol,cat) => {
+    if(seen.has(label)) return;
+    seen.add(label);
+    opts.push({key,label,rol,cat});
+  };
   // Staff AUF (Estructura de Selección)
-  ESTRUCTURA_PERSONAS.forEach(d=>d.personas.forEach(p=>opts.push({key:p.key, label:p.label, rol:p.rol, cat:d.dept})));
+  ESTRUCTURA_PERSONAS.forEach(d=>d.personas.forEach(p=>push(p.key, p.label, p.rol, d.dept)));
   // CT Mayor desde DELEGACION (datos a nivel de módulo)
-  const ctSeen = new Set();
   if(typeof DELEGACION!=='undefined'){
-    DELEGACION.forEach(area=>(area.people||[]).forEach(m=>{
-      if(!ctSeen.has(m.name)){ ctSeen.add(m.name); opts.push({key:'ct:'+m.name, label:m.name, rol:m.role||'Cuerpo técnico', cat:area.area}); }
-    }));
+    DELEGACION.forEach(area=>(area.people||[]).forEach(m=>push('ct:'+m.name, m.name, m.role||'Cuerpo técnico', area.area)));
   }
   // CT Mayor desde convocatorias (fallback)
   (typeof BIELSA_CONVOCATORIAS!=='undefined'?BIELSA_CONVOCATORIAS:[]).forEach(c=>{
-    (c.ct||[]).forEach(m=>{ if(!ctSeen.has(m.name)){ ctSeen.add(m.name); opts.push({key:'ct:'+m.name, label:m.name, rol:m.rol||'Cuerpo técnico Mayor', cat:'Cuerpo técnico Mayor'}); } });
+    (c.ct||[]).forEach(m=>push('ct:'+m.name, m.name, m.rol||'Cuerpo técnico Mayor', 'Cuerpo técnico Mayor'));
   });
   // CT Juveniles
   if(typeof JUVENILES!=='undefined'){
-    const juvSeen = new Set();
     Object.entries(JUVENILES).forEach(([catKey,catData])=>{
       Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
-        (anoData.ct||[]).forEach(m=>{
-          const k='juv:'+m.name;
-          if(!juvSeen.has(k)){ juvSeen.add(k); opts.push({key:k, label:m.name, rol:m.rol||'Cuerpo técnico', cat:(catData.label||catKey)+' '+yr}); }
-        });
+        (anoData.ct||[]).forEach(m=>push('juv:'+m.name, m.name, m.rol||'Cuerpo técnico', (catData.label||catKey)+' '+yr));
       });
     });
   }
   // Jugadores Mayor
-  (typeof PLAYERS!=='undefined'?PLAYERS:[]).forEach(p=>opts.push({key:'p:'+p.n, label:p.name, rol:p.pos+' · '+p.club, cat:'Jugadores Mayor'}));
+  (typeof PLAYERS!=='undefined'?PLAYERS:[]).forEach(p=>push('p:'+p.n, p.name, p.pos+' · '+p.club, 'Jugadores Mayor'));
   return opts;
 }
 
