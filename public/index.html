@@ -22807,14 +22807,16 @@ window._autoBackupPhotosToSupabase = _autoBackupPhotosToSupabase;
 
 // Detección de versión vieja: la app se fija sola si hay una versión más nueva
 // publicada en el servidor y avisa para actualizar (evita ver datos "viejos" en
-// una pestaña que quedó abierta sin refrescar).
-const APP_BUILD = document.documentElement.dataset.build;
+// una pestaña que quedó abierta sin refrescar). Usa el header Last-Modified real
+// del servidor — no depende de acordarse de actualizar un valor a mano en cada deploy.
+let _APP_LAST_MODIFIED = null;
 async function _checkForNewVersion(){
   try{
-    const r = await fetch('/?_cb=' + Date.now(), { cache:'no-store' });
-    const txt = await r.text();
-    const m = /data-build="([^"]+)"/.exec(txt);
-    if(m && m[1] && m[1] !== APP_BUILD) _showUpdateBanner();
+    const r = await fetch('/?_cb=' + Date.now(), { method:'HEAD', cache:'no-store' });
+    const lm = r.headers.get('last-modified');
+    if(!lm) return;
+    if(_APP_LAST_MODIFIED===null){ _APP_LAST_MODIFIED=lm; return; }
+    if(lm !== _APP_LAST_MODIFIED) _showUpdateBanner();
   }catch(e){ /* sin red o error de fetch: no molestar */ }
 }
 function _showUpdateBanner(){
