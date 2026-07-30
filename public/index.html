@@ -4367,7 +4367,7 @@ function showTournament(id){
 }
 
 function showTab(id){
-  if(IS_RESTRICTED&&!RESTRICTED_TABS.includes(id)) return;
+  if(IS_RESTRICTED&&!RESTRICTED_TABS.includes(id)&&!RESTRICTED_TABS.includes(id.replace(/^sec-/,''))) return;
   stor.set('auf4_lastTab',id);
   document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active','dmode-visible');});
   const _sec=document.getElementById(id);
@@ -15350,9 +15350,11 @@ const LINK_TABS_DEF=[
   {id:'periplo',      label:'Mi periplo',          icon:'ti-map-pin'},
   {id:'linkgen',      label:'Links',               icon:'ti-link'},
   {id:'prensa',       label:'Prensa',              icon:'ti-microphone-2',  seccion:true},
+  {id:'redes',        label:'Redes',               icon:'ti-chart-arrows-vertical', seccion:true},
   {id:'estructura',   label:'Estructura',          icon:'ti-sitemap',       seccion:true},
   {id:'juveniles',    label:'Selecciones Juveniles',icon:'ti-users-group',  seccion:true},
   {id:'local',        label:'Selección Local',     icon:'ti-home-shield',   seccion:true},
+  {id:'planificador', label:'Planificador',        icon:'ti-clipboard-list',seccion:true},
 ];
 
 let _lgEdit=null; // id del perfil en edición
@@ -15800,8 +15802,24 @@ function lgCopy(i,url){
     }
   })();
   if(IS_RESTRICTED){
-    // Si hay token y no fue autenticado aún, mostrar modal de contraseña
+    // Revocación real: este link solo sigue vivo si todavía existe un perfil igual
+    // (mismas secciones + mismo token) en "Links". Si se borró desde ahí, deja de
+    // funcionar acá aunque alguien tenga la contraseña — antes borrar no cortaba nada.
     const _rToken=window.__AUF_RTOKEN||sessionStorage.getItem('auf_rtoken');
+    let _linkSigueVivo=true;
+    try{
+      const _r=await fetch(_SB_URL+'/rest/v1/sync_data?key=eq.auf4_links&select=value',{headers:{apikey:_SB_KEY,Authorization:'Bearer '+_SB_KEY}});
+      const _j=await _r.json();
+      const _profiles=_j[0]?JSON.parse(_j[0].value):[];
+      const _tabsKey=RESTRICTED_TABS.slice().sort().join(',');
+      _linkSigueVivo=_profiles.some(p=>(p.tabs||[]).slice().sort().join(',')===_tabsKey && (p.token||'')===(_rToken||''));
+    }catch(_){ /* si falla la red no bloqueamos, para no cortar accesos por un error de conexión */ }
+    if(!_linkSigueVivo){
+      document.documentElement.classList.remove('auf-gate');
+      document.body.innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0A0A0F;font-family:system-ui,sans-serif;color:#F9FAFB;text-align:center;padding:2rem"><div><div style="font-size:12px;font-weight:800;letter-spacing:.15em;color:#009DD8;text-transform:uppercase;margin-bottom:1rem">AUF Prensa · FWC26</div><h2 style="font-size:18px;font-weight:700;margin:0 0 .5rem">Este link ya no está disponible</h2><p style="font-size:13px;color:#6B7280;margin:0">Pedí uno nuevo a quien te lo compartió.</p></div></div>';
+      return;
+    }
+    // Si hay token y no fue autenticado aún, mostrar modal de contraseña
     if(_rToken && !window.__AUF_AUTHED && sessionStorage.getItem('auf_authed')!=='1'){
       await new Promise(resolve=>{
         // Modal sobre el html (no sobre body — body está visibility:hidden)
@@ -15843,7 +15861,7 @@ function lgCopy(i,url){
     await renderPlantel();
     renderEstadisticas();
     const _firstTab=RESTRICTED_TABS[0]||'estadisticas';
-    const _globalSecs=['prensa','estructura','juveniles','local'];
+    const _globalSecs=['prensa','redes','estructura','juveniles','local','planificador'];
     if(_globalSecs.includes(_firstTab)){ showSection(_firstTab); } else { showTab(_firstTab); }
   } else {
     document.documentElement.classList.remove('auf-gate');
