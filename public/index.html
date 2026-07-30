@@ -9079,6 +9079,9 @@ function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom
 function _toggleJuvLesionado(nom){const s=stor.get('auf4_juv_lesionado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_juv_lesionado',s);window.renderJuveniles?.();}
 window._copyWaFotos=function(btn,msg){navigator.clipboard.writeText(msg).then(()=>{const orig=btn.textContent;btn.textContent='✓ Copiado';setTimeout(()=>btn.textContent=orig,2000);});};
 function _toggleLocalRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderSecLocal?.();}
+function _toggleCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);renderJugadores();}
+function _toggleJuvCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);window.renderJuveniles?.();}
+function _toggleLocalCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);renderSecLocal?.();}
 function _toggleLocalFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);renderSecLocal?.();}
 
 // ─── SISTEMA DE SANCIONES ────────────────────────────────────────────────────
@@ -9920,8 +9923,10 @@ function renderJugadores(){
     const nomSafe=nom.replace(/'/g,"\\'");
     const leyendas=stor.get('auf4_leyendas',{});
     const retirados=stor.get('auf4_retirado',{});
+    const capitanes=stor.get('auf4_capitan',{});
     const isLeyenda=LEYENDAS_SET.has(nom)||!!leyendas[nom];
     const isRetirado=!!retirados[nom];
+    const isCapitan=!!capitanes[nom];
     const selOtra=d.selOtra||null; // código de país (ej: 'py') si eligió otra selección
     const lesion=getLesiones()[nom]||null;
     const isFallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!stor.get('auf4_fallecido_mayor',{})[nom];
@@ -9984,6 +9989,7 @@ function renderJugadores(){
     return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${_lesionBorder};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
       ${_fallBadge}
       <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyenda?1:.2};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
+      <button onclick="event.stopPropagation();_toggleCapitan('${nomSafe}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1">C</button>
       <div style="display:flex;align-items:center;gap:11px;${isRetOrDead?'margin-top:8px':''}${isRetOrDead?';opacity:.55':''}">
         <div onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${isRetOrDead?'grayscale(1)':''}">
           <div id="mayor-av-${mayorKeyEnc}">${avatar(nom, pos, cachedPhoto, 54)}</div>
@@ -16540,6 +16546,7 @@ function _renderLocalHome(){
     const pais = `<img src="https://flagcdn.com/w20/${j.clubPais||'uy'}.png" style="height:9px;border-radius:1px;vertical-align:middle" onerror="this.style.display='none'">`;
     const isRetirado = !!(stor.get('auf4_retirado',{})[j.nom]);
     const isFallecido = !!(stor.get('auf4_fallecido',{})[j.nom]);
+    const isCapitan = !!(stor.get('auf4_capitan',{})[j.nom]);
     const _nacIso = getMayorNac()[j.nom] || (JUGADORES[j.nom] ? JUGADORES[j.nom].fechaNac||JUGADORES[j.nom].nac||'' : '');
     const _nacAge2 = _nacIso ? _nacAge(_nacIso) : null;
     const _nacFmtStr = _nacIso ? _nacFmt(_nacIso) : '';
@@ -16549,6 +16556,7 @@ function _renderLocalHome(){
       <span style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:5px;padding:1px 6px;font-size:7.5px;font-weight:800;text-transform:uppercase">${j.pos||'—'}</span>
     </div>`;
     return `<div onclick="_localOpenJug('${nomSafe}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
+      <button onclick="event.stopPropagation();_toggleLocalCapitan('${nomSafe}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:1">C</button>
       <div style="display:flex;align-items:center;gap:11px">
         <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer">
           <div id="loc-av-${photoKeyEnc}" style="width:54px;height:54px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;overflow:hidden">
@@ -23241,8 +23249,10 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const isJuvRetirado = p.retirado || !!(stor.get('auf4_retirado',{})[p.nom]);
   const isJuvFallecido = p.fallecido || !!(stor.get('auf4_fallecido',{})[p.nom]);
   const isJuvLesionado = !!(stor.get('auf4_juv_lesionado',{})[p.nom]);
+  const isJuvCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
   const _champBorder = isChamp?'#F59E0B':isChamp17?'#1D4ED8':isFinal13?'#6B7280':'var(--border)';
-  return `<div style="background:var(--card);border:1px solid ${_champBorder};border-radius:12px;padding:13px">
+  return `<div style="background:var(--card);border:1px solid ${_champBorder};border-radius:12px;padding:13px;position:relative">
+    <button onclick="event.stopPropagation();_toggleJuvCapitan('${nomSafe}')" title="${isJuvCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isJuvCapitan?'#CA8A04':'none'};color:${isJuvCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isJuvCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:1">C</button>
     <div style="display:flex;align-items:center;gap:11px">
       <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:54px;height:54px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1em;flex-shrink:0;border:2px solid ${_champBorder};cursor:pointer;overflow:visible">
         <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
