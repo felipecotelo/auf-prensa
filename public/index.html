@@ -3306,7 +3306,7 @@ function _editLesion(nom){
     if(nota===null) return;
     setLesion(nom,{meses:m,nota:nota.trim(),fechaIni:d.fechaIni||new Date().toISOString().slice(0,10)});
   }
-  if(typeof renderJugadores==='function') renderJugadores();
+  if(typeof _refreshAllFichaViews==='function') _refreshAllFichaViews();
 }
 const getJuvSparring = () => stor.get(KJuvSparring, {});
 const addJuvSparring = (nom, evento) => {
@@ -4519,7 +4519,7 @@ function renderInicioHoySeleccion(){
 
     // ── Cumpleaños ──────────────────────────────────────────────────────────
     const cumples=[];
-    const fallecidoMayorLS=stor.get('auf4_fallecido_mayor',{});
+    const fallecidoMayorLS=stor.get('auf4_fallecido',{});
     const legends=typeof getLegends==='function'?getLegends():new Set();
     if(typeof JUGADORES!=='undefined'){
       Object.entries(JUGADORES).forEach(([nom,d])=>{
@@ -4747,7 +4747,7 @@ function renderInicioProximo(){
     }
     // Cumpleaños de leyendas y del plantel actual (no de toda la base histórica, para no llenar de ruido)
     const legends=typeof getLegends==='function'?getLegends():new Set();
-    const fallecidoMayorLS=stor.get('auf4_fallecido_mayor',{});
+    const fallecidoMayorLS=stor.get('auf4_fallecido',{});
     const cumpleNombres=new Set(legends);
     if(typeof PLAYERS!=='undefined') PLAYERS.forEach(p=>cumpleNombres.add(p.name));
     if(typeof JUGADORES!=='undefined'){
@@ -4823,6 +4823,22 @@ function _migrarTareasViejas(){
 }
 _migrarTareasViejas();
 setTimeout(_migrarTareasViejas, 4000);
+
+// Unifica "fallecido" en una sola clave para Mayor/Local/Juveniles (antes Mayor
+// usaba una clave propia, auf4_fallecido_mayor). Solo agrega lo que falte, nunca borra.
+function _migrarFallecidoUnico(){
+  try{
+    const old=JSON.parse(localStorage.getItem('auf4_fallecido_mayor')||'null');
+    if(!old) return false;
+    const cur=stor.get('auf4_fallecido',{});
+    let changed=false;
+    Object.keys(old).forEach(nom=>{ if(!cur[nom]){ cur[nom]=true; changed=true; } });
+    if(changed) stor.set('auf4_fallecido',cur);
+    return changed;
+  }catch(_){ return false; }
+}
+_migrarFallecidoUnico();
+setTimeout(_migrarFallecidoUnico, 4000);
 window._inicioTareaAdd=function(){
   const inp=document.getElementById('inicio-tarea-inp');
   const txt=(inp?.value||'').trim();
@@ -9071,18 +9087,29 @@ function _patchMayorPhotos(){
     el.innerHTML=`<img src="${photo}" alt="${nom}" loading="lazy" style="width:54px;height:54px;border-radius:50%;object-fit:cover;object-position:top center;border:2px solid ${col}44" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:54px;height:54px;border-radius:50%;background:${col};align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0;letter-spacing:-.5px">${nom.split(' ').filter(w=>/^[A-ZÁÉÍÓÚÑÜ]/.test(w)).slice(0,2).map(w=>w[0]).join('')}</div>`;
   });
 }
-function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_leyendas',s);renderJugadores();}
-function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderJugadores();}
-function _toggleFallecidoMayor(nom){const s=stor.get('auf4_fallecido_mayor',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido_mayor',s);renderJugadores();}
-function _toggleJuvRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);window.renderJuveniles?.();}
-function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);window.renderJuveniles?.();}
-function _toggleJuvLesionado(nom){const s=stor.get('auf4_juv_lesionado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_juv_lesionado',s);window.renderJuveniles?.();}
+// Refresca cualquier vista de fichas que esté montada — Mayor, Local y Juveniles
+// comparten las mismas marcas (leyenda/retiro/fallecido/sanción/capitán/lesión),
+// así que un cambio hecho desde cualquiera de las tres debe verse en las tres.
+function _refreshAllFichaViews(){
+  if(typeof renderJugadores==='function') renderJugadores();
+  if(typeof renderSecLocal==='function') renderSecLocal();
+  if(typeof window.renderJuveniles==='function') window.renderJuveniles();
+}
+function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_leyendas',s);_refreshAllFichaViews();}
+function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);_refreshAllFichaViews();}
+function _toggleFallecidoMayor(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);_refreshAllFichaViews();}
+function _toggleJuvRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);_refreshAllFichaViews();}
+function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);_refreshAllFichaViews();}
+function _toggleJuvLesionado(nom){ _editLesion(nom); }
 window._copyWaFotos=function(btn,msg){navigator.clipboard.writeText(msg).then(()=>{const orig=btn.textContent;btn.textContent='✓ Copiado';setTimeout(()=>btn.textContent=orig,2000);});};
-function _toggleLocalRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);renderSecLocal?.();}
-function _toggleCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);renderJugadores();}
-function _toggleJuvCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);window.renderJuveniles?.();}
-function _toggleLocalCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);renderSecLocal?.();}
-function _toggleLocalFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);renderSecLocal?.();}
+function _toggleLocalRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);_refreshAllFichaViews();}
+function _toggleCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
+function _toggleJuvCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
+function _toggleLocalCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
+function _toggleLocalFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);_refreshAllFichaViews();}
+function _toggleLocalLesionado(nom){ _editLesion(nom); }
+function _toggleLocalLeyenda(nom){ _toggleLeyenda(nom); }
+function _toggleJuvLeyenda(nom){ _toggleLeyenda(nom); }
 
 // ─── SISTEMA DE SANCIONES ────────────────────────────────────────────────────
 window._getSanciones=function(nom){return stor.get('auf4_sanciones',{})[nom]||[];};
@@ -9929,7 +9956,7 @@ function renderJugadores(){
     const isCapitan=!!capitanes[nom];
     const selOtra=d.selOtra||null; // código de país (ej: 'py') si eligió otra selección
     const lesion=getLesiones()[nom]||null;
-    const isFallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!stor.get('auf4_fallecido_mayor',{})[nom];
+    const isFallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!stor.get('auf4_fallecido',{})[nom];
     const fallecidoDate=isFallecido?LEYENDAS_FALLECIDOS[nom]:null;
     const isRetOrDead=isRetirado||isFallecido||!!selOtra;
     const borderStyle=isLeyenda?'2px solid #F59E0B':'1px solid var(--border)';
@@ -10009,9 +10036,9 @@ function renderJugadores(){
         ${d.total&&d.total.pj!=null?`<span style="font-size:.68em;font-weight:600;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">— PJ</span>`}
         <div style="display:flex;gap:3px;margin-left:auto;align-items:center">
           ${lesion?`<span onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion.nota||'Lesión larga'} · ${lesion.meses} meses · Click para editar" style="display:inline-flex;align-items:center;gap:3px;background:#FEF9C3;color:#92400E;border:1px solid #FDE68A;border-radius:20px;padding:2px 7px;font-size:.6em;font-weight:700;cursor:pointer;white-space:nowrap;margin-right:4px">🩹 ${lesion.nota||lesion.meses+'m'}</span>`:''}
+          <button onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion?'Editar lesión':'Marcar lesión larga'}" style="background:${lesion?'#F59E0B':'transparent'};border:1.5px solid ${lesion?'#F59E0B':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${lesion?'#fff':'#CBD5E1'}">L</button>
           <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
           <button onclick="event.stopPropagation();_toggleFallecidoMayor('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#44403C':'transparent'};border:1.5px solid ${isFallecido?'#44403C':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isFallecido?'#FDE68A':'#CBD5E1'}">F</button>
-          <button onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion?'Editar lesión':'Marcar lesión larga'}" style="background:${lesion?'#F59E0B':'transparent'};border:1.5px solid ${lesion?'#F59E0B':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${lesion?'#fff':'#CBD5E1'}">L</button>
           ${(()=>{const _hs=(window._getSanciones?window._getSanciones(nom):[]);return`<button onclick="event.stopPropagation();_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(s=>s.ano+': '+s.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#DC2626':'transparent'};border:1.5px solid ${_hs.length?'#DC2626':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${_hs.length?'#fff':'#CBD5E1'}">S</button>`;})()}
         </div>
       </div>
@@ -13737,7 +13764,7 @@ function buildAllHistFromJugadores(){
   const PC={POR:'#CA8A04',DEF:'#16a34a',MED:'#2563EB',DEL:'#EA580C'};
 
   const retiradosLS=stor.get('auf4_retirado',{});
-  const fallecidosLS=stor.get('auf4_fallecido_mayor',{});
+  const fallecidosLS=stor.get('auf4_fallecido',{});
   const all=Object.entries(JUGADORES).map(([nom,d])=>{
     const pp=byName[nom];
     const isRet=!!(d.retirado||d.selOtra||retiradosLS[nom]);
@@ -16547,6 +16574,8 @@ function _renderLocalHome(){
     const isRetirado = !!(stor.get('auf4_retirado',{})[j.nom]);
     const isFallecido = !!(stor.get('auf4_fallecido',{})[j.nom]);
     const isCapitan = !!(stor.get('auf4_capitan',{})[j.nom]);
+    const lesion = getLesiones()[j.nom]||null;
+    const isLeyendaLocal = (typeof LEYENDAS_SET!=='undefined'&&LEYENDAS_SET.has(j.nom))||!!(stor.get('auf4_leyendas',{})[j.nom]);
     const _nacIso = getMayorNac()[j.nom] || (JUGADORES[j.nom] ? JUGADORES[j.nom].fechaNac||JUGADORES[j.nom].nac||'' : '');
     const _nacAge2 = _nacIso ? _nacAge(_nacIso) : null;
     const _nacFmtStr = _nacIso ? _nacFmt(_nacIso) : '';
@@ -16557,6 +16586,7 @@ function _renderLocalHome(){
     </div>`;
     return `<div onclick="_localOpenJug('${nomSafe}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
       <button onclick="event.stopPropagation();_toggleLocalCapitan('${nomSafe}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:1">C</button>
+      <button onclick="event.stopPropagation();_toggleLocalLeyenda('${nomSafe}')" title="${isLeyendaLocal?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyendaLocal?1:.2};filter:${isLeyendaLocal?'none':'grayscale(1)'};z-index:1">⭐</button>
       <div style="display:flex;align-items:center;gap:11px">
         <div onclick="event.stopPropagation();_clickLocalPhoto('${photoKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer">
           <div id="loc-av-${photoKeyEnc}" style="width:54px;height:54px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;overflow:hidden">
@@ -16583,6 +16613,7 @@ function _renderLocalHome(){
         ${j.g?`<span style="font-size:.68em;color:var(--muted)">·</span><span style="font-size:.68em;font-weight:600;color:var(--fg)">⚽ ${j.g}</span>`:''}
         ${j.a?`<span style="font-size:.68em;color:var(--muted)">·</span><span style="font-size:.68em;font-weight:600;color:var(--fg)">🅰️ ${j.a}</span>`:''}
         <div style="display:flex;gap:3px;margin-left:auto">
+          <button onclick="event.stopPropagation();_toggleLocalLesionado('${nomSafe}')" title="${lesion?'Editar lesión':'Marcar lesión larga'}" style="background:${lesion?'#F59E0B':'transparent'};border:1.5px solid ${lesion?'#F59E0B':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${lesion?'#fff':'#CBD5E1'}">L</button>
           <button onclick="event.stopPropagation();_toggleLocalRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
           <button onclick="event.stopPropagation();_toggleLocalFallecido('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#44403C':'transparent'};border:1.5px solid ${isFallecido?'#44403C':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isFallecido?'#FDE68A':'#CBD5E1'}">F</button>
           ${(()=>{const _hs=(window._getSanciones?window._getSanciones(j.nom):[]);return`<button onclick="event.stopPropagation();_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(s=>s.ano+': '+s.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#DC2626':'transparent'};border:1.5px solid ${_hs.length?'#DC2626':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${_hs.length?'#fff':'#CBD5E1'}">S</button>`;})()}
@@ -23248,11 +23279,14 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const sparringEvts = getJuvSparring()[p.nom]||[];
   const isJuvRetirado = p.retirado || !!(stor.get('auf4_retirado',{})[p.nom]);
   const isJuvFallecido = p.fallecido || !!(stor.get('auf4_fallecido',{})[p.nom]);
-  const isJuvLesionado = !!(stor.get('auf4_juv_lesionado',{})[p.nom]);
+  const isJuvLesion = getLesiones()[p.nom]||null;
+  const isJuvLesionado = !!isJuvLesion || !!(stor.get('auf4_juv_lesionado',{})[p.nom]);
   const isJuvCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
+  const isJuvLeyenda = (typeof LEYENDAS_SET!=='undefined'&&LEYENDAS_SET.has(p.nom))||!!(stor.get('auf4_leyendas',{})[p.nom]);
   const _champBorder = isChamp?'#F59E0B':isChamp17?'#1D4ED8':isFinal13?'#6B7280':'var(--border)';
   return `<div style="background:var(--card);border:1px solid ${_champBorder};border-radius:12px;padding:13px;position:relative">
     <button onclick="event.stopPropagation();_toggleJuvCapitan('${nomSafe}')" title="${isJuvCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isJuvCapitan?'#CA8A04':'none'};color:${isJuvCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isJuvCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:1">C</button>
+    <button onclick="event.stopPropagation();_toggleJuvLeyenda('${nomSafe}')" title="${isJuvLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isJuvLeyenda?1:.2};filter:${isJuvLeyenda?'none':'grayscale(1)'};z-index:1">⭐</button>
     <div style="display:flex;align-items:center;gap:11px">
       <div onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" style="position:relative;width:54px;height:54px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1em;flex-shrink:0;border:2px solid ${_champBorder};cursor:pointer;overflow:visible">
         <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
@@ -23283,9 +23317,9 @@ function _juvFichaCard(p, hist, off, extraIcon){
       <span style="font-size:.68em;color:var(--muted)">${off.conv} conv.</span>
       <span style="font-size:.68em;color:var(--muted)">·</span>
       <span style="font-size:.68em;font-weight:600;color:var(--fg)">${off.pj} PJ</span>
-      <button onclick="_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesionado?'Quitar lesión':'Marcar lesionado'}" style="margin-left:auto;background:${isJuvLesionado?'#F59E0B':'transparent'};border:1.5px solid ${isJuvLesionado?'#F59E0B':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvLesionado?'#fff':'#CBD5E1'}">L</button>
-      <button onclick="_toggleJuvFallecido('${nomSafe}')" title="${isJuvFallecido?'Marcar vivo':'Marcar fallecido'}" style="background:${isJuvFallecido?'#6B7280':'transparent'};border:1.5px solid ${isJuvFallecido?'#6B7280':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvFallecido?'#fff':'#CBD5E1'}">F</button>
+      <button onclick="_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion?'Editar lesión':'Marcar lesión larga'}" style="margin-left:auto;background:${isJuvLesionado?'#F59E0B':'transparent'};border:1.5px solid ${isJuvLesionado?'#F59E0B':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvLesionado?'#fff':'#CBD5E1'}">L</button>
       <button onclick="_toggleJuvRetirado('${nomSafe}')" title="${isJuvRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isJuvRetirado?'#94A3B8':'transparent'};border:1.5px solid ${isJuvRetirado?'#94A3B8':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvRetirado?'#fff':'#CBD5E1'}">R</button>
+      <button onclick="_toggleJuvFallecido('${nomSafe}')" title="${isJuvFallecido?'Marcar vivo':'Marcar fallecido'}" style="background:${isJuvFallecido?'#6B7280':'transparent'};border:1.5px solid ${isJuvFallecido?'#6B7280':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvFallecido?'#fff':'#CBD5E1'}">F</button>
       ${(()=>{const _hs=window._getSanciones?window._getSanciones(p.nom):[];return`<button onclick="_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(s=>s.ano+': '+s.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#DC2626':'transparent'};border:1.5px solid ${_hs.length?'#DC2626':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${_hs.length?'#fff':'#CBD5E1'}">S</button>`;})()}
     </div>
     ${(()=>{const _sb=typeof _sancBadge==='function'?_sancBadge(p.nom):'';return _sb?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${_sb}</div>`:'';})()}
