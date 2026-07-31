@@ -4596,6 +4596,27 @@ function renderInicioHoySeleccion(){
         }
       });
     }
+    if(typeof JUVENILES!=='undefined'){
+      const juvNac=typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES:{};
+      const juvNames=new Map();
+      Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+        const label=catData.label||catKey.replace('sub','Sub-');
+        Object.values(catData.anos||{}).forEach(anoData=>{
+          (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+            if(j.nom && !juvNames.has(j.nom)){
+              const fn=juvNac[j.nom]||j.fechaNac;
+              if(fn) juvNames.set(j.nom,{fn,label});
+            }
+          }));
+        });
+      });
+      juvNames.forEach(({fn,label},nom)=>{
+        if(fn.length>=10 && fn.slice(5,10)===mmdd){
+          const fallecido=!!fallecidoMayorLS[nom];
+          cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Juveniles · '+label, fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo?window._gnavGo('juveniles','${encodeURIComponent(nom)}'):showSection('juveniles')`});
+        }
+      });
+    }
     const hoyLinks=stor.get('auf4_hoylinks',{});
     const cumpleRows=cumples.map(c=>{
       const foto=window._getPhotoByName?.(c.nom)||null;
