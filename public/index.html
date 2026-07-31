@@ -3382,19 +3382,75 @@ const KLesionLarga = 'auf4_lesion_larga';
 const getLesiones = () => stor.get(KLesionLarga, {});
 function setLesion(nom, datos){ const d=getLesiones(); d[nom]=datos; stor.set(KLesionLarga,d); }
 function clearLesion(nom){ const d=getLesiones(); delete d[nom]; stor.set(KLesionLarga,d); }
+const LESION_TIPOS_BASE = ['Rotura de LCA','Rotura de menisco','Desgarro','Fractura'];
+const LESION_TIEMPOS_BASE = ['1 mes','2 meses','3 meses','4-6 meses','6-8 meses','8-10 meses'];
+const KLesionTiposCustom = 'auf4_lesion_tipos_custom';
+const KLesionTiemposCustom = 'auf4_lesion_tiempos_custom';
+const getLesionTipos = () => [...LESION_TIPOS_BASE, ...stor.get(KLesionTiposCustom,[])];
+const getLesionTiempos = () => [...LESION_TIEMPOS_BASE, ...stor.get(KLesionTiemposCustom,[])];
+const _addLesionTipoCustom = (v) => { const l=stor.get(KLesionTiposCustom,[]); if(v && !LESION_TIPOS_BASE.includes(v) && !l.includes(v)){ l.push(v); stor.set(KLesionTiposCustom,l); } };
+const _addLesionTiempoCustom = (v) => { const l=stor.get(KLesionTiemposCustom,[]); if(v && !LESION_TIEMPOS_BASE.includes(v) && !l.includes(v)){ l.push(v); stor.set(KLesionTiemposCustom,l); } };
+window._lesionState = {};
 function _editLesion(nom){
   const d=getLesiones()[nom]||{};
-  const meses=prompt(`Lesión de ${nom}\nMeses estimados de recuperación (0 para borrar):`,d.meses||'');
-  if(meses===null) return;
-  const m=parseInt(meses);
-  if(!m||m<=0){ clearLesion(nom); }
-  else {
-    const nota=prompt('Nota (opcional, ej: "Rotura LCA"):',d.nota||'');
-    if(nota===null) return;
-    setLesion(nom,{meses:m,nota:nota.trim(),fechaIni:d.fechaIni||new Date().toISOString().slice(0,10)});
-  }
-  if(typeof _refreshAllFichaViews==='function') _refreshAllFichaViews();
+  const id='lesion-'+Date.now();
+  const nomEsc=nom.replace(/'/g,"\\'");
+  const tipos = getLesionTipos();
+  const tiempos = getLesionTiempos();
+  const curTipoPreset = tipos.includes(d.nota) ? d.nota : '';
+  const curTipoLibre = (d.nota && !curTipoPreset) ? d.nota : '';
+  const curTiempoPreset = tiempos.includes(d.meses) ? d.meses : '';
+  const curTiempoLibre = (d.meses && !curTiempoPreset) ? d.meses : '';
+  const curMes = d.mesLesion || TODAY.slice(0,7);
+  window._lesionState[id] = {tipo:curTipoPreset, tiempo:curTiempoPreset};
+  const tipoChip = t => `<button type="button" data-tipo-btn="${t}" onclick="window._lesionPick('${id}','tipo','${t}')" style="padding:5px 10px;border-radius:20px;border:1px solid ${t===curTipoPreset?'#CA8A04':'var(--border)'};background:${t===curTipoPreset?'#FEF9C3':'none'};color:${t===curTipoPreset?'#92400E':'var(--fg)'};font-size:.72em;font-weight:700;cursor:pointer;margin:0 4px 4px 0">${t}</button>`;
+  const tiempoChip = t => `<button type="button" data-tiempo-btn="${t}" onclick="window._lesionPick('${id}','tiempo','${t}')" style="padding:5px 10px;border-radius:20px;border:1px solid ${t===curTiempoPreset?'#CA8A04':'var(--border)'};background:${t===curTiempoPreset?'#FEF9C3':'none'};color:${t===curTiempoPreset?'#92400E':'var(--fg)'};font-size:.72em;font-weight:700;cursor:pointer;margin:0 4px 4px 0">${t}</button>`;
+  document.body.insertAdjacentHTML('beforeend',`<div id="${id}" onclick="event.stopPropagation()" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:var(--card,#fff);border-radius:14px;padding:18px;box-shadow:0 8px 32px rgba(0,0,0,.18);width:320px;max-width:92vw;max-height:86vh;overflow:auto">
+    <div style="font-weight:700;font-size:.9em;margin-bottom:12px">Lesión de ${nom.split(' ')[0]}</div>
+    <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de lesión</div>
+    <div id="${id}-tipos" style="display:flex;flex-wrap:wrap;margin-bottom:6px">${tipos.map(tipoChip).join('')}</div>
+    <input id="${id}-tipo-otra" type="text" placeholder="Otra (si la escribís, tiene prioridad y queda guardada)" value="${curTipoLibre.replace(/"/g,'&quot;')}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:.8em;box-sizing:border-box;margin-bottom:14px">
+    <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tiempo de recuperación estimado</div>
+    <div id="${id}-tiempos" style="display:flex;flex-wrap:wrap;margin-bottom:6px">${tiempos.map(tiempoChip).join('')}</div>
+    <input id="${id}-tiempo-otra" type="text" placeholder="Otro (si lo escribís, tiene prioridad y queda guardado)" value="${curTiempoLibre.replace(/"/g,'&quot;')}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:.8em;box-sizing:border-box;margin-bottom:14px">
+    <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Mes en que se lesionó</div>
+    <input id="${id}-mes" type="month" value="${curMes}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.9em;box-sizing:border-box;margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <button onclick="window._lesionSave('${id}','${nomEsc}')" style="flex:1;padding:8px;border-radius:8px;border:none;background:#1D4ED8;color:#fff;font-size:.8em;font-weight:700;cursor:pointer">Guardar</button>
+      ${(d.nota||d.meses)?`<button onclick="clearLesion('${nomEsc}');document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove();if(typeof _refreshAllFichaViews==='function')_refreshAllFichaViews();" style="padding:8px 12px;border-radius:8px;border:1px solid #DC2626;background:none;color:#DC2626;font-size:.8em;font-weight:700;cursor:pointer">Quitar</button>`:''}
+      <button onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:none;font-size:.8em;cursor:pointer">Cancelar</button>
+    </div>
+  </div><div id="${id}-bg" onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.3)"></div>`);
 }
+window._lesionPick = function(id, field, val){
+  const st = window._lesionState[id] = window._lesionState[id]||{};
+  st[field] = (st[field]===val) ? '' : val;
+  const container = document.getElementById(id+'-'+(field==='tipo'?'tipos':'tiempos'));
+  if(container){
+    [...container.children].forEach(btn=>{
+      const active = btn.getAttribute('data-'+field+'-btn')===st[field];
+      btn.style.border = '1px solid '+(active?'#CA8A04':'var(--border)');
+      btn.style.background = active?'#FEF9C3':'none';
+      btn.style.color = active?'#92400E':'var(--fg)';
+    });
+  }
+};
+window._lesionSave = function(id, nom){
+  const st = window._lesionState[id]||{};
+  const otraTipo = (document.getElementById(id+'-tipo-otra')?.value||'').trim();
+  const otraTiempo = (document.getElementById(id+'-tiempo-otra')?.value||'').trim();
+  const tipo = otraTipo || st.tipo || '';
+  const tiempo = otraTiempo || st.tiempo || '';
+  const mes = document.getElementById(id+'-mes')?.value||'';
+  if(!tiempo){ alert('Elegí (o escribí) un tiempo de recuperación estimado.'); return; }
+  if(otraTipo) _addLesionTipoCustom(otraTipo);
+  if(otraTiempo) _addLesionTiempoCustom(otraTiempo);
+  setLesion(nom,{nota:tipo, meses:tiempo, mesLesion:mes, fechaIni:mes?mes+'-01':TODAY});
+  document.getElementById(id)?.remove();
+  document.getElementById(id+'-bg')?.remove();
+  delete window._lesionState[id];
+  if(typeof _refreshAllFichaViews==='function') _refreshAllFichaViews();
+};
 const getJuvSparring = () => stor.get(KJuvSparring, {});
 const addJuvSparring = (nom, evento) => {
   const d = getJuvSparring();
