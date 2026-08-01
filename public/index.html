@@ -3414,7 +3414,7 @@ function _editLesion(nom){
     <div id="${id}-tiempos" style="display:flex;flex-wrap:wrap;margin-bottom:6px">${tiempos.map(tiempoChip).join('')}</div>
     <input id="${id}-tiempo-otra" type="text" placeholder="Otro (si lo escribís, tiene prioridad y queda guardado)" value="${curTiempoLibre.replace(/"/g,'&quot;')}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:.8em;box-sizing:border-box;margin-bottom:14px">
     <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Mes en que se lesionó</div>
-    <input id="${id}-mes" type="month" value="${curMes}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.9em;box-sizing:border-box;margin-bottom:16px">
+    <input id="${id}-mes" type="month" value="${curMes}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85em;font-family:'Inter',system-ui,sans-serif;font-weight:600;color:var(--fg);box-sizing:border-box;margin-bottom:16px;background:var(--card,#fff);accent-color:#1D4ED8">
     <div style="display:flex;gap:8px">
       <button onclick="window._lesionSave('${id}','${nomEsc}')" style="flex:1;padding:8px;border-radius:8px;border:none;background:#1D4ED8;color:#fff;font-size:.8em;font-weight:700;cursor:pointer">Guardar</button>
       ${(d.nota||d.meses)?`<button onclick="clearLesion('${nomEsc}');document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove();if(typeof _refreshAllFichaViews==='function')_refreshAllFichaViews();" style="padding:8px 12px;border-radius:8px;border:1px solid #DC2626;background:none;color:#DC2626;font-size:.8em;font-weight:700;cursor:pointer">Quitar</button>`:''}
@@ -16751,12 +16751,14 @@ function _renderLocalHome(){
     const _nacIso = getMayorNac()[j.nom] || (JUGADORES[j.nom] ? JUGADORES[j.nom].fechaNac||JUGADORES[j.nom].nac||'' : '');
     const _nacAge2 = _nacIso ? _nacAge(_nacIso) : null;
     const _nacFmtStr = _nacIso ? _nacFmt(_nacIso) : '';
-    if(isMob) return `<div onclick="_localOpenJug('${nomSafe}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 4px 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;position:relative">
+    const _localLesionBorder = lesion ? '2px solid #EF4444' : '1px solid var(--border)';
+    if(isMob) return `<div onclick="_localOpenJug('${nomSafe}')" style="background:var(--surface2);border:${_localLesionBorder};border-radius:10px;padding:8px 4px 7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;position:relative">
       <div style="width:52px;height:52px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">${photo?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:50%">`:`<span style="font-size:17px;font-weight:900;color:#fff">${initials}</span>`}</div>
       <div style="font-size:8.5px;font-weight:700;color:var(--fg);line-height:1.25;padding:0 3px;word-break:break-word;width:100%">${j.nom}</div>
       <span style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:5px;padding:1px 6px;font-size:7.5px;font-weight:800;text-transform:uppercase">${j.pos||'—'}</span>
+      ${lesion?`<span style="position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:#EF4444;border:1px solid #fff"></span>`:''}
     </div>`;
-    return `<div onclick="_localOpenJug('${nomSafe}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
+    return `<div onclick="_localOpenJug('${nomSafe}')" style="background:var(--surface2);border:${_localLesionBorder};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
       <button onclick="event.stopPropagation();_toggleLocalCapitan('${nomSafe}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:1">C</button>
       <button onclick="event.stopPropagation();_toggleLocalLeyenda('${nomSafe}')" title="${isLeyendaLocal?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyendaLocal?1:.2};filter:${isLeyendaLocal?'none':'grayscale(1)'};z-index:1">⭐</button>
       <div style="display:flex;align-items:center;gap:11px">
@@ -23535,7 +23537,8 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const isJuvCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
   const isJuvLeyenda = (typeof LEYENDAS_SET!=='undefined'&&LEYENDAS_SET.has(p.nom))||!!(stor.get('auf4_leyendas',{})[p.nom]);
   const _champBorder = isChamp?'#F59E0B':isChamp17?'#1D4ED8':isFinal13?'#6B7280':'var(--border)';
-  return `<div style="background:var(--card);border:1px solid ${_champBorder};border-radius:12px;padding:13px;position:relative">
+  const _juvBorderStyle = isJuvLesion ? '2px solid #EF4444' : `1px solid ${_champBorder}`;
+  return `<div style="background:var(--card);border:${_juvBorderStyle};border-radius:12px;padding:13px;position:relative">
     <button onclick="event.stopPropagation();_toggleJuvCapitan('${nomSafe}')" title="${isJuvCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isJuvCapitan?'#CA8A04':'none'};color:${isJuvCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isJuvCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:1">C</button>
     <button onclick="event.stopPropagation();_toggleJuvLeyenda('${nomSafe}')" title="${isJuvLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isJuvLeyenda?1:.2};filter:${isJuvLeyenda?'none':'grayscale(1)'};z-index:1">⭐</button>
     <div style="display:flex;align-items:center;gap:11px">
@@ -23568,10 +23571,13 @@ function _juvFichaCard(p, hist, off, extraIcon){
       <span style="font-size:.68em;color:var(--muted)">${off.conv} conv.</span>
       <span style="font-size:.68em;color:var(--muted)">·</span>
       <span style="font-size:.68em;font-weight:600;color:var(--fg)">${off.pj} PJ</span>
-      <button onclick="_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion?'Editar lesión':'Marcar lesión larga'}" style="margin-left:auto;background:${isJuvLesionado?'#334155':'transparent'};border:1.5px solid ${isJuvLesionado?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvLesionado?'#fff':'#CBD5E1'}">L</button>
+      <div style="display:flex;gap:3px;margin-left:auto;align-items:center">
+      ${isJuvLesion?`<span onclick="event.stopPropagation();_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion.nota||'Lesión larga'} · ${isJuvLesion.meses} · Click para editar" style="display:inline-flex;align-items:center;gap:3px;background:#FEF9C3;color:#92400E;border:1px solid #FDE68A;border-radius:20px;padding:2px 7px;font-size:.6em;font-weight:700;cursor:pointer;white-space:nowrap">🩹 ${isJuvLesion.nota||isJuvLesion.meses}</span>`:''}
+      <button onclick="_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion?'Editar lesión':'Marcar lesión larga'}" style="background:${isJuvLesionado?'#334155':'transparent'};border:1.5px solid ${isJuvLesionado?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvLesionado?'#fff':'#CBD5E1'}">L</button>
       <button onclick="_toggleJuvRetirado('${nomSafe}')" title="${isJuvRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isJuvRetirado?'#334155':'transparent'};border:1.5px solid ${isJuvRetirado?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvRetirado?'#fff':'#CBD5E1'}">R</button>
       <button onclick="_toggleJuvFallecido('${nomSafe}')" title="${isJuvFallecido?'Marcar vivo':'Marcar fallecido'}" style="background:${isJuvFallecido?'#334155':'transparent'};border:1.5px solid ${isJuvFallecido?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isJuvFallecido?'#fff':'#CBD5E1'}">F</button>
       ${(()=>{const _hs=window._getSanciones?window._getSanciones(p.nom):[];return`<button onclick="_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(s=>s.ano+': '+s.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#334155':'transparent'};border:1.5px solid ${_hs.length?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${_hs.length?'#fff':'#CBD5E1'}">S</button>`;})()}
+      </div>
     </div>
     ${(()=>{const _sb=typeof _sancBadge==='function'?_sancBadge(p.nom):'';return _sb?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${_sb}</div>`:'';})()}
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:8px;align-items:center">
