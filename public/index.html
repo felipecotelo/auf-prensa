@@ -16883,6 +16883,12 @@ function _renderLocalFicha(nom){
   const s = stats[nom];
   if(!s) return '';
 
+  const nomSafe = nom.replace(/'/g,"\\'");
+  const isRetirado = !!(stor.get('auf4_retirado',{})[nom]);
+  const isFallecido = !!(stor.get('auf4_fallecido',{})[nom]);
+  const isCapitan = !!(stor.get('auf4_capitan',{})[nom]);
+  const isLeyendaLocal = (typeof LEYENDAS_SET!=='undefined'&&LEYENDAS_SET.has(nom))||!!(stor.get('auf4_leyendas',{})[nom]);
+  const lesion = getLesiones()[nom]||null;
   const photoKey = _localNameToKey(nom);
   const photo = _localGetPhoto(nom);
   const initials = nom.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
@@ -16920,6 +16926,15 @@ function _renderLocalFicha(nom){
           <div style="font-size:20px;font-weight:900;color:#fff;line-height:1.1">${s.nom}</div>
           <div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:3px">${s.clubActual}</div>
         </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:14px;flex-wrap:wrap">
+        <button onclick="_toggleLocalCapitan('${nomSafe}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="background:${isCapitan?'#CA8A04':'rgba(255,255,255,.12)'};color:#fff;border:1.5px solid ${isCapitan?'#CA8A04':'rgba(255,255,255,.3)'};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;font-weight:800;padding:0">C</button>
+        <button onclick="_toggleLocalLeyenda('${nomSafe}')" title="${isLeyendaLocal?'Quitar leyenda':'Marcar como leyenda'}" style="background:none;border:none;cursor:pointer;font-size:15px;padding:0;opacity:${isLeyendaLocal?1:.35};filter:${isLeyendaLocal?'none':'grayscale(1)'}">⭐</button>
+        <button onclick="_toggleLocalLesionado('${nomSafe}')" title="${lesion?'Editar lesión':'Marcar lesión larga'}" style="background:${lesion?'#fff':'rgba(255,255,255,.12)'};border:1.5px solid ${lesion?'#fff':'rgba(255,255,255,.3)'};border-radius:5px;cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;color:${lesion?'#0f2744':'#fff'}">L</button>
+        <button onclick="_toggleLocalRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#fff':'rgba(255,255,255,.12)'};border:1.5px solid ${isRetirado?'#fff':'rgba(255,255,255,.3)'};border-radius:5px;cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;color:${isRetirado?'#0f2744':'#fff'}">R</button>
+        <button onclick="_toggleLocalFallecido('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#fff':'rgba(255,255,255,.12)'};border:1.5px solid ${isFallecido?'#fff':'rgba(255,255,255,.3)'};border-radius:5px;cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;color:${isFallecido?'#0f2744':'#fff'}">F</button>
+        ${(()=>{const _hs=(window._getSanciones?window._getSanciones(nom):[]);return`<button onclick="_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(x=>x.ano+': '+x.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#fff':'rgba(255,255,255,.12)'};border:1.5px solid ${_hs.length?'#fff':'rgba(255,255,255,.3)'};border-radius:5px;cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;color:${_hs.length?'#0f2744':'#fff'}">S</button>`;})()}
+        ${lesion?`<span onclick="_toggleLocalLesionado('${nomSafe}')" title="${lesion.nota||'Lesión larga'} · ${lesion.meses}" style="display:inline-flex;align-items:center;gap:3px;background:#FEF9C3;color:#92400E;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">🩹 ${lesion.nota||lesion.meses}</span>`:''}
       </div>
     </div>
 
