@@ -4902,6 +4902,7 @@ function renderInicioProximo(){
       if(d<hoy0) d=new Date(hoy0.getFullYear()+1, mm-1, dd);
       return d;
     };
+    const CAT_TAGS={...PLAN_CATS, cumple:{label:'Cumpleaños',color:'#EC4899'}, aniversario:{label:'Aniversario',color:'#F59E0B'}};
 
     // Hitos pendientes de cualquier evento del Planificador (los posteos no se toman acá
     // a propósito: suelen caer en la misma fecha que el hito y duplicaban el mismo evento real).
@@ -4910,7 +4911,7 @@ function renderInicioProximo(){
         (ev.items||[]).forEach(it=>{
           if(it.done || !it.fecha) return;
           const d=new Date((it.fecha||'').slice(0,10)+'T00:00:00');
-          if(!isNaN(d)) candidatos.push({label:it.txt, fecha:d, onclick:`showSection('planificador');window._planOpen('${ev.id}')`});
+          if(!isNaN(d)) candidatos.push({label:it.txt, fecha:d, cats:ev.categoria?[ev.categoria]:[], onclick:`showSection('planificador');window._planOpen('${ev.id}')`});
         });
       });
     }
@@ -4929,12 +4930,12 @@ function renderInicioProximo(){
         {label:'Convocatoria final · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_final')), tab:'fifasep26'},
         {label:'Lista de reserva · Fecha FIFA nov 2026', fecha:parseFecha(D('1_reserva')), tab:'fifasep26'},
         {label:'Convocatoria final · Fecha FIFA nov 2026', fecha:parseFecha(D('1_final')), tab:'fifasep26'},
-      ].forEach(c=>{ if(c.fecha) candidatos.push({label:c.label, fecha:c.fecha, onclick:`showSection('mayor');showTournament('${c.tab}')`}); });
+      ].forEach(c=>{ if(c.fecha) candidatos.push({label:c.label, fecha:c.fecha, cats:['mayor'], onclick:`showSection('mayor');showTournament('${c.tab}')`}); });
     }
     // Aniversarios fijos del calendario real (NO las actividades/entrenamientos de ese mismo calendario — se descartan a propósito)
     if(typeof getCalendarioSeleccion==='function'){
       getCalendarioSeleccion().filter(c=>c.tipo==='aniversario'&&c.mmdd).forEach(c=>{
-        candidatos.push({label:'🏆 '+c.txt, fecha:nextOcurrencia(c.mmdd), onclick:''});
+        candidatos.push({label:'🏆 '+c.txt, fecha:nextOcurrencia(c.mmdd), cats:['aniversario'], onclick:''});
       });
     }
     // Cumpleaños de leyendas y del plantel actual (no de toda la base histórica, para no llenar de ruido)
@@ -4949,7 +4950,7 @@ function renderInicioProximo(){
           const fecha=nextOcurrencia(d.fechaNac.slice(5,10));
           const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
           const edad=fecha.getFullYear()-parseInt(d.fechaNac.slice(0,4));
-          candidatos.push({label:`🎂 Cumpleaños de ${nom}`+(fallecido?` (hubiera cumplido ${edad})`:` (${edad} años)`), fecha, onclick:`window._gnavGo('mayor','${encodeURIComponent(nom)}')`});
+          candidatos.push({label:`🎂 Cumpleaños de ${nom}`+(fallecido?` (hubiera cumplido ${edad})`:` (${edad} años)`), fecha, cats:['mayor','cumple'], onclick:`window._gnavGo('mayor','${encodeURIComponent(nom)}')`});
         }
       });
     }
@@ -4962,8 +4963,29 @@ function renderInicioProximo(){
           const md=String(MESES[m[2].toLowerCase()]).padStart(2,'0')+'-'+String(parseInt(m[1])).padStart(2,'0');
           const fecha=nextOcurrencia(md);
           const edad=fecha.getFullYear()-parseInt(m[3]);
-          candidatos.push({label:`🎂 Cumpleaños de ${dt.full} (${edad} años)`, fecha, onclick:`showSection('mayor');showTab('tecnicos');selectDT('${dt.id}')`});
+          candidatos.push({label:`🎂 Cumpleaños de ${dt.full} (${edad} años)`, fecha, cats:['mayor','cumple'], onclick:`showSection('mayor');showTab('tecnicos');selectDT('${dt.id}')`});
         }
+      });
+    }
+    // Cumpleaños de Juveniles (Sub-20/17/15 — categorías que se muestran acá)
+    if(typeof JUVENILES!=='undefined'){
+      const juvNac=typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES:{};
+      const juvSeen=new Map();
+      ['sub20','sub17','sub15'].forEach(catKey=>{
+        const catData=JUVENILES[catKey]; if(!catData) return;
+        Object.values(catData.anos||{}).forEach(anoData=>{
+          (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+            if(j.nom && !juvSeen.has(j.nom)){
+              const fn=juvNac[j.nom]||j.fechaNac;
+              if(fn) juvSeen.set(j.nom,{fn,catKey});
+            }
+          }));
+        });
+      });
+      juvSeen.forEach(({fn,catKey},nom)=>{
+        const fecha=nextOcurrencia(fn.slice(5,10));
+        const edad=fecha.getFullYear()-parseInt(fn.slice(0,4));
+        candidatos.push({label:`🎂 Cumpleaños de ${nom} (${edad} años)`, fecha, cats:[catKey,'cumple'], onclick:`window._gnavGo?window._gnavGo('juveniles','${encodeURIComponent(nom)}'):showSection('juveniles')`});
       });
     }
 
@@ -4976,7 +4998,9 @@ function renderInicioProximo(){
       const ddmm=`${next.fecha.getDate()}/${next.fecha.getMonth()+1}`;
       const cuando=dias===1?`Mañana, ${diaSemana} ${ddmm}`:`${diaSemana} ${ddmm} (en ${dias} días)`;
       const clickable=!!next.onclick;
+      const pills=(next.cats||[]).map(k=>CAT_TAGS[k]?`<span style="font-size:9px;font-weight:800;color:${CAT_TAGS[k].color};background:${CAT_TAGS[k].color}18;border-radius:5px;padding:1px 6px;margin-right:4px;text-transform:uppercase;letter-spacing:.03em">${CAT_TAGS[k].label}</span>`:'').join('');
       return `<div ${clickable?`onclick="${next.onclick}"`:''} style="${clickable?'cursor:pointer;':''}padding:6px 0;${i<futuros.length-1?'border-bottom:0.5px solid var(--border)':''}">
+        ${pills?`<div style="margin-bottom:3px">${pills}</div>`:''}
         <div style="font-size:12.5px;font-weight:700">${next.label}</div>
         <div style="font-size:11px;opacity:.75;margin-top:2px">📅 ${cuando}${clickable?' · <span style="text-decoration:underline">Ver →</span>':''}</div>
       </div>`;
@@ -27138,6 +27162,15 @@ function _renderTareasHistorial(){
     </div>`;
 }
 
+const PLAN_CATS = {mayor:{label:'Mayor',color:'#0F766E'},sub20:{label:'Sub-20',color:'#1D4ED8'},sub17:{label:'Sub-17',color:'#15803d'},sub15:{label:'Sub-15',color:'#9A3412'}};
+function _planSetCategoria(id,cat){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev) return;
+  ev.categoria=cat||'';
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planSetCategoria=_planSetCategoria;
 function _planNuevo(){
   const titulo=(prompt('Título del evento (ej: Presentación de Diego Forlán):')||'').trim();
   if(!titulo) return;
@@ -27349,9 +27382,12 @@ function _renderPlanEvento(id){
   el.innerHTML=`
     <div style="max-width:700px;margin:0 auto;padding:16px">
       <button onclick="_planBack()" style="display:flex;align-items:center;gap:5px;border:none;background:none;cursor:pointer;color:var(--muted);font-size:.8em;font-weight:700;padding:0;margin-bottom:14px"><i class="ti ti-arrow-left"></i> Planificador</button>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div onclick="_planRename('${id}')" style="font-size:1.15em;font-weight:900;color:var(--text);cursor:pointer" title="Tocá para renombrar">${ev.titulo}</div>
         <button onclick="_planDelete('${id}')" style="border:none;background:#FEF2F2;color:#DC2626;border-radius:8px;padding:5px 10px;font-size:.75em;font-weight:700;cursor:pointer;flex-shrink:0">Eliminar evento</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px">
+        ${Object.entries(PLAN_CATS).map(([k,c])=>`<button onclick="_planSetCategoria('${id}','${ev.categoria===k?'':k}')" style="border:1.5px solid ${ev.categoria===k?c.color:'var(--border)'};background:${ev.categoria===k?c.color+'18':'transparent'};color:${ev.categoria===k?c.color:'var(--muted)'};border-radius:20px;padding:3px 10px;font-size:.7em;font-weight:700;cursor:pointer">${c.label}</button>`).join('')}
       </div>
 
       <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:14px">
