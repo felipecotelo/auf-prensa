@@ -9518,7 +9518,8 @@ function jTogglePosEdit(nom,el){
   const c=_POS_COLOR[next]||'#64748B';
   el.textContent=next;
   el.style.background=c+'18'; el.style.color=c; el.style.borderColor=c+'44';
-  renderJugadores();
+  clearTimeout(window._mayorPosTimer);
+  window._mayorPosTimer=setTimeout(()=>renderJugadores(),800);
 }
 function jToggleClubEdit(nom,el){
   // Si ya hay un editor abierto en este elemento, lo cierra
@@ -10371,9 +10372,9 @@ function _buildJugadorHTML(nom,closeId){
     ${compHtml}
     ${timelineHtml}
     <div style="margin-top:10px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
-      <div style="font-size:.65em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Posición <span style="font-weight:500;color:var(--hint)">(editable)</span></div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap">
-        ${['POR','DEF','MED','DEL'].map(pp=>{const isCur=pos===pp;const pCol={POR:'#0F4C81',DEF:'#15803D',MED:'#4F46E5',DEL:'#B45309'}[pp];return`<button onclick="event.stopPropagation();setJugPos('${nom}','${pp}');renderJugadores();showJugador('${nom}')" style="flex:1;padding:5px 10px;border-radius:7px;font-size:.75em;font-weight:${isCur?900:600};cursor:pointer;border:1.5px solid ${isCur?pCol:'var(--border)'};background:${isCur?pCol+'18':'transparent'};color:${isCur?pCol:'var(--muted)'};transition:all .1s">${pp}</button>`;}).join('')}
+      <div style="font-size:.65em;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px">Posición <span style="font-weight:500;color:var(--hint)">(tocar para cambiar)</span></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+        <span onclick="event.stopPropagation();jTogglePosEdit('${nom}',this)" style="background:${(_POS_COLOR[pos]||'#64748B')+'18'};color:${_POS_COLOR[pos]||'#64748B'};border:1.5px solid ${(_POS_COLOR[pos]||'#64748B')+'44'};border-radius:7px;padding:6px 14px;font-size:.8em;font-weight:800;cursor:pointer">${pos||'?'}</span>
         ${_customPos?`<button onclick="event.stopPropagation();clearJugPos('${nom}');renderJugadores();showJugador('${nom}')" style="padding:5px 8px;border-radius:7px;font-size:.7em;font-weight:600;cursor:pointer;border:1px solid var(--border);background:none;color:var(--muted)">↺ Reset</button>`:''}
       </div>
       ${_customPos?`<div style="font-size:.62em;color:var(--muted);margin-top:4px">* Posición editada manualmente</div>`:''}
@@ -16947,6 +16948,11 @@ function _renderLocalFicha(nom){
           <div style="font-size:24px;font-weight:900;color:#1e293b">${v}</div>
           <div style="font-size:10px;color:var(--muted);font-weight:600">${l}</div>
         </div>`).join('')}
+      </div>
+
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Posición <span style="font-weight:500;color:var(--hint);text-transform:none;letter-spacing:0">(tocar para cambiar)</span></div>
+        <span onclick="_cycleLocalPos('${nomSafe}',event)" style="background:${(_POS_COLOR[s.pos]||'#64748B')+'18'};color:${_POS_COLOR[s.pos]||'#64748B'};border:1.5px solid ${(_POS_COLOR[s.pos]||'#64748B')+'44'};border-radius:7px;padding:6px 14px;font-size:.85em;font-weight:800;cursor:pointer;display:inline-block">${s.pos||'?'}</span>
       </div>
 
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Partidos</div>
