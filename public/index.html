@@ -4911,7 +4911,7 @@ function renderInicioProximo(){
         (ev.items||[]).forEach(it=>{
           if(it.done || !it.fecha) return;
           const d=new Date((it.fecha||'').slice(0,10)+'T00:00:00');
-          if(!isNaN(d)) candidatos.push({label:it.txt, fecha:d, cats:ev.categoria?[ev.categoria]:[], onclick:`showSection('planificador');window._planOpen('${ev.id}')`});
+          if(!isNaN(d)) candidatos.push({label:it.txt, fecha:d, cats:ev.categorias||[], onclick:`showSection('planificador');window._planOpen('${ev.id}')`});
         });
       });
     }
@@ -4998,7 +4998,7 @@ function renderInicioProximo(){
       const ddmm=`${next.fecha.getDate()}/${next.fecha.getMonth()+1}`;
       const cuando=dias===1?`Mañana, ${diaSemana} ${ddmm}`:`${diaSemana} ${ddmm} (en ${dias} días)`;
       const clickable=!!next.onclick;
-      const pills=(next.cats||[]).map(k=>CAT_TAGS[k]?`<span style="font-size:9px;font-weight:800;color:${CAT_TAGS[k].color};background:${CAT_TAGS[k].color}18;border-radius:5px;padding:1px 6px;margin-right:4px;text-transform:uppercase;letter-spacing:.03em">${CAT_TAGS[k].label}</span>`:'').join('');
+      const pills=(next.cats||[]).map(k=>{const c=CAT_TAGS[k]?CAT_TAGS[k].color:_planCatColor(k);const l=CAT_TAGS[k]?CAT_TAGS[k].label:k;return `<span style="font-size:9px;font-weight:800;color:${c};background:${c}18;border-radius:5px;padding:1px 6px;margin-right:4px;text-transform:uppercase;letter-spacing:.03em">${l}</span>`;}).join('');
       return `<div ${clickable?`onclick="${next.onclick}"`:''} style="${clickable?'cursor:pointer;':''}padding:6px 0;${i<futuros.length-1?'border-bottom:0.5px solid var(--border)':''}">
         ${pills?`<div style="margin-bottom:3px">${pills}</div>`:''}
         <div style="font-size:12.5px;font-weight:700">${next.label}</div>
@@ -27163,14 +27163,32 @@ function _renderTareasHistorial(){
 }
 
 const PLAN_CATS = {mayor:{label:'Mayor',color:'#0F766E'},sub20:{label:'Sub-20',color:'#1D4ED8'},sub17:{label:'Sub-17',color:'#15803d'},sub15:{label:'Sub-15',color:'#9A3412'}};
-function _planSetCategoria(id,cat){
+const KPlanCatsCustom = 'auf4_plan_cats_custom';
+const _PLAN_CUSTOM_COLORS = ['#7C3AED','#B45309','#0891B2','#BE185D','#4D7C0F','#C2410C'];
+function _planCatColor(key){
+  if(PLAN_CATS[key]) return PLAN_CATS[key].color;
+  let h=0; for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
+  return _PLAN_CUSTOM_COLORS[h%_PLAN_CUSTOM_COLORS.length];
+}
+function _planCatLabel(key){ return PLAN_CATS[key]?PLAN_CATS[key].label:key; }
+const getPlanCatsCustom = () => stor.get(KPlanCatsCustom,[]);
+function _planToggleCategoria(id,cat){
   const list=_planGetAll();
   const ev=list.find(e=>e.id===id); if(!ev) return;
-  ev.categoria=cat||'';
+  if(!ev.categorias) ev.categorias=[];
+  const i=ev.categorias.indexOf(cat);
+  if(i>=0) ev.categorias.splice(i,1); else ev.categorias.push(cat);
   _planSave(list);
   _renderPlanEvento(id);
 }
-window._planSetCategoria=_planSetCategoria;
+window._planToggleCategoria=_planToggleCategoria;
+window._planAddCatCustom=function(id,inputId){
+  const val=(document.getElementById(inputId)?.value||'').trim();
+  if(!val) return;
+  const custom=getPlanCatsCustom();
+  if(!custom.includes(val)){ custom.push(val); stor.set(KPlanCatsCustom,custom); }
+  _planToggleCategoria(id,val);
+};
 function _planNuevo(){
   const titulo=(prompt('Título del evento (ej: Presentación de Diego Forlán):')||'').trim();
   if(!titulo) return;
@@ -27386,9 +27404,17 @@ function _renderPlanEvento(id){
         <div onclick="_planRename('${id}')" style="font-size:1.15em;font-weight:900;color:var(--text);cursor:pointer" title="Tocá para renombrar">${ev.titulo}</div>
         <button onclick="_planDelete('${id}')" style="border:none;background:#FEF2F2;color:#DC2626;border-radius:8px;padding:5px 10px;font-size:.75em;font-weight:700;cursor:pointer;flex-shrink:0">Eliminar evento</button>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px">
-        ${Object.entries(PLAN_CATS).map(([k,c])=>`<button onclick="_planSetCategoria('${id}','${ev.categoria===k?'':k}')" style="border:1.5px solid ${ev.categoria===k?c.color:'var(--border)'};background:${ev.categoria===k?c.color+'18':'transparent'};color:${ev.categoria===k?c.color:'var(--muted)'};border-radius:20px;padding:3px 10px;font-size:.7em;font-weight:700;cursor:pointer">${c.label}</button>`).join('')}
-      </div>
+      ${(()=>{
+        const cats=ev.categorias||[];
+        const catId='plan-cat-'+id;
+        const allKeys=[...Object.keys(PLAN_CATS), ...getPlanCatsCustom()];
+        const chip=k=>{const active=cats.includes(k);const c=_planCatColor(k);return `<button onclick="_planToggleCategoria('${id}','${k.replace(/'/g,"\\'")}')" style="border:1.5px solid ${active?c:'var(--border)'};background:${active?c+'18':'transparent'};color:${active?c:'var(--muted)'};border-radius:20px;padding:3px 10px;font-size:.7em;font-weight:700;cursor:pointer">${_planCatLabel(k)}</button>`;};
+        return `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${allKeys.map(chip).join('')}</div>
+        <div style="display:flex;gap:6px;margin-bottom:20px">
+          <input id="${catId}" type="text" placeholder="+ Otra etiqueta (ej: Forlán)" style="flex:1;max-width:220px;padding:5px 9px;border:1.5px dashed var(--border);border-radius:20px;font-size:.72em;outline:none;box-sizing:border-box" onkeydown="if(event.key==='Enter'){_planAddCatCustom('${id}','${catId}');this.value='';}">
+          <button onclick="_planAddCatCustom('${id}','${catId}');document.getElementById('${catId}').value=''" style="border:none;background:var(--surface);border-radius:20px;padding:5px 12px;font-size:.72em;font-weight:700;cursor:pointer;color:var(--text)">Agregar</button>
+        </div>`;
+      })()}
 
       <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
