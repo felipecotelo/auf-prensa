@@ -4825,6 +4825,7 @@ function renderInicioMisIdas(){
     ${cell('mi-fifa','Fecha FIFA exterior','#EA580C')}
   </div>
   <div style="font-size:11px;font-weight:700;color:#7C3AED;background:#7C3AED14;border-radius:8px;padding:6px 10px;margin-top:10px;text-align:center">Van ${diasAno} días del año (${habiles} hábiles)</div>
+  <div id="mi-suma" style="display:none;font-size:11px;color:${lblCol};margin-top:6px;text-align:center"></div>
   <div id="mi-idas-err" style="display:none;font-size:11px;color:${lblCol};margin-top:8px">No se pudo leer el calendario ahora.</div>`;
   setTimeout(window._loadMisIdas,0);
   return _inicioBox('Mis idas', body, '#7C3AED', isMob);
@@ -4838,6 +4839,10 @@ window._loadMisIdas = async function(){
     set('mi-auf', d.aufPm);
     set('mi-complejo', d.complejo);
     set('mi-fifa', d.fifaDays+' días');
+    const [ty,tm,td]=TODAY.split('-').map(Number);
+    const diasAno=Math.round((new Date(ty,tm-1,td)-new Date(ty,0,1))/86400000)+1;
+    const suma=document.getElementById('mi-suma');
+    if(suma){ suma.textContent=`${d.aufPm+d.complejo} de ${diasAno} días fuiste a AUF o al Complejo`; suma.style.display='block'; }
   }catch(_){
     const err=document.getElementById('mi-idas-err'); if(err) err.style.display='block';
   }
@@ -5037,10 +5042,17 @@ function renderInicioProximo(){
       const cuando=dias===1?`Mañana, ${diaSemana} ${ddmm}`:`${diaSemana} ${ddmm} (en ${dias} días)`;
       const clickable=!!next.onclick;
       const pills=(next.cats||[]).map(k=>{const c=CAT_TAGS[k]?CAT_TAGS[k].color:_planCatColor(k);const l=CAT_TAGS[k]?CAT_TAGS[k].label:k;return `<span style="font-size:9px;font-weight:800;color:${c};background:${c}18;border-radius:5px;padding:1px 6px;margin-right:4px;text-transform:uppercase;letter-spacing:.03em">${l}</span>`;}).join('');
-      return `<div ${clickable?`onclick="${next.onclick}"`:''} style="${clickable?'cursor:pointer;':''}padding:6px 0;${i<futuros.length-1?'border-bottom:0.5px solid var(--border)':''}">
-        ${pills?`<div style="margin-bottom:3px">${pills}</div>`:''}
-        <div style="font-size:12.5px;font-weight:700">${next.label}</div>
-        <div style="font-size:11px;opacity:.75;margin-top:2px">📅 ${cuando}${clickable?' · <span style="text-decoration:underline">Ver →</span>':''}</div>
+      const faltan=i===0?`<div style="text-align:center;flex-shrink:0;margin-left:10px">
+          <div style="font-size:22px;font-weight:900;color:#0EA5E9;line-height:1">${dias}</div>
+          <div style="font-size:8px;font-weight:800;color:#0EA5E9;text-transform:uppercase;letter-spacing:.05em">${dias===1?'día':'días'}</div>
+        </div>`:'';
+      return `<div ${clickable?`onclick="${next.onclick}"`:''} style="${clickable?'cursor:pointer;':''}padding:6px 0;display:flex;align-items:center;justify-content:space-between;${i<futuros.length-1?'border-bottom:0.5px solid var(--border)':''}">
+        <div style="flex:1;min-width:0">
+          ${pills?`<div style="margin-bottom:3px">${pills}</div>`:''}
+          <div style="font-size:12.5px;font-weight:700">${next.label}</div>
+          <div style="font-size:11px;opacity:.75;margin-top:2px">📅 ${cuando}${clickable?' · <span style="text-decoration:underline">Ver →</span>':''}</div>
+        </div>
+        ${faltan}
       </div>`;
     }).join('');
     return _inicioBox('Se viene',rows,'#0EA5E9',isMob);
