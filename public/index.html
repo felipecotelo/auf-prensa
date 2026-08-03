@@ -4804,6 +4804,98 @@ function _inicioBox(title,bodyHtml,color,isMob){
         <div style="font-size:12.5px;color:var(--text);line-height:1.5">${bodyHtml}</div>
       </div>`;
 }
+// "Otras idas" — eventos puntuales que no vienen del Google Calendar (partidos/actos
+// puntuales en estadios, Leyendas AUF, conferencias, etc.), cargados y editables a mano.
+const KOtrasIdas = 'auf4_otras_idas';
+const OTRAS_IDAS_SEED = [
+  {id:'supercopa-centenario', label:'Final Supercopa AUF', lugar:'Estadio Centenario', cantidad:1},
+  {id:'leyendas-punta', label:'Leyendas AUF', lugar:'Punta del Este', cantidad:2},
+  {id:'leyendas-durazno', label:'Leyendas AUF', lugar:'Durazno', cantidad:1},
+  {id:'amistosos-sub17', label:'Amistosos Sub-17', lugar:'Franzini y Saroldi', cantidad:2},
+  {id:'conf-giordano', label:'Conferencia de Giordano', lugar:'Estadio Centenario', cantidad:1},
+  {id:'conf-bielsa', label:'Conferencia de Bielsa', lugar:'Estadio Centenario', cantidad:1},
+];
+function _getOtrasIdas(){
+  let v = stor.get(KOtrasIdas);
+  if(!Array.isArray(v)){ v = OTRAS_IDAS_SEED.slice(); stor.set(KOtrasIdas, v); }
+  return v;
+}
+function _otrasIdasTotal(){ return _getOtrasIdas().reduce((s,x)=>s+(Number(x.cantidad)||1),0); }
+function _otrasIdasAdd(label,lugar,cantidad){
+  const v=_getOtrasIdas();
+  v.push({id:'oi-'+Date.now(), label, lugar:lugar||'', cantidad:Number(cantidad)||1});
+  stor.set(KOtrasIdas, v);
+}
+function _otrasIdasRemove(id){
+  stor.set(KOtrasIdas, _getOtrasIdas().filter(x=>x.id!==id));
+}
+function _refreshOtrosCell(){
+  const total=_otrasIdasTotal();
+  document.querySelectorAll('#mi-otros').forEach(el=>el.textContent=total);
+  const resumen=document.querySelector('#mi-resumen');
+  if(resumen && window._lastMisIdasData){
+    const d=window._lastMisIdasData;
+    const [ty,tm,td]=TODAY.split('-').map(Number);
+    const diasAno=Math.round((new Date(ty,tm-1,td)-new Date(ty,0,1))/86400000)+1;
+    let habiles=0;
+    for(let i=0;i<diasAno;i++){ const dow=new Date(ty,0,1+i).getDay(); if(dow!==0&&dow!==6) habiles++; }
+    const totalIdas=d.aufPm+d.complejo+d.fifaDays+total;
+    document.querySelectorAll('#mi-resumen').forEach(el=>el.innerHTML=`VAN <b>${totalIdas}</b> IDAS DE <b>${diasAno}</b> DÍAS DEL ${ty} (<b>${habiles}</b> DÍAS HÁBILES)`);
+  }
+}
+window._showOtrasIdasModal = function(){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  const inner=document.createElement('div');
+  inner.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:280px;max-width:380px;width:100%;font-family:inherit;max-height:80vh;overflow-y:auto';
+  overlay.appendChild(inner);
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();
+  overlay.addEventListener('click',e=>{if(e.target===overlay) close();});
+  _renderOtrasIdasModal(inner, close);
+};
+function _renderOtrasIdasModal(inner, close){
+  const items=_getOtrasIdas();
+  const total=items.reduce((s,x)=>s+(Number(x.cantidad)||1),0);
+  const rows=items.map(x=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px;color:var(--text)">
+        <span style="font-weight:700;color:#DB2777">${x.cantidad>1?x.cantidad+'× ':''}</span>${x.label}${x.lugar?` · <span style="color:var(--muted)">${x.lugar}</span>`:''}
+      </div>
+      <button data-id="${x.id}" class="oi-rm" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px">✕</button>
+    </div>`).join('') || `<div style="font-size:12.5px;color:var(--muted);padding:8px 0">Sin entradas todavía.</div>`;
+  inner.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-weight:700;font-size:15px;color:var(--text)">Otras idas — ${total}</span>
+      <button id="oi-close" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted)">✕</button>
+    </div>
+    <div>${rows}</div>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
+      <input id="oi-label" type="text" placeholder="Descripción (ej: Amistoso en el Franzini)" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text)">
+      <input id="oi-lugar" type="text" placeholder="Lugar (opcional)" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text)">
+      <div style="display:flex;gap:6px">
+        <input id="oi-cant" type="number" min="1" value="1" style="width:64px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text)">
+        <button id="oi-add" style="flex:1;border:none;border-radius:8px;background:#DB2777;color:#fff;font-weight:700;font-size:13px;cursor:pointer">+ Agregar</button>
+      </div>
+    </div>`;
+  inner.querySelector('#oi-close').addEventListener('click', close);
+  inner.querySelectorAll('.oi-rm').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      _otrasIdasRemove(btn.getAttribute('data-id'));
+      _renderOtrasIdasModal(inner, close);
+      _refreshOtrosCell();
+    });
+  });
+  inner.querySelector('#oi-add').addEventListener('click', ()=>{
+    const label=inner.querySelector('#oi-label').value.trim();
+    const lugar=inner.querySelector('#oi-lugar').value.trim();
+    const cant=inner.querySelector('#oi-cant').value;
+    if(!label) return;
+    _otrasIdasAdd(label, lugar, cant);
+    _renderOtrasIdasModal(inner, close);
+    _refreshOtrosCell();
+  });
+}
 // Contador de idas a AUF / Complejo / Fecha FIFA — lee /api/mis-idas (que a su vez
 // lee el iCal privado de Google Calendar de Felipe, del lado del servidor).
 function renderInicioMisIdas(){
@@ -4819,10 +4911,16 @@ function renderInicioMisIdas(){
   const diasAno=Math.round((new Date(ty,tm-1,td)-new Date(ty,0,1))/86400000)+1;
   let habiles=0;
   for(let i=0;i<diasAno;i++){ const dow=new Date(ty,0,1+i).getDay(); if(dow!==0&&dow!==6) habiles++; }
+  const otrosTotal=_otrasIdasTotal();
   const body=`<div style="display:flex;gap:8px;flex-wrap:wrap">
     ${cell('mi-auf','Idas a AUF','#15803D')}
     ${cell('mi-complejo','Idas al Complejo','#0EA5E9')}
     ${cell('mi-fifa','Fecha FIFA exterior','#EA580C')}
+    <div style="flex:1;min-width:88px;text-align:center">
+      <div id="mi-otros" style="font-size:20px;font-weight:900;color:#DB2777">${otrosTotal}</div>
+      <div style="font-size:9.5px;color:${lblCol};text-transform:uppercase;font-weight:700;margin-top:2px;letter-spacing:.04em">Otros</div>
+      <div onclick="_showOtrasIdasModal()" style="font-size:9.5px;color:#DB2777;font-weight:700;margin-top:2px;cursor:pointer;text-decoration:underline">Ver más</div>
+    </div>
   </div>
   <div id="mi-resumen" style="font-size:11px;font-weight:700;color:#7C3AED;background:#7C3AED14;border-radius:8px;padding:6px 10px;margin-top:10px;text-align:center">Van ${diasAno} días del ${ty} (${habiles} hábiles)</div>
   <div id="mi-idas-err" style="display:none;font-size:11px;color:${lblCol};margin-top:8px">No se pudo leer el calendario ahora.</div>`;
@@ -4834,6 +4932,7 @@ window._loadMisIdas = async function(){
     const r = await fetch('/api/mis-idas');
     if(!r.ok) throw new Error('bad status');
     const d = await r.json();
+    window._lastMisIdasData = d;
     // getElementById solo agarra el primero: mobile y desktop renderizan ambos layouts en el DOM
     // (uno oculto por CSS), así que puede haber 2 elementos con el mismo id — evitamos duplicar
     // seteando el texto completo (no acumulando con +=) para que sea idempotente ante 2 llamados.
@@ -4846,7 +4945,7 @@ window._loadMisIdas = async function(){
     const diasAno=Math.round((new Date(ty,tm-1,td)-new Date(ty,0,1))/86400000)+1;
     let habiles=0;
     for(let i=0;i<diasAno;i++){ const dow=new Date(ty,0,1+i).getDay(); if(dow!==0&&dow!==6) habiles++; }
-    const totalIdas=d.aufPm+d.complejo+d.fifaDays;
+    const totalIdas=d.aufPm+d.complejo+d.fifaDays+_otrasIdasTotal();
     setAllHTML('mi-resumen', `VAN <b>${totalIdas}</b> IDAS DE <b>${diasAno}</b> DÍAS DEL ${ty} (<b>${habiles}</b> DÍAS HÁBILES)`);
   }catch(_){
     document.querySelectorAll('#mi-idas-err').forEach(el=>el.style.display='block');
