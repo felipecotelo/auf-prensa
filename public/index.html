@@ -24945,11 +24945,14 @@ function _pwPersonSelect(selected=''){
 // el primer optgroup en algunos navegadores — lo reemplazamos por un buscador con texto
 // que filtra sobre la misma lista de _pwPersonOptions(), y el <select> queda oculto solo
 // como storage del valor elegido (para no tocar el resto del código que lee/escribe su .value).
+window._pwParticipList = [];
+let _pwFilterMatches = [];
 function _pwPersonFilter(q){
   const sug=document.getElementById('pw-person-suggest'); if(!sug) return;
-  const opts=_pwPersonOptions();
+  const opts=_pwPersonOptions().filter(o=>!window._pwParticipList.some(p=>p.key===o.key));
   const qn=(q||'').trim().toLowerCase();
   const matches=qn?opts.filter(o=>o.label.toLowerCase().includes(qn)):opts;
+  _pwFilterMatches=matches;
   if(!matches.length){
     sug.innerHTML='<div style="padding:9px 13px;color:var(--muted);font-size:.85em">Sin resultados</div>';
     sug.style.display='block';
@@ -24958,14 +24961,29 @@ function _pwPersonFilter(q){
   let lastCat='';
   sug.innerHTML=matches.slice(0,150).map(o=>{
     const catHdr=o.cat!==lastCat?(()=>{lastCat=o.cat;return `<div style="padding:6px 13px 3px;font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${o.cat}</div>`;})():'';
-    return `${catHdr}<div onclick="_pwPersonPick('${o.key.replace(/'/g,"\\'")}','${o.label.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" style="padding:8px 13px;cursor:pointer;font-size:.85em" onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background='#fff'"><span style="font-weight:700">${o.label}</span><span style="color:var(--muted)"> · ${o.rol||''}</span></div>`;
+    return `${catHdr}<div onclick="_pwPersonPick('${o.key.replace(/'/g,"\\'")}','${o.label.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${(o.rol||'').replace(/'/g,"\\'")}')" style="padding:8px 13px;cursor:pointer;font-size:.85em" onmouseenter="this.style.background='var(--surface)'" onmouseleave="this.style.background='#fff'"><span style="font-weight:700">${o.label}</span><span style="color:var(--muted)"> · ${o.rol||''}</span></div>`;
   }).join('');
   sug.style.display='block';
 }
-function _pwPersonPick(key,label){
-  const sel=document.getElementById('pw-person'); if(sel) sel.value=key;
-  const inp=document.getElementById('pw-person-search'); if(inp) inp.value=label;
+function _pwPersonPickTop(){
+  if(_pwFilterMatches.length===1){
+    const o=_pwFilterMatches[0];
+    _pwPersonPick(o.key,o.label,o.rol||'');
+  }
+}
+function _pwPersonPick(key,label,rol){
+  if(!window._pwParticipList.some(p=>p.key===key)) window._pwParticipList.push({key,label,rol:rol||''});
+  const inp=document.getElementById('pw-person-search'); if(inp){ inp.value=''; inp.focus(); }
   const sug=document.getElementById('pw-person-suggest'); if(sug) sug.style.display='none';
+  _pwRenderParticipChips();
+}
+window._pwParticipRemove=function(idx){
+  window._pwParticipList.splice(idx,1);
+  _pwRenderParticipChips();
+};
+function _pwRenderParticipChips(){
+  const c=document.getElementById('pw-particip-chips'); if(!c) return;
+  c.innerHTML=window._pwParticipList.map((p,i)=>`<span style="display:inline-flex;align-items:center;gap:5px;background:#EFF6FF;border:1.5px solid #BFDBFE;color:#1D4ED8;border-radius:20px;padding:3px 6px 3px 11px;font-size:.8em;font-weight:700">${p.label}<span onclick="_pwParticipRemove(${i})" style="cursor:pointer;color:#1D4ED8;opacity:.6;font-weight:900;padding:0 3px">×</span></span>`).join('');
 }
 document.addEventListener('click', e=>{
   if(e.target.closest('#pw-person-search')||e.target.closest('#pw-person-suggest')) return;
@@ -25536,9 +25554,10 @@ function _pwEnsureModal(){
         <input id="pw-titulo" type="text" placeholder="Ej: Atenciones cuerpo técnico…" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
       </div>
       <div style="margin-bottom:12px">
-        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">RESPONSABLE <span id="pw-person-opt-label" style="font-weight:400;color:var(--hint)">(opcional en registro libre)</span></label>
+        <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">PARTICIPA <span id="pw-person-opt-label" style="font-weight:400;color:var(--hint)">(opcional en registro libre)</span></label>
+        <div id="pw-particip-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
         <div style="position:relative">
-          <input id="pw-person-search" type="text" autocomplete="off" placeholder="Buscar persona…" oninput="_pwPersonFilter(this.value)" onfocus="_pwPersonFilter(this.value)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box">
+          <input id="pw-person-search" type="text" autocomplete="off" placeholder="Buscar persona… (podés sumar varias)" oninput="_pwPersonFilter(this.value)" onfocus="_pwPersonFilter(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();_pwPersonPickTop();}" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;background:#fff;color:var(--text);box-sizing:border-box">
           <div id="pw-person-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:10px;margin-top:4px;max-height:260px;overflow-y:auto;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.14)"></div>
         </div>
         <select id="pw-person" style="display:none"></select>
@@ -25615,6 +25634,9 @@ function _pwNuevaVentana(){
   const t=document.getElementById('pw-modal-title'); if(t) t.textContent='Agregar ventana de prensa';
   const b=document.getElementById('pw-modal-btn');   if(b) b.textContent='Crear ventana';
   const ti=document.getElementById('pw-titulo'); if(ti) ti.value='';
+  const pin=document.getElementById('pw-person-search'); if(pin) pin.value='';
+  window._pwParticipList=[];
+  _pwRenderParticipChips();
   _pwSetTipo('periodo');
   setTimeout(()=>_pwRenderReglasPills([]),0);
   document.getElementById('pw-modal').style.display='flex';
@@ -25627,7 +25649,11 @@ function _pwEditVentana(id){
   const t=document.getElementById('pw-modal-title'); if(t) t.textContent='Editar ventana de prensa';
   const b=document.getElementById('pw-modal-btn');   if(b) b.textContent='Guardar cambios';
   const ti=document.getElementById('pw-titulo'); if(ti) ti.value=vw.titulo||'';
-  const ps=document.getElementById('pw-person');  if(ps) ps.value=vw.personKey||'';
+  window._pwParticipList = Array.isArray(vw.participantes) && vw.participantes.length
+    ? vw.participantes.map(p=>({...p}))
+    : (vw.personKey ? [{key:vw.personKey, label:vw.personLabel||vw.personKey, rol:vw.personRol||''}] : []);
+  _pwRenderParticipChips();
+  const pin=document.getElementById('pw-person-search'); if(pin) pin.value='';
   const ds=document.getElementById('pw-desde');   if(ds) ds.value=vw.desde||'';
   const hs=document.getElementById('pw-hasta');   if(hs) hs.value=vw.hasta||'';
   const fs=document.getElementById('pw-formato'); if(fs) fs.value=vw.formato||'';
@@ -25645,13 +25671,15 @@ function _pwCloseModal(){
   _pwEditingId=null;
 }
 function _pwGuardarNueva(){
-  const personKey=document.getElementById('pw-person').value||'';
+  const participantes=[...window._pwParticipList];
   const titulo=(document.getElementById('pw-titulo')?.value||'').trim();
   const tipo=_pwModalTipo||'periodo';
-  if(tipo==='periodo'&&!personKey){alert('Elegí una persona');return;}
-  if(tipo==='registro'&&!titulo&&!personKey){alert('Ingresá un título o elegí un responsable');return;}
-  const opts=_pwPersonOptions();
-  const found=opts.find(o=>o.key===personKey);
+  if(tipo==='periodo'&&!participantes.length){alert('Elegí al menos una persona');return;}
+  if(tipo==='registro'&&!titulo&&!participantes.length){alert('Ingresá un título o elegí quién participa');return;}
+  const personKey=participantes[0]?.key||'';
+  const personLabel=participantes.map(p=>p.label).join(', ');
+  const personRol=participantes[0]?.rol||'';
+  const cat=_pwPersonOptions().find(o=>o.key===personKey)?.cat||'';
   const desde=document.getElementById('pw-desde')?.value||'';
   const hasta=document.getElementById('pw-hasta')?.value||'';
   const formato=document.getElementById('pw-formato')?.value||'';
@@ -25665,7 +25693,7 @@ function _pwGuardarNueva(){
   if(_pwEditingId){
     const idx=list.findIndex(v=>v.id===_pwEditingId);
     if(idx>=0){
-      list[idx]={...list[idx], tipo, titulo, personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'', desde, hasta, formato, fechaEnvio, horaEnvio, fechaLimite, horaLimite, linkNoticia, reglas};
+      list[idx]={...list[idx], tipo, titulo, participantes, personKey, personLabel, personRol, cat, desde, hasta, formato, fechaEnvio, horaEnvio, fechaLimite, horaLimite, linkNoticia, reglas};
       _pwSave(list);
     }
     _pwCloseModal();
@@ -25674,7 +25702,7 @@ function _pwGuardarNueva(){
   }
   const vw={
     id:_pwId(), tipo, titulo,
-    personKey, personLabel:found?.label||personKey, personRol:found?.rol||'', cat:found?.cat||'',
+    participantes, personKey, personLabel, personRol, cat,
     desde, hasta, formato, fechaEnvio, fechaLimite, linkNoticia, reglas, solicitudes:[],
   };
   list.push(vw); _pwSave(list);
