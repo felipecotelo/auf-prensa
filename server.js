@@ -541,10 +541,24 @@ async function computeMisIdas() {
   const aufPm = personalEvents.filter(e => e.summary.toLowerCase() === 'auf pm').length;
 
   const thisYear = new Date().getFullYear();
-  const fifaEvents = seleccionEvents.filter(e =>
-    /^mayor\s*\|\s*fecha fifa/i.test(e.summary) && e.start.getFullYear() === thisYear
-  );
-  const fifaDays = fifaEvents.reduce((sum, e) => sum + Math.round((e.end - e.start) / 86400000), 0);
+  // "Mayor | Viaje a X" marca cada salida (puede haber más de una dentro del mismo viaje,
+  // ej. Inglaterra→Turín); "Vuelta a Uruguay" cierra el viaje que sigue abierto. No sumamos
+  // por cada "Viaje a" — solo contamos desde que se abre un viaje hasta que se cierra.
+  const travelMarkers = seleccionEvents
+    .filter(e => /^mayor\s*\|\s*viaje a /i.test(e.summary) || /^vuelta a uruguay$/i.test(e.summary.trim()))
+    .sort((a, b) => a.start - b.start);
+  let fifaDays = 0, tripStart = null;
+  for (const e of travelMarkers) {
+    const isViaje = /^mayor\s*\|\s*viaje a /i.test(e.summary);
+    if (isViaje) {
+      if (!tripStart) tripStart = e.start;
+    } else if (tripStart) {
+      if (tripStart.getFullYear() === thisYear) {
+        fifaDays += Math.round((e.start - tripStart) / 86400000);
+      }
+      tripStart = null;
+    }
+  }
 
   return { complejo, aufPm, fifaDays, year: thisYear, updatedAt: new Date().toISOString() };
 }
