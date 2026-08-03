@@ -490,6 +490,78 @@ app.get('/api/tm/:id', (req, res) => {
   }).on('error', e => res.status(502).json({ error: e.message }));
 });
 
+// ── Contador de idas a AUF / Complejo / Fecha FIFA (lee el iCal privado de Felipe) ──
+let _misIdasCache = null; // {ts, data}
+const MIS_IDAS_TTL = 15 * 60 * 1000; // 15 min
+
+function fetchText(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'auf-prensa/1.0' } }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
+        return fetchText(r.headers.location).then(resolve, reject);
+      }
+      let data = '';
+      r.on('data', chunk => data += chunk);
+      r.on('end', () => resolve(data));
+    }).on('error', reject);
+  });
+}
+
+// Parser mínimo de ICS: solo lo que necesitamos (SUMMARY + DTSTART/DTEND de eventos de todo el día).
+function parseIcsEvents(ics) {
+  const events = [];
+  const blocks = ics.split('BEGIN:VEVENT').slice(1);
+  for (const block of blocks) {
+    const summaryM = block.match(/\nSUMMARY:(.*)/);
+    const startM = block.match(/\nDTSTART[^:\n]*:(\d{8})/);
+    const endM = block.match(/\nDTEND[^:\n]*:(\d{8})/);
+    if (!summaryM || !startM) continue;
+    const toDate = s => new Date(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8));
+    events.push({
+      summary: summaryM[1].trim(),
+      start: toDate(startM[1]),
+      end: endM ? toDate(endM[1]) : toDate(startM[1]),
+    });
+  }
+  return events;
+}
+
+async function computeMisIdas() {
+  const url = process.env.PERSONAL_ICS_URL;
+  const url2 = process.env.SELECCION_ICS_URL; // opcional, calendario "Selección | Planificación" para Fecha FIFA
+  if (!url) throw new Error('Falta PERSONAL_ICS_URL');
+  const [icsPersonal, icsSeleccion] = await Promise.all([
+    fetchText(url),
+    url2 ? fetchText(url2) : Promise.resolve(null),
+  ]);
+  const personalEvents = parseIcsEvents(icsPersonal);
+  const seleccionEvents = icsSeleccion ? parseIcsEvents(icsSeleccion) : personalEvents;
+
+  const complejo = personalEvents.filter(e => /complejo/i.test(e.summary)).length;
+  const aufPm = personalEvents.filter(e => e.summary.toLowerCase() === 'auf pm').length;
+
+  const thisYear = new Date().getFullYear();
+  const fifaEvents = seleccionEvents.filter(e =>
+    /^mayor\s*\|\s*fecha fifa/i.test(e.summary) && e.start.getFullYear() === thisYear
+  );
+  const fifaDays = fifaEvents.reduce((sum, e) => sum + Math.round((e.end - e.start) / 86400000), 0);
+
+  return { complejo, aufPm, fifaDays, year: thisYear, updatedAt: new Date().toISOString() };
+}
+
+app.get('/api/mis-idas', async (req, res) => {
+  try {
+    if (_misIdasCache && (Date.now() - _misIdasCache.ts) < MIS_IDAS_TTL) {
+      return res.json(_misIdasCache.data);
+    }
+    const data = await computeMisIdas();
+    _misIdasCache = { ts: Date.now(), data };
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));
 // trigger deploy Thu Jun 18 18:40:44 EST 2026
