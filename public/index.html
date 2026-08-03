@@ -4813,11 +4813,18 @@ function renderInicioMisIdas(){
     <div id="${id}" style="font-size:20px;font-weight:900;color:${color}">…</div>
     <div style="font-size:9.5px;color:${lblCol};text-transform:uppercase;font-weight:700;margin-top:2px;letter-spacing:.04em">${label}</div>
   </div>`;
+  // Días transcurridos del año en curso + cuántos de esos fueron hábiles (lun-vie).
+  // Se recalcula con TODAY cada vez que se renderiza Inicio, así siempre está al día.
+  const [ty,tm,td]=TODAY.split('-').map(Number);
+  const diasAno=Math.round((new Date(ty,tm-1,td)-new Date(ty,0,1))/86400000)+1;
+  let habiles=0;
+  for(let i=0;i<diasAno;i++){ const dow=new Date(ty,0,1+i).getDay(); if(dow!==0&&dow!==6) habiles++; }
   const body=`<div style="display:flex;gap:8px;flex-wrap:wrap">
     ${cell('mi-auf','Idas a AUF','#15803D')}
     ${cell('mi-complejo','Idas al Complejo','#0EA5E9')}
     ${cell('mi-fifa','Fecha FIFA exterior','#EA580C')}
   </div>
+  <div style="font-size:11px;color:${lblCol};margin-top:10px;text-align:center">${diasAno} días del año (${habiles} hábiles)</div>
   <div id="mi-idas-err" style="display:none;font-size:11px;color:${lblCol};margin-top:8px">No se pudo leer el calendario ahora.</div>`;
   setTimeout(window._loadMisIdas,0);
   return _inicioBox('Mis idas', body, '#7C3AED', isMob);
