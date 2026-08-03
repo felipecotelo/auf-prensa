@@ -542,10 +542,13 @@ async function computeMisIdas() {
 
   const thisYear = new Date().getFullYear();
   // "Mayor | Viaje a X" marca cada salida (puede haber más de una dentro del mismo viaje,
-  // ej. Inglaterra→Turín); "Vuelta a Uruguay" cierra el viaje que sigue abierto. No sumamos
-  // por cada "Viaje a" — solo contamos desde que se abre un viaje hasta que se cierra.
+  // ej. Inglaterra→Turín); "Vuelta a Uruguay" (con o sin el prefijo "Mayor | ", según cómo
+  // se haya cargado) cierra el viaje que sigue abierto. Se filtra por año ANTES de emparejar:
+  // años anteriores tienen viajes sin "Vuelta a Uruguay" cargada (ej. 2025 Bolivia/Malasia),
+  // que si se dejan en la cadena rompen el emparejamiento de los viajes reales del año actual.
   const travelMarkers = seleccionEvents
-    .filter(e => /^mayor\s*\|\s*viaje a /i.test(e.summary) || /^vuelta a uruguay$/i.test(e.summary.trim()))
+    .filter(e => e.start.getFullYear() === thisYear)
+    .filter(e => /^mayor\s*\|\s*viaje a /i.test(e.summary) || /^(mayor\s*\|\s*)?vuelta a uruguay$/i.test(e.summary.trim()))
     .sort((a, b) => a.start - b.start);
   let fifaDays = 0, tripStart = null;
   for (const e of travelMarkers) {
@@ -553,9 +556,7 @@ async function computeMisIdas() {
     if (isViaje) {
       if (!tripStart) tripStart = e.start;
     } else if (tripStart) {
-      if (tripStart.getFullYear() === thisYear) {
-        fifaDays += Math.round((e.start - tripStart) / 86400000);
-      }
+      fifaDays += Math.round((e.start - tripStart) / 86400000);
       tripStart = null;
     }
   }
