@@ -4962,26 +4962,35 @@ window._loadMisIdas = async function(){
 function _fmtFutbolHora(utcTime){
   return new Date(utcTime).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',timeZone:'America/Montevideo'});
 }
-function _fmtFutbolDia(utcTime){
-  return new Date(utcTime).toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short',timeZone:'America/Montevideo'});
+function _futbolDiaKey(utcTime){
+  const p=new Intl.DateTimeFormat('es-UY',{timeZone:'America/Montevideo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(utcTime));
+  const g=t=>p.find(x=>x.type===t).value;
+  return `${g('year')}-${g('month')}-${g('day')}`;
+}
+function _futbolDiaLabel(utcTime){
+  const key=_futbolDiaKey(utcTime);
+  const todayKey=_futbolDiaKey(new Date().toISOString());
+  const diff=Math.round((new Date(key)-new Date(todayKey))/86400000);
+  if(diff===0) return 'Hoy';
+  if(diff===-1) return 'Ayer';
+  if(diff===1) return 'Mañana';
+  return new Date(utcTime).toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Montevideo'}).replace(/^\w/,c=>c.toUpperCase());
 }
 function _futbolEscudo(id){
   return `<img src="https://images.fotmob.com/image_resources/logo/teamlogo/${id}_xsmall.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
 }
-function _futbolFila(m,finalizado){
-  return `<div style="display:flex;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--border)">
-    <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;text-align:right">
-      <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.home}</span>
+function _futbolFila(m){
+  return `<div style="display:flex;align-items:center;padding:7px 10px;border-bottom:0.5px solid var(--border)">
+    <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:7px;text-align:right">
+      <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.home}</span>
       ${_futbolEscudo(m.homeId)}
     </div>
-    <div style="flex-shrink:0;width:56px;text-align:center;padding:0 6px">
-      <div style="font-size:9.5px;color:var(--muted);margin-bottom:1px">${_fmtFutbolDia(m.utcTime)}</div>
-      <div style="font-size:12.5px;font-weight:800;color:var(--text)">${_fmtFutbolHora(m.utcTime)}</div>
-      ${finalizado?`<div style="font-size:10.5px;font-weight:700;color:#059669">(${m.score})</div>`:''}
+    <div style="flex-shrink:0;width:56px;text-align:center">
+      ${m.finalizado?`<span style="font-size:13px;font-weight:800;color:var(--text)">${m.score}</span>`:`<span style="font-size:12.5px;font-weight:700;color:var(--muted)">${_fmtFutbolHora(m.utcTime)}</span>`}
     </div>
-    <div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px">
+    <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px">
       ${_futbolEscudo(m.awayId)}
-      <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.away}</span>
+      <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.away}</span>
     </div>
   </div>`;
 }
@@ -5000,18 +5009,28 @@ window._loadFutbolUY = async function(){
     const div=(nombre,liga)=>{
       if(!liga.proximos?.length && !liga.ultimos?.length && !liga.tabla?.length) return '';
       const lider=liga.tabla?.[0];
-      const proximos=(liga.proximos||[]).slice(0,3).map(m=>_futbolFila(m,false)).join('');
-      const ultimos=(liga.ultimos||[]).slice(0,3).map(m=>_futbolFila(m,true)).join('');
-      return `<div style="margin-bottom:6px">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0 4px">
-          <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.04em">${nombre}</span>
+      const combo=[
+        ...(liga.ultimos||[]).map(m=>({...m,finalizado:true})),
+        ...(liga.proximos||[]).map(m=>({...m,finalizado:false})),
+      ].sort((a,b)=>new Date(a.utcTime)-new Date(b.utcTime));
+      let lastLabel=null, rows='';
+      combo.forEach(m=>{
+        const label=_futbolDiaLabel(m.utcTime);
+        if(label!==lastLabel){
+          rows+=`<div style="background:var(--bg);padding:5px 10px;font-size:11px;font-weight:800;color:var(--text)">${label}</div>`;
+          lastLabel=label;
+        }
+        rows+=_futbolFila(m);
+      });
+      return `<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(5,150,105,.1)">
+          <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.03em">${nombre}</span>
           ${lider?`<span style="font-size:10.5px;color:var(--muted)">🥇 ${lider.name} (${lider.pts} pts)</span>`:''}
         </div>
-        ${proximos||`<div style="font-size:11.5px;color:var(--muted);padding:4px 0">Sin próxima fecha confirmada todavía.</div>`}
-        ${ultimos?`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:6px;padding-bottom:2px">Últimos resultados</div>${ultimos}`:''}
+        ${rows||`<div style="font-size:11.5px;color:var(--muted);padding:8px 10px">Sin próxima fecha confirmada todavía.</div>`}
       </div>`;
     };
-    const html=div('Primera',d.primera)+div('Segunda',d.segunda);
+    const html=div('Liga AUF Uruguaya',d.primera)+div('Segunda Profesional AUF',d.segunda);
     document.querySelectorAll('#fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
   }catch(_){
     document.querySelectorAll('#fut-body').forEach(e=>e.textContent='No se pudo leer el fixture ahora.');
