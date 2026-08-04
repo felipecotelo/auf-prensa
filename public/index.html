@@ -4970,27 +4970,30 @@ function renderInicioFutbolUY(){
   const lblCol=isMob?'rgba(239,243,248,.5)':'var(--muted)';
   const body=`<div id="fut-body" style="font-size:12.5px;color:${lblCol}">Cargando…</div>`;
   setTimeout(window._loadFutbolUY,0);
-  return _inicioBox('Fútbol Uruguayo', body, '#059669', isMob);
+  return _inicioBox('⚽ Partidos', body, '#059669', isMob);
 }
 window._loadFutbolUY = async function(){
   try{
     const r = await fetch('/api/futbol-uy');
     if(!r.ok) throw new Error('bad status');
     const d = await r.json();
+    const fila=(m,conResultado)=>`
+      <div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:11.5px">
+        <span style="font-weight:700;color:var(--text)">${m.home} ${conResultado?`<span style="color:#059669">${m.score}</span>`:'vs'} ${m.away}</span>
+        <span style="color:var(--muted);white-space:nowrap">${_fmtFutbolFecha(m.utcTime)}</span>
+      </div>`;
     const div=(nombre,liga)=>{
-      if(!liga.proximos?.length && !liga.tabla?.length) return '';
+      if(!liga.proximos?.length && !liga.ultimos?.length && !liga.tabla?.length) return '';
       const lider=liga.tabla?.[0];
-      const proximos=(liga.proximos||[]).slice(0,2).map(m=>`
-        <div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:11.5px">
-          <span style="font-weight:700;color:var(--text)">${m.home} vs ${m.away}</span>
-          <span style="color:var(--muted);white-space:nowrap">${_fmtFutbolFecha(m.utcTime)}</span>
-        </div>`).join('');
-      return `<div style="margin-bottom:10px">
+      const proximos=(liga.proximos||[]).slice(0,3).map(m=>fila(m,false)).join('');
+      const ultimos=(liga.ultimos||[]).slice(0,3).map(m=>fila(m,true)).join('');
+      return `<div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
           <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.04em">${nombre}</span>
           ${lider?`<span style="font-size:10.5px;color:var(--muted)">🥇 ${lider.name} (${lider.pts} pts)</span>`:''}
         </div>
         ${proximos||`<div style="font-size:11.5px;color:var(--muted)">Sin próxima fecha confirmada todavía.</div>`}
+        ${ultimos?`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:5px">Últimos resultados</div>${ultimos}`:''}
       </div>`;
     };
     const html=div('Primera',d.primera)+div('Segunda',d.segunda);
@@ -5369,8 +5372,8 @@ function renderInicio(){
       ${renderInicioHoySeleccion()}
       ${renderInicioTareas()}
       ${renderInicioProximo()}
-      ${renderInicioMisIdas()}
       ${renderInicioFutbolUY()}
+      ${renderInicioMisIdas()}
       ${renderInicioFotos()}
       ${renderInicioRedes()}
 
@@ -5404,6 +5407,7 @@ function renderInicio(){
     ${renderInicioHoySeleccion()}
     ${renderInicioTareas()}
     ${renderInicioProximo()}
+    ${renderInicioFutbolUY()}
     ${renderInicioMisIdas()}
     ${renderInicioFotos()}
     ${renderInicioRedes()}
