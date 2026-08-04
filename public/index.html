@@ -4994,7 +4994,7 @@ function _futbolFila(m){
     </div>
   </div>`;
 }
-function _futbolSubtablaHTML(fase,filas){
+function _futbolSubtablaHTML(filas){
   const th=(t,alinear)=>`<th style="padding:4px 5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;text-align:${alinear||'center'}">${t}</th>`;
   const filasHTML=filas.map(r=>`<tr style="border-bottom:0.5px solid var(--border)">
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pos}</td>
@@ -5008,29 +5008,39 @@ function _futbolSubtablaHTML(fase,filas){
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.dif>0?'+':''}${r.dif ?? '—'}</td>
     <td style="padding:5px;font-size:12px;font-weight:800;color:var(--text);text-align:center">${r.pts}</td>
   </tr>`).join('');
-  return `<div style="margin-bottom:10px">
-    <div style="font-size:10px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.03em;padding:2px 0 4px">${fase}</div>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="border-bottom:1px solid var(--border)">
-          ${th('#')}${th('Equipo','left')}${th('PJ')}${th('G')}${th('E')}${th('P')}${th('GF')}${th('GC')}${th('DIF')}${th('PTS')}
-        </tr></thead>
-        <tbody>${filasHTML}</tbody>
-      </table>
-    </div>
+  return `<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        ${th('#')}${th('Equipo','left')}${th('PJ')}${th('G')}${th('E')}${th('P')}${th('GF')}${th('GC')}${th('DIF')}${th('PTS')}
+      </tr></thead>
+      <tbody>${filasHTML}</tbody>
+    </table>
   </div>`;
 }
-function _futbolTablaHTML(nombre,liga){
+function _futbolTablaHTML(nombre,key,liga){
   const tablas=liga.tablas||[];
   if(!tablas.length) return '';
-  const subs=tablas.map(t=>_futbolSubtablaHTML(t.nombre,t.filas)).join('');
+  const pills=tablas.map((t,i)=>`<button onclick="_futFase('${key}',${i})" data-fut-fase="${key}:${i}" style="border:1px solid ${i===0?'#059669':'var(--border)'};background:${i===0?'#059669':'transparent'};color:${i===0?'#fff':'var(--muted)'};font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.02em;padding:4px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;flex-shrink:0">${t.nombre}</button>`).join('');
+  const panels=tablas.map((t,i)=>`<div data-fut-fase-panel="${key}:${i}" style="${i===0?'':'display:none'}">${_futbolSubtablaHTML(t.filas)}</div>`).join('');
   return `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
     <div style="padding:6px 10px;background:rgba(5,150,105,.1)">
       <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.03em">${nombre}</span>
     </div>
-    <div style="padding:8px 8px 2px">${subs}</div>
+    <div style="display:flex;gap:5px;overflow-x:auto;padding:8px 8px 0">${pills}</div>
+    <div style="padding:6px 8px 2px">${panels}</div>
   </div>`;
 }
+window._futFase = function(key,idx){
+  document.querySelectorAll(`[data-fut-fase^="${key}:"]`).forEach(b=>{
+    const on=b.getAttribute('data-fut-fase')===`${key}:${idx}`;
+    b.style.background=on?'#059669':'transparent';
+    b.style.borderColor=on?'#059669':'var(--border)';
+    b.style.color=on?'#fff':'var(--muted)';
+  });
+  document.querySelectorAll(`[data-fut-fase-panel^="${key}:"]`).forEach(p=>{
+    p.style.display=p.getAttribute('data-fut-fase-panel')===`${key}:${idx}`?'':'none';
+  });
+};
 function renderInicioFutbolUY(){
   const isMob=window.innerWidth<=600;
   const lblCol=isMob?'rgba(239,243,248,.5)':'var(--muted)';
@@ -5085,7 +5095,7 @@ window._loadFutbolUY = async function(){
     };
     const html=div('Liga AUF Uruguaya',d.primera)+div('Segunda Profesional AUF',d.segunda);
     document.querySelectorAll('.fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
-    const htmlTablas=_futbolTablaHTML('Liga AUF Uruguaya',d.primera)+_futbolTablaHTML('Segunda Profesional AUF',d.segunda);
+    const htmlTablas=_futbolTablaHTML('Liga AUF Uruguaya','primera',d.primera)+_futbolTablaHTML('Segunda Profesional AUF','segunda',d.segunda);
     document.querySelectorAll('.fut-tablas').forEach(e=>e.innerHTML=htmlTablas||'Sin datos disponibles.');
   }catch(_){
     document.querySelectorAll('.fut-body').forEach(e=>e.textContent='No se pudo leer el fixture ahora.');
