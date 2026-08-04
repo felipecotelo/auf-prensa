@@ -628,7 +628,7 @@ async function fetchLigaUY(leagueId) {
     .filter(m => m.status.finished)
     .sort((a, b) => new Date(b.status.utcTime) - new Date(a.status.utcTime))
     .slice(0, 3)
-    .map(m => ({ home: m.home.name, homeId: m.home.id, away: m.away.name, awayId: m.away.id, score: m.status.scoreStr, utcTime: m.status.utcTime }));
+    .map(m => ({ id: m.id, home: m.home.name, homeId: m.home.id, away: m.away.name, awayId: m.away.id, score: m.status.scoreStr, utcTime: m.status.utcTime }));
   const tablas = [];
   try {
     const anual = computeAnualTable(allMatches);
@@ -661,6 +661,40 @@ app.get('/api/futbol-uy', async (req, res) => {
     ]);
     const data = { primera, segunda, updatedAt: new Date().toISOString() };
     _futbolCache = { ts: Date.now(), data };
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Goleadores de un partido puntual (bajo demanda, al tocar el "+" en Partidos).
+// Cacheado más tiempo porque un partido finalizado no cambia.
+const _golesCache = new Map(); // matchId -> {ts, data}
+const GOLES_TTL = 6 * 60 * 60 * 1000; // 6 hs
+
+app.get('/api/futbol-uy/partido/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const cached = _golesCache.get(id);
+    if (cached && (Date.now() - cached.ts) < GOLES_TTL) {
+      return res.json(cached.data);
+    }
+    const raw = await fetchText(`https://www.fotmob.com/api/data/matchDetails?matchId=${id}`);
+    const json = JSON.parse(raw);
+    const ev = json?.header?.events || {};
+    const home = json?.header?.teams?.[0]?.name || '';
+    const away = json?.header?.teams?.[1]?.name || '';
+    const goles = [];
+    const extraer = (grupo, team) => {
+      Object.values(grupo || {}).forEach(lista => (lista || []).forEach(g => {
+        goles.push({ minute: g.overloadTimeStr ? `${g.time}+${g.overloadTime}` : g.time, player: g.nameStr || g.player?.name || '', ownGoal: !!g.ownGoal, team });
+      }));
+    };
+    extraer(ev.homeTeamGoals, 'home');
+    extraer(ev.awayTeamGoals, 'away');
+    goles.sort((a, b) => parseInt(a.minute) - parseInt(b.minute));
+    const data = { home, away, goles };
+    _golesCache.set(id, { ts: Date.now(), data });
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -4980,20 +4980,49 @@ function _futbolEscudo(id){
   return `<img src="https://images.fotmob.com/image_resources/logo/teamlogo/${id}_xsmall.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
 }
 function _futbolFila(m){
-  return `<div style="display:flex;align-items:center;padding:7px 10px;border-bottom:0.5px solid var(--border)">
-    <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:7px;text-align:right">
-      <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.home}</span>
-      ${_futbolEscudo(m.homeId)}
+  const toggle=(m.finalizado&&m.id)?`<button onclick="_futGoles('${m.id}')" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;font-weight:800;flex-shrink:0;width:22px;line-height:1;padding:0">+</button>`:`<span style="width:22px;flex-shrink:0"></span>`;
+  const panel=(m.finalizado&&m.id)?`<div data-fut-goles="${m.id}" style="display:none;padding:0 10px 8px 10px;font-size:11px;color:var(--muted)"></div>`:'';
+  return `<div>
+    <div style="display:flex;align-items:center;padding:7px 10px;border-bottom:0.5px solid var(--border)">
+      <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:7px;text-align:right">
+        <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.home}</span>
+        ${_futbolEscudo(m.homeId)}
+      </div>
+      <div style="flex-shrink:0;width:60px;text-align:center;white-space:nowrap">
+        ${m.finalizado?`<span style="font-size:13px;font-weight:800;color:var(--text)">${m.score}</span>`:`<span style="font-size:12px;font-weight:700;color:var(--muted)">${_fmtFutbolHora(m.utcTime)}</span>`}
+      </div>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px">
+        ${_futbolEscudo(m.awayId)}
+        <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.away}</span>
+      </div>
+      ${toggle}
     </div>
-    <div style="flex-shrink:0;width:60px;text-align:center;white-space:nowrap">
-      ${m.finalizado?`<span style="font-size:13px;font-weight:800;color:var(--text)">${m.score}</span>`:`<span style="font-size:12px;font-weight:700;color:var(--muted)">${_fmtFutbolHora(m.utcTime)}</span>`}
-    </div>
-    <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px">
-      ${_futbolEscudo(m.awayId)}
-      <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.away}</span>
-    </div>
+    ${panel}
   </div>`;
 }
+window._futGoles = async function(id){
+  const panels=document.querySelectorAll(`[data-fut-goles="${id}"]`);
+  if(!panels.length) return;
+  const willOpen = panels[0].style.display==='none' || !panels[0].style.display;
+  panels.forEach(p=>p.style.display = willOpen ? 'block' : 'none');
+  if(!willOpen) return;
+  if(panels[0].dataset.loaded) return;
+  panels.forEach(p=>p.textContent='Cargando…');
+  try{
+    const r = await fetch('/api/futbol-uy/partido/'+id);
+    if(!r.ok) throw new Error('bad status');
+    const d = await r.json();
+    let html;
+    if(!d.goles?.length){
+      html='Sin goles registrados.';
+    }else{
+      html=d.goles.map(g=>`<div style="padding:1px 0">⚽ ${g.minute}' ${g.player}${g.ownGoal?' <span style="opacity:.7">(en contra)</span>':''} <span style="opacity:.6">· ${g.team==='home'?d.home:d.away}</span></div>`).join('');
+    }
+    panels.forEach(p=>{p.innerHTML=html; p.dataset.loaded='1';});
+  }catch(_){
+    panels.forEach(p=>p.textContent='No se pudo cargar el detalle.');
+  }
+};
 function _futbolSubtablaHTML(filas){
   const th=(t,alinear)=>`<th style="padding:4px 5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;text-align:${alinear||'center'}">${t}</th>`;
   const filasHTML=filas.map(r=>`<tr style="border-bottom:0.5px solid var(--border)">
