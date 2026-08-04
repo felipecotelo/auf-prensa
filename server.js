@@ -593,12 +593,12 @@ async function fetchLigaUY(leagueId) {
     .filter(m => !m.status.finished && !m.status.cancelled)
     .sort((a, b) => new Date(a.status.utcTime) - new Date(b.status.utcTime))
     .slice(0, 4)
-    .map(m => ({ home: m.home.name, away: m.away.name, utcTime: m.status.utcTime, round: m.round }));
+    .map(m => ({ home: m.home.name, homeId: m.home.id, away: m.away.name, awayId: m.away.id, utcTime: m.status.utcTime, round: m.round }));
   const ultimos = allMatches
     .filter(m => m.status.finished)
     .sort((a, b) => new Date(b.status.utcTime) - new Date(a.status.utcTime))
     .slice(0, 3)
-    .map(m => ({ home: m.home.name, away: m.away.name, score: m.status.scoreStr, utcTime: m.status.utcTime }));
+    .map(m => ({ home: m.home.name, homeId: m.home.id, away: m.away.name, awayId: m.away.id, score: m.status.scoreStr, utcTime: m.status.utcTime }));
   let tabla = [];
   try {
     const t0 = json.table?.[0]?.data;
