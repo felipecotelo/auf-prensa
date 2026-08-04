@@ -603,7 +603,10 @@ async function fetchLigaUY(leagueId) {
   try {
     const t0 = json.table?.[0]?.data;
     const tbl = t0?.table?.all || t0?.tables?.[0]?.table?.all || [];
-    tabla = tbl.slice(0, 5).map(r => ({ pos: r.idx, name: r.shortName || r.name, pts: r.pts, pj: r.played }));
+    tabla = tbl.map(r => ({
+      pos: r.idx, name: r.shortName || r.name, pj: r.played, pts: r.pts,
+      w: r.wins, d: r.draws, l: r.losses, scores: r.scoresStr,
+    }));
   } catch (_) {}
   return { proximos, ultimos, tabla };
 }

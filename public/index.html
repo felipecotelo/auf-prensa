@@ -4960,7 +4960,7 @@ window._loadMisIdas = async function(){
 // del lado del servidor). Si la AUF todavía no confirmó fecha/hora de una fecha, esa
 // fecha simplemente no aparece en el fixture — no inventamos placeholders.
 function _fmtFutbolHora(utcTime){
-  return new Date(utcTime).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',timeZone:'America/Montevideo'});
+  return new Date(utcTime).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Montevideo'});
 }
 function _futbolDiaKey(utcTime){
   const p=new Intl.DateTimeFormat('es-UY',{timeZone:'America/Montevideo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(utcTime));
@@ -4985,8 +4985,8 @@ function _futbolFila(m){
       <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.home}</span>
       ${_futbolEscudo(m.homeId)}
     </div>
-    <div style="flex-shrink:0;width:56px;text-align:center">
-      ${m.finalizado?`<span style="font-size:13px;font-weight:800;color:var(--text)">${m.score}</span>`:`<span style="font-size:12.5px;font-weight:700;color:var(--muted)">${_fmtFutbolHora(m.utcTime)}</span>`}
+    <div style="flex-shrink:0;width:60px;text-align:center;white-space:nowrap">
+      ${m.finalizado?`<span style="font-size:13px;font-weight:800;color:var(--text)">${m.score}</span>`:`<span style="font-size:12px;font-weight:700;color:var(--muted)">${_fmtFutbolHora(m.utcTime)}</span>`}
     </div>
     <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px">
       ${_futbolEscudo(m.awayId)}
@@ -4994,13 +4994,57 @@ function _futbolFila(m){
     </div>
   </div>`;
 }
+function _futbolTablaHTML(nombre,liga){
+  const filas=(liga.tabla||[]).map(r=>{
+    const pct=r.pj?Math.round(r.pts/(r.pj*3)*100):0;
+    return `<tr style="border-bottom:0.5px solid var(--border)">
+      <td style="padding:5px 6px;font-size:11.5px;color:var(--muted);text-align:center">${r.pos}</td>
+      <td style="padding:5px 6px;font-size:12px;font-weight:600;color:var(--text)">${r.name}</td>
+      <td style="padding:5px 6px;font-size:11.5px;color:var(--muted);text-align:center">${r.pj}</td>
+      <td style="padding:5px 6px;font-size:12px;font-weight:800;color:var(--text);text-align:center">${r.pts}</td>
+      <td style="padding:5px 6px;font-size:11.5px;font-weight:700;color:#059669;text-align:center">${pct}%</td>
+    </tr>`;
+  }).join('');
+  if(!filas) return '';
+  return `<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+    <div style="padding:6px 10px;background:rgba(5,150,105,.1)">
+      <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.03em">${nombre}</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase">#</th>
+        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase;text-align:left">Equipo</th>
+        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase">PJ</th>
+        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase">Pts</th>
+        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase">%</th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+  </div>`;
+}
 function renderInicioFutbolUY(){
   const isMob=window.innerWidth<=600;
   const lblCol=isMob?'rgba(239,243,248,.5)':'var(--muted)';
-  const body=`<div id="fut-body" style="font-size:12.5px;color:${lblCol}">Cargando…</div>`;
+  const tabBtn=(id,label,active)=>`<button onclick="_futTab('${id}')" data-fut-tab="${id}" style="border:none;background:${active?'#059669':'transparent'};color:${active?'#fff':'#059669'};font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:5px 12px;border-radius:7px;cursor:pointer">${label}</button>`;
+  const body=`<div style="display:flex;gap:6px;margin-bottom:10px">
+      ${tabBtn('partidos','Partidos',true)}
+      ${tabBtn('tablas','Tablas',false)}
+    </div>
+    <div class="fut-panel" data-fut-panel="partidos" style="font-size:12.5px;color:${lblCol}"><div class="fut-body">Cargando…</div></div>
+    <div class="fut-panel" data-fut-panel="tablas" style="display:none;font-size:12.5px;color:${lblCol}"><div class="fut-tablas">Cargando…</div></div>`;
   setTimeout(window._loadFutbolUY,0);
   return _inicioBox('⚽ Partidos', body, '#059669', isMob);
 }
+window._futTab = function(tab){
+  document.querySelectorAll('[data-fut-tab]').forEach(b=>{
+    const on=b.getAttribute('data-fut-tab')===tab;
+    b.style.background=on?'#059669':'transparent';
+    b.style.color=on?'#fff':'#059669';
+  });
+  document.querySelectorAll('[data-fut-panel]').forEach(p=>{
+    p.style.display=p.getAttribute('data-fut-panel')===tab?'':'none';
+  });
+};
 window._loadFutbolUY = async function(){
   try{
     const r = await fetch('/api/futbol-uy');
@@ -5031,9 +5075,12 @@ window._loadFutbolUY = async function(){
       </div>`;
     };
     const html=div('Liga AUF Uruguaya',d.primera)+div('Segunda Profesional AUF',d.segunda);
-    document.querySelectorAll('#fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
+    document.querySelectorAll('.fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
+    const htmlTablas=_futbolTablaHTML('Liga AUF Uruguaya',d.primera)+_futbolTablaHTML('Segunda Profesional AUF',d.segunda);
+    document.querySelectorAll('.fut-tablas').forEach(e=>e.innerHTML=htmlTablas||'Sin datos disponibles.');
   }catch(_){
-    document.querySelectorAll('#fut-body').forEach(e=>e.textContent='No se pudo leer el fixture ahora.');
+    document.querySelectorAll('.fut-body').forEach(e=>e.textContent='No se pudo leer el fixture ahora.');
+    document.querySelectorAll('.fut-tablas').forEach(e=>e.textContent='No se pudo leer la tabla ahora.');
   }
 };
 // Resumen de redes — honesto: si no hay números cargados todavía, invita a cargarlos.
