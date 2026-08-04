@@ -4956,6 +4956,49 @@ window._loadMisIdas = async function(){
     document.querySelectorAll('#mi-idas-err').forEach(el=>el.style.display='block');
   }
 };
+// Fútbol Uruguayo (Primera y Segunda) — lee /api/futbol-uy (datos en vivo de FotMob,
+// del lado del servidor). Si la AUF todavía no confirmó fecha/hora de una fecha, esa
+// fecha simplemente no aparece en el fixture — no inventamos placeholders.
+function _fmtFutbolFecha(utcTime){
+  const d=new Date(utcTime);
+  const dia=d.toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short',timeZone:'America/Montevideo'});
+  const hora=d.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',timeZone:'America/Montevideo'});
+  return `${dia} · ${hora}`;
+}
+function renderInicioFutbolUY(){
+  const isMob=window.innerWidth<=600;
+  const lblCol=isMob?'rgba(239,243,248,.5)':'var(--muted)';
+  const body=`<div id="fut-body" style="font-size:12.5px;color:${lblCol}">Cargando…</div>`;
+  setTimeout(window._loadFutbolUY,0);
+  return _inicioBox('Fútbol Uruguayo', body, '#059669', isMob);
+}
+window._loadFutbolUY = async function(){
+  try{
+    const r = await fetch('/api/futbol-uy');
+    if(!r.ok) throw new Error('bad status');
+    const d = await r.json();
+    const div=(nombre,liga)=>{
+      if(!liga.proximos?.length && !liga.tabla?.length) return '';
+      const lider=liga.tabla?.[0];
+      const proximos=(liga.proximos||[]).slice(0,2).map(m=>`
+        <div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:11.5px">
+          <span style="font-weight:700;color:var(--text)">${m.home} vs ${m.away}</span>
+          <span style="color:var(--muted);white-space:nowrap">${_fmtFutbolFecha(m.utcTime)}</span>
+        </div>`).join('');
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.04em">${nombre}</span>
+          ${lider?`<span style="font-size:10.5px;color:var(--muted)">🥇 ${lider.name} (${lider.pts} pts)</span>`:''}
+        </div>
+        ${proximos||`<div style="font-size:11.5px;color:var(--muted)">Sin próxima fecha confirmada todavía.</div>`}
+      </div>`;
+    };
+    const html=div('Primera',d.primera)+div('Segunda',d.segunda);
+    document.querySelectorAll('#fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
+  }catch(_){
+    document.querySelectorAll('#fut-body').forEach(e=>e.textContent='No se pudo leer el fixture ahora.');
+  }
+};
 // Resumen de redes — honesto: si no hay números cargados todavía, invita a cargarlos.
 // Si hay al menos 2 relevamientos, calcula sola cuál red creció más y cuál cayó más.
 function renderInicioRedes(){
@@ -5327,6 +5370,7 @@ function renderInicio(){
       ${renderInicioTareas()}
       ${renderInicioProximo()}
       ${renderInicioMisIdas()}
+      ${renderInicioFutbolUY()}
       ${renderInicioFotos()}
       ${renderInicioRedes()}
 

@@ -577,6 +577,54 @@ app.get('/api/mis-idas', async (req, res) => {
   }
 });
 
+// Fútbol Uruguayo (Primera y Segunda) — datos en vivo de FotMob (API no oficial pero
+// pública, sin auth; es la misma que usa fotmob.com/fotmob app). Las fechas de partidos
+// que la AUF todavía no confirmó simplemente no aparecen en el fixture — reflejando bien
+// que "se confirman de a poco" en vez de mostrar placeholders inventados.
+let _futbolCache = null; // {ts, data}
+const FUTBOL_TTL = 30 * 60 * 1000; // 30 min
+const FUTBOL_LEAGUES = { primera: 161, segunda: 9122 };
+
+async function fetchLigaUY(leagueId) {
+  const raw = await fetchText(`https://www.fotmob.com/api/data/leagues?id=${leagueId}`);
+  const json = JSON.parse(raw);
+  const allMatches = json?.fixtures?.allMatches || [];
+  const proximos = allMatches
+    .filter(m => !m.status.finished && !m.status.cancelled)
+    .sort((a, b) => new Date(a.status.utcTime) - new Date(b.status.utcTime))
+    .slice(0, 4)
+    .map(m => ({ home: m.home.name, away: m.away.name, utcTime: m.status.utcTime, round: m.round }));
+  const ultimos = allMatches
+    .filter(m => m.status.finished)
+    .sort((a, b) => new Date(b.status.utcTime) - new Date(a.status.utcTime))
+    .slice(0, 3)
+    .map(m => ({ home: m.home.name, away: m.away.name, score: m.status.scoreStr, utcTime: m.status.utcTime }));
+  let tabla = [];
+  try {
+    const t0 = json.table?.[0]?.data;
+    const tbl = t0?.table?.all || t0?.tables?.[0]?.table?.all || [];
+    tabla = tbl.slice(0, 5).map(r => ({ pos: r.idx, name: r.shortName || r.name, pts: r.pts, pj: r.played }));
+  } catch (_) {}
+  return { proximos, ultimos, tabla };
+}
+
+app.get('/api/futbol-uy', async (req, res) => {
+  try {
+    if (_futbolCache && (Date.now() - _futbolCache.ts) < FUTBOL_TTL) {
+      return res.json(_futbolCache.data);
+    }
+    const [primera, segunda] = await Promise.all([
+      fetchLigaUY(FUTBOL_LEAGUES.primera),
+      fetchLigaUY(FUTBOL_LEAGUES.segunda),
+    ]);
+    const data = { primera, segunda, updatedAt: new Date().toISOString() };
+    _futbolCache = { ts: Date.now(), data };
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));
 // trigger deploy Thu Jun 18 18:40:44 EST 2026
