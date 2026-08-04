@@ -4829,6 +4829,11 @@ function _otrasIdasAdd(label,lugar,cantidad){
 function _otrasIdasRemove(id){
   stor.set(KOtrasIdas, _getOtrasIdas().filter(x=>x.id!==id));
 }
+function _misIdasResumenHTML(totalIdas, diasAno, habiles, ty){
+  const pctTotal=Math.round(totalIdas/diasAno*100);
+  const pctHabiles=Math.round(totalIdas/habiles*100);
+  return `VAN <b>${totalIdas}</b> "IDAS" DE <b>${diasAno}</b> DÍAS DEL ${ty} (<b>${habiles}</b> DÍAS HÁBILES) — <b>${pctTotal}%</b> DEL TOTAL · <b>${pctHabiles}%</b> DE LOS HÁBILES`;
+}
 function _refreshOtrosCell(){
   const total=_otrasIdasTotal();
   document.querySelectorAll('#mi-otros').forEach(el=>el.textContent=total);
@@ -4840,7 +4845,7 @@ function _refreshOtrosCell(){
     let habiles=0;
     for(let i=0;i<diasAno;i++){ const dow=new Date(ty,0,1+i).getDay(); if(dow!==0&&dow!==6) habiles++; }
     const totalIdas=d.aufPm+d.complejo+d.fifaDays+total;
-    document.querySelectorAll('#mi-resumen').forEach(el=>el.innerHTML=`VAN <b>${totalIdas}</b> IDAS DE <b>${diasAno}</b> DÍAS DEL ${ty} (<b>${habiles}</b> DÍAS HÁBILES)`);
+    document.querySelectorAll('#mi-resumen').forEach(el=>el.innerHTML=_misIdasResumenHTML(totalIdas,diasAno,habiles,ty));
   }
 }
 window._showOtrasIdasModal = function(){
@@ -4946,7 +4951,7 @@ window._loadMisIdas = async function(){
     let habiles=0;
     for(let i=0;i<diasAno;i++){ const dow=new Date(ty,0,1+i).getDay(); if(dow!==0&&dow!==6) habiles++; }
     const totalIdas=d.aufPm+d.complejo+d.fifaDays+_otrasIdasTotal();
-    setAllHTML('mi-resumen', `VAN <b>${totalIdas}</b> IDAS DE <b>${diasAno}</b> DÍAS DEL ${ty} (<b>${habiles}</b> DÍAS HÁBILES)`);
+    setAllHTML('mi-resumen', _misIdasResumenHTML(totalIdas,diasAno,habiles,ty));
   }catch(_){
     document.querySelectorAll('#mi-idas-err').forEach(el=>el.style.display='block');
   }
