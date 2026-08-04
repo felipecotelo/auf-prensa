@@ -4994,32 +4994,41 @@ function _futbolFila(m){
     </div>
   </div>`;
 }
+function _futbolSubtablaHTML(fase,filas){
+  const th=(t,alinear)=>`<th style="padding:4px 5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;text-align:${alinear||'center'}">${t}</th>`;
+  const filasHTML=filas.map(r=>`<tr style="border-bottom:0.5px solid var(--border)">
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pos}</td>
+    <td style="padding:5px;font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap">${r.name}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pj}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.w}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.d}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.l}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.gf ?? '—'}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.gc ?? '—'}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.dif>0?'+':''}${r.dif ?? '—'}</td>
+    <td style="padding:5px;font-size:12px;font-weight:800;color:var(--text);text-align:center">${r.pts}</td>
+  </tr>`).join('');
+  return `<div style="margin-bottom:10px">
+    <div style="font-size:10px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.03em;padding:2px 0 4px">${fase}</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          ${th('#')}${th('Equipo','left')}${th('PJ')}${th('G')}${th('E')}${th('P')}${th('GF')}${th('GC')}${th('DIF')}${th('PTS')}
+        </tr></thead>
+        <tbody>${filasHTML}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
 function _futbolTablaHTML(nombre,liga){
-  const filas=(liga.tabla||[]).map(r=>{
-    const pct=r.pj?Math.round(r.pts/(r.pj*3)*100):0;
-    return `<tr style="border-bottom:0.5px solid var(--border)">
-      <td style="padding:5px 6px;font-size:11.5px;color:var(--muted);text-align:center">${r.pos}</td>
-      <td style="padding:5px 6px;font-size:12px;font-weight:600;color:var(--text)">${r.name}</td>
-      <td style="padding:5px 6px;font-size:11.5px;color:var(--muted);text-align:center">${r.pj}</td>
-      <td style="padding:5px 6px;font-size:12px;font-weight:800;color:var(--text);text-align:center">${r.pts}</td>
-      <td style="padding:5px 6px;font-size:11.5px;font-weight:700;color:#059669;text-align:center">${pct}%</td>
-    </tr>`;
-  }).join('');
-  if(!filas) return '';
-  return `<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+  const tablas=liga.tablas||[];
+  if(!tablas.length) return '';
+  const subs=tablas.map(t=>_futbolSubtablaHTML(t.nombre,t.filas)).join('');
+  return `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
     <div style="padding:6px 10px;background:rgba(5,150,105,.1)">
       <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.03em">${nombre}</span>
     </div>
-    <table style="width:100%;border-collapse:collapse">
-      <thead><tr style="border-bottom:1px solid var(--border)">
-        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase">#</th>
-        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase;text-align:left">Equipo</th>
-        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase">PJ</th>
-        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase">Pts</th>
-        <th style="padding:4px 6px;font-size:9.5px;color:var(--muted);text-transform:uppercase">%</th>
-      </tr></thead>
-      <tbody>${filas}</tbody>
-    </table>
+    <div style="padding:8px 8px 2px">${subs}</div>
   </div>`;
 }
 function renderInicioFutbolUY(){
@@ -5051,8 +5060,8 @@ window._loadFutbolUY = async function(){
     if(!r.ok) throw new Error('bad status');
     const d = await r.json();
     const div=(nombre,liga)=>{
-      if(!liga.proximos?.length && !liga.ultimos?.length && !liga.tabla?.length) return '';
-      const lider=liga.tabla?.[0];
+      if(!liga.proximos?.length && !liga.ultimos?.length && !liga.tablas?.length) return '';
+      const lider=liga.tablas?.find(t=>t.nombre==='Anual')?.filas?.[0] || liga.tablas?.[0]?.filas?.[0];
       const combo=[
         ...(liga.ultimos||[]).map(m=>({...m,finalizado:true})),
         ...(liga.proximos||[]).map(m=>({...m,finalizado:false})),

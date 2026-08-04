@@ -585,6 +585,36 @@ let _futbolCache = null; // {ts, data}
 const FUTBOL_TTL = 30 * 60 * 1000; // 30 min
 const FUTBOL_LEAGUES = { primera: 161, segunda: 9122 };
 
+// Tabla "Anual" (Apertura+Intermedio+Clausura combinados) — la AUF la calcula sumando
+// todos los partidos jugados en el año; FotMob no la expone directo (su campo
+// "annualTable" existe en el esquema pero viene null), así que la sumamos nosotros
+// mismos a partir de los resultados reales de fixtures.allMatches. Nada inventado:
+// si un partido no tiene score válido, no se cuenta.
+function computeAnualTable(allMatches) {
+  const map = new Map();
+  for (const m of allMatches) {
+    if (!m.status.finished) continue;
+    const parts = (m.status.scoreStr || '').split(' - ').map(Number);
+    if (parts.length !== 2 || parts.some(Number.isNaN)) continue;
+    const [hg, ag] = parts;
+    const get = (id, name) => {
+      if (!map.has(id)) map.set(id, { id, name, pj: 0, w: 0, d: 0, l: 0, gf: 0, gc: 0, pts: 0 });
+      return map.get(id);
+    };
+    const h = get(m.home.id, m.home.name);
+    const a = get(m.away.id, m.away.name);
+    h.pj++; a.pj++;
+    h.gf += hg; h.gc += ag;
+    a.gf += ag; a.gc += hg;
+    if (hg > ag) { h.w++; h.pts += 3; a.l++; }
+    else if (hg < ag) { a.w++; a.pts += 3; h.l++; }
+    else { h.d++; a.d++; h.pts++; a.pts++; }
+  }
+  return [...map.values()]
+    .sort((x, y) => y.pts - x.pts || (y.gf - y.gc) - (x.gf - x.gc) || y.gf - x.gf)
+    .map((r, i) => ({ pos: i + 1, name: r.name, pj: r.pj, w: r.w, d: r.d, l: r.l, gf: r.gf, gc: r.gc, dif: r.gf - r.gc, pts: r.pts }));
+}
+
 async function fetchLigaUY(leagueId) {
   const raw = await fetchText(`https://www.fotmob.com/api/data/leagues?id=${leagueId}`);
   const json = JSON.parse(raw);
@@ -599,16 +629,25 @@ async function fetchLigaUY(leagueId) {
     .sort((a, b) => new Date(b.status.utcTime) - new Date(a.status.utcTime))
     .slice(0, 3)
     .map(m => ({ home: m.home.name, homeId: m.home.id, away: m.away.name, awayId: m.away.id, score: m.status.scoreStr, utcTime: m.status.utcTime }));
-  let tabla = [];
+  const tablas = [];
+  try {
+    const anual = computeAnualTable(allMatches);
+    if (anual.length) tablas.push({ nombre: 'Anual', filas: anual });
+  } catch (_) {}
   try {
     const t0 = json.table?.[0]?.data;
-    const tbl = t0?.table?.all || t0?.tables?.[0]?.table?.all || [];
-    tabla = tbl.map(r => ({
-      pos: r.idx, name: r.shortName || r.name, pj: r.played, pts: r.pts,
-      w: r.wins, d: r.draws, l: r.losses, scores: r.scoresStr,
-    }));
+    const grupos = t0?.tables?.length ? t0.tables : (t0?.table?.all ? [{ leagueName: t0.leagueName, table: t0.table }] : []);
+    for (const g of grupos) {
+      const filas = (g.table?.all || []).map(r => ({
+        pos: r.idx, name: r.shortName || r.name, pj: r.played, w: r.wins, d: r.draws, l: r.losses,
+        gf: r.scoresStr ? Number(r.scoresStr.split('-')[0]) : null,
+        gc: r.scoresStr ? Number(r.scoresStr.split('-')[1]) : null,
+        dif: r.goalConDiff, pts: r.pts,
+      }));
+      if (filas.length) tablas.push({ nombre: g.leagueName, filas });
+    }
   } catch (_) {}
-  return { proximos, ultimos, tabla };
+  return { proximos, ultimos, tablas };
 }
 
 app.get('/api/futbol-uy', async (req, res) => {
