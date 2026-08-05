@@ -4270,11 +4270,39 @@ function _setSyncStatus(s){
   el.style.background=s==='ok'?'#22C55E':s==='syncing'?'#F59E0B':'#EF4444';
 }
 
+// Si esta pestaña tiene datos viejos (localStorage stale) y el usuario edita algo,
+// un push ciego pisaría en el servidor datos más nuevos de otra pestaña/dispositivo
+// con MENOS elementos — así se perdieron los eventos de Espasandín y Bueno del
+// Planificador el 4/8/26. Para arrays, si el servidor tiene más ítems que lo que
+// esta pestaña está por mandar, abortamos el push y avisamos en vez de sobreescribir
+// en silencio. No es un merge automático (podría mezclar mal) — obliga a recargar.
+function _syncConflictAlert(key, localLen, serverLen){
+  if(document.getElementById('sync-conflict-banner')) return;
+  const el=document.createElement('div');
+  el.id='sync-conflict-banner';
+  el.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99999;background:#DC2626;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:700;max-width:92vw;box-shadow:0 4px 20px rgba(0,0,0,.35);display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-family:inherit';
+  el.innerHTML=`<span>⚠️ No se guardó "${key}": esta pestaña tiene ${localLen} elementos pero el servidor ya tiene ${serverLen} más nuevos (de otra pestaña o dispositivo). Recargá antes de seguir editando para no perder nada.</span><button onclick="location.reload()" style="background:#fff;color:#DC2626;border:none;border-radius:6px;padding:6px 12px;font-weight:800;cursor:pointer;white-space:nowrap">Recargar ahora</button>`;
+  document.body.appendChild(el);
+}
 async function cloudPush(key,value){
   if(_SKIP_SYNC.has(key))return;
   _recentlyPushed[key]=Date.now();
   try{
     _setSyncStatus('syncing');
+    if(Array.isArray(value)){
+      try{
+        const {data,error}=await _sb.from('sync_data').select('value').eq('key',key).maybeSingle();
+        if(!error && data?.value){
+          const serverVal=JSON.parse(data.value);
+          if(Array.isArray(serverVal) && serverVal.length>value.length){
+            console.warn(`cloudPush bloqueado para "${key}": local ${value.length} items, servidor ${serverVal.length}.`);
+            _setSyncStatus('error');
+            _syncConflictAlert(key, value.length, serverVal.length);
+            return;
+          }
+        }
+      }catch(_){}
+    }
     await _sb.from('sync_data').upsert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()},{onConflict:'key'});
     _setSyncStatus('ok');
   }catch(e){_setSyncStatus('error');console.warn('cloudPush error',e);}
