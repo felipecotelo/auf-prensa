@@ -3102,6 +3102,48 @@ const KMayorJuvTags = 'auf4_mayor_juv_tags';
 const getMayorJuvTags = () => stor.get(KMayorJuvTags, {});
 const setMayorJuvTags = (nom, tags) => { const d=getMayorJuvTags(); if(tags&&tags.length) d[nom]=tags; else delete d[nom]; stor.set(KMayorJuvTags,d); cloudPushDebounced(KMayorJuvTags,d); };
 const JUV_CAT_META = {sub23:{label:'Sub-23',color:'#6D28D9',bg:'#EDE9FE'},sub20:{label:'Sub-20',color:'#1D4ED8',bg:'#EFF6FF'},sub18:{label:'Sub-18',color:'#7C3AED',bg:'#F3E8FF'},sub17:{label:'Sub-17',color:'#15803d',bg:'#F0FDF4'},sub16:{label:'Sub-16',color:'#B45309',bg:'#FFFBEB'},sub15:{label:'Sub-15',color:'#9A3412',bg:'#FFF7ED'},sub13:{label:'Sub-13',color:'#DC2626',bg:'#FFF1F2'}};
+// Partidos oficiales de Juveniles por categoría, tomados de archivoceleste.com (fuente
+// pública, distinta del cálculo automático por alineaciones que hace _juvOfficialStats).
+// Carga incremental, jugador por jugador — no reemplaza lo ya cargado, solo suma.
+const JUV_STATS_OVERRIDE = {
+  'Gastón Silva':          {sub20:37, sub17:48, sub15:13},
+  'Gianni Rodríguez':      {sub20:32, sub17:47, sub15:15},
+  'Juan Manuel Sanabria':  {sub20:24, sub18:12, sub17:27, sub15:27},
+  'Leonardo Pais':         {sub20:35, sub17:43, sub16:3, sub15:17},
+  'Nicolás Schiappacasse': {sub20:54, sub17:21, sub15:16},
+  'César Pellegrín':       {sub20:62, sub18:4, sub17:23},
+  'Emiliano Velázquez':    {sub20:34, sub17:46, sub16:3, sub15:18},
+  'Salvador Ichazo':       {sub20:42, sub17:37, sub15:13},
+  'Diego Rossi':           {sub20:21, sub18:7, sub17:22, sub15:29},
+  'Nicolás Prieto':        {sub20:47, sub17:36, sub15:11},
+  'Martín Silva':          {sub20:46, sub17:47},
+  'Jim Morrison Varela':   {sub20:37, sub17:36, sub16:3, sub15:17},
+  'Federico Valverde':     {sub20:16, sub18:7, sub17:25, sub15:32},
+  'Fabián Carini':         {sub20:73, sub18:4, sub17:22},
+  'Carlos Díaz':           {sub20:55, sub18:5, sub17:23},
+  'Ramón Arias':           {sub20:43, sub17:37},
+  'Fernando Carreño':      {sub20:57, sub18:4, sub17:21},
+  'Ruben Olivera':         {sub20:30, sub17:47},
+  'Edgar Elizalde':        {sub20:27, sub18:6, sub17:28, sub15:22},
+  'Kevin Méndez':          {sub20:15, sub17:36, sub15:20},
+  'Marcelo Saracchi':      {sub20:38, sub17:25, sub15:20},
+};
+function _juvStatsBreakdown(nom){
+  const ovr = JUV_STATS_OVERRIDE[nom];
+  if(!ovr) return null;
+  const total = Object.values(ovr).reduce((s,n)=>s+n, 0);
+  const porCategoria = Object.entries(ovr).map(([k,pj])=>({key:k, label:(JUV_CAT_META[k]||{}).label||k, color:(JUV_CAT_META[k]||{}).color||'#6B7280', pj}));
+  return {total, porCategoria};
+}
+function _juvStatsBreakdownHTML(nom){
+  const b = _juvStatsBreakdown(nom);
+  if(!b) return '';
+  const filas = b.porCategoria.map(c=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:.66em;color:var(--muted)">${c.label}: <b style="color:${c.color}">${c.pj}</b></span>`).join('<span style="color:var(--border)">·</span>');
+  return `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
+    <div style="font-size:.68em;font-weight:700;color:var(--text)">Partidos totales en Juveniles: <b>${b.total}</b></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${filas}</div>
+  </div>`;
+}
 
 window._editMayorJuvTags = function(nomSafe){
   const nom = nomSafe.replace(/\\'/g,"'");
@@ -10737,6 +10779,7 @@ function renderJugadores(){
       ${_logroBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${_logroBadges.join('')}</div>`:''}
       ${_allJuvBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${_allJuvBadges.map(b=>`<span style="background:${b.bg};color:${b.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${b.label}</span>`).join('')}<button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Editar categorías juveniles" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:pointer">✎</button></div>`
       :`<div style="margin-top:6px"><button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 8px;font-size:.6em;color:var(--muted);cursor:pointer">+ juvenil</button></div>`}
+      ${_juvStatsBreakdownHTML(nom)}
       ${(()=>{const _sb=_sancBadge(nom);return _sb?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${_sb}</div>`:'';})()}
       ${d.estKey?`<div style="margin-top:6px"><button onclick="event.stopPropagation();_goToEstFicha('${d.estKey}')" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:6px;padding:3px 9px;font-size:.6em;font-weight:700;cursor:pointer">👔 Ver perfil DT</button></div>`:''}
     </div>`;
@@ -17327,6 +17370,7 @@ function _renderLocalHome(){
         </div>
       </div>
       ${hist.length?`<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">${hist.map(h=>`<span style="background:${h.color}22;color:${h.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${h.label}</span>`).join('')}</div>`:''}
+      ${_juvStatsBreakdownHTML(j.nom)}
       ${(()=>{const _sb=_sancBadge(j.nom);return _sb?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${_sb}</div>`:'';})()}
     </div>`;
   }).join('');
@@ -24430,6 +24474,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
       ${hist.map(h=>`<span style="font-size:.6em;font-weight:600;color:${h.color};background:${h.color}22;border-radius:5px;padding:2px 7px">${h.label}</span>`).join('')}
       <span onclick="_juvHistEdit('${nomEnc}')" title="Agregar historial en otras selecciones juveniles" style="font-size:.6em;font-weight:700;color:var(--muted);background:none;border:1px dashed var(--border);border-radius:5px;padding:2px 7px;cursor:pointer">+ sel.</span>
     </div>
+    ${_juvStatsBreakdownHTML(p.nom)}
     <div style="margin-top:${hist.length||sparringEvts.length?'6':'8'}px;display:flex;flex-wrap:wrap;gap:3px">
       ${sparringEvts.length===1?`
         <span onclick="_sparringEdit('${nomEnc}')" title="Click para editar sparrings" style="
