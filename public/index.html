@@ -22891,7 +22891,9 @@ window._gnavGo = function(section, nomEnc){
     setTimeout(()=>{ window._jSearch=nom; if(typeof renderJugadores==='function') renderJugadores(); },80);
   } else if(section==='local'){
     showSection('local');
-    setTimeout(()=>{ window._localJugNom=nom; if(typeof renderSecLocal==='function') renderSecLocal(); },80);
+    // _localJugNom es una variable léxica (let), no cuelga de window — seteando
+    // window._localJugNom acá no tenía ningún efecto sobre renderSecLocal().
+    setTimeout(()=>{ _localJugNom=nom; if(typeof renderSecLocal==='function') renderSecLocal(); },80);
   } else {
     showSection('juveniles');
     setTimeout(()=>{ window._juvGlobalQ=nom; _juvGlobalPlayers=true; window.renderJuveniles?.(); },80);
@@ -23026,6 +23028,10 @@ window._setJuvCat = function(cat){
   stor.set('auf4_juvYear', _juvYear);
   _juvTab = _juvDefaultTab(_juvCat,_juvYear);
   stor.set('auf4_juvTab', _juvTab);
+  // El filtro de búsqueda global (llegado por ej. desde el buscador de arriba) no debe
+  // quedar pegado al cambiar de categoría — si no, la pestaña "Jugadores" aparece vacía
+  // sin explicación ("Sin fichas todavía") aunque sí haya convocatoria cargada.
+  window._juvGlobalQ=''; _juvGlobalPlayers=false;
   window.renderJuveniles();
 };
 window._setJuvYear = function(yr){
@@ -23033,6 +23039,7 @@ window._setJuvYear = function(yr){
   stor.set('auf4_juvYear', yr);
   _juvTab = _juvDefaultTab(_juvCat,_juvYear);
   stor.set('auf4_juvTab', _juvTab);
+  window._juvGlobalQ=''; _juvGlobalPlayers=false;
   window.renderJuveniles();
 };
 window._setJuvTab = function(tab){
