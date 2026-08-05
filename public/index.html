@@ -1674,6 +1674,15 @@ html.auf-gate body { display:none !important }
     <button class="nav-l1-btn" data-tab="estadisticas" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
     <button class="nav-l1-btn" data-tab="calendariomayor" onclick="showTab('calendariomayor')"><i class="ti ti-calendar-event"></i>Calendario</button>
   </div>
+  <!-- L1: menú de Selecciones Juveniles — misma barra, full-bleed, que la de Mayor -->
+  <div class="nav-l1" id="nav-l1-juv" style="display:none">
+    <span class="nav-l1-label">Juveniles</span>
+    <div class="nav-l0-sep"></div>
+    <button class="nav-l1-btn" id="juvnav-jugadores" onclick="_toggleJuvGlobal()"><i class="ti ti-id-badge-2"></i>Jugadores</button>
+    <button class="nav-l1-btn" id="juvnav-ct" onclick="_toggleJuvCT()"><i class="ti ti-clipboard-list"></i>Técnicos</button>
+    <button class="nav-l1-btn" id="juvnav-stats" onclick="_toggleJuvStats()"><i class="ti ti-chart-bar"></i>Stats</button>
+    <button class="nav-l1-btn" id="juvnav-cal" onclick="_toggleJuvCal()"><i class="ti ti-calendar-event"></i>Calendario</button>
+  </div>
   <!-- L2: tabs contextuales del torneo -->
   <div class="tabs" id="nav-l2" style="display:none">
     <button class="tab" data-tab="calendario" onclick="showTab('calendario')"><i class="ti ti-calendar"></i>Calendario</button>
@@ -4593,6 +4602,8 @@ function _updateNavState(id){
   const l1=document.getElementById('nav-l1');
   const l2=document.getElementById('nav-l2');
   if(l1) l1.style.display=inMayor?'':'none';
+  const l1j=document.getElementById('nav-l1-juv');
+  if(l1j) l1j.style.display=(id==='sec-juveniles')?'':'none';
   // L2 solo visible para tabs de torneo
   if(l2) l2.style.display=isTournament?'':'none';
   // Pills de torneo: activos solo cuando estamos dentro del torneo, no en pestañas globales
@@ -23075,6 +23086,13 @@ window._toggleJuvCal = function(){
   if(_juvGlobalCal){ _juvGlobalStats=false; _juvGlobalCT=false; }
   window.renderJuveniles();
 };
+function _syncJuvNavButtons(){
+  const set=(id,on)=>{ const el=document.getElementById(id); if(el) el.classList.toggle('active',!!on); };
+  set('juvnav-jugadores', _juvGlobalPlayers);
+  set('juvnav-ct', _juvGlobalCT);
+  set('juvnav-stats', _juvGlobalStats);
+  set('juvnav-cal', _juvGlobalCal);
+}
 window._setJuvStatsCat = function(cat){ _juvStatsCat = cat; window.renderJuveniles(); };
 window._setJuvStatsSort = function(sort){ _juvStatsSort = sort; window.renderJuveniles(); };
 window._juvStatsGoToFicha = function(nomEnc){
@@ -25137,15 +25155,8 @@ function _renderJuvenilesSafe(el){
     }
   }
 
+  _syncJuvNavButtons();
   el.innerHTML = `
-    <div class="nav-l1" style="display:flex">
-      <span class="nav-l1-label">Juveniles</span>
-      <div class="nav-l0-sep"></div>
-      <button class="nav-l1-btn${_juvGlobalPlayers?' active':''}" onclick="_toggleJuvGlobal()"><i class="ti ti-id-badge-2"></i>Jugadores</button>
-      <button class="nav-l1-btn${_juvGlobalCT?' active':''}" onclick="_toggleJuvCT()"><i class="ti ti-clipboard-list"></i>Técnicos</button>
-      <button class="nav-l1-btn${_juvGlobalStats?' active':''}" onclick="_toggleJuvStats()"><i class="ti ti-chart-bar"></i>Stats</button>
-      <button class="nav-l1-btn${_juvGlobalCal?' active':''}" onclick="_toggleJuvCal()"><i class="ti ti-calendar-event"></i>Calendario</button>
-    </div>
     <div class="juv-cat-sticky" style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;border-bottom:1px solid var(--border)">
       <div style="padding:10px 16px 8px;display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;align-items:center;gap:5px">
