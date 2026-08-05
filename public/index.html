@@ -22798,6 +22798,8 @@ let _juvComp = null; // competencia abierta (detalle)
 let _juvCompTab = 'convocados'; // sub-tab dentro de competencia
 let _juvGlobalPlayers = false; // vista "Jugadores" cruzando todas las categorías
 let _juvGlobalStats = false; // vista "Stats" — rankings de partidos/goles cruzando categorías
+let _juvGlobalCT = false; // vista "Técnicos" cruzando todas las categorías
+let _juvGlobalCal = false; // vista "Calendario" (placeholder, sin datos propios todavía)
 let _juvStatsCat = 'total'; // 'total' | 'sub20' | 'sub18' | 'sub17' | 'sub16' | 'sub15'
 let _juvStatsSort = 'pj'; // 'pj' | 'g'
 
@@ -23055,10 +23057,22 @@ window._gnavMenuSearch = function(v){
 };
 window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
+  if(_juvGlobalPlayers){ _juvGlobalStats=false; _juvGlobalCT=false; _juvGlobalCal=false; }
   window.renderJuveniles();
 };
 window._toggleJuvStats = function(){
   _juvGlobalStats = !_juvGlobalStats;
+  if(_juvGlobalStats){ _juvGlobalCT=false; _juvGlobalCal=false; }
+  window.renderJuveniles();
+};
+window._toggleJuvCT = function(){
+  _juvGlobalCT = !_juvGlobalCT;
+  if(_juvGlobalCT){ _juvGlobalStats=false; _juvGlobalCal=false; }
+  window.renderJuveniles();
+};
+window._toggleJuvCal = function(){
+  _juvGlobalCal = !_juvGlobalCal;
+  if(_juvGlobalCal){ _juvGlobalStats=false; _juvGlobalCT=false; }
   window.renderJuveniles();
 };
 window._setJuvStatsCat = function(cat){ _juvStatsCat = cat; window.renderJuveniles(); };
@@ -24656,6 +24670,8 @@ function _renderJuvenilesSafe(el){
 
   if(_juvGlobalPlayers){ el.innerHTML = _buildJuvGlobalPlayers(); setTimeout(()=>{ _jgFilt(); const inp=document.getElementById('jgb'); if(inp&&window._juvGlobalQ){const l=inp.value.length;inp.focus();inp.setSelectionRange(l,l);} },0); return; }
   if(_juvGlobalStats){ el.innerHTML = _buildJuvStatsView(); return; }
+  if(_juvGlobalCT){ el.innerHTML = _buildJuvGlobalCT(); return; }
+  if(_juvGlobalCal){ el.innerHTML = _buildJuvGlobalCal(); return; }
 
   // Asegurar que la categoría/año existan
   if(!JUVENILES[_juvCat]) _juvCat = 'sub20';
@@ -25124,8 +25140,11 @@ function _renderJuvenilesSafe(el){
   el.innerHTML = `
     <div class="nav-l1" style="display:flex">
       <span class="nav-l1-label">Juveniles</span>
-      <button class="nav-l1-btn" onclick="_toggleJuvGlobal()"><i class="ti ti-id-badge-2"></i>Jugadores</button>
-      <button class="nav-l1-btn" onclick="_toggleJuvStats()"><i class="ti ti-chart-bar"></i>Stats</button>
+      <div class="nav-l0-sep"></div>
+      <button class="nav-l1-btn${_juvGlobalPlayers?' active':''}" onclick="_toggleJuvGlobal()"><i class="ti ti-id-badge-2"></i>Jugadores</button>
+      <button class="nav-l1-btn${_juvGlobalCT?' active':''}" onclick="_toggleJuvCT()"><i class="ti ti-clipboard-list"></i>Técnicos</button>
+      <button class="nav-l1-btn${_juvGlobalStats?' active':''}" onclick="_toggleJuvStats()"><i class="ti ti-chart-bar"></i>Stats</button>
+      <button class="nav-l1-btn${_juvGlobalCal?' active':''}" onclick="_toggleJuvCal()"><i class="ti ti-calendar-event"></i>Calendario</button>
     </div>
     <div class="juv-cat-sticky" style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;border-bottom:1px solid var(--border)">
       <div style="padding:10px 16px 8px;display:flex;flex-direction:column;gap:8px">
@@ -25167,6 +25186,58 @@ function _renderJuvenilesSafe(el){
 // ── Vista Stats: rankings de partidos/goles de Juveniles, cruzando categorías ──
 // Usa JUV_STATS_OVERRIDE (datos verificados de archivoceleste.com), no el cálculo
 // automático de _juvOfficialStats (que depende de tener cargadas las alineaciones).
+// ── Vista Técnicos: todo el cuerpo técnico de Juveniles, cruzando categorías ──
+function _buildJuvGlobalCT(){
+  const byName = {};
+  Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+    Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
+      (anoData.ct||[]).forEach(m=>{
+        if(!m.name) return;
+        if(!byName[m.name]) byName[m.name] = {name:m.name, iso:m.iso, entries:[]};
+        byName[m.name].entries.push({label:`${catData.label} ${yr}`, rol:m.rol, dt:!!m.dt});
+      });
+    });
+  });
+  const list = Object.values(byName).sort((a,b)=>{
+    const aDt = a.entries.some(e=>e.dt), bDt = b.entries.some(e=>e.dt);
+    if(aDt!==bDt) return aDt?-1:1;
+    return a.name.localeCompare(b.name);
+  });
+  const rows = list.map(p=>`
+    <div style="padding:9px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${p.iso?`<img src="https://flagcdn.com/w20/${p.iso}.png" style="width:16px;height:11px;object-fit:cover;border-radius:1px;flex-shrink:0" onerror="this.style.display='none'">`:''}
+        <span style="font-size:.86em;font-weight:700;color:var(--text)">${p.name}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">
+        ${p.entries.map(e=>`<span style="font-size:.62em;font-weight:700;color:${e.dt?'#B45309':'var(--muted)'};background:${e.dt?'#FFFBEB':'var(--bg)'};border:1px solid ${e.dt?'#FDE68A':'var(--border)'};border-radius:5px;padding:2px 6px">${e.label} · ${e.rol}</span>`).join('')}
+      </div>
+    </div>`).join('');
+  return `
+    <div style="background:var(--bg);position:sticky;top:0;z-index:10;padding:10px 16px;border-bottom:1px solid var(--border)">
+      <button onclick="_toggleJuvCT()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700"><i class="ti ti-arrow-left"></i> Volver</button>
+      <div style="font-weight:800;font-size:.9em;color:var(--text);margin-top:6px">🧠 Técnicos de Juveniles</div>
+    </div>
+    <div>${rows || `<div style="text-align:center;padding:48px 16px;color:var(--muted)">Sin datos de cuerpo técnico cargados.</div>`}</div>
+  `;
+}
+
+// ── Vista Calendario: placeholder honesto — Juveniles no tiene todavía un calendario
+// propio cruzando categorías (a diferencia de Mayor). Mejor mostrar esto que inventar datos.
+function _buildJuvGlobalCal(){
+  return `
+    <div style="background:var(--bg);position:sticky;top:0;z-index:10;padding:10px 16px;border-bottom:1px solid var(--border)">
+      <button onclick="_toggleJuvCal()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700"><i class="ti ti-arrow-left"></i> Volver</button>
+      <div style="font-weight:800;font-size:.9em;color:var(--text);margin-top:6px">📅 Calendario de Juveniles</div>
+    </div>
+    <div style="text-align:center;padding:48px 16px;color:var(--muted)">
+      <i class="ti ti-calendar-event" style="font-size:2.5rem;display:block;margin-bottom:10px;opacity:.3"></i>
+      <div style="font-weight:700;margin-bottom:4px">Todavía no hay calendario propio de Juveniles</div>
+      <div style="font-size:.8em">Los amistosos y microciclos por ahora viven dentro de cada categoría/ciclo</div>
+    </div>
+  `;
+}
+
 function _buildJuvStatsView(){
   const CATS = [
     {key:'total', label:'Total'},
