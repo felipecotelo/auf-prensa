@@ -3105,42 +3105,44 @@ const JUV_CAT_META = {sub23:{label:'Sub-23',color:'#6D28D9',bg:'#EDE9FE'},sub20:
 // Partidos oficiales de Juveniles por categoría, tomados de archivoceleste.com (fuente
 // pública, distinta del cálculo automático por alineaciones que hace _juvOfficialStats).
 // Carga incremental, jugador por jugador — no reemplaza lo ya cargado, solo suma.
+// Formato {pj, g} por categoría (partidos, goles) — verificado a mano contra
+// archivoceleste.com (filtro Internacional "A", Categoría Juveniles) el 5/8/26.
 const JUV_STATS_OVERRIDE = {
-  'Gastón Silva':          {sub20:37, sub17:48, sub15:13},
-  'Gianni Rodríguez':      {sub20:32, sub17:47, sub15:15},
-  'Juan Manuel Sanabria':  {sub20:24, sub18:12, sub17:27, sub15:27},
-  'Leonardo Pais':         {sub20:35, sub17:43, sub16:3, sub15:17},
-  'Nicolás Schiappacasse': {sub20:54, sub17:21, sub15:16},
-  'César Pellegrín':       {sub20:62, sub18:4, sub17:23},
-  'Emiliano Velázquez':    {sub20:34, sub17:46, sub16:3, sub15:18},
-  'Salvador Ichazo':       {sub20:42, sub17:37, sub15:13},
-  'Diego Rossi':           {sub20:21, sub18:7, sub17:22, sub15:29},
-  'Nicolás Prieto':        {sub20:47, sub17:36, sub15:11},
-  'Martín Silva':          {sub20:46, sub17:47},
-  'Jim Morrison Varela':   {sub20:37, sub17:36, sub16:3, sub15:17},
-  'Federico Valverde':     {sub20:16, sub18:7, sub17:25, sub15:32},
-  'Fabián Carini':         {sub20:73, sub18:4, sub17:22},
-  'Carlos Díaz':           {sub20:55, sub18:5, sub17:23},
-  'Ramón Arias':           {sub20:43, sub17:37},
-  'Fernando Carreño':      {sub20:57, sub18:4, sub17:21},
-  'Ruben Olivera':         {sub20:30, sub17:47},
-  'Edgar Elizalde':        {sub20:27, sub18:6, sub17:28, sub15:22},
-  'Kevin Méndez':          {sub20:15, sub17:36, sub15:20},
-  'Marcelo Saracchi':      {sub20:38, sub17:25, sub15:20},
+  'Gastón Silva':          {sub20:{pj:28,g:1},  sub17:{pj:37,g:2},  sub15:{pj:11,g:0}},
+  'Nicolás Schiappacasse': {sub20:{pj:47,g:21}, sub17:{pj:21,g:12}, sub15:{pj:11,g:2}},
+  'Gianni Rodríguez':      {sub20:{pj:26,g:0},  sub17:{pj:36,g:1},  sub15:{pj:11,g:0}},
+  'Leonardo Pais':         {sub20:{pj:31,g:0},  sub17:{pj:29,g:2},  sub16:{pj:3,g:1},  sub15:{pj:11,g:0}},
+  'Juan Manuel Sanabria':  {sub20:{pj:23,g:1},  sub18:{pj:5,g:0},   sub17:{pj:20,g:1}, sub15:{pj:17,g:0}},
+  'César Pellegrín':       {sub20:{pj:44,g:3},  sub18:{pj:3,g:0},   sub17:{pj:16,g:2}},
+  'Emiliano Velázquez':    {sub20:{pj:22,g:1},  sub17:{pj:32,g:2},  sub16:{pj:3,g:0},  sub15:{pj:11,g:0}},
+  'Diego Rossi':           {sub20:{pj:14,g:2},  sub18:{pj:6,g:1},   sub17:{pj:21,g:6}, sub15:{pj:20,g:10}},
+  'Jim Morrison Varela':   {sub20:{pj:25,g:0},  sub17:{pj:23,g:0},  sub16:{pj:3,g:0},  sub15:{pj:13,g:1}},
+  'Nicolás Prieto':        {sub20:{pj:30,g:0},  sub17:{pj:26,g:0},  sub15:{pj:8,g:0}},
+  'Salvador Ichazo':       {sub20:{pj:25,g:0},  sub17:{pj:29,g:0},  sub15:{pj:9,g:0}},
+  'Federico Valverde':     {sub20:{pj:14,g:2},  sub18:{pj:6,g:3},   sub17:{pj:23,g:10},sub15:{pj:18,g:6}},
+  'Roberto Fernández':     {sub20:{pj:15,g:0},  sub18:{pj:5,g:0},   sub17:{pj:19,g:1}, sub15:{pj:20,g:1}},
+  'Marcelo Saracchi':      {sub20:{pj:24,g:0},  sub17:{pj:23,g:4},  sub15:{pj:12,g:1}},
+  'Kevin Méndez':          {sub20:{pj:11,g:1},  sub17:{pj:31,g:7},  sub15:{pj:14,g:3}},
+  'Edgar Elizalde':        {sub20:{pj:17,g:0},  sub18:{pj:4,g:0},   sub17:{pj:20,g:2}, sub15:{pj:14,g:0}},
+  'Ramón Arias':           {sub20:{pj:25,g:1},  sub17:{pj:23,g:1}},
+  'Franco Acosta':         {sub20:{pj:25,g:7},  sub17:{pj:22,g:14}, sub16:{pj:3,g:0},  sub15:{pj:4,g:1}},
+  'Franco Pizzichillo':    {sub20:{pj:18,g:0},  sub17:{pj:35,g:5}},
+  'Fabián Carini':         {sub20:{pj:33,g:0},  sub17:{pj:13,g:0}},
 };
 function _juvStatsBreakdown(nom){
   const ovr = JUV_STATS_OVERRIDE[nom];
   if(!ovr) return null;
-  const total = Object.values(ovr).reduce((s,n)=>s+n, 0);
-  const porCategoria = Object.entries(ovr).map(([k,pj])=>({key:k, label:(JUV_CAT_META[k]||{}).label||k, color:(JUV_CAT_META[k]||{}).color||'#6B7280', pj}));
-  return {total, porCategoria};
+  const total = Object.values(ovr).reduce((s,c)=>s+c.pj, 0);
+  const totalG = Object.values(ovr).reduce((s,c)=>s+(c.g||0), 0);
+  const porCategoria = Object.entries(ovr).map(([k,c])=>({key:k, label:(JUV_CAT_META[k]||{}).label||k, color:(JUV_CAT_META[k]||{}).color||'#6B7280', pj:c.pj, g:c.g||0}));
+  return {total, totalG, porCategoria};
 }
 function _juvStatsBreakdownHTML(nom){
   const b = _juvStatsBreakdown(nom);
   if(!b) return '';
-  const filas = b.porCategoria.map(c=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:.66em;color:var(--muted)">${c.label}: <b style="color:${c.color}">${c.pj}</b></span>`).join('<span style="color:var(--border)">·</span>');
+  const filas = b.porCategoria.map(c=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:.66em;color:var(--muted)">${c.label}: <b style="color:${c.color}">${c.pj}</b>${c.g?` <span style="opacity:.7">(${c.g} ⚽)</span>`:''}</span>`).join('<span style="color:var(--border)">·</span>');
   return `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
-    <div style="font-size:.68em;font-weight:700;color:var(--text)">Partidos totales en Juveniles: <b>${b.total}</b></div>
+    <div style="font-size:.68em;font-weight:700;color:var(--text)">Partidos totales en Juveniles: <b>${b.total}</b>${b.totalG?` · <b>${b.totalG}</b> goles`:''}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">${filas}</div>
   </div>`;
 }
