@@ -612,26 +612,37 @@ function computeAnualTable(allMatches) {
   }
   return [...map.values()]
     .sort((x, y) => y.pts - x.pts || (y.gf - y.gc) - (x.gf - x.gc) || y.gf - x.gf)
-    .map((r, i) => ({ pos: i + 1, name: r.name, pj: r.pj, w: r.w, d: r.d, l: r.l, gf: r.gf, gc: r.gc, dif: r.gf - r.gc, pts: r.pts }));
+    .map((r, i) => ({ pos: i + 1, id: r.id, name: r.name, pj: r.pj, w: r.w, d: r.d, l: r.l, gf: r.gf, gc: r.gc, dif: r.gf - r.gc, pts: r.pts }));
 }
 
 async function fetchLigaUY(leagueId) {
   const raw = await fetchText(`https://www.fotmob.com/api/data/leagues?id=${leagueId}`);
   const json = JSON.parse(raw);
   const allMatches = json?.fixtures?.allMatches || [];
+
+  // Nombres cortos (ej. "Peñarol" en vez de "Club Atletico Penarol") — los sacamos de
+  // las tablas de posiciones, que sí traen shortName; fixtures.allMatches solo trae el nombre largo.
+  const teamShort = {};
+  try {
+    const t0 = json.table?.[0]?.data;
+    const grupos = t0?.tables?.length ? t0.tables : (t0?.table?.all ? [{ table: t0.table }] : []);
+    for (const g of grupos) (g.table?.all || []).forEach(r => { if (r.id != null) teamShort[r.id] = r.shortName || r.name; });
+  } catch (_) {}
+  const shortName = (id, fallback) => teamShort[id] || fallback;
+
   const proximos = allMatches
     .filter(m => !m.status.finished && !m.status.cancelled)
     .sort((a, b) => new Date(a.status.utcTime) - new Date(b.status.utcTime))
     .slice(0, 4)
-    .map(m => ({ home: m.home.name, homeId: m.home.id, away: m.away.name, awayId: m.away.id, utcTime: m.status.utcTime, round: m.round }));
+    .map(m => ({ home: shortName(m.home.id, m.home.name), homeId: m.home.id, away: shortName(m.away.id, m.away.name), awayId: m.away.id, utcTime: m.status.utcTime, round: m.round }));
   const ultimos = allMatches
     .filter(m => m.status.finished)
     .sort((a, b) => new Date(b.status.utcTime) - new Date(a.status.utcTime))
     .slice(0, 3)
-    .map(m => ({ id: m.id, home: m.home.name, homeId: m.home.id, away: m.away.name, awayId: m.away.id, score: m.status.scoreStr, utcTime: m.status.utcTime }));
+    .map(m => ({ id: m.id, home: shortName(m.home.id, m.home.name), homeId: m.home.id, away: shortName(m.away.id, m.away.name), awayId: m.away.id, score: m.status.scoreStr, utcTime: m.status.utcTime, round: m.round }));
   const tablas = [];
   try {
-    const anual = computeAnualTable(allMatches);
+    const anual = computeAnualTable(allMatches).map(r => ({ ...r, name: shortName(r.id, r.name) }));
     if (anual.length) tablas.push({ nombre: 'Anual', filas: anual });
   } catch (_) {}
   try {

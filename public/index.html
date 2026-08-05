@@ -4979,9 +4979,15 @@ function _futbolDiaLabel(utcTime){
 function _futbolEscudo(id){
   return `<img src="https://images.fotmob.com/image_resources/logo/teamlogo/${id}_xsmall.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
 }
+function _futbolRondaLabel(round){
+  if(round==null || round==='') return '';
+  if(String(round).toLowerCase()==='final') return 'FINAL';
+  return `FECHA ${round}`;
+}
 function _futbolFila(m){
   const toggle=(m.finalizado&&m.id)?`<button onclick="_futGoles('${m.id}')" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;font-weight:800;flex-shrink:0;width:22px;line-height:1;padding:0">+</button>`:`<span style="width:22px;flex-shrink:0"></span>`;
   const panel=(m.finalizado&&m.id)?`<div data-fut-goles="${m.id}" style="display:none;padding:0 10px 8px 10px;font-size:11px;color:var(--muted)"></div>`:'';
+  const ronda=_futbolRondaLabel(m.round);
   return `<div>
     <div style="display:flex;align-items:center;padding:7px 10px;border-bottom:0.5px solid var(--border)">
       <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:7px;text-align:right">
@@ -4995,6 +5001,7 @@ function _futbolFila(m){
         ${_futbolEscudo(m.awayId)}
         <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.away}</span>
       </div>
+      <span style="flex-shrink:0;width:52px;text-align:right;font-size:8.5px;font-weight:800;color:var(--muted);letter-spacing:.02em;white-space:nowrap">${ronda}</span>
       ${toggle}
     </div>
     ${panel}
@@ -5117,7 +5124,7 @@ window._loadFutbolUY = async function(){
       return `<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(5,150,105,.1)">
           <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.03em">${nombre}</span>
-          ${lider?`<span style="font-size:10.5px;color:var(--muted)">🥇 ${lider.name} (${lider.pts} pts)</span>`:''}
+          ${lider?`<span style="font-size:10.5px;color:var(--muted)">🥇 ${lider.name} lidera la Tabla Anual con ${lider.pts} puntos</span>`:''}
         </div>
         ${rows||`<div style="font-size:11.5px;color:var(--muted);padding:8px 10px">Sin próxima fecha confirmada todavía.</div>`}
       </div>`;
@@ -5417,6 +5424,29 @@ window._inicioTareaEdit=function(idx,value){
   list[idx].txt=txt;
   stor.set(KTareasLog,list);
 };
+// Ajusta la altura de los <textarea> de tareas al contenido real. NO usamos
+// scrollHeight (en textarea da alturas erráticas, a veces 2-3 líneas de más
+// incluso con una sola palabra) — medimos el texto con canvas y calculamos
+// líneas nosotros mismos, mucho más confiable entre navegadores.
+function _sizeTareaTAs(){
+  const ctx=(_sizeTareaTAs._c||(_sizeTareaTAs._c=document.createElement('canvas'))).getContext('2d');
+  document.querySelectorAll('.tarea-txt').forEach(ta=>{
+    const cs=getComputedStyle(ta);
+    ctx.font=`${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const availWidth=ta.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight)-2;
+    const spaceWidth=ctx.measureText(' ').width;
+    let lines=1,lineWidth=0;
+    ta.value.split(' ').forEach(w=>{
+      const wWidth=ctx.measureText(w).width;
+      if(lineWidth===0){lineWidth=wWidth;}
+      else if(lineWidth+spaceWidth+wWidth<=availWidth){lineWidth+=spaceWidth+wWidth;}
+      else{lines++;lineWidth=wWidth;}
+    });
+    const lineHeight=parseFloat(cs.lineHeight)||(parseFloat(cs.fontSize)*1.35);
+    const padV=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
+    ta.style.height=Math.ceil(lines*lineHeight+padV+2)+'px';
+  });
+}
 function renderInicioTareas(){
   const isMob=window.innerWidth<=600;
   const isoHoy=TODAY;
@@ -5429,12 +5459,13 @@ function renderInicioTareas(){
     const esVieja=t.fecha<isoHoy;
     const [y,mo,d]=t.fecha.split('-');
     const tagVieja=esVieja?`<span style="font-size:10px;font-weight:700;color:#F59E0B;background:${isMob?'rgba(245,158,11,.15)':'#FEF3C7'};border-radius:5px;padding:1px 5px;flex-shrink:0">pend. ${d}/${mo}</span>`:'';
+    const taTxt=t.txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return `
-    <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-      <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx})" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
-      <input value="${t.txt.replace(/"/g,'&quot;')}" onblur="window._inicioTareaEdit(${t.idx},this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;padding:2px 0;font-size:12.5px;${t.done?'text-decoration:line-through;opacity:.5;':''}color:${rowColor}">
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0">
+      <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx})" style="width:15px;height:15px;flex-shrink:0;cursor:pointer;margin-top:2px">
+      <textarea rows="1" class="tarea-txt" onblur="window._inicioTareaEdit(${t.idx},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" oninput="_sizeTareaTAs()" style="flex:1;min-width:0;min-height:0;border:none;background:transparent;outline:none;padding:2px 0;font-size:12.5px;font-family:inherit;line-height:1.35;resize:none;overflow:hidden;word-break:break-word;${t.done?'text-decoration:line-through;opacity:.5;':''}color:${rowColor}">${taTxt}</textarea>
       ${tagVieja}
-      <button onclick="window._inicioTareaDel(${t.idx})" style="border:none;background:none;color:${isMob?'rgba(239,243,248,.3)':'var(--hint)'};cursor:pointer;font-size:12px;padding:2px 4px">✕</button>
+      <button onclick="window._inicioTareaDel(${t.idx})" style="border:none;background:none;color:${isMob?'rgba(239,243,248,.3)':'var(--hint)'};cursor:pointer;font-size:12px;padding:2px 4px;flex-shrink:0">✕</button>
     </div>`;}).join('');
   const borderCol=isMob?'rgba(255,255,255,.15)':'var(--border)';
   const bgCol=isMob?'rgba(255,255,255,.05)':'#fff';
@@ -5517,6 +5548,7 @@ function renderInicio(){
         ${card('Estructura AUF','ti-sitemap','#22C55E','Organigrama y staff',`showSection('estructura')`)}
       </div>
     `;
+    _sizeTareaTAs();
     return;
   }
 
@@ -5543,6 +5575,7 @@ function renderInicio(){
     ${group('Selecciones',`<div style="display:flex;flex-direction:column;gap:6px">${selecciones}</div>`)}
     ${group('Herramientas',tools)}
   </div>`;
+  _sizeTareaTAs();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
