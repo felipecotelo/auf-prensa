@@ -578,6 +578,10 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5;
 .tab.active{color:var(--cel-dk);background:var(--white);border-color:var(--border);border-bottom-color:var(--white)}
 .tab i{font-size:13px}
 
+/* Achicar el padding interno del ícono nativo de los <input type="date">: por default
+   el browser deja un hueco grande entre el texto de la fecha y el ícono. */
+input[type="date"]::-webkit-calendar-picker-indicator{padding:0 0 0 2px;margin:0}
+
 /* ── MAIN ───────────────────────────────────────── */
 main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .section{display:none}.section.active{display:block}
@@ -28382,6 +28386,17 @@ function _planPostEdit(id,i,field,value){
   _renderPlanEvento(id);
 }
 window._planPostEdit=_planPostEdit;
+function _planPostEditHora(id,i,hh,mm){
+  const list=_planGetAll();
+  const ev=list.find(e=>e.id===id); if(!ev||!ev.posteos[i]) return;
+  const cur=(ev.posteos[i].hora||'').split(':');
+  const h=(hh!=null?hh:cur[0]||'').toString().padStart(2,'0').slice(-2);
+  const m=(mm!=null?mm:cur[1]||'').toString().padStart(2,'0').slice(-2);
+  ev.posteos[i].hora = (h.trim()||m.trim()) ? `${h||'00'}:${m||'00'}` : '';
+  _planSave(list);
+  _renderPlanEvento(id);
+}
+window._planPostEditHora=_planPostEditHora;
 
 function _renderPlanificadorLista(){
   const el=document.getElementById('planificador-body');
@@ -28455,9 +28470,12 @@ function _renderPlanEvento(id){
           <div style="flex:1;min-width:0">
             <input value="${(p.titulo||p.txt||'').replace(/"/g,'&quot;')}" onblur="_planPostEdit('${id}',${p._i},'titulo',this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;font-size:.82em;font-weight:700;color:var(--text)">
             <input value="${(p.mensaje||'').replace(/"/g,'&quot;')}" placeholder="Mensaje a transmitir…" onblur="_planPostEdit('${id}',${p._i},'mensaje',this.value)" onkeydown="if(event.key==='Enter')this.blur()" style="width:100%;border:none;background:transparent;outline:none;padding:1px 0;margin-top:1px;font-size:.72em;color:var(--muted);font-style:italic">
-            <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
-              <input type="date" value="${p.fecha||''}" onblur="_planPostEdit('${id}',${p._i},'fecha',this.value)" style="width:104px;border:none;background:transparent;outline:none;font-size:.68em;color:var(--muted);padding:0 4px 0 0;margin:0;font-family:inherit;cursor:pointer">
-              <input type="time" value="${p.hora||''}" onblur="_planPostEdit('${id}',${p._i},'hora',this.value)" title="Horario (opcional)" style="width:78px;border:none;background:transparent;outline:none;font-size:.68em;color:var(--muted);padding:0 4px 0 0;margin:0;font-family:inherit;cursor:pointer">
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+              <input type="date" value="${p.fecha||''}" onblur="_planPostEdit('${id}',${p._i},'fecha',this.value)" style="width:88px;flex-shrink:0;border:none;background:transparent;outline:none;font-size:.68em;color:var(--muted);padding:0;margin:0;font-family:inherit;cursor:pointer">
+              ${(()=>{const [hh,mm]=(p.hora||'').split(':');return `
+              <input type="number" min="0" max="23" placeholder="HH" value="${hh||''}" onblur="_planPostEditHora('${id}',${p._i},this.value,null)" style="width:30px;border:1px solid var(--border);border-radius:4px;background:transparent;outline:none;font-size:.68em;color:var(--muted);padding:1px 2px;margin:0;font-family:inherit;text-align:center">
+              <span style="font-size:.68em;color:var(--muted)">:</span>
+              <input type="number" min="0" max="59" placeholder="MM" value="${mm||''}" onblur="_planPostEditHora('${id}',${p._i},null,this.value)" style="width:30px;border:1px solid var(--border);border-radius:4px;background:transparent;outline:none;font-size:.68em;color:var(--muted);padding:1px 2px;margin:0;font-family:inherit;text-align:center">`;})()}
               ${p.link?`<a href="${p.link}" target="_blank" rel="noopener" style="font-size:.68em;color:var(--cel-dk)">🔗 Ver posteo</a>`:''}
             </div>
           </div>
