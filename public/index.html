@@ -22795,6 +22795,9 @@ let _juvTab = stor.get('auf4_juvTab','convocados');
 let _juvComp = null; // competencia abierta (detalle)
 let _juvCompTab = 'convocados'; // sub-tab dentro de competencia
 let _juvGlobalPlayers = false; // vista "Jugadores" cruzando todas las categorías
+let _juvGlobalStats = false; // vista "Stats" — rankings de partidos/goles cruzando categorías
+let _juvStatsCat = 'total'; // 'total' | 'sub20' | 'sub18' | 'sub17' | 'sub16' | 'sub15'
+let _juvStatsSort = 'pj'; // 'pj' | 'g'
 
 function _gnavNorm(s){return(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
 
@@ -23052,6 +23055,12 @@ window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
   window.renderJuveniles();
 };
+window._toggleJuvStats = function(){
+  _juvGlobalStats = !_juvGlobalStats;
+  window.renderJuveniles();
+};
+window._setJuvStatsCat = function(cat){ _juvStatsCat = cat; window.renderJuveniles(); };
+window._setJuvStatsSort = function(sort){ _juvStatsSort = sort; window.renderJuveniles(); };
 window._jgFilt = function(){
   var _norm=function(s){return(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');};
   var q=_norm(window._juvGlobalQ||(document.getElementById('jgb')||{value:''}).value||'');
@@ -24638,6 +24647,7 @@ function _juvPlayerRow(p,destacado,color){
 function _renderJuvenilesSafe(el){
 
   if(_juvGlobalPlayers){ el.innerHTML = _buildJuvGlobalPlayers(); setTimeout(()=>{ _jgFilt(); const inp=document.getElementById('jgb'); if(inp&&window._juvGlobalQ){const l=inp.value.length;inp.focus();inp.setSelectionRange(l,l);} },0); return; }
+  if(_juvGlobalStats){ el.innerHTML = _buildJuvStatsView(); return; }
 
   // Asegurar que la categoría/año existan
   if(!JUVENILES[_juvCat]) _juvCat = 'sub20';
@@ -25108,6 +25118,7 @@ function _renderJuvenilesSafe(el){
       <div style="padding:10px 16px 8px;display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;align-items:center;gap:5px">
           <div style="display:flex;gap:5px;flex:1">${catPills}</div>
+          <button onclick="_toggleJuvStats()" title="Stats de Juveniles" style="flex-shrink:0;display:flex;align-items:center;gap:4px;border:1px solid var(--border);background:var(--bg);color:var(--muted);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.75em;font-weight:700"><i class="ti ti-chart-bar"></i> Stats</button>
         </div>
       </div>
       ${eventosBar}
@@ -25139,6 +25150,56 @@ function _renderJuvenilesSafe(el){
       c.style.width='100%';
     });
   }
+}
+
+// ── Vista Stats: rankings de partidos/goles de Juveniles, cruzando categorías ──
+// Usa JUV_STATS_OVERRIDE (datos verificados de archivoceleste.com), no el cálculo
+// automático de _juvOfficialStats (que depende de tener cargadas las alineaciones).
+function _buildJuvStatsView(){
+  const CATS = [
+    {key:'total', label:'Total'},
+    {key:'sub20', label:'Sub-20'},
+    {key:'sub18', label:'Sub-18'},
+    {key:'sub17', label:'Sub-17'},
+    {key:'sub16', label:'Sub-16'},
+    {key:'sub15', label:'Sub-15'},
+  ];
+  const rows = Object.entries(JUV_STATS_OVERRIDE).map(([nom,ovr])=>{
+    let pj=0, g=0;
+    if(_juvStatsCat==='total'){
+      Object.values(ovr).forEach(c=>{ pj+=c.pj; g+=c.g||0; });
+    } else if(ovr[_juvStatsCat]){
+      pj = ovr[_juvStatsCat].pj; g = ovr[_juvStatsCat].g||0;
+    }
+    return {nom, pj, g};
+  }).filter(r=>r.pj>0)
+    .sort((a,b)=> _juvStatsSort==='pj' ? (b.pj-a.pj || b.g-a.g) : (b.g-a.g || b.pj-a.pj));
+
+  const catBtns = CATS.map(c=>`<button onclick="_setJuvStatsCat('${c.key}')" style="padding:5px 11px;border-radius:8px;border:1px solid ${_juvStatsCat===c.key?'#15803D':'var(--border)'};background:${_juvStatsCat===c.key?'#15803D':'transparent'};color:${_juvStatsCat===c.key?'#fff':'var(--muted)'};font-size:.75em;font-weight:700;cursor:pointer;white-space:nowrap">${c.label}</button>`).join('');
+  const sortBtns = ['pj','g'].map(s=>`<button onclick="_setJuvStatsSort('${s}')" style="padding:5px 11px;border-radius:8px;border:1px solid ${_juvStatsSort===s?'#1D4ED8':'var(--border)'};background:${_juvStatsSort===s?'#1D4ED8':'transparent'};color:${_juvStatsSort===s?'#fff':'var(--muted)'};font-size:.75em;font-weight:700;cursor:pointer">${s==='pj'?'Más partidos':'Más goles'}</button>`).join('');
+
+  const rowsHtml = rows.map((r,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border)">
+      <span style="font-size:.72em;font-weight:800;color:var(--muted);width:22px;text-align:right;flex-shrink:0">${i+1}</span>
+      <span style="flex:1;font-size:.85em;font-weight:700;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.nom}</span>
+      <span style="font-size:.85em;font-weight:800;color:${_juvStatsSort==='pj'?'#1D4ED8':'var(--muted)'};min-width:44px;text-align:right">${r.pj} PJ</span>
+      <span style="font-size:.85em;font-weight:800;color:${_juvStatsSort==='g'?'#B45309':'var(--muted)'};min-width:52px;text-align:right">${r.g} ⚽</span>
+    </div>`).join('');
+
+  return `
+    <div style="background:var(--bg);position:sticky;top:0;z-index:10;padding:10px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="_toggleJuvStats()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700;flex-shrink:0"><i class="ti ti-arrow-left"></i> Volver</button>
+        <span style="font-weight:800;font-size:.9em;color:var(--text)">📊 Stats de Juveniles</span>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${catBtns}</div>
+      <div style="display:flex;gap:5px">${sortBtns}</div>
+    </div>
+    <div>
+      ${rows.length ? rowsHtml : `<div style="text-align:center;padding:48px 16px;color:var(--muted)">Sin datos cargados todavía para esta categoría.</div>`}
+      <div style="padding:12px 16px;font-size:.68em;color:var(--muted);text-align:center">Fuente: archivoceleste.com · partidos "Internacional A" · ${rows.length} jugadores con datos cargados</div>
+    </div>
+  `;
 }
 
 // ── Vista global: todos los jugadores de Juveniles, cruzando categorías ────
