@@ -6675,9 +6675,9 @@ function aapTagHtml(tpl){
 function renderAapSuggestions(date, query){
   const box=document.getElementById(`aap-suggest-${date}`);
   if(!box)return;
-  const q=(query||'').toLowerCase().trim();
+  const q=_gnavNorm((query||'').trim());
   const all=getAapTemplates();
-  const matches=q?all.filter(t=>t.txt.toLowerCase().includes(q)):all.slice(0,8);
+  const matches=q?all.filter(t=>_gnavNorm(t.txt).includes(q)):all.slice(0,8);
   if(!matches.length){box.innerHTML='<div class="aap-sug-sub" style="padding:6px 2px">Sin resultados — usá las opciones de abajo</div>';return;}
   box.innerHTML=matches.map((t,i)=>`
     <div class="aap-sug-item" onclick="aapPickTemplate('${date}',${i},'${encodeURIComponent(query||'')}')">
@@ -22966,6 +22966,28 @@ let _juvStatsSort = 'pj'; // 'pj' | 'g'
 
 function _gnavNorm(s){return(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
 
+// Autocompletado genérico e insensible a tildes (reemplaza <input list>+<datalist>,
+// que en los navegadores NO ignora acentos al filtrar — escribir "Alvaro" no
+// encontraba "Álvaro Fernández"). Uso: input con data-opts='["Nombre 1","Nombre 2"]'
+// + oninput/onfocus="_accShow(this)" onblur="_accHide(this)", y un <div id="{input.id}-sugg">.
+window._accShow=function(inputEl){
+  let opts=[]; try{opts=JSON.parse(inputEl.dataset.opts||'[]');}catch(_){}
+  const box=document.getElementById(inputEl.id+'-sugg');
+  if(!box) return;
+  const q=_gnavNorm(inputEl.value.trim());
+  const matches=(q?opts.filter(o=>_gnavNorm(o).includes(q)):opts).slice(0,8);
+  if(!matches.length){ box.style.display='none'; return; }
+  box.innerHTML=matches.map(o=>`<div onmousedown="_accPick('${inputEl.id}','${o.replace(/'/g,"\\'")}')" style="padding:7px 10px;cursor:pointer;font-size:.82em;border-bottom:1px solid var(--border)">${o}</div>`).join('');
+  box.style.display='block';
+};
+window._accPick=function(id,val){
+  const inp=document.getElementById(id); if(inp) inp.value=val;
+  const box=document.getElementById(id+'-sugg'); if(box) box.style.display='none';
+};
+window._accHide=function(inputEl){
+  setTimeout(()=>{ const box=document.getElementById(inputEl.id+'-sugg'); if(box) box.style.display='none'; },150);
+};
+
 // ── Búsqueda unificada (jugadores + CT/estructura) ──────────────
 function _gnavCollectResults(q, mode){
   const jugadores=[], ct=[], seen=new Set(), seenCT=new Set();
@@ -25886,10 +25908,13 @@ function _buildJuvCompBody(compId, color, catData){
       <div style="background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;padding:12px;margin-top:4px">
         <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Agregar integrante</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <div>
+          <div style="position:relative">
             <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">PERSONA</label>
-            <input id="${fid}-nom" list="${fid}-noms" type="text" placeholder="Nombre o elegir de lista…" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
-            <datalist id="${fid}-noms">${estructuraActivos.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+            <input id="${fid}-nom" type="text" autocomplete="off" placeholder="Nombre o elegir de lista…"
+              data-opts='${JSON.stringify(estructuraActivos).replace(/'/g,'&apos;')}'
+              oninput="_accShow(this)" onfocus="_accShow(this)" onblur="_accHide(this)"
+              style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
+            <div id="${fid}-nom-sugg" style="display:none;position:absolute;z-index:50;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);max-height:180px;overflow-y:auto;margin-top:2px"></div>
           </div>
           <div>
             <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">ROL</label>
@@ -26129,8 +26154,8 @@ let _pwFilterMatches = [];
 function _pwPersonFilter(q){
   const sug=document.getElementById('pw-person-suggest'); if(!sug) return;
   const opts=_pwPersonOptions().filter(o=>!window._pwParticipList.some(p=>p.key===o.key));
-  const qn=(q||'').trim().toLowerCase();
-  const matches=qn?opts.filter(o=>o.label.toLowerCase().includes(qn)):opts;
+  const qn=_gnavNorm((q||'').trim());
+  const matches=qn?opts.filter(o=>_gnavNorm(o.label).includes(qn)):opts;
   _pwFilterMatches=matches;
   if(!matches.length){
     sug.innerHTML='<div style="padding:9px 13px;color:var(--muted);font-size:.85em">Sin resultados</div>';
@@ -27509,10 +27534,10 @@ function _pwSolFmt(f){
 function _pwSolQuienFocus(inp){ _pwSolQuienInput(inp); }
 function _pwSolQuienInput(inp){
   const sug=document.getElementById('pw-sol-quien-sug'); if(!sug) return;
-  const q=(inp.value||'').toLowerCase();
+  const q=_gnavNorm(inp.value||'');
   const all=[];
   getDelegacion().forEach(g=>(g.people||[]).forEach(p=>all.push(p)));
-  const matches=all.filter(p=>!q||p.name.toLowerCase().includes(q)).slice(0,15);
+  const matches=all.filter(p=>!q||_gnavNorm(p.name).includes(q)).slice(0,15);
   sug.style.display=matches.length?'block':'none';
   sug.innerHTML=matches.map(p=>`<div onclick="document.getElementById('pw-sol-quien').value='${p.name.replace(/'/g,"\\'")}';document.getElementById('pw-sol-quien-sug').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:.88em;border-bottom:1px solid var(--border)">${p.name}${p.role?`<span style="color:var(--muted);font-size:.85em;margin-left:6px">${p.role}</span>`:''}</div>`).join('');
 }
@@ -27706,10 +27731,11 @@ function _pwAtenToggleFranja(f){
 }
 function _pwAtenShowSug(q){
   const sug=document.getElementById('pw-aten-prog-suggest'); if(!sug) return;
+  const qn=_gnavNorm(q);
   const medios=_mediosGetAll();
   const all=[];
   medios.forEach(m=>{ if(m.programa) all.push({prog:m.programa,medio:m.medio||''}); });
-  const matches=q ? all.filter(m=>m.prog.toLowerCase().includes(q)) : all;
+  const matches=qn ? all.filter(m=>_gnavNorm(m.prog).includes(qn)) : all;
   if(!matches.length){ sug.style.display='none'; return; }
   sug.innerHTML=matches.slice(0,14).map(m=>`<div onclick="_pwAtenPickProg('${m.prog.replace(/'/g,"\\'")}','${m.medio.replace(/'/g,"\\'")}');document.getElementById('pw-aten-prog-suggest').style.display='none'" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.85em" onmouseover="this.style.background='#F0F9FF'" onmouseout="this.style.background=''">${m.prog}<span style="color:var(--muted);font-size:.85em"> · ${m.medio}</span></div>`).join('');
   sug.style.display='block';
@@ -27734,8 +27760,9 @@ function _pwAtenResetForm(){
 }
 function _pwAtenProtShowSug(q){
   const sug=document.getElementById('pw-aten-prot-sug'); if(!sug) return;
+  const qn=_gnavNorm(q);
   const opts=_pwPersonOptions();
-  const matches=q ? opts.filter(o=>o.label.toLowerCase().includes(q)||o.rol.toLowerCase().includes(q)) : opts;
+  const matches=qn ? opts.filter(o=>_gnavNorm(o.label).includes(qn)||_gnavNorm(o.rol).includes(qn)) : opts;
   if(!matches.length){ sug.style.display='none'; return; }
   sug.innerHTML=matches.slice(0,16).map(o=>`<div onclick="document.getElementById('pw-aten-prot').value='${o.label.replace(/'/g,"\\'")}';document.getElementById('pw-aten-prot-sug').style.display='none'" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.85em" onmouseover="this.style.background='#F0F9FF'" onmouseout="this.style.background=''">${o.label}<span style="color:var(--muted);font-size:.85em"> · ${o.rol}</span></div>`).join('');
   sug.style.display='block';
@@ -28814,12 +28841,12 @@ setTimeout(_planMigracionCalendario, 4000); // reintento post-cloudPull por si c
 
 // ── Autocomplete PROGRAMA desde medios DB ─────────────────────────────────────
 function _pwProgramaInput(el){
-  const q = el.value.trim().toLowerCase();
+  const q = _gnavNorm(el.value.trim());
   const sug = document.getElementById('pw-prog-suggest');
   if(!sug) return;
   if(q.length < 1){ sug.style.display='none'; return; }
   const medios = _mediosGetAll();
-  const matches = medios.filter(m=>m.programa && m.programa.toLowerCase().includes(q));
+  const matches = medios.filter(m=>m.programa && _gnavNorm(m.programa).includes(q));
   if(!matches.length){ sug.style.display='none'; return; }
   sug.innerHTML = matches.map((m,i)=>`
     <div onclick="_pwSelectPrograma(${i},'${m.programa.replace(/'/g,"\\'")}','${(m.medio||'').replace(/'/g,"\\'")}',event)"
@@ -28865,13 +28892,13 @@ function _medGetMediosKnown(){
 let _medQ = '';
 function _medSearch(el){ _medQ=el.value; _medRenderRows(); }
 function _medRenderRows(){
-  const q=_medQ.toLowerCase();
+  const q=_gnavNorm(_medQ);
   const list=_mediosGetAll();
   const fmtColor = f => _MED_FORMATO_COLORS[f]||'#6B7280';
   const filtered = q ? list.filter((m,i)=>{
     const peris=(Array.isArray(m.periodistas)?m.periodistas:[]).join(' ');
     const prods=(Array.isArray(m.productores)?m.productores:[]).join(' ');
-    return [m.programa,m.medio,m.pais,peris,prods].join(' ').toLowerCase().includes(q);
+    return _gnavNorm([m.programa,m.medio,m.pais,peris,prods].join(' ')).includes(q);
   }) : list;
   const rowsEl=document.getElementById('med-rows');
   if(!rowsEl) return;
@@ -29171,12 +29198,12 @@ function _medPersonaKeydown(e, field){
   if(e.key==='Enter'||e.key===','){ e.preventDefault(); _medAddChip(field, e.target.value.trim()); }
 }
 function _medPersonaInput(el, field){
-  const q=el.value.trim().toLowerCase();
+  const q=_gnavNorm(el.value.trim());
   const sugId = field==='peri'?'med-peri-suggest':'med-prod-suggest';
   const sug=document.getElementById(sugId);
   if(!sug) return;
   if(q.length<1){ sug.style.display='none'; return; }
-  const known=_medGetPersonas().filter(p=>p.toLowerCase().includes(q));
+  const known=_medGetPersonas().filter(p=>_gnavNorm(p).includes(q));
   if(!known.length){ sug.style.display='none'; return; }
   sug.innerHTML=known.map(p=>`<div onclick="_medAddChip('${field}','${p.replace(/'/g,"\\'")}');event.stopPropagation()"
     style="padding:8px 13px;cursor:pointer;font-size:.85em;border-bottom:0.5px solid var(--border)"
@@ -29187,14 +29214,14 @@ function _medPersonaInput(el, field){
 // ── Autocomplete PAÍS ──────────────────────────────────────────────────────────
 const _MED_PAISES = ['Afganistán','Albania','Alemania','Andorra','Angola','Antigua y Barbuda','Arabia Saudita','Argelia','Argentina','Armenia','Australia','Austria','Azerbaiyán','Bahamas','Bangladés','Barbados','Baréin','Bélgica','Belice','Benín','Bielorrusia','Bolivia','Bosnia y Herzegovina','Botsuana','Brasil','Brunéi','Bulgaria','Burkina Faso','Burundi','Bután','Cabo Verde','Camboya','Camerún','Canadá','Catar','Chad','Chile','China','Chipre','Colombia','Comoras','Congo','Corea del Norte','Corea del Sur','Costa Rica','Croacia','Cuba','Dinamarca','Dominica','Ecuador','Egipto','El Salvador','Emiratos Árabes Unidos','Eritrea','Eslovaquia','Eslovenia','España','Estados Unidos','Estonia','Etiopía','Filipinas','Finlandia','Fiyi','Francia','Gabón','Gambia','Georgia','Ghana','Granada','Grecia','Guatemala','Guinea','Guinea-Bisáu','Guinea Ecuatorial','Guyana','Haití','Honduras','Hungría','India','Indonesia','Irak','Irán','Irlanda','Islandia','Islas Marshall','Islas Salomón','Israel','Italia','Jamaica','Japón','Jordania','Kazajistán','Kenia','Kirguistán','Kiribati','Kuwait','Laos','Lesoto','Letonia','Líbano','Liberia','Libia','Liechtenstein','Lituania','Luxemburgo','Madagascar','Malasia','Malaui','Maldivas','Malí','Malta','Marruecos','Mauricio','Mauritania','México','Micronesia','Moldavia','Mónaco','Mongolia','Montenegro','Mozambique','Myanmar','Namibia','Nauru','Nepal','Nicaragua','Níger','Nigeria','Noruega','Nueva Zelanda','Omán','Países Bajos','Pakistán','Palaos','Palestina','Panamá','Papúa Nueva Guinea','Paraguay','Perú','Polonia','Portugal','Reino Unido','República Centroafricana','República Checa','República del Congo','República Dominicana','Ruanda','Rumanía','Rusia','Samoa','San Cristóbal y Nieves','San Marino','San Vicente y las Granadinas','Santa Lucía','Santo Tomé y Príncipe','Senegal','Serbia','Seychelles','Sierra Leona','Singapur','Siria','Somalia','Sri Lanka','Suazilandia','Sudáfrica','Sudán','Sudán del Sur','Suecia','Suiza','Surinam','Tailandia','Tanzania','Tayikistán','Timor Oriental','Togo','Tonga','Trinidad y Tobago','Túnez','Turkmenistán','Turquía','Tuvalu','Ucrania','Uganda','Uruguay','Uzbekistán','Vanuatu','Venezuela','Vietnam','Yemen','Yibuti','Zambia','Zimbabue'];
 function _medPaisInput(el){
-  const q=el.value.trim().toLowerCase();
+  const q=_gnavNorm(el.value.trim());
   const sug=document.getElementById('med-pais-suggest');
   if(!sug) return;
   if(q.length<1){ sug.style.display='none'; return; }
   // Primero los usados en la DB, luego del listado general
   const usados=[...(new Set(_mediosGetAll().map(m=>m.pais).filter(Boolean)))];
   const all=[...new Set([...usados,..._MED_PAISES])];
-  const matches=all.filter(p=>p.toLowerCase().includes(q)).slice(0,8);
+  const matches=all.filter(p=>_gnavNorm(p).includes(q)).slice(0,8);
   if(!matches.length){ sug.style.display='none'; return; }
   sug.innerHTML=matches.map(p=>`<div onclick="document.getElementById('med-pais').value='${p.replace(/'/g,"\\'")}';document.getElementById('med-pais-suggest').style.display='none';event.stopPropagation()"
     style="padding:8px 13px;cursor:pointer;font-size:.86em;border-bottom:0.5px solid var(--border)"
@@ -29204,11 +29231,11 @@ function _medPaisInput(el){
 
 // ── Autocomplete MEDIO ─────────────────────────────────────────────────────────
 function _medMedioInput(el){
-  const q=el.value.trim().toLowerCase();
+  const q=_gnavNorm(el.value.trim());
   const sug=document.getElementById('med-medio-suggest');
   if(!sug) return;
   if(q.length<1){ sug.style.display='none'; return; }
-  const known=_medGetMediosKnown().filter(m=>m.toLowerCase().includes(q));
+  const known=_medGetMediosKnown().filter(m=>_gnavNorm(m).includes(q));
   if(!known.length){ sug.style.display='none'; return; }
   sug.innerHTML=known.map(m=>`<div onclick="document.getElementById('med-medio').value='${m.replace(/'/g,"\\'")}';document.getElementById('med-medio-suggest').style.display='none';event.stopPropagation()"
     style="padding:8px 13px;cursor:pointer;font-size:.85em;border-bottom:0.5px solid var(--border)"
