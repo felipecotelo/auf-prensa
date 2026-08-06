@@ -26251,6 +26251,7 @@ function renderRedes(){
         <div style="flex:1;height:1px;background:var(--border)"></div>
       </div>
       ${_redesMomentos()}
+      ${_redesContextoCifra()}
       ${_redesComparativaMensual()}
       ${_redesHistorial()}
     </div>
@@ -26417,6 +26418,49 @@ async function _redesFetchAIConclusiones(latest,prev){
   }catch(e){
     // sin conexión / endpoint no disponible — se queda con las heurísticas, sin romper nada
   }
+}
+
+// ── Contexto nacional de uso de redes (encuesta CIFRA, vía Canal 12 Telemundo) ──
+// Sirve para ver los números propios de la Selección en perspectiva: cuánta gente
+// en Uruguay usa cada red, y el perfil demográfico de cada una. No es un dato propio
+// de la cuenta, es el "mercado total" con el que comparar alcance/penetración.
+const REDES_CIFRA_CONTEXTO = {
+  fecha:'2026-07-28',
+  fuente:'CIFRA, vía Canal 12 Telemundo',
+  encuesta:'Encuesta telefónica nacional (fijos y celulares), 800 casos, 1 al 17 de junio de 2026. Margen de error ±3,4 puntos (95% confianza).',
+  usoGeneral:'El 88% de los uruguayos usa redes sociales. Casi no hay jóvenes que no usen alguna red; entre los mayores de 60 años, casi un cuarto no accede. La brecha más marcada es por edad, no por región ni género.',
+  plataformas:[
+    {nombre:'Instagram', icon:'📷', penetracion:67, diario:47, ocasional:20, perfil:'Más mujeres que hombres, casi todos los jóvenes, pocos veteranos, educación media/alta.'},
+    {nombre:'Facebook',  icon:'👥', penetracion:67, diario:35, ocasional:32, perfil:'Mayoría absoluta en todos los grupos; más fuerte en el interior, mayores de 30 y educación media/baja.'},
+    {nombre:'TikTok',    icon:'🎵', penetracion:41, diario:26, ocasional:15, perfil:'Como Instagram: más mujeres y más jóvenes; más usada por nivel educativo medio.'},
+    {nombre:'X/Twitter', icon:'✖️', penetracion:18, diario:9,  ocasional:9,  perfil:'La de menor alcance (82% no la usa). Más en Montevideo, jóvenes y educación terciaria.'},
+  ],
+  politica:'Un cuarto de la población sigue a algún político en redes (la mayoría, a varios). Es más común entre votantes del Partido Nacional (~1 de cada 3) que del Frente Amplio (~1 de cada 4) o el Partido Colorado (~1 de cada 5).',
+};
+function _redesContextoCifra(){
+  const c=REDES_CIFRA_CONTEXTO;
+  const plats=c.plataformas.map(p=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border)">
+      <div style="font-size:1.3em;flex-shrink:0">${p.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:.85em">${p.nombre}</div>
+        <div style="font-size:.72em;color:var(--muted)">${p.perfil}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-weight:900;font-size:1.1em;color:var(--cel)">${p.penetracion}%</div>
+        <div style="font-size:.62em;color:var(--muted)">${p.diario}% diario · ${p.ocasional}% a veces</div>
+      </div>
+    </div>`).join('');
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🇺🇾 Contexto nacional: uso de redes en Uruguay</div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px">
+      <div style="font-size:.78em;color:var(--text);line-height:1.6;margin-bottom:12px">${c.usoGeneral}</div>
+      ${plats}
+      <div style="font-size:.72em;color:var(--muted);margin-top:10px">${c.politica}</div>
+      <div style="font-size:.65em;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Fuente: ${c.fuente} · ${_redesFmtFecha(c.fecha)}<br>${c.encuesta}</div>
+    </div>
+  </div>`;
 }
 
 // ── Momentos — cruce con el calendario de la Mayor (MOMENTOS ya definido) ──
