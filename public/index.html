@@ -9214,45 +9214,47 @@ const DELEGACION = [
 ];
 
 const KDelegacion='auf4_delegacion', KInfoTexts='auf4_infotexts';
-let infoEditMode=false;
+let infoEditMode={}; // por torneo: {'':bool, fifasep26:bool, ...}
+const _infoDefaultDeleg=tKey=>tKey==='fifasep26'?DELEGACION_FIFASEP26:DELEGACION;
 
-function getDelegacion(){
-  const saved=stor.get(KDelegacion,null);
+function getDelegacion(tKey=''){
+  const key=tKey?KDelegacion+'_'+tKey:KDelegacion;
+  const saved=stor.get(key,null);
   if(saved&&Array.isArray(saved)&&saved.length)return saved;
-  return JSON.parse(JSON.stringify(DELEGACION));
+  return JSON.parse(JSON.stringify(_infoDefaultDeleg(tKey)));
 }
-function setDelegacion(v){stor.set(KDelegacion,v)}
-function getInfoTexts(){return stor.get(KInfoTexts,{})}
-function setInfoTexts(v){stor.set(KInfoTexts,v)}
-function saveInfoText(key,el){const t=getInfoTexts();t[key]=el.innerHTML;setInfoTexts(t);}
+function setDelegacion(v,tKey=''){stor.set(tKey?KDelegacion+'_'+tKey:KDelegacion,v)}
+function getInfoTexts(tKey=''){return stor.get(tKey?KInfoTexts+'_'+tKey:KInfoTexts,{})}
+function setInfoTexts(v,tKey=''){stor.set(tKey?KInfoTexts+'_'+tKey:KInfoTexts,v)}
+function saveInfoText(key,el,tKey=''){const t=getInfoTexts(tKey);t[key]=el.innerHTML;setInfoTexts(t,tKey);}
 
-function toggleInfoEdit(){infoEditMode=!infoEditMode;renderInfoGeneral();}
+function toggleInfoEdit(tKey=''){const k=tKey||'cm2026';infoEditMode[k]=!infoEditMode[k];renderInfoGeneral(tKey);}
 
-function updateDelegPerson(gi,pi,field,val){
-  const d=getDelegacion();
+function updateDelegPerson(gi,pi,field,val,tKey=''){
+  const d=getDelegacion(tKey);
   d[gi].people[pi][field]=field==='iso'?val.trim().toLowerCase():val;
-  setDelegacion(d);
-  renderInfoGeneral();
+  setDelegacion(d,tKey);
+  renderInfoGeneral(tKey);
 }
-function toggleDelegHighlight(gi,pi){
-  const d=getDelegacion();
+function toggleDelegHighlight(gi,pi,tKey=''){
+  const d=getDelegacion(tKey);
   d[gi].people[pi].highlight=!d[gi].people[pi].highlight;
-  setDelegacion(d);
-  renderInfoGeneral();
+  setDelegacion(d,tKey);
+  renderInfoGeneral(tKey);
 }
-function moveDelegPerson(gi,pi,dir){
-  const d=getDelegacion();
+function moveDelegPerson(gi,pi,dir,tKey=''){
+  const d=getDelegacion(tKey);
   const arr=d[gi].people, ni=pi+dir;
   if(ni<0||ni>=arr.length)return;
   [arr[pi],arr[ni]]=[arr[ni],arr[pi]];
-  setDelegacion(d);
-  renderInfoGeneral();
+  setDelegacion(d,tKey);
+  renderInfoGeneral(tKey);
 }
-function updateDelegArea(gi,el){
-  const d=getDelegacion();
+function updateDelegArea(gi,el,tKey=''){
+  const d=getDelegacion(tKey);
   d[gi].area=el.textContent.trim();
-  setDelegacion(d);
-  renderInfoGeneral();
+  setDelegacion(d,tKey);
+  renderInfoGeneral(tKey);
 }
 
 // ── Fecha FIFA sep–oct 2026 ────────────────────────────────────────────────
@@ -9269,32 +9271,22 @@ const FIFASEP26 = {
   ],
 };
 
-const K_FIFA_LISTS = 'auf4_fifa_lists';
-const _getFifaLists = () => stor.get(K_FIFA_LISTS,{});
-const _getFifaList = (listKey) => _getFifaLists()[listKey] || [];
-window._fifaEditState = {};
-window._fifaListToggleEdit = function(listKey){
-  window._fifaEditState[listKey] = !window._fifaEditState[listKey];
-  window.renderFifaSep26?.(listKey);
-};
-window._fifaListAdd = function(listKey, fid){
-  const nom = (document.getElementById(fid+'-nom')?.value||'').trim();
-  const rol = (document.getElementById(fid+'-rol')?.value||'').trim();
-  if(!nom||!rol) return;
-  const dt = document.getElementById(fid+'-dt')?.checked||false;
-  const d = _getFifaLists();
-  if(!d[listKey]) d[listKey]=[];
-  d[listKey].push({name:nom, rol, dt});
-  stor.set(K_FIFA_LISTS, d);
-  window.renderFifaSep26?.(listKey);
-};
-window._fifaListRemove = function(listKey, idx){
-  const d = _getFifaLists();
-  if(!d[listKey]) return;
-  d[listKey].splice(idx,1);
-  stor.set(K_FIFA_LISTS, d);
-  window.renderFifaSep26?.(listKey);
-};
+// Delegación de Fecha FIFA sep-oct 2026, misma estructura que la del Mundial
+// (áreas con gente adentro), para que "Info general" sea igual en todos los eventos.
+const DELEGACION_FIFASEP26 = [
+  {area:'Cuerpo técnico', people:[
+    {name:'Diego Forlán', iso:'uy', role:'Director técnico'},
+  ]},
+  {area:'Gerencia deportiva', people:[]},
+  {area:'Sanidad', people:[]},
+  {area:'Utilería', people:[]},
+  {area:'Comunicación', people:[]},
+  {area:'Cocina', people:[]},
+  {area:'Seguridad', people:[]},
+  {area:'Otros', people:[]},
+  {area:'Dirigentes', people:[]},
+  {area:'Invitados', people:[]},
+];
 function renderFifaSep26(tabId){
   const slug = tabId.replace('fifasep26-','');
   const con = document.getElementById(tabId+'-container');
@@ -9356,127 +9348,81 @@ function renderFifaSep26(tabId){
     con.innerHTML = _header('🎨','Diseño','Material gráfico') +
       _placeholder('🖼️','Sin piezas cargadas aún','El material gráfico se irá cargando a medida que avance la preparación.');
   } else if(slug==='infogeneral'){
-    const rivalesTxt = _fifaMatches.length ? _fifaMatches.map(p=>`${p.rivalBandera} ${p.rival}`).join(' · ')+(_fifaMatchesFaltan>0?` (+${_fifaMatchesFaltan} por confirmar)`:'') : 'Por confirmar';
-    const partidosTxt = _fifaMatches.length ? `${_fifaMatches.length} confirmado${_fifaMatches.length>1?'s':''}${_fifaMatchesFaltan>0?` · ${_fifaMatchesFaltan} por confirmar`:''}` : `${FIFASEP26.partidos} partidos por confirmar`;
-    const estructuraActivos = (typeof ESTRUCTURA_PERSONAS!=='undefined' ? ESTRUCTURA_PERSONAS : [])
-      .flatMap(d=>d.personas.map(p=>p.label)).filter((n,i,a)=>a.indexOf(n)===i).sort();
-    const rolesCT = ['Director técnico','Ayudante técnico','Preparador físico','Entrenador de arqueros','Videoanalista','Coordinador'];
-    const rolesDeleg = ['Jefe de delegación','Médico','Fisioterapeuta','Utilero','Prensa','Seguridad','Logística'];
-    const _fifaListBlock = (isCT) => {
-      const listKey = isCT?'fifasep26-ct':'fifasep26-delegacion';
-      const list = _getFifaList(listKey);
-      const editing = window._fifaEditState[listKey];
-      const fid = 'fifa-'+(isCT?'ct':'delegacion');
-      const rolesDatalist = [...new Set([...list.map(m=>m.rol), ...(isCT?rolesCT:rolesDeleg)])];
-      const memberRow = (m, idx) => {
-        const photo = window._getPersonPhoto?.(m.name);
-        const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-        const avatar = photo ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : `<span>${initials}</span>`;
-        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;${idx>0?'border-top:0.5px solid var(--border)':''}">
-          <div style="width:34px;height:34px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.8em;flex-shrink:0;border:2px solid var(--border);overflow:hidden">${avatar}</div>
-          <div style="flex:1"><div style="font-weight:700;font-size:.86em">${m.name}</div><div style="font-size:.72em;color:var(--muted);margin-top:1px">${m.rol}</div></div>
-          ${m.dt?`<span style="font-size:.62em;font-weight:800;color:#1D4ED8;background:#1D4ED818;border-radius:8px;padding:2px 7px;text-transform:uppercase">DT</span>`:''}
-          ${editing?`<button onclick="_fifaListRemove('${listKey}',${idx});renderFifaSep26('fifasep26-infogeneral')" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px;flex-shrink:0"><i class="ti ti-x"></i></button>`:''}
-        </div>`;
-      };
-      const editBtn = `<button onclick="_fifaListToggleEdit('${listKey}');renderFifaSep26('fifasep26-infogeneral')" style="display:flex;align-items:center;gap:5px;border:1px solid ${editing?'rgba(255,255,255,.6)':'rgba(255,255,255,.4)'};background:${editing?'rgba(255,255,255,.2)':'transparent'};color:#fff;border-radius:8px;padding:4px 10px;font-size:.7em;font-weight:700;cursor:pointer"><i class="ti ti-pencil"></i>${editing?'Listo':'Editar'}</button>`;
-      const addForm = editing ? `<div style="background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;padding:12px;margin-top:10px">
-          <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Agregar ${isCT?'integrante':'persona'}</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-            <div><label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">PERSONA</label>
-              <input id="${fid}-nom" list="${fid}-noms" type="text" placeholder="Nombre o elegir de lista…" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
-              <datalist id="${fid}-noms">${estructuraActivos.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('')}</datalist></div>
-            <div><label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">ROL</label>
-              <input id="${fid}-rol" list="${fid}-roles" type="text" placeholder="ej: ${isCT?'Preparador físico':'Jefe de delegación'}" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
-              <datalist id="${fid}-roles">${rolesDatalist.map(r=>`<option value="${r}">`).join('')}</datalist></div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            ${isCT?`<label style="display:flex;align-items:center;gap:5px;font-size:.75em;color:var(--muted);cursor:pointer"><input type="checkbox" id="${fid}-dt"> DT</label>`:''}
-            <button onclick="_fifaListAdd('${listKey}','${fid}');renderFifaSep26('fifasep26-infogeneral')" style="flex:1;padding:7px;background:#1D4ED8;color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Agregar</button>
-          </div>
-        </div>` : '';
-      return `<div class="grp-card">
-        <div class="grp-hdr" style="display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div class="grp-hdr-name">${isCT?'🧑‍🏫 Cuerpo técnico':'✈️ Delegación'}</div>
-            <div class="grp-hdr-sub">${list.length} integrante${list.length!==1?'s':''}</div>
-          </div>
-          ${editBtn}
-        </div>
-        <div style="padding:12px 16px">
-          ${list.length?list.map((m,i)=>memberRow(m,i)).join(''):`<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:.85em">Sin ${isCT?'CT':'delegación'} cargada aún. Tocá "Editar" para agregar.</div>`}
-          ${addForm}
-        </div>
-      </div>`;
-    };
-    con.innerHTML = _header('ℹ️','Info general',FIFASEP26.label) + `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Período reglamentario</div>
-          <div style="font-weight:800;color:var(--text)">21 sep – 6 oct 2026</div>
-        </div>
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Partidos</div>
-          <div style="font-weight:800;color:var(--text)">${partidosTxt}</div>
-        </div>
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Director técnico</div>
-          <div style="font-weight:800;color:var(--text)">${FIFASEP26.dt||'Por confirmar'}</div>
-        </div>
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
-          <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Rivales</div>
-          <div style="font-weight:800;color:var(--text)">${rivalesTxt}</div>
-        </div>
-      </div>
-      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px;font-size:.82em;color:#1D4ED8;line-height:1.5;margin-bottom:20px">${FIFASEP26.desc}</div>
-      ${_fifaListBlock(true)}
-      ${_fifaListBlock(false)}
-    `;
+    renderInfoGeneral('fifasep26');
   }
 }
 // ────────────────────────────────────────────────────────────────────────────
 
-function renderInfoGeneral(){
-  const con=document.getElementById('infogeneral-container');
-  if(!con)return;
-
-  const deleg=getDelegacion();
-  const it=getInfoTexts();
-  const cmTitle=it.cmTitle ?? '🏆 Copa Mundial 2026';
-  const cmSub=it.cmSub ?? 'Estados Unidos, México y Canadá';
-  const dataGeneral=it.dataGeneral ?? `<li>Del 11 de junio al 19 de julio de 2026</li>
+function _infoGeneralDefaults(tKey){
+  if(tKey==='fifasep26'){
+    const matches=FIFASEP26.partidosData||[];
+    const faltan=(FIFASEP26.partidos||0)-matches.length;
+    const rivalesTxt=matches.length
+      ? matches.map(p=>`${p.rivalBandera} ${p.rival} (${_fmtDateCorta(p.fecha)}${p.local===false?', visitante':''})`).join(', ')+(faltan>0?`, +${faltan} por confirmar`:'')
+      : 'Por confirmar';
+    return {
+      title: '📅 '+FIFASEP26.label,
+      sub: 'Período reglamentario FIFA',
+      dataGeneral: `<li>Del 21 de septiembre al 6 de octubre de 2026</li>
+          <li>${FIFASEP26.desc}</li>
+          <li>Director técnico: ${FIFASEP26.dt||'Por confirmar'}</li>
+          <li>Rivales: ${rivalesTxt}</li>`,
+      dataNuestra: `<div style="color:var(--muted)">Se cargará cuando se confirmen sede, hoteles y logística de los partidos.</div>`,
+      showCloseBanner: false,
+    };
+  }
+  return {
+    title: '🏆 Copa Mundial 2026',
+    sub: 'Estados Unidos, México y Canadá',
+    dataGeneral: `<li>Del 11 de junio al 19 de julio de 2026</li>
           <li>Por primera vez en la historia será co-organizado por tres países</li>
           <li>Se divide en tres regiones: "Oeste", "Centro" y "Este"</li>
           <li>Hay 16 ciudades sede</li>
           <li>Participarán por primera vez 48 equipos, en vez del formato clásico de 32</li>
           <li>Serán 104 encuentros en total</li>
           <li>El partido inaugural comenzará en la fecha de inicio, 11 de junio 2026</li>
-          <li>La final está programada para el 19 de julio 2026, en el área de Nueva York</li>`;
-  const dataNuestra=it.dataNuestra ?? `<div><b>Hotel en Playa del Carmen:</b> Fairmont Mayakoba</div>
+          <li>La final está programada para el 19 de julio 2026, en el área de Nueva York</li>`,
+    dataNuestra: `<div><b>Hotel en Playa del Carmen:</b> Fairmont Mayakoba</div>
           <div><b>Hotel en Miami:</b> Renaissance Fort Lauderdale West Hotel<br><span style="color:var(--muted);font-size:11px">1230 S Pine Island Rd, Plantation, FL 33324, Estados Unidos</span></div>
-          <div><b>Hotel en Guadalajara:</b> Hilton Guadalajara Midtown<br><span style="color:var(--muted);font-size:11px">Av. Adolfo López Mateos 2405 300, Col. Italia Providencia, Guadalajara, 44648, México</span></div>`;
-  const degTitle=it.degTitle ?? '🇺🇾 Delegación';
+          <div><b>Hotel en Guadalajara:</b> Hilton Guadalajara Midtown<br><span style="color:var(--muted);font-size:11px">Av. Adolfo López Mateos 2405 300, Col. Italia Providencia, Guadalajara, 44648, México</span></div>`,
+    showCloseBanner: true,
+  };
+}
 
-  const editWrap=(html,key,style='')=>infoEditMode
-    ?`<div contenteditable="true" onblur="saveInfoText('${key}',this)" style="outline:1px dashed var(--border);border-radius:4px;padding:2px 4px;${style}">${html}</div>`
+function renderInfoGeneral(tKey=''){
+  const con=document.getElementById(tKey?`${tKey}-infogeneral-container`:'infogeneral-container');
+  if(!con)return;
+
+  const defaults=_infoGeneralDefaults(tKey);
+  const deleg=getDelegacion(tKey);
+  const it=getInfoTexts(tKey);
+  const cmTitle=it.cmTitle ?? defaults.title;
+  const cmSub=it.cmSub ?? defaults.sub;
+  const dataGeneral=it.dataGeneral ?? defaults.dataGeneral;
+  const dataNuestra=it.dataNuestra ?? defaults.dataNuestra;
+  const degTitle=it.degTitle ?? '🇺🇾 Delegación';
+  const editing=!!infoEditMode[tKey||'cm2026'];
+
+  const editWrap=(html,key,style='')=>editing
+    ?`<div contenteditable="true" onblur="saveInfoText('${key}',this,'${tKey}')" style="outline:1px dashed var(--border);border-radius:4px;padding:2px 4px;${style}">${html}</div>`
     :`<div style="${style}">${html}</div>`;
 
   const delegacionHtml=deleg.map((g,gi)=>`
-    ${infoEditMode
-      ?`<div contenteditable="true" onblur="updateDelegArea(${gi},this)" style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px;outline:1px dashed var(--border);border-radius:4px;padding:2px 4px">${g.area}</div>`
+    ${editing
+      ?`<div contenteditable="true" onblur="updateDelegArea(${gi},this,'${tKey}')" style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px;outline:1px dashed var(--border);border-radius:4px;padding:2px 4px">${g.area}</div>`
       :`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px">${g.area}</div>`}
     <div style="display:flex;flex-direction:column;margin-bottom:12px">
       ${g.people.map((p,pi)=>{
         const hl=p.highlight?'background:var(--gold-lt);border-radius:6px;':'';
-        if(infoEditMode){
+        if(editing){
           return `<div style="display:flex;align-items:center;gap:6px;padding:5px 4px;${pi>0?'border-top:0.5px solid var(--border);':''}${hl}">
-            <input value="${p.iso}" onchange="updateDelegPerson(${gi},${pi},'iso',this.value)" style="width:30px;font-size:11px;text-align:center;text-transform:lowercase;border:0.5px solid var(--border);border-radius:4px;padding:3px">
+            <input value="${p.iso}" onchange="updateDelegPerson(${gi},${pi},'iso',this.value,'${tKey}')" style="width:30px;font-size:11px;text-align:center;text-transform:lowercase;border:0.5px solid var(--border);border-radius:4px;padding:3px">
             ${flagImg(p.iso,18)}
-            <input value="${p.name}" onchange="updateDelegPerson(${gi},${pi},'name',this.value)" style="flex:1;min-width:0;font-size:12.5px;font-weight:600;border:0.5px solid var(--border);border-radius:4px;padding:3px 5px">
-            <input value="${p.role}" onchange="updateDelegPerson(${gi},${pi},'role',this.value)" style="width:130px;font-size:10.5px;color:var(--muted);border:0.5px solid var(--border);border-radius:4px;padding:3px 5px">
-            <button onclick="toggleDelegHighlight(${gi},${pi})" title="Destacar" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px">${p.highlight?'⭐':'☆'}</button>
-            <button onclick="moveDelegPerson(${gi},${pi},-1)" title="Subir" ${pi===0?'disabled':''} style="background:none;border:none;cursor:${pi===0?'default':'pointer'};font-size:12px;padding:0 2px;opacity:${pi===0?0.3:1}">▲</button>
-            <button onclick="moveDelegPerson(${gi},${pi},1)" title="Bajar" ${pi===g.people.length-1?'disabled':''} style="background:none;border:none;cursor:${pi===g.people.length-1?'default':'pointer'};font-size:12px;padding:0 2px;opacity:${pi===g.people.length-1?0.3:1}">▼</button>
+            <input value="${p.name}" onchange="updateDelegPerson(${gi},${pi},'name',this.value,'${tKey}')" style="flex:1;min-width:0;font-size:12.5px;font-weight:600;border:0.5px solid var(--border);border-radius:4px;padding:3px 5px">
+            <input value="${p.role}" onchange="updateDelegPerson(${gi},${pi},'role',this.value,'${tKey}')" style="width:130px;font-size:10.5px;color:var(--muted);border:0.5px solid var(--border);border-radius:4px;padding:3px 5px">
+            <button onclick="toggleDelegHighlight(${gi},${pi},'${tKey}')" title="Destacar" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px">${p.highlight?'⭐':'☆'}</button>
+            <button onclick="moveDelegPerson(${gi},${pi},-1,'${tKey}')" title="Subir" ${pi===0?'disabled':''} style="background:none;border:none;cursor:${pi===0?'default':'pointer'};font-size:12px;padding:0 2px;opacity:${pi===0?0.3:1}">▲</button>
+            <button onclick="moveDelegPerson(${gi},${pi},1,'${tKey}')" title="Bajar" ${pi===g.people.length-1?'disabled':''} style="background:none;border:none;cursor:${pi===g.people.length-1?'default':'pointer'};font-size:12px;padding:0 2px;opacity:${pi===g.people.length-1?0.3:1}">▼</button>
           </div>`;
         }
         return `<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;${pi>0?'border-top:0.5px solid var(--border);':''}${hl}">
@@ -9487,25 +9433,25 @@ function renderInfoGeneral(){
       }).join('')}
     </div>`).join('');
 
-  const _cm2026closed=getCm2026Closed();
+  const _cm2026closed=!tKey&&getCm2026Closed();
   con.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px">
       <div>
-        ${_cm2026closed
+        ${!defaults.showCloseBanner?'':_cm2026closed
           ?`<span style="display:inline-flex;align-items:center;gap:6px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:8px;padding:5px 12px;font-size:11.5px;font-weight:700">🏁 Torneo cerrado · 26/6/2026</span>`
           :`<button onclick="closeTournament()" style="background:#1a3a6b;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px"><i class="ti ti-lock"></i> Cerrar torneo</button>`}
       </div>
-      <button onclick="toggleInfoEdit()" style="background:${infoEditMode?'var(--cel)':'var(--surface)'};color:${infoEditMode?'#fff':'var(--text)'};border:0.5px solid var(--border);border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
-        <i class="ti ti-${infoEditMode?'check':'edit'}"></i> ${infoEditMode?'Listo':'Editar'}
+      <button onclick="toggleInfoEdit('${tKey}')" style="background:${editing?'var(--cel)':'var(--surface)'};color:${editing?'#fff':'var(--text)'};border:0.5px solid var(--border);border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
+        <i class="ti ti-${editing?'check':'edit'}"></i> ${editing?'Listo':'Editar'}
       </button>
     </div>
 
-    <!-- Info general del Mundial -->
+    <!-- Info general del evento -->
     <div class="grp-card" style="margin-bottom:14px">
       <div class="grp-hdr">
-        ${infoEditMode
-          ?`<div contenteditable="true" onblur="saveInfoText('cmTitle',this)" class="grp-hdr-name" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${cmTitle}</div>
-            <div contenteditable="true" onblur="saveInfoText('cmSub',this)" class="grp-hdr-sub" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${cmSub}</div>`
+        ${editing
+          ?`<div contenteditable="true" onblur="saveInfoText('cmTitle',this,'${tKey}')" class="grp-hdr-name" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${cmTitle}</div>
+            <div contenteditable="true" onblur="saveInfoText('cmSub',this,'${tKey}')" class="grp-hdr-sub" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${cmSub}</div>`
           :`<div class="grp-hdr-name">${cmTitle}</div>
             <div class="grp-hdr-sub">${cmSub}</div>`}
       </div>
@@ -9520,8 +9466,8 @@ function renderInfoGeneral(){
     <!-- Delegación -->
     <div class="grp-card">
       <div class="grp-hdr">
-        ${infoEditMode
-          ?`<div contenteditable="true" onblur="saveInfoText('degTitle',this)" class="grp-hdr-name" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${degTitle}</div>`
+        ${editing
+          ?`<div contenteditable="true" onblur="saveInfoText('degTitle',this,'${tKey}')" class="grp-hdr-name" style="outline:1px dashed rgba(255,255,255,.4);border-radius:4px;padding:1px 4px">${degTitle}</div>`
           :`<div class="grp-hdr-name">${degTitle}</div>`}
         <div class="grp-hdr-sub">${deleg.reduce((n,g)=>n+g.people.length,0)} integrantes</div>
       </div>
@@ -26244,6 +26190,7 @@ function renderRedes(){
       ${_redesResumenCombinado(latest,prev)}
       ${_redesPorPlataforma(latest,prev)}
       ${_redesConclusiones(latest,prev)}
+      ${_redesContextoCifra(latest)}
 
       <!-- Análisis -->
       <div style="display:flex;align-items:center;gap:10px;margin:24px 0 14px">
@@ -26251,7 +26198,6 @@ function renderRedes(){
         <div style="flex:1;height:1px;background:var(--border)"></div>
       </div>
       ${_redesMomentos()}
-      ${_redesContextoCifra()}
       ${_redesComparativaMensual()}
       ${_redesHistorial()}
     </div>
@@ -26430,27 +26376,41 @@ const REDES_CIFRA_CONTEXTO = {
   encuesta:'Encuesta telefónica nacional (fijos y celulares), 800 casos, 1 al 17 de junio de 2026. Margen de error ±3,4 puntos (95% confianza).',
   usoGeneral:'El 88% de los uruguayos usa redes sociales. Casi no hay jóvenes que no usen alguna red; entre los mayores de 60 años, casi un cuarto no accede. La brecha más marcada es por edad, no por región ni género.',
   plataformas:[
-    {nombre:'Instagram', icon:'📷', penetracion:67, diario:47, ocasional:20, perfil:'Más mujeres que hombres, casi todos los jóvenes, pocos veteranos, educación media/alta.'},
-    {nombre:'Facebook',  icon:'👥', penetracion:67, diario:35, ocasional:32, perfil:'Mayoría absoluta en todos los grupos; más fuerte en el interior, mayores de 30 y educación media/baja.'},
-    {nombre:'TikTok',    icon:'🎵', penetracion:41, diario:26, ocasional:15, perfil:'Como Instagram: más mujeres y más jóvenes; más usada por nivel educativo medio.'},
-    {nombre:'X/Twitter', icon:'✖️', penetracion:18, diario:9,  ocasional:9,  perfil:'La de menor alcance (82% no la usa). Más en Montevideo, jóvenes y educación terciaria.'},
+    {key:'instagram', nombre:'Instagram', icon:'📷', penetracion:67, diario:47, ocasional:20, perfil:'Más mujeres que hombres, casi todos los jóvenes, pocos veteranos, educación media/alta.'},
+    {key:'facebook',  nombre:'Facebook',  icon:'👥', penetracion:67, diario:35, ocasional:32, perfil:'Mayoría absoluta en todos los grupos; más fuerte en el interior, mayores de 30 y educación media/baja.'},
+    {key:'tiktok',    nombre:'TikTok',    icon:'🎵', penetracion:41, diario:26, ocasional:15, perfil:'Como Instagram: más mujeres y más jóvenes; más usada por nivel educativo medio.'},
+    {key:'x',         nombre:'X/Twitter', icon:'✖️', penetracion:18, diario:9,  ocasional:9,  perfil:'La de menor alcance (82% no la usa). Más en Montevideo, jóvenes y educación terciaria.'},
   ],
   politica:'Un cuarto de la población sigue a algún político en redes (la mayoría, a varios). Es más común entre votantes del Partido Nacional (~1 de cada 3) que del Frente Amplio (~1 de cada 4) o el Partido Colorado (~1 de cada 5).',
 };
-function _redesContextoCifra(){
+// Población adulta de Uruguay (18+) usada solo para poner en perspectiva la penetración
+// de cada red — es una estimación redonda (INE ronda los 2,7M de mayores de 18), no un dato
+// censal exacto. Sirve para calcular "usuarios totales de la red en Uruguay" = población × %.
+const REDES_UY_POB_ADULTA = 2700000;
+function _redesContextoCifra(latest){
   const c=REDES_CIFRA_CONTEXTO;
-  const plats=c.plataformas.map(p=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border)">
-      <div style="font-size:1.3em;flex-shrink:0">${p.icon}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:.85em">${p.nombre}</div>
-        <div style="font-size:.72em;color:var(--muted)">${p.perfil}</div>
+  const plats=c.plataformas.map(p=>{
+    const usuariosUY=Math.round(REDES_UY_POB_ADULTA*p.penetracion/100);
+    const seguidores=latest?.[p.key]?.seguidores;
+    const cruce=seguidores!=null
+      ? `<div style="font-size:.68em;color:var(--cel);font-weight:700;margin-top:4px">📊 La Selección tiene ${_redesFmt(seguidores)} seguidores — equivale a ~${Math.round(seguidores/usuariosUY*100)}% de los ${_redesFmt(usuariosUY)} usuarios de ${p.nombre} en Uruguay${seguidores>usuariosUY?' (supera ese universo: gran parte de sus seguidores no son de Uruguay)':''}</div>`
+      : '';
+    return `
+    <div style="padding:8px 0;border-bottom:1px dashed var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:1.3em;flex-shrink:0">${p.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:.85em">${p.nombre}</div>
+          <div style="font-size:.72em;color:var(--muted)">${p.perfil}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-weight:900;font-size:1.1em;color:var(--cel)">${p.penetracion}%</div>
+          <div style="font-size:.62em;color:var(--muted)">${p.diario}% diario · ${p.ocasional}% a veces</div>
+        </div>
       </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-weight:900;font-size:1.1em;color:var(--cel)">${p.penetracion}%</div>
-        <div style="font-size:.62em;color:var(--muted)">${p.diario}% diario · ${p.ocasional}% a veces</div>
-      </div>
-    </div>`).join('');
+      ${cruce}
+    </div>`;
+  }).join('');
   return `
   <div style="margin-bottom:20px">
     <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🇺🇾 Contexto nacional: uso de redes en Uruguay</div>
@@ -26458,7 +26418,7 @@ function _redesContextoCifra(){
       <div style="font-size:.78em;color:var(--text);line-height:1.6;margin-bottom:12px">${c.usoGeneral}</div>
       ${plats}
       <div style="font-size:.72em;color:var(--muted);margin-top:10px">${c.politica}</div>
-      <div style="font-size:.65em;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Fuente: ${c.fuente} · ${_redesFmtFecha(c.fecha)}<br>${c.encuesta}</div>
+      <div style="font-size:.65em;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Fuente: ${c.fuente} · ${_redesFmtFecha(c.fecha)}<br>${c.encuesta}<br>Universo de usuarios por red en Uruguay estimado sobre una población adulta (18+) de ~${_redesFmt(REDES_UY_POB_ADULTA)}. Los seguidores de la Selección incluyen público fuera de Uruguay, así que el cruce es una referencia de escala, no una medición de audiencia local real.</div>
     </div>
   </div>`;
 }
