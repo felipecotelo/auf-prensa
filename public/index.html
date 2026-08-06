@@ -4936,15 +4936,16 @@ function renderInicioHoySeleccion(){
           if((it.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:it.txt, evTitulo:ev.titulo, evId:ev.id, done:!!it.done});
         });
         (ev.posteos||[]).forEach(p=>{
-          if((p.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:p.titulo||p.txt, evTitulo:ev.titulo, evId:ev.id, esPosteo:true, done:p.estado==='publicado'});
+          if((p.fecha||'').slice(0,10)===isoHoy) planHoy.push({txt:p.titulo||p.txt, evTitulo:ev.titulo, evId:ev.id, esPosteo:true, done:p.estado==='publicado', hora:p.hora||''});
         });
       });
+      planHoy.sort((a,b)=>(a.hora||'zz:zz').localeCompare(b.hora||'zz:zz'));
     }
     const planRows=planHoy.map(h=>`
       <div onclick="showSection('planificador');window._planOpen('${h.evId}')" style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer${h.done?';opacity:.5':''}">
         <span style="font-size:14px;flex-shrink:0">${h.esPosteo?'📣':'📌'}</span>
         <div style="flex:1;min-width:0">
-          <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}${h.done?';text-decoration:line-through':''}">${h.txt}</span>
+          <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}${h.done?';text-decoration:line-through':''}">${h.hora?`${h.hora} · `:''}${h.txt}</span>
           <span style="font-size:11px;color:${subColor}"> · ${h.evTitulo}</span>
         </div>
       </div>`).join('');
@@ -28458,7 +28459,7 @@ function _renderPlanEvento(id){
   : `<div style="color:var(--muted);font-size:.82em;padding:12px 0">Sin hitos ni tareas todavía.</div>`;
 
   const posteos=ev.posteos||[];
-  const posteosSorted=posteos.map((p,i)=>({...p,_i:i})).sort((a,b)=>(a.fecha||'zzzz').localeCompare(b.fecha||'zzzz'));
+  const posteosSorted=posteos.map((p,i)=>({...p,_i:i})).sort((a,b)=>(a.fecha||'zzzz').localeCompare(b.fecha||'zzzz') || (a.hora||'zz:zz').localeCompare(b.hora||'zz:zz'));
   const postRows=posteosSorted.length?posteosSorted.map(p=>`
         <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border-radius:9px;margin-bottom:4px">
           <div style="flex:1;min-width:0">
