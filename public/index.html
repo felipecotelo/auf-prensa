@@ -24581,6 +24581,39 @@ window._juvCTReset=function(ctKey){
   _saveJuvCTOverrides(ov); _juvCtEdit=false; window.renderJuveniles?.();
 };
 
+// CT/Delegación por COMPETENCIA (un torneo puntual, ej. "Mundial Sub-17 Qatar 2026").
+// Antes esto compartía la misma clave y el mismo "seed" que el CT del año completo
+// (arriba), así que editar el CT de un torneo pisaba el de otro torneo distinto de la
+// misma categoría/año — un jugador entraba y solo veía al DT, o veía datos duplicados
+// de otra competencia. Ahora cada competencia tiene su propia clave (el id del torneo,
+// que ya es único en COMP_DATA) y arranca siempre desde comp.ct, no del CT del año.
+const K_JUV_COMP_CT = 'auf4_juv_comp_ct';
+let _juvCompCtEdit=false;
+function _getJuvCompCTOverrides(){ return stor.get(K_JUV_COMP_CT,{}); }
+function _saveJuvCompCTOverrides(o){ stor.set(K_JUV_COMP_CT, o); }
+window._juvCompCTToggleEdit=function(){ _juvCompCtEdit=!_juvCompCtEdit; window.renderJuveniles?.(); };
+window._juvCompCTAdd=function(compId,fid){
+  const nom=(document.getElementById(fid+'-nom')?.value||'').trim();
+  const rol=(document.getElementById(fid+'-rol')?.value||'').trim();
+  if(!nom||!rol) return;
+  const dt=document.getElementById(fid+'-dt')?.checked||false;
+  const ov=_getJuvCompCTOverrides();
+  if(!ov[compId]) ov[compId]=[...(COMP_DATA[compId]?.ct||[])];
+  ov[compId].push({name:nom, rol, iso:'uy', dt});
+  _saveJuvCompCTOverrides(ov); window.renderJuveniles?.();
+};
+window._juvCompCTRemove=function(compId,idx){
+  const ov=_getJuvCompCTOverrides();
+  if(!ov[compId]) ov[compId]=[...(COMP_DATA[compId]?.ct||[])];
+  ov[compId].splice(idx,1);
+  _saveJuvCompCTOverrides(ov); window.renderJuveniles?.();
+};
+window._juvCompCTReset=function(compId){
+  const ov=_getJuvCompCTOverrides();
+  delete ov[compId];
+  _saveJuvCompCTOverrides(ov); _juvCompCtEdit=false; window.renderJuveniles?.();
+};
+
 window._ctPhotoSelected = function(nomEncoded, input){
   const file = input.files[0]; if(!file) return;
   input.value='';
@@ -25177,8 +25210,11 @@ function _renderJuvenilesSafe(el){
     const rolesUsados = new Set(ct.map(m=>m.rol));
     const rolesDatalist = [...new Set([...rolesUsados,'Director técnico','Ayudante técnico','Preparador físico','Entrenador de arqueros','Videoanalista','Coordinador'])];
 
-    const ctMain = _sortCT(ct.filter(m=>!m.coord && !m.pendiente));
-    const ctCoord = ct.filter(m=>m.coord && !m.pendiente);
+    // Igual que en CT por competencia: el índice que viaja al botón de borrar tiene que
+    // ser el de ct[] sin ordenar, si no "Eliminar" puede borrar a otra persona.
+    const ctWithIdx = ct.map((m,i)=>({...m,_origIdx:i}));
+    const ctMain = _sortCT(ctWithIdx.filter(m=>!m.coord && !m.pendiente));
+    const ctCoord = ctWithIdx.filter(m=>m.coord && !m.pendiente);
 
     const memberRow = (m, idx) => {
       const nomEnc = encodeURIComponent(m.name);
@@ -25249,14 +25285,14 @@ function _renderJuvenilesSafe(el){
         </div>
         ${editBtn}
       </div>
-      ${ctMain.map((m,i)=>memberRow(m,i)).join('')}
+      ${ctMain.map(m=>memberRow(m,m._origIdx)).join('')}
       ${ctCoord.length?`
         <div style="font-size:.68em;font-weight:800;color:#9333EA;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px">Coordinación transversal</div>
-        ${ctCoord.map((m,i)=>`
+        ${ctCoord.map(m=>`
           <div style="display:flex;align-items:center;gap:12px;background:#FAF5FF;border:1px solid #E9D5FF;border-radius:10px;padding:12px 14px;margin-bottom:8px">
             <img src="https://flagcdn.com/w40/${m.iso}.png" style="width:28px;height:20px;object-fit:cover;border-radius:3px;flex-shrink:0" onerror="this.style.display='none'">
             <div style="flex:1"><div style="font-weight:800;font-size:.9em;color:#6B21A8">${m.name}</div><div style="font-size:.75em;color:#9333EA">${m.rol}</div></div>
-            ${_juvCtEdit?`<button onclick="_juvCTRemove('${ctKey}',${ctMain.length+i})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px"><i class="ti ti-x"></i></button>`:''}
+            ${_juvCtEdit?`<button onclick="_juvCTRemove('${ctKey}',${m._origIdx})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px"><i class="ti ti-x"></i></button>`:''}
           </div>`).join('')}`:'' }
       ${addForm}${resetBtn}`;
   }
@@ -25807,11 +25843,11 @@ function _buildJuvCompBody(compId, color, catData){
   }
 
   else if(_juvCompTab==='ct_del'){
-    const ctKey = _juvCat+'/'+_juvYear;
-    const ov = _getJuvCTOverrides();
+    const ctKey = compId;
+    const ov = _getJuvCompCTOverrides();
     const ct = ov[ctKey] || comp.ct || [];
     const hasOverride = !!ov[ctKey];
-    const fid = 'juv-comp-ct-'+_juvCat+_juvYear;
+    const fid = 'juv-comp-ct-'+compId;
 
     // Todos los de estructura (activos e históricos) — el CT puede incluir personas ya retiradas
     const estructuraActivos = (typeof ESTRUCTURA_PERSONAS!=='undefined' ? ESTRUCTURA_PERSONAS : [])
@@ -25838,17 +25874,17 @@ function _buildJuvCompBody(compId, color, catData){
           <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.rol}</div>
         </div>
         ${m.dt?`<span style="font-size:.65em;font-weight:800;color:${cc};background:${cc}18;border-radius:8px;padding:2px 8px;text-transform:uppercase">DT</span>`:''}
-        ${_juvCtEdit?`<button onclick="_juvCTRemove('${ctKey}',${idx})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px;flex-shrink:0"><i class="ti ti-x"></i></button>`:''}
+        ${_juvCompCtEdit?`<button onclick="_juvCompCTRemove('${ctKey}',${idx})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px;flex-shrink:0"><i class="ti ti-x"></i></button>`:''}
       </div>`;
     };
 
-    const editBtn = `<button onclick="_juvCTToggleEdit()" style="
-      display:flex;align-items:center;gap:5px;border:1.5px solid ${_juvCtEdit?cc:'var(--border)'};
-      background:${_juvCtEdit?cc+'18':'transparent'};color:${_juvCtEdit?cc:'var(--muted)'};
+    const editBtn = `<button onclick="_juvCompCTToggleEdit()" style="
+      display:flex;align-items:center;gap:5px;border:1.5px solid ${_juvCompCtEdit?cc:'var(--border)'};
+      background:${_juvCompCtEdit?cc+'18':'transparent'};color:${_juvCompCtEdit?cc:'var(--muted)'};
       border-radius:8px;padding:5px 10px;font-size:.72em;font-weight:700;cursor:pointer;margin-left:auto
-    "><i class="ti ti-pencil"></i>${_juvCtEdit?'Listo':'Editar CT'}</button>`;
+    "><i class="ti ti-pencil"></i>${_juvCompCtEdit?'Listo':'Editar CT'}</button>`;
 
-    const addForm = _juvCtEdit ? `
+    const addForm = _juvCompCtEdit ? `
       <div style="background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;padding:12px;margin-top:4px">
         <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Agregar integrante</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -25867,21 +25903,25 @@ function _buildJuvCompBody(compId, color, catData){
           <label style="display:flex;align-items:center;gap:5px;font-size:.75em;color:var(--muted);cursor:pointer">
             <input type="checkbox" id="${fid}-dt"> DT
           </label>
-          <button onclick="_juvCTAdd('${ctKey}','${fid}')" style="flex:1;padding:7px;background:${cc};color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Agregar</button>
+          <button onclick="_juvCompCTAdd('${ctKey}','${fid}')" style="flex:1;padding:7px;background:${cc};color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Agregar</button>
         </div>
       </div>` : '';
 
-    const resetBtn = hasOverride && _juvCtEdit ? `
-      <button onclick="_juvCTReset('${ctKey}')" style="margin-top:8px;width:100%;padding:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;border-radius:8px;font-size:.72em;font-weight:700;cursor:pointer">
+    const resetBtn = hasOverride && _juvCompCtEdit ? `
+      <button onclick="_juvCompCTReset('${ctKey}')" style="margin-top:8px;width:100%;padding:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;border-radius:8px;font-size:.72em;font-weight:700;cursor:pointer">
         <i class="ti ti-refresh"></i> Restaurar CT original
       </button>` : '';
 
+    // Ordenamos por rol para mostrar, pero el índice que viaja a memberRow es el de ct[]
+    // sin ordenar/filtrar — si no, "Eliminar" podía borrar a otra persona distinta de la
+    // que se veía en pantalla apenas el orden visual difería del orden guardado.
+    const ctSorted = _sortCT(ct.map((m,i)=>({...m,_origIdx:i})).filter(m=>!m.coord));
     content = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <div style="font-size:.65em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em">Cuerpo técnico</div>
         ${editBtn}
       </div>
-      ${_sortCT(ct.filter(m=>!m.coord)).map((m,i)=>memberRow(m,i)).join('')}
+      ${ctSorted.map(m=>memberRow(m,m._origIdx)).join('')}
       ${addForm}
       ${resetBtn}`;
   }
