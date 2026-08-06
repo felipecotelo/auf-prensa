@@ -327,8 +327,7 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5;
 @media(max-width:600px){
   .nav-l0{display:none!important}
   .nav-l2{display:none!important}
-  .nav-l1{position:sticky;top:0;z-index:250}
-  #tabs-bar{display:none!important}
+  .nav-l1{overflow-x:auto;white-space:nowrap}
   .nav-right .nav-badge{display:none}
   #app-content{padding-bottom:calc(84px + env(safe-area-inset-bottom));padding-top:0;overflow-x:hidden;width:100%;max-width:100%;box-sizing:border-box;margin:0}
   .mob-tab-bar{display:flex!important}
@@ -1975,6 +1974,8 @@ html.auf-gate body { display:none !important }
 <div id="fifasep26-plantel" class="section"><div id="fifasep26-plantel-container"></div></div>
 <div id="fifasep26-pizarra" class="section"><div id="fifasep26-pizarra-container"></div></div>
 <div id="fifasep26-grafica" class="section"><div id="fifasep26-grafica-container"></div></div>
+<div id="fifasep26-ct" class="section"><div id="fifasep26-ct-container"></div></div>
+<div id="fifasep26-delegacion" class="section"><div id="fifasep26-delegacion-container"></div></div>
 <div id="fifasep26-infogeneral" class="section"><div id="fifasep26-infogeneral-container"></div></div>
 
 <!-- ═══════════ LINKS ═══════════ -->
@@ -4608,7 +4609,7 @@ function toast(msg){
 // TABS
 // ═══════════════════════════════════════════════════════════════════════════
 // Tabs contextuales al torneo activo (L2)
-const TOURNAMENT_TABS=['calendario','disponibilidad','fixture','partidos','plantel','pizarra','grafica','infogeneral','registro','fifasep26-calendario','fifasep26-disponibilidad','fifasep26-fixture','fifasep26-partidos','fifasep26-plantel','fifasep26-pizarra','fifasep26-grafica','fifasep26-infogeneral'];
+const TOURNAMENT_TABS=['calendario','disponibilidad','fixture','partidos','plantel','pizarra','grafica','infogeneral','registro','fifasep26-calendario','fifasep26-disponibilidad','fifasep26-fixture','fifasep26-partidos','fifasep26-plantel','fifasep26-pizarra','fifasep26-grafica','fifasep26-ct','fifasep26-delegacion','fifasep26-infogeneral'];
 // Tabs de Selección Mayor pero sin torneo (en L1 como botones)
 const MAYOR_GLOBAL_TABS=['jugadores','estadisticas','calendariomayor','tecnicos'];
 // Tabs verdaderamente globales (L0 derecha)
@@ -9240,6 +9241,7 @@ const FIFASEP26 = {
   hasta: '2026-10-06',
   partidos: 4,
   desc: 'Primera Fecha FIFA de la Selección Mayor post Copa Mundial 2026. Cuatro partidos por confirmar.',
+  dt: 'Diego Forlán',
   partidosData: [
     {fecha:'2026-09-24', rival:'Japón',         rivalBandera:'🇯🇵', sede:'Japón',        local:false, confirmado:true},
     {fecha:'2026-09-28', rival:'Corea del Sur',  rivalBandera:'🇰🇷', sede:'Corea del Sur', local:false, confirmado:true},
@@ -9311,13 +9313,16 @@ function renderFifaSep26(tabId){
       (_fifaMatchesFaltan>0 ? _placeholder('🗓️',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'Se completará cuando se confirmen sede y logística de los restantes.') : '');
   } else if(slug==='disponibilidad'){
     con.innerHTML = _header('✅','Disponibilidad','Seguimiento de convocados') +
-      _placeholder('👥','Sin convocados aún','La disponibilidad se cargará cuando se anuncie el DT y la lista de convocados.');
+      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+      _placeholder('👥','Sin convocatoria oficial aún',`La disponibilidad se cargará cuando ${FIFASEP26.dt||'el DT'} anuncie la lista de convocados${_fifaMatchesFaltan>0?` (todavía faltan ${_fifaMatchesFaltan} rival${_fifaMatchesFaltan>1?'es':''} por confirmar)`:''}.`);
   } else if(slug==='pizarra'){
     con.innerHTML = _header('⚽','Pizarra táctica','Análisis de los partidos') +
-      _placeholder('🧩','Pizarra disponible al confirmar rivales','Se habilitará cuando se conozcan los 4 partidos del período.');
+      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+      _placeholder('🧩','Pizarra disponible al haber convocatoria','Se habilitará partido por partido cuando haya lista de convocados para armar el análisis.');
   } else if(slug==='plantel'){
     con.innerHTML = _header('👥','Convocados','Lista oficial') +
-      _placeholder('📋','Lista de convocados por confirmar','Se cargará cuando el DT anuncie la convocatoria oficial.');
+      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+      _placeholder('📋','Lista de convocados por confirmar',`Se cargará cuando ${FIFASEP26.dt||'el DT'} anuncie la convocatoria oficial.`);
   } else if(slug==='partidos'){
     con.innerHTML = _header('🌍','Partidos','Detalle de cada partido') +
       (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
@@ -9372,6 +9377,8 @@ function renderFifaSep26(tabId){
       (list.length?_sortCT(list).map((m,i)=>memberRow(m,list.indexOf(m))).join(''):_placeholder(isCT?'🧑‍🏫':'✈️',`Sin ${isCT?'CT':'delegación'} cargada aún`,'Se va a ir armando con "Editar" → "Agregar".')) +
       addForm;
   } else if(slug==='infogeneral'){
+    const rivalesTxt = _fifaMatches.length ? _fifaMatches.map(p=>`${p.rivalBandera} ${p.rival}`).join(' · ')+(_fifaMatchesFaltan>0?` (+${_fifaMatchesFaltan} por confirmar)`:'') : 'Por confirmar';
+    const partidosTxt = _fifaMatches.length ? `${_fifaMatches.length} confirmado${_fifaMatches.length>1?'s':''}${_fifaMatchesFaltan>0?` · ${_fifaMatchesFaltan} por confirmar`:''}` : `${FIFASEP26.partidos} partidos por confirmar`;
     con.innerHTML = _header('ℹ️','Info general',FIFASEP26.label) + `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px">
         <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
@@ -9380,15 +9387,15 @@ function renderFifaSep26(tabId){
         </div>
         <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
           <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Partidos</div>
-          <div style="font-weight:800;color:var(--text)">4 partidos por confirmar</div>
+          <div style="font-weight:800;color:var(--text)">${partidosTxt}</div>
         </div>
         <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
           <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Director técnico</div>
-          <div style="font-weight:800;color:var(--text)">Por confirmar</div>
+          <div style="font-weight:800;color:var(--text)">${FIFASEP26.dt||'Por confirmar'}</div>
         </div>
         <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
           <div style="font-size:.7em;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Rivales</div>
-          <div style="font-weight:800;color:var(--text)">Por confirmar</div>
+          <div style="font-weight:800;color:var(--text)">${rivalesTxt}</div>
         </div>
       </div>
       <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px;font-size:.82em;color:#1D4ED8;line-height:1.5">${FIFASEP26.desc}</div>`;
@@ -25812,6 +25819,16 @@ function _buildJuvCompBody(compId, color, catData){
 const KPW = 'auf4_pw';
 
 const ESTRUCTURA_PERSONAS = [
+  {dept:'Comité Ejecutivo de AUF', personas:[
+    {key:'ialonso',       label:'Ignacio Alonso',      rol:'Presidente de la AUF'},
+    {key:'mperez',        label:'Matías Pérez',        rol:'Ejecutivo (Grupos de Interés)'},
+    {key:'cmanta',        label:'Carlos Manta',        rol:'Ejecutivo (SAD)'},
+    {key:'sperezlauro',   label:'Sergio Pérez Lauro',  rol:'Ejecutivo'},
+    {key:'emonsegui',     label:'Eduardo Monsegui',    rol:'Ejecutivo (Fútbol Amateur | OFI)'},
+    {key:'eache',         label:'Eduardo Ache',        rol:'Ejecutivo (Nacional)'},
+    {key:'alanfranco',    label:'Andrea Lanfranco',    rol:'Ejecutivo'},
+    {key:'vdiaz',         label:'Victoria Díaz',       rol:'Gerente general'},
+  ]},
   {dept:'Gerencia Deportiva', personas:[
     {key:'giordano',      label:'Jorge Giordano',     rol:'Director de Selecciones Nacionales'},
     {key:'anuñez',        label:'Álvaro Núñez',        rol:'Gerencia'},
