@@ -9240,6 +9240,10 @@ const FIFASEP26 = {
   hasta: '2026-10-06',
   partidos: 4,
   desc: 'Primera Fecha FIFA de la Selección Mayor post Copa Mundial 2026. Cuatro partidos por confirmar.',
+  partidosData: [
+    {fecha:'2026-09-24', rival:'Japón',         rivalBandera:'🇯🇵', sede:'Japón',        local:false, confirmado:true},
+    {fecha:'2026-09-28', rival:'Corea del Sur',  rivalBandera:'🇰🇷', sede:'Corea del Sur', local:false, confirmado:true},
+  ],
 };
 
 const K_FIFA_LISTS = 'auf4_fifa_lists';
@@ -9289,9 +9293,22 @@ function renderFifaSep26(tabId){
       </div>
     </div>`;
 
+  const _fifaMatches = FIFASEP26.partidosData||[];
+  const _fifaMatchRow = (p) => `
+    <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+      <div style="font-size:1.7em;flex-shrink:0">${p.rivalBandera}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:.9em;color:var(--text)">Uruguay vs. ${p.rival}</div>
+        <div style="font-size:.75em;color:var(--muted);margin-top:1px">${_fmtDateCorta(p.fecha)} · ${p.sede}${p.local===false?' (visitante)':''}</div>
+      </div>
+      <span style="font-size:.65em;font-weight:800;color:#166534;background:#f0fdf4;border-radius:10px;padding:3px 9px;white-space:nowrap">Confirmado</span>
+    </div>`;
+  const _fifaMatchesFaltan = (FIFASEP26.partidos||0) - _fifaMatches.length;
+
   if(slug==='calendario'){
     con.innerHTML = _header('📅','Calendario','21 sep – 6 oct 2026 · Período reglamentario FIFA') +
-      _placeholder('🗓️','Calendario por armar','Se completará cuando se confirmen los partidos, sede y logística.');
+      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+      (_fifaMatchesFaltan>0 ? _placeholder('🗓️',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'Se completará cuando se confirmen sede y logística de los restantes.') : '');
   } else if(slug==='disponibilidad'){
     con.innerHTML = _header('✅','Disponibilidad','Seguimiento de convocados') +
       _placeholder('👥','Sin convocados aún','La disponibilidad se cargará cuando se anuncie el DT y la lista de convocados.');
@@ -9303,10 +9320,12 @@ function renderFifaSep26(tabId){
       _placeholder('📋','Lista de convocados por confirmar','Se cargará cuando el DT anuncie la convocatoria oficial.');
   } else if(slug==='partidos'){
     con.innerHTML = _header('🌍','Partidos','Detalle de cada partido') +
-      _placeholder('📊','Sin partidos cargados aún','Se habilitará al completar cada partido durante la fecha FIFA.');
+      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+      (_fifaMatchesFaltan>0 ? _placeholder('📊',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'El detalle se habilitará al completar cada partido durante la fecha FIFA.') : '');
   } else if(slug==='fixture'){
     con.innerHTML = _header('🗒️','Fixture','4 partidos · sep–oct 2026') +
-      _placeholder('🏟️','Fixture por confirmar','Se cargarán los 4 partidos cuando FIFA publique el calendario oficial.');
+      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+      (_fifaMatchesFaltan>0 ? _placeholder('🏟️',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'Se cargarán cuando FIFA publique el calendario oficial completo.') : '');
   } else if(slug==='grafica'){
     con.innerHTML = _header('🎨','Diseño','Material gráfico') +
       _placeholder('🖼️','Sin piezas cargadas aún','El material gráfico se irá cargando a medida que avance la preparación.');
