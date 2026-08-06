@@ -3175,7 +3175,7 @@ const JUV_STATS_OVERRIDE = {
   'Joaquín Varela':        {sub20:{pj:2,g:0},   sub17:{pj:23,g:4},  sub15:{pj:18,g:2}},
   'Enzo Siri':             {sub17:{pj:24,g:2},  sub15:{pj:19,g:2}},
   'Patricio Pacífico':     {sub20:{pj:16,g:1},  sub17:{pj:27,g:3}},
-  'Luciano Rodríguez':     {sub23:{pj:5,g:6}, sub20:{pj:37,g:11}},
+  'Luciano Rodríguez Rosales': {sub23:{pj:5,g:6}, sub20:{pj:37,g:11}},
   'Braulio Guisolfo':      {sub17:{pj:23,g:0},  sub15:{pj:19,g:1}},
   'Bruno Méndez':          {sub23:{pj:4,g:0}, sub20:{pj:32,g:0},  sub18:{pj:5,g:0}},
   'Juan Albín':            {sub20:{pj:15,g:5},  sub17:{pj:26,g:9}},
@@ -4395,6 +4395,8 @@ let _syncStatus='idle'; // 'idle'|'syncing'|'ok'|'error'
 // vivo" ignora una clave un rato después de que la escribimos nosotros, para no
 // pisarnos nuestro propio cambio con la vuelta del round-trip a la nube.
 let _recentlyPushed={};
+let _lastServerSnapshot={}; // key -> Set de items (stringificados) vistos por última vez del servidor
+function _snapshotArray(key,arr){ if(Array.isArray(arr)) _lastServerSnapshot[key]=new Set(arr.map(it=>JSON.stringify(it))); }
 
 function _setSyncStatus(s){
   _syncStatus=s;
@@ -4429,15 +4431,28 @@ async function cloudPush(key,value){
         if(!error && data?.value){
           const serverVal=JSON.parse(data.value);
           if(Array.isArray(serverVal) && serverVal.length>value.length){
-            console.warn(`cloudPush bloqueado para "${key}": local ${value.length} items, servidor ${serverVal.length}.`);
-            _setSyncStatus('error');
-            _syncConflictAlert(key, value.length, serverVal.length);
-            return;
+            // No alcanza con comparar cantidades: borrar el último ítem sincronizado
+            // SIEMPRE deja lo local con 1 menos que el servidor, sin que haya conflicto real.
+            // Solo es conflicto de verdad si el servidor tiene un ítem que esta pestaña
+            // nunca vio (agregado en otra pestaña/dispositivo) y que no está en lo que mandamos.
+            const known=_lastServerSnapshot[key];
+            const pushSet=new Set(value.map(it=>JSON.stringify(it)));
+            const unknownNew=serverVal.filter(it=>{
+              const s=JSON.stringify(it);
+              return (!known||!known.has(s)) && !pushSet.has(s);
+            });
+            if(unknownNew.length>0){
+              console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${unknownNew.length} ítem(s) nuevos que esta pestaña no conoce.`);
+              _setSyncStatus('error');
+              _syncConflictAlert(key, value.length, serverVal.length);
+              return;
+            }
           }
         }
       }catch(_){}
     }
     await _sb.from('sync_data').upsert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()},{onConflict:'key'});
+    if(Array.isArray(value)) _snapshotArray(key,value);
     _setSyncStatus('ok');
   }catch(e){_setSyncStatus('error');console.warn('cloudPush error',e);}
 }
@@ -4456,7 +4471,11 @@ async function cloudPull(){
     if(data&&data.length){
       data.forEach(row=>{
         if(!_SKIP_SYNC.has(row.key)&&row.value!=null){
-          try{localStorage.setItem(row.key,row.value);}catch(e){}
+          try{
+            localStorage.setItem(row.key,row.value);
+            const parsed=JSON.parse(row.value);
+            if(Array.isArray(parsed)) _snapshotArray(row.key,parsed);
+          }catch(e){}
         }
       });
     }
@@ -4775,6 +4794,7 @@ async function _livePollSync(){
     data.forEach(row=>{
       if(_SKIP_SYNC.has(row.key)||row.value==null) return;
       if(_recentlyPushed[row.key] && Date.now()-_recentlyPushed[row.key]<4000) return;
+      try{ const parsed=JSON.parse(row.value); if(Array.isArray(parsed)) _snapshotArray(row.key,parsed); }catch(e){}
       if(localStorage.getItem(row.key)!==row.value){
         localStorage.setItem(row.key,row.value);
         changed=true;
