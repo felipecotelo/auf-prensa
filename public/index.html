@@ -3254,9 +3254,9 @@ function _juvStatsBreakdownHTML(nom){
   const b = _juvStatsBreakdown(nom);
   if(!b) return '';
   const title=`Juveniles: ${b.porCategoria.map(c=>`${c.label} ${c.pj}PJ${c.g?'/'+c.g+'G':''}`).join(' · ')}`;
-  const pills = b.porCategoria.map(c=>`<span title="${c.label}: ${c.pj} PJ${c.g?`, ${c.g} goles`:''}" style="font-size:.62em;font-weight:700;color:${c.color};background:${c.color}18;border-radius:5px;padding:2px 6px;white-space:nowrap">${c.label.replace('Sub-','S')} ${c.pj}</span>`).join('');
+  const pills = b.porCategoria.map(c=>`<span title="${c.label}: ${c.pj} PJ${c.g?`, ${c.g} goles`:''}" style="font-size:.62em;font-weight:500;color:${c.color};background:${c.color}18;border-radius:5px;padding:2px 6px;white-space:nowrap">${c.label.replace('Sub-','S')} <b style="font-weight:800">${c.pj}</b></span>`).join('');
   return `<div style="margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap" title="${title}">
-    <span style="font-size:.66em;color:var(--muted)">🌎 <b style="color:var(--text)">${b.total}</b> PJ${b.totalG?` <b style="color:var(--text)">${b.totalG}</b>G`:''}</span>
+    <span style="font-size:.66em;color:var(--muted)"><b style="color:var(--text)">J</b> <b style="color:var(--text)">${b.total}</b> PJ${b.totalG?` <b style="color:var(--text)">${b.totalG}</b>G`:''}</span>
     ${pills}
   </div>`;
 }
@@ -24955,7 +24955,15 @@ function _juvPlayerHistory(nom){
   // Merge manual hist tags from localStorage
   const manualTags = getJuvHist()[nom]||[];
   manualTags.forEach(t=>{ if(!seen.has('m:'+t.label)){ seen.add('m:'+t.label); out.push(t); } });
-  return out;
+  // Dedup final por texto: una etiqueta puede quedar cargada dos veces (automática +
+  // manual) con distinta clave interna pero mismo label visible — ej. "Mayor" dos veces.
+  const seenLabels=new Set();
+  return out.filter(h=>{
+    const k=(h.label||'').toLowerCase();
+    if(seenLabels.has(k)) return false;
+    seenLabels.add(k);
+    return true;
+  });
 }
 // Stats oficiales de un jugador de Juveniles: solo cuentan competencias tipo:'oficial'
 // (Sudamericanos, Mundiales). Los amistosos (Pioneros de Albion, etc.) no suman.
@@ -28754,25 +28762,13 @@ function _fmtDateCorta(iso){
   if(parts.length!==3) return iso||'';
   return `${parseInt(parts[2])}/${parseInt(parts[1])}/${parts[0]}`;
 }
-// DD/MM/AAAA a la vieja escuela: se escribe entero, sin selector de calendario.
-function _fmtDateDDMMYYYY(iso){
-  const parts=(iso||'').split('-');
-  if(parts.length!==3) return '';
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
-}
-// Máscara en vivo DD/MM/AAAA: solo se escriben los dígitos, las "/" se ponen solas.
-window._dateMaskInput=function(el){
-  const d=el.value.replace(/\D/g,'').slice(0,8);
-  let out=d;
-  if(d.length>4) out=d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4);
-  else if(d.length>2) out=d.slice(0,2)+'/'+d.slice(2);
-  el.value=out;
+// Fecha "a la vieja escuela": 3 cajitas DD / MM / AAAA con las "/" fijas entre medio,
+// que nunca se tocan ni se reescriben — solo se llenan los números, y salta sola al
+// siguiente casillero al completar cada uno.
+window._dateSegAdvance=function(el,maxLen,nextId){
+  el.value=el.value.replace(/\D/g,'').slice(0,maxLen);
+  if(el.value.length>=maxLen && nextId){ document.getElementById(nextId)?.focus(); }
 };
-function _parseDDMMYYYY(str){
-  const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((str||'').trim());
-  if(!m) return null;
-  return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-}
 
 function _renderPlanificadorLista(){
   const el=document.getElementById('planificador-body');
@@ -29864,12 +29860,25 @@ function _renderEstFicha(key){
           <input id="est-edit-label" value="${p.label}" style="width:100%;text-align:center;font-size:1.15em;font-weight:900;color:var(--text);border:none;border-bottom:2px solid transparent;background:transparent;outline:none;padding:2px 0;box-sizing:border-box" onfocus="this.style.borderBottomColor='var(--cel)'" onblur="this.style.borderBottomColor='transparent';_estSaveField('${key}','label',this.value)">
           <div style="font-size:.7em;color:var(--hint);margin-top:6px">Tocá el nombre para editar</div>
           ${p.logro?`<div style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;border-radius:6px;padding:3px 10px;font-size:.68em;font-weight:700">🏆 ${p.logro}</div>`:''}
-          <div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:4px">
-            <i class="ti ti-cake" style="font-size:12px;color:var(--muted)"></i>
-            <input type="text" inputmode="numeric" value="${p.fechaNac?_fmtDateDDMMYYYY(p.fechaNac):''}" placeholder="DD/MM/AAAA" maxlength="10"
-              oninput="_dateMaskInput(this)" onblur="_estSaveNac('${key}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"
-              style="width:92px;text-align:center;font-size:.78em;color:var(--muted);border:none;border-bottom:1.5px solid transparent;background:transparent;outline:none;padding:2px 0" onfocus="this.style.borderBottomColor='var(--cel)'">
-          </div>
+          ${(()=>{
+            const parts=(p.fechaNac||'').split('-');
+            const dd0=parts.length===3?parts[2]:'', mm0=parts.length===3?parts[1]:'', yy0=parts.length===3?parts[0]:'';
+            const segStyle='width:20px;text-align:center;font-size:.78em;color:var(--muted);border:none;border-bottom:1.5px solid transparent;background:transparent;outline:none;padding:2px 0';
+            return `<div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:2px">
+              <i class="ti ti-cake" style="font-size:12px;color:var(--muted);margin-right:2px"></i>
+              <input type="text" inputmode="numeric" maxlength="2" placeholder="DD" value="${dd0}" id="est-nac-dd-${keyEnc}"
+                oninput="_dateSegAdvance(this,2,'est-nac-mm-${keyEnc}')" onblur="_estSaveNacSeg('${key}','${keyEnc}')" onfocus="this.style.borderBottomColor='var(--cel)'"
+                style="${segStyle}">
+              <span style="font-size:.78em;color:var(--muted)">/</span>
+              <input type="text" inputmode="numeric" maxlength="2" placeholder="MM" value="${mm0}" id="est-nac-mm-${keyEnc}"
+                oninput="_dateSegAdvance(this,2,'est-nac-yyyy-${keyEnc}')" onblur="_estSaveNacSeg('${key}','${keyEnc}')" onfocus="this.style.borderBottomColor='var(--cel)'"
+                style="${segStyle}">
+              <span style="font-size:.78em;color:var(--muted)">/</span>
+              <input type="text" inputmode="numeric" maxlength="4" placeholder="AAAA" value="${yy0}" id="est-nac-yyyy-${keyEnc}"
+                oninput="_dateSegAdvance(this,4,null)" onblur="_estSaveNacSeg('${key}','${keyEnc}')" onfocus="this.style.borderBottomColor='var(--cel)'"
+                style="${segStyle};width:34px">
+            </div>`;
+          })()}
         </div>
       </div>
 
@@ -30061,12 +30070,13 @@ function _estSaveField(key,field,value){
   edits[key][field]=value.trim();
   _estSaveEdits(edits);
 }
-window._estSaveNac=function(key,value){
-  const v=(value||'').trim();
-  if(!v){ _estSaveField(key,'fechaNac',''); return; }
-  const iso=_parseDDMMYYYY(v);
-  if(!iso){ toast?.('Formato inválido — usá DD/MM/AAAA'); renderEstructura(); return; }
-  _estSaveField(key,'fechaNac',iso);
+window._estSaveNacSeg=function(key,keyEnc){
+  const dd=(document.getElementById('est-nac-dd-'+keyEnc)?.value||'');
+  const mm=(document.getElementById('est-nac-mm-'+keyEnc)?.value||'');
+  const yyyy=(document.getElementById('est-nac-yyyy-'+keyEnc)?.value||'');
+  if(!dd && !mm && !yyyy){ _estSaveField(key,'fechaNac',''); return; }
+  if(dd.length!==2||mm.length!==2||yyyy.length!==4) return; // todavía incompleto, no guarda
+  _estSaveField(key,'fechaNac',`${yyyy}-${mm}-${dd}`);
 };
 
 window._estSaveRoleEdit=function(key,dkeyEnc,field,value){
