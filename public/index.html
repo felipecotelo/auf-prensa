@@ -5245,6 +5245,55 @@ window._futGoles = async function(id){
     panels.forEach(p=>p.textContent='No se pudo cargar el detalle.');
   }
 };
+// Tabla de descenso (promedios) — no la da la API de FotMob (requiere historial de
+// varias temporadas), así que va como foto fija cargada a mano. No se actualiza sola;
+// hay que refrescarla manualmente cuando cambien los promedios.
+const DESCENSO_URUGUAY_SNAPSHOT = {
+  fecha:'2026-08-06',
+  fuente:'estadisticas.tenfield.com.uy',
+  filas:[
+    {pos:1,  name:'Peñarol',                prom:2.051, pts:121, pj:59, desc:0},
+    {pos:2,  name:'Nacional',               prom:1.932, pts:114, pj:59, desc:0},
+    {pos:3,  name:'Deportivo Maldonado',     prom:1.864, pts:41,  pj:22, desc:0},
+    {pos:4,  name:'Racing',                 prom:1.593, pts:94,  pj:59, desc:0},
+    {pos:5,  name:'Liverpool',              prom:1.593, pts:94,  pj:59, desc:0},
+    {pos:6,  name:'Albion',                 prom:1.545, pts:34,  pj:22, desc:1},
+    {pos:7,  name:'Central Español',        prom:1.500, pts:33,  pj:22, desc:1},
+    {pos:8,  name:'Defensor Sporting',      prom:1.492, pts:88,  pj:59, desc:0},
+    {pos:9,  name:'Montevideo City Torque', prom:1.424, pts:84,  pj:59, desc:0},
+    {pos:10, name:'Juventud',               prom:1.424, pts:84,  pj:59, desc:0},
+    {pos:11, name:'Cerro Largo',            prom:1.305, pts:77,  pj:59, desc:1},
+    {pos:12, name:'Boston River',           prom:1.305, pts:77,  pj:59, desc:2},
+    {pos:13, name:'Montevideo Wanderers',   prom:1.119, pts:66,  pj:59, desc:42},
+    {pos:14, name:'Danubio',                prom:1.102, pts:65,  pj:59, desc:61},
+    {pos:15, name:'Cerro',                  prom:1.085, pts:64,  pj:59, desc:90},
+    {pos:16, name:'Progreso',               prom:0.932, pts:55,  pj:59, desc:99},
+  ],
+};
+function _descensoTablaHTML(){
+  const s=DESCENSO_URUGUAY_SNAPSHOT;
+  const th=(t,alinear)=>`<th style="padding:4px 5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;text-align:${alinear||'center'}">${t}</th>`;
+  const filasHTML=s.filas.map(r=>{
+    const riesgo=r.desc>=10;
+    return `<tr style="border-bottom:0.5px solid var(--border);${riesgo?'background:rgba(220,38,38,.06);border-left:3px solid #DC2626':''}">
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pos}</td>
+    <td style="padding:5px;font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap">${r.name}</td>
+    <td style="padding:5px;font-size:11px;font-weight:700;color:var(--text);text-align:center">${r.prom.toFixed(3)}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pts}</td>
+    <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pj}</td>
+    <td style="padding:5px;font-size:11px;font-weight:700;color:${riesgo?'#DC2626':'var(--muted)'};text-align:center">${r.desc>=99?'>99%':r.desc<1?'<1%':r.desc+'%'}</td>
+  </tr>`;
+  }).join('');
+  return `<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        ${th('#')}${th('Equipo','left')}${th('Prom')}${th('Pts')}${th('PJ')}${th('Desc')}
+      </tr></thead>
+      <tbody>${filasHTML}</tbody>
+    </table>
+    <div style="font-size:9.5px;color:var(--muted);padding:6px 5px 2px">Foto fija del ${_redesFmtFecha?_redesFmtFecha(s.fecha):s.fecha} · Fuente: ${s.fuente} · No se actualiza sola, hay que refrescarla a mano.</div>
+  </div>`;
+}
 function _futbolSubtablaHTML(filas){
   const th=(t,alinear)=>`<th style="padding:4px 5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;text-align:${alinear||'center'}">${t}</th>`;
   const filasHTML=filas.map(r=>`<tr style="border-bottom:0.5px solid var(--border)">
@@ -5272,7 +5321,7 @@ function _futbolTablaHTML(nombre,key,liga){
   const tablas=liga.tablas||[];
   if(!tablas.length) return '';
   const pills=tablas.map((t,i)=>`<button onclick="_futFase('${key}',${i})" data-fut-fase="${key}:${i}" style="border:1px solid ${i===0?'#059669':'var(--border)'};background:${i===0?'#059669':'transparent'};color:${i===0?'#fff':'var(--muted)'};font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.02em;padding:4px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;flex-shrink:0">${t.nombre}</button>`).join('');
-  const panels=tablas.map((t,i)=>`<div data-fut-fase-panel="${key}:${i}" style="${i===0?'':'display:none'}">${_futbolSubtablaHTML(t.filas)}</div>`).join('');
+  const panels=tablas.map((t,i)=>`<div data-fut-fase-panel="${key}:${i}" style="${i===0?'':'display:none'}">${t.esDescenso?_descensoTablaHTML():_futbolSubtablaHTML(t.filas)}</div>`).join('');
   return `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
     <div style="padding:6px 10px;background:rgba(5,150,105,.1)">
       <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.03em">${nombre}</span>
@@ -5346,6 +5395,8 @@ window._loadFutbolUY = async function(){
     };
     const html=div('Liga AUF Uruguaya',d.primera)+div('Segunda Profesional AUF',d.segunda);
     document.querySelectorAll('.fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
+    // La tabla de descenso (promedios) no la da FotMob — se agrega como pestaña extra fija.
+    if(d.primera?.tablas?.length) d.primera.tablas.push({nombre:'Descenso', esDescenso:true});
     const htmlTablas=_futbolTablaHTML('Liga AUF Uruguaya','primera',d.primera)+_futbolTablaHTML('Segunda Profesional AUF','segunda',d.segunda);
     document.querySelectorAll('.fut-tablas').forEach(e=>e.innerHTML=htmlTablas||'Sin datos disponibles.');
   }catch(_){
