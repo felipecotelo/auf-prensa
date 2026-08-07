@@ -28653,6 +28653,17 @@ function _fmtDateCorta(iso){
   if(parts.length!==3) return iso||'';
   return `${parseInt(parts[2])}/${parseInt(parts[1])}/${parts[0]}`;
 }
+// DD/MM/AAAA a la vieja escuela: se escribe entero, sin selector de calendario.
+function _fmtDateDDMMYYYY(iso){
+  const parts=(iso||'').split('-');
+  if(parts.length!==3) return '';
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+function _parseDDMMYYYY(str){
+  const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((str||'').trim());
+  if(!m) return null;
+  return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+}
 
 function _renderPlanificadorLista(){
   const el=document.getElementById('planificador-body');
@@ -29744,9 +29755,11 @@ function _renderEstFicha(key){
           <input id="est-edit-label" value="${p.label}" style="width:100%;text-align:center;font-size:1.15em;font-weight:900;color:var(--text);border:none;border-bottom:2px solid transparent;background:transparent;outline:none;padding:2px 0;box-sizing:border-box" onfocus="this.style.borderBottomColor='var(--cel)'" onblur="this.style.borderBottomColor='transparent';_estSaveField('${key}','label',this.value)">
           <div style="font-size:.7em;color:var(--hint);margin-top:6px">Tocá el nombre para editar</div>
           ${p.logro?`<div style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;border-radius:6px;padding:3px 10px;font-size:.68em;font-weight:700">🏆 ${p.logro}</div>`:''}
-          <div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:5px">
-            <span onclick="const i=document.getElementById('est-nac-${keyEnc}');i.showPicker?i.showPicker():i.click()" style="cursor:pointer;font-size:.75em;color:var(--muted);display:inline-flex;align-items:center;gap:4px"><i class="ti ti-cake" style="font-size:12px"></i>${p.fechaNac?_fmtDateCorta(p.fechaNac):'Agregar fecha de nacimiento'}</span>
-            <input type="date" id="est-nac-${keyEnc}" value="${p.fechaNac||''}" onchange="_estSaveField('${key}','fechaNac',this.value)" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+          <div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:4px">
+            <i class="ti ti-cake" style="font-size:12px;color:var(--muted)"></i>
+            <input type="text" value="${p.fechaNac?_fmtDateDDMMYYYY(p.fechaNac):''}" placeholder="DD/MM/AAAA" maxlength="10"
+              onblur="_estSaveNac('${key}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"
+              style="width:92px;text-align:center;font-size:.78em;color:var(--muted);border:none;border-bottom:1.5px solid transparent;background:transparent;outline:none;padding:2px 0" onfocus="this.style.borderBottomColor='var(--cel)'">
           </div>
         </div>
       </div>
@@ -29939,6 +29952,13 @@ function _estSaveField(key,field,value){
   edits[key][field]=value.trim();
   _estSaveEdits(edits);
 }
+window._estSaveNac=function(key,value){
+  const v=(value||'').trim();
+  if(!v){ _estSaveField(key,'fechaNac',''); return; }
+  const iso=_parseDDMMYYYY(v);
+  if(!iso){ toast?.('Formato inválido — usá DD/MM/AAAA'); renderEstructura(); return; }
+  _estSaveField(key,'fechaNac',iso);
+};
 
 window._estSaveRoleEdit=function(key,dkeyEnc,field,value){
   const origDept=decodeURIComponent(dkeyEnc);
