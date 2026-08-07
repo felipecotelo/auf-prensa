@@ -4440,6 +4440,13 @@ let _syncStatus='idle'; // 'idle'|'syncing'|'ok'|'error'
 let _recentlyPushed={};
 let _lastServerSnapshot={}; // key -> Set de items (stringificados) vistos por última vez del servidor
 function _snapshotArray(key,arr){ if(Array.isArray(arr)) _lastServerSnapshot[key]=new Set(arr.map(it=>JSON.stringify(it))); }
+// Igual que _snapshotArray pero para objetos planos {clave: valor} (ej. fichas de
+// Estructura, auf4_est_edits) — cada par clave/valor se trata como "un ítem" propio.
+function _snapshotObject(key,obj){
+  if(obj && typeof obj==='object' && !Array.isArray(obj)){
+    _lastServerSnapshot[key]=new Set(Object.entries(obj).map(([k,v])=>k+'::'+JSON.stringify(v)));
+  }
+}
 
 function _setSyncStatus(s){
   _syncStatus=s;
@@ -4493,9 +4500,36 @@ async function cloudPush(key,value){
           }
         }
       }catch(_){}
+    } else if(value && typeof value==='object'){
+      // Mismo criterio que para arrays, pero por clave: si el servidor tiene una
+      // clave (o un valor distinto para una clave) que esta pestaña nunca vio y que
+      // no coincide con lo que estamos por mandar, es un cambio ajeno — no lo pisamos.
+      try{
+        const {data,error}=await _sb.from('sync_data').select('value').eq('key',key).maybeSingle();
+        if(!error && data?.value){
+          const serverVal=JSON.parse(data.value);
+          if(serverVal && typeof serverVal==='object' && !Array.isArray(serverVal)){
+            const known=_lastServerSnapshot[key];
+            const unknownNew=Object.entries(serverVal).filter(([k,v])=>{
+              const s=k+'::'+JSON.stringify(v);
+              const localMatches=JSON.stringify(value[k])===JSON.stringify(v);
+              if(localMatches) return false;
+              if(known && known.has(s)) return false;
+              return true;
+            });
+            if(unknownNew.length>0){
+              console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${unknownNew.length} clave(s) que esta pestaña no conoce o no coinciden.`, unknownNew.map(([k])=>k));
+              _setSyncStatus('error');
+              _syncConflictAlert(key, Object.keys(value).length, Object.keys(serverVal).length);
+              return;
+            }
+          }
+        }
+      }catch(_){}
     }
     await _sb.from('sync_data').upsert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()},{onConflict:'key'});
     if(Array.isArray(value)) _snapshotArray(key,value);
+    else if(value && typeof value==='object') _snapshotObject(key,value);
     _setSyncStatus('ok');
   }catch(e){_setSyncStatus('error');console.warn('cloudPush error',e);}
 }
@@ -4518,6 +4552,7 @@ async function cloudPull(){
             localStorage.setItem(row.key,row.value);
             const parsed=JSON.parse(row.value);
             if(Array.isArray(parsed)) _snapshotArray(row.key,parsed);
+            else if(parsed && typeof parsed==='object') _snapshotObject(row.key,parsed);
           }catch(e){}
         }
       });
@@ -4835,7 +4870,7 @@ async function _livePollSync(){
     data.forEach(row=>{
       if(_SKIP_SYNC.has(row.key)||row.value==null) return;
       if(_recentlyPushed[row.key] && Date.now()-_recentlyPushed[row.key]<4000) return;
-      try{ const parsed=JSON.parse(row.value); if(Array.isArray(parsed)) _snapshotArray(row.key,parsed); }catch(e){}
+      try{ const parsed=JSON.parse(row.value); if(Array.isArray(parsed)) _snapshotArray(row.key,parsed); else if(parsed && typeof parsed==='object') _snapshotObject(row.key,parsed); }catch(e){}
       if(localStorage.getItem(row.key)!==row.value){
         localStorage.setItem(row.key,row.value);
         changed=true;
