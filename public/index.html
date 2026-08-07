@@ -4955,6 +4955,36 @@ function renderInicioHoySeleccion(){
         }
       });
     }
+    // ── Cumpleaños de Estructura (aparte, para no mezclar con jugadores/DTs) ──
+    const cumplesEstructura=[];
+    if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
+      const estEdits=typeof _estGetEdits==='function'?_estGetEdits():{};
+      ESTRUCTURA_PERSONAS.forEach(d=>{
+        (d.personas||[]).forEach(p=>{
+          const fn=estEdits[p.key]?.fechaNac||p.fechaNac;
+          if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
+            cumplesEstructura.push({nom:estEdits[p.key]?.label||p.label, key:p.key, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), dept:d.dept});
+          }
+        });
+      });
+    }
+    const cumpleEstructuraRows=cumplesEstructura.map(c=>{
+      const foto=typeof _estResolvePhoto==='function'?_estResolvePhoto({label:c.nom,key:c.key}):null;
+      const initials=c.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatar=foto
+        ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        :`<div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};color:${subColor};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${initials}</div>`;
+      return `
+      <div onclick="showSection('estructura');setTimeout(()=>_estOpenFicha('${c.key}'),80)" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;${borderCss}">
+        ${avatar}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:${isMob?'13px':'12.5px'};font-weight:700;color:${rowColor}">${c.nom}</div>
+          <div style="font-size:${isMob?'11px':'10.5px'};color:${subColor}">${c.dept} · cumple ${c.edad} años hoy</div>
+        </div>
+        <i class="ti ti-chevron-right" style="color:${subColor};font-size:13px;flex-shrink:0"></i>
+      </div>`;
+    }).join('');
+
     const hoyLinks=stor.get('auf4_hoylinks',{});
     const cumpleRows=cumples.map(c=>{
       const foto=window._getPhotoByName?.(c.nom)||null;
@@ -5011,8 +5041,9 @@ function renderInicioHoySeleccion(){
         </div>
       </div>`).join('');
 
-    if(!cumples.length && !aniversarioRows && !actividadRows && !planHoy.length) return '';
+    if(!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !planHoy.length) return '';
     const body=(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
+      +(cumpleEstructuraRows?subHdr('🎂 Cumpleaños · Estructura')+cumpleEstructuraRows:'')
       +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
       +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
       +(planHoy.length?subHdr('Planificador')+planRows:'');
