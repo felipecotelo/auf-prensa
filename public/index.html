@@ -4470,7 +4470,8 @@ function _syncConflictAlert(key, localLen, serverLen){
   el.innerHTML=`<span>⚠️ No se guardó "${key}": esta pestaña tiene ${localLen} elementos pero el servidor ya tiene ${serverLen} más nuevos (de otra pestaña o dispositivo). Recargá antes de seguir editando para no perder nada.</span><button onclick="location.reload()" style="background:#fff;color:#DC2626;border:none;border-radius:6px;padding:6px 12px;font-weight:800;cursor:pointer;white-space:nowrap">Recargar ahora</button>`;
   document.body.appendChild(el);
 }
-async function cloudPush(key,value){
+async function cloudPush(key,value,opts){
+  opts=opts||{};
   if(_SKIP_SYNC.has(key))return;
   _recentlyPushed[key]=Date.now();
   try{
@@ -4480,19 +4481,20 @@ async function cloudPush(key,value){
         const {data,error}=await _sb.from('sync_data').select('value').eq('key',key).maybeSingle();
         if(!error && data?.value){
           const serverVal=JSON.parse(data.value);
-          if(Array.isArray(serverVal) && serverVal.length>value.length){
-            // No alcanza con comparar cantidades: borrar el último ítem sincronizado
-            // SIEMPRE deja lo local con 1 menos que el servidor, sin que haya conflicto real.
-            // Solo es conflicto de verdad si el servidor tiene un ítem que esta pestaña
-            // nunca vio (agregado en otra pestaña/dispositivo) y que no está en lo que mandamos.
-            const known=_lastServerSnapshot[key];
-            const pushSet=new Set(value.map(it=>JSON.stringify(it)));
-            const unknownNew=serverVal.filter(it=>{
-              const s=JSON.stringify(it);
-              return (!known||!known.has(s)) && !pushSet.has(s);
-            });
-            if(unknownNew.length>0){
-              console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${unknownNew.length} ítem(s) nuevos que esta pestaña no conoce.`);
+          // OJO: acá NO hay que confiar en "_lastServerSnapshot" (lo que esta pestaña vio
+          // alguna vez) para decidir si un ítem se puede sacar — eso fue justo el bug que
+          // borró Espasandín/Bueno 3 veces: una vez que la pestaña vio un ítem, quedaba
+          // "known" para siempre, y un push posterior con ese ítem faltante (por localStorage
+          // desactualizado) pasaba el guard igual. Ahora comparamos SIEMPRE contra el estado
+          // real del servidor recién pedido, por id (si los ítems tienen id) para no romper
+          // ediciones normales de contenido. Solo se permite que el array encoja si quien
+          // llama pasa opts.allowShrink=true (ej: borrado explícito confirmado por el usuario).
+          if(Array.isArray(serverVal) && !opts.allowShrink){
+            const idOf=it=>(it&&typeof it==='object'&&'id' in it)?('id:'+it.id):JSON.stringify(it);
+            const pushIds=new Set(value.map(idOf));
+            const missing=serverVal.filter(it=>!pushIds.has(idOf(it)));
+            if(missing.length>0){
+              console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${missing.length} ítem(s) que este guardado no incluye.`, missing);
               _setSyncStatus('error');
               _syncConflictAlert(key, value.length, serverVal.length);
               return;
@@ -17332,6 +17334,10 @@ const LOCAL_NAC_DATES = {
   'Franco Catarozzi':'2000-04-02', 'Franco Pizzichillo':'1996-01-03', 'Gian Allala':'1997-01-17',
   'Gonzalo Larrazabal':'2002-11-04', 'Guillermo De Amores':'1994-10-19', 'Guillermo Pereira':'2002-07-03',
   'Guzmán Rodríguez':'2000-02-08', 'Hugo Magallanes':'1997-08-26',
+  'Emiliano Ancheta':'1999-06-09', 'Emiliano Gómez':'2001-09-18', 'Francisco Tinaglini':'1998-11-09',
+  'José Neris':'2000-03-13', 'Leonardo Fernández':'1998-11-08', 'Lucas Pino':'2005-10-30',
+  'Mauro Silveira':'2000-05-06', 'Maximiliano Silvera':'1997-09-05', 'Nicolás Schiappacasse':'1999-01-12',
+  'Randall Rodríguez':'2003-11-29', 'Santiago Cartagena':'2002-09-01', 'Wiston Fernández':'1998-01-04',
 };
 const KLocalClub = 'auf4_local_club';
 const KLocalTmId = 'auf4_local_tmid';
@@ -21434,7 +21440,7 @@ const SUD20_2019 = {
     {num:17, nom:'Agustín Dávila',          club:'Salto FC', pais:'uy',                     pos:'MED', fechaNac:'1999-01-05'},
     {num:21, nom:'Thomás Chacón',           club:'sin club',                     pos:'MED', fechaNac:'2000-08-17'},
     {num:9,  nom:'Facundo Batista',         club:'CA Peñarol', pais:'uy',                     pos:'DEL', fechaNac:'1999-01-16'},
-    {num:10, nom:'Nicolás Schiappacasse',   club:'sin club',             pos:'DEL', fechaNac:'1999-06-18'},
+    {num:10, nom:'Nicolás Schiappacasse',   club:'sin club',             pos:'DEL', fechaNac:'1999-01-12'},
     {num:18, nom:'Juan Manuel Sanabria',    club:'Real Salt Lake', pais:'us',                     pos:'DEL', fechaNac:'2000-03-29'},
     {num:19, nom:'Darwin Núñez',            club:'Liverpool FC',         pos:'DEL', pais:'gb-eng', fechaNac:'2001-06-24'},
     {num:20, nom:'Juan Manuel Boselli',     club:'FK Krasnodar', pais:'ru',                     pos:'DEL', fechaNac:'1999-11-09'},
@@ -28672,7 +28678,7 @@ function _pwTabsHtml(active){
 // ═══════════════════════════════════════════════════════════════════════════
 const KPlan='auf4_planificador';
 function _planGetAll(){ return stor.get(KPlan, []); }
-function _planSave(list){ stor.set(KPlan, list); cloudPush(KPlan, list); }
+function _planSave(list, opts){ stor.set(KPlan, list); cloudPush(KPlan, list, opts); }
 let _planCurId=null;
 let _planView='list'; // 'list' | 'evento'
 
@@ -28762,7 +28768,7 @@ function _planNuevo(){
 window._planNuevo=_planNuevo;
 function _planDelete(id){
   if(!confirm('¿Eliminar este evento del planificador? No se puede deshacer.')) return;
-  _planSave(_planGetAll().filter(e=>e.id!==id));
+  _planSave(_planGetAll().filter(e=>e.id!==id), {allowShrink:true});
   _planBack();
 }
 window._planDelete=_planDelete;
@@ -29060,7 +29066,18 @@ function _planMigracionCalendario(){
     // si había quedado creado por error, y vive solo como fuente de info para Inicio
     // (ver getCalendarioSeleccion() / KCalendarioHoy, actualizado por tarea programada).
     if(list.some(e=>e.id==='pl_calendario_seleccion')){
-      _planSave(list.filter(e=>e.id!=='pl_calendario_seleccion'));
+      // No pisar con el array local (puede estar desactualizado): traer el estado real
+      // del servidor y sacar el id ahí, recién ahí pushear con allowShrink. Hacerlo con
+      // el "list" local directamente fue justo lo que borró Espasandín/Bueno más de una vez.
+      (async()=>{
+        try{
+          const {data,error}=await _sb.from('sync_data').select('value').eq('key',KPlan).maybeSingle();
+          const serverList=(!error && data?.value)?JSON.parse(data.value):null;
+          if(Array.isArray(serverList) && serverList.some(e=>e.id==='pl_calendario_seleccion')){
+            _planSave(serverList.filter(e=>e.id!=='pl_calendario_seleccion'), {allowShrink:true});
+          }
+        }catch(_){}
+      })();
       changed=true;
     } else if(changed){
       _planSave(list);
