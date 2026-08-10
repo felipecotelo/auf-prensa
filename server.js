@@ -712,6 +712,46 @@ app.get('/api/futbol-uy/partido/:id', async (req, res) => {
   }
 });
 
+// Tabla de descenso (promedios) — la trae directo de auf.org.uy, la fuente oficial.
+// Encontrado inspeccionando la red de la página /historico-temporadas/3/13/: usa un
+// endpoint ajax interno (url.php?id=ajaxapp&tabla_descenso=1) que devuelve un fragmento
+// de HTML, no JSON, así que lo parseamos con regex (sin librería de HTML de por medio).
+let _descensoCache = null; // {ts, data}
+const DESCENSO_TTL = 60 * 60 * 1000; // 1 hora
+
+function parseDescensoHTML(html) {
+  const rows = html.split('<div class="item-tabla_posiciones">').slice(1);
+  return rows.map((chunk, i) => {
+    const nameMatch = /alt="([^"]+)"/.exec(chunk);
+    const cols = [...chunk.matchAll(/<div class="col text-center[^"]*">\s*([^<]*?)\s*<\/div>/g)].map(m => m[1].trim());
+    if (!nameMatch || cols.length < 10) return null;
+    const num = s => parseFloat((s || '0').replace(',', '.')) || 0;
+    return {
+      pos: i + 1, name: nameMatch[1],
+      prom: num(cols[0]), pts: num(cols[1]), pj: num(cols[2]), pg: num(cols[3]),
+      pe: num(cols[4]), pp: num(cols[5]), gf: num(cols[6]), gc: num(cols[7]),
+      promG: num(cols[8]), dif: num(cols[9]),
+    };
+  }).filter(Boolean);
+}
+
+app.get('/api/descenso-uy', async (req, res) => {
+  try {
+    if (_descensoCache && (Date.now() - _descensoCache.ts) < DESCENSO_TTL) {
+      return res.json(_descensoCache.data);
+    }
+    const url = `https://www.auf.org.uy/url.php?id=ajaxapp&tabla_descenso=1&id1=3&id2=13&r=${Math.random()}`;
+    const html = await fetchText(url);
+    const filas = parseDescensoHTML(html);
+    if (!filas.length) throw new Error('No se pudo interpretar la tabla de auf.org.uy');
+    const data = { filas, updatedAt: new Date().toISOString() };
+    _descensoCache = { ts: Date.now(), data };
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));
 // trigger deploy Thu Jun 18 18:40:44 EST 2026
