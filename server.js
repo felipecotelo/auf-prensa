@@ -768,6 +768,65 @@ app.get('/api/descenso-uy', async (req, res) => {
   }
 });
 
+// ── Backup automático de sync_data ──────────────────────────────────────────
+// Corre acá, en el server (que ya está siempre prendido en Railway), en vez de
+// depender de un GitHub Action o de que alguien se acuerde de sacarlo a mano.
+// Guarda cada snapshot como una fila más en la misma tabla sync_data, con un
+// key con prefijo "_syncbackup_" — el cliente (index.html) filtra ese prefijo
+// al leer, así que esto no le agrega peso a la app ni se ve en ningún lado.
+const SB_URL = 'https://wsiudiexcodrhyejevco.supabase.co';
+const SB_ANON_KEY = 'sb_publishable_GaiAMaH49DGCJgzDOTKHSQ_42jKWXNq';
+const BACKUP_PREFIX = '_syncbackup_';
+const BACKUP_KEEP = 30; // ~5 días guardando cada 4hs
+
+function sbRequest(method, urlPath, body) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(SB_URL + urlPath);
+    const payload = body != null ? JSON.stringify(body) : null;
+    const headers = {
+      'apikey': SB_ANON_KEY,
+      'Authorization': `Bearer ${SB_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    };
+    if (payload) headers['Content-Length'] = Buffer.byteLength(payload);
+    const req = https.request(url, { method, headers }, (r) => {
+      let data = '';
+      r.on('data', c => data += c);
+      r.on('end', () => {
+        if (r.statusCode >= 400) return reject(new Error(`Supabase ${method} ${urlPath} -> ${r.statusCode}: ${data}`));
+        resolve(data || null);
+      });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+async function runSyncDataBackup() {
+  try {
+    const raw = await sbRequest('GET', '/rest/v1/sync_data?select=key,value,updated_at');
+    const rows = JSON.parse(raw || '[]');
+    const realRows = rows.filter(r => !r.key.startsWith(BACKUP_PREFIX));
+    if (!realRows.length) { console.warn('[backup] snapshot vacío, no se guarda'); return; }
+    const key = BACKUP_PREFIX + new Date().toISOString().replace(/[:.]/g, '-');
+    await sbRequest('POST', '/rest/v1/sync_data', [{ key, value: JSON.stringify(realRows), updated_at: new Date().toISOString() }]);
+    console.log(`[backup] snapshot guardado: ${key} (${realRows.length} filas)`);
+
+    const backupRows = rows.filter(r => r.key.startsWith(BACKUP_PREFIX)).sort((a, b) => a.key < b.key ? 1 : -1);
+    const toDelete = backupRows.slice(BACKUP_KEEP - 1);
+    for (const r of toDelete) {
+      await sbRequest('DELETE', `/rest/v1/sync_data?key=eq.${encodeURIComponent(r.key)}`);
+    }
+    if (toDelete.length) console.log(`[backup] podados ${toDelete.length} snapshot(s) viejos`);
+  } catch (e) {
+    console.warn('[backup] error:', e.message);
+  }
+}
+setTimeout(runSyncDataBackup, 15000);
+setInterval(runSyncDataBackup, 4 * 60 * 60 * 1000);
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));
 // trigger deploy Thu Jun 18 18:40:44 EST 2026

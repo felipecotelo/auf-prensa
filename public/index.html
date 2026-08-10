@@ -4545,7 +4545,9 @@ function cloudPushDebounced(key,value){
 async function cloudPull(){
   try{
     _setSyncStatus('syncing');
-    const {data,error}=await _sb.from('sync_data').select('key,value');
+    // "_syncbackup_*" son snapshots automáticos server-side (ver server.js) — no son
+    // datos de la app, no hace falta bajarlos a cada pestaña ni guardarlos en localStorage.
+    const {data,error}=await _sb.from('sync_data').select('key,value').not('key','like','_syncbackup_%');
     if(error)throw error;
     if(data&&data.length){
       data.forEach(row=>{
@@ -4866,7 +4868,7 @@ function _rerenderTab(id){
 async function _livePollSync(){
   if(document.hidden) return;
   try{
-    const {data,error}=await _sb.from('sync_data').select('key,value');
+    const {data,error}=await _sb.from('sync_data').select('key,value').not('key','like','_syncbackup_%');
     if(error||!data) return;
     let changed=false;
     data.forEach(row=>{
