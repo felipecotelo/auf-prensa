@@ -719,6 +719,22 @@ app.get('/api/futbol-uy/partido/:id', async (req, res) => {
 let _descensoCache = null; // {ts, data}
 const DESCENSO_TTL = 60 * 60 * 1000; // 1 hora
 
+// auf.org.uy responde en iso-8859-1 (Latin-1), no UTF-8 — fetchText() asume UTF-8 al
+// concatenar los chunks, lo que corrompe las tildes/ñ (ej. "Peñarol" -> "Pe�arol").
+// Esta variante junta los bytes crudos y decodifica explícitamente como latin1.
+function fetchTextLatin1(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'auf-prensa/1.0' } }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
+        return fetchTextLatin1(r.headers.location).then(resolve, reject);
+      }
+      const chunks = [];
+      r.on('data', chunk => chunks.push(chunk));
+      r.on('end', () => resolve(Buffer.concat(chunks).toString('latin1')));
+    }).on('error', reject);
+  });
+}
+
 function parseDescensoHTML(html) {
   const rows = html.split('<div class="item-tabla_posiciones">').slice(1);
   return rows.map((chunk, i) => {
@@ -741,7 +757,7 @@ app.get('/api/descenso-uy', async (req, res) => {
       return res.json(_descensoCache.data);
     }
     const url = `https://www.auf.org.uy/url.php?id=ajaxapp&tabla_descenso=1&id1=3&id2=13&r=${Math.random()}`;
-    const html = await fetchText(url);
+    const html = await fetchTextLatin1(url);
     const filas = parseDescensoHTML(html);
     if (!filas.length) throw new Error('No se pudo interpretar la tabla de auf.org.uy');
     const data = { filas, updatedAt: new Date().toISOString() };
