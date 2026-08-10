@@ -777,7 +777,8 @@ app.get('/api/descenso-uy', async (req, res) => {
 const SB_URL = 'https://wsiudiexcodrhyejevco.supabase.co';
 const SB_ANON_KEY = 'sb_publishable_GaiAMaH49DGCJgzDOTKHSQ_42jKWXNq';
 const BACKUP_PREFIX = '_syncbackup_';
-const BACKUP_KEEP = 30; // ~5 días guardando cada 4hs
+const BACKUP_INTERVAL_MS = 30 * 60 * 1000; // cada 30 min
+const BACKUP_KEEP = 240; // ~5 días guardando cada 30 min
 
 function sbRequest(method, urlPath, body) {
   return new Promise((resolve, reject) => {
@@ -825,7 +826,7 @@ async function runSyncDataBackup() {
   }
 }
 setTimeout(runSyncDataBackup, 15000);
-setInterval(runSyncDataBackup, 4 * 60 * 60 * 1000);
+setInterval(runSyncDataBackup, BACKUP_INTERVAL_MS);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));
