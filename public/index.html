@@ -5338,14 +5338,17 @@ window._futGoles = async function(id){
 function _descensoTablaHTML(filas){
   if(!filas||!filas.length) return `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85em">No se pudo cargar la tabla de descenso ahora.</div>`;
   const th=(t,alinear)=>`<th style="padding:4px 5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;text-align:${alinear||'center'}">${t}</th>`;
-  const filasHTML=filas.map(r=>`<tr style="border-bottom:0.5px solid var(--border)">
+  const filasHTML=filas.map((r,i)=>{
+    const riesgo=i>=filas.length-3;
+    return `<tr style="border-bottom:0.5px solid var(--border);${riesgo?'background:rgba(220,38,38,.08);border-left:3px solid #DC2626':''}">
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pos}</td>
     <td style="padding:5px;font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap">${r.name}</td>
     <td style="padding:5px;font-size:11px;font-weight:700;color:var(--text);text-align:center">${r.prom.toFixed(3)}</td>
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pts}</td>
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pj}</td>
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.dif>0?'+':''}${r.dif}</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
   return `<div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse">
       <thead><tr style="border-bottom:1px solid var(--border)">
@@ -5358,9 +5361,9 @@ function _descensoTablaHTML(filas){
 }
 function _futbolSubtablaHTML(filas){
   const th=(t,alinear)=>`<th style="padding:4px 5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.02em;text-align:${alinear||'center'}">${t}</th>`;
-  const filasHTML=filas.map(r=>`<tr style="border-bottom:0.5px solid var(--border)">
+  const filasHTML=filas.map((r,i)=>`<tr style="border-bottom:0.5px solid var(--border);${i===0?'background:rgba(5,150,105,.12);border-left:3px solid #059669':''}">
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pos}</td>
-    <td style="padding:5px;font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap">${r.name}</td>
+    <td style="padding:5px;font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap">${i===0?'🥇 ':''}${r.name}</td>
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.pj}</td>
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.w}</td>
     <td style="padding:5px;font-size:11px;color:var(--muted);text-align:center">${r.d}</td>
@@ -14516,41 +14519,109 @@ function buildBielsaConfsHtml(){
   </div>`;
 }
 
-window._editForlanConf=function(n){
+const FORLAN_CONFS_DEFAULT=[
+  {n:1,txt:'Conferencia de prensa de presentación',fecha:'2026-08-03'},
+];
+window._openForlanConfModal=function(n){
+  let modal=document.getElementById('forlan-conf-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='forlan-conf-modal';
+    modal.style.cssText='display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML=`<div style="background:var(--surface,#fff);border-radius:16px;padding:20px;width:100%;max-width:380px;max-height:88vh;overflow-y:auto;position:relative">
+      <button onclick="document.getElementById('forlan-conf-modal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted,#888)">✕</button>
+      <div style="font-weight:800;font-size:.95em;margin-bottom:14px;padding-right:24px">🎙️ Editar conferencia</div>
+      <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">NOMBRE</label>
+      <input id="fc-nombre" type="text" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.85em;margin-bottom:12px;box-sizing:border-box;outline:none">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px">
+        <div>
+          <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">FECHA</label>
+          <div style="display:flex;align-items:center;gap:3px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box">
+            <input type="text" inputmode="numeric" maxlength="2" placeholder="DD" id="fc-dd" oninput="_dateSegAdvance(this,2,'fc-mm')" style="width:20px;text-align:center;font-size:.85em;border:none;outline:none;padding:0">
+            <span style="font-size:.85em;color:var(--muted)">/</span>
+            <input type="text" inputmode="numeric" maxlength="2" placeholder="MM" id="fc-mm" oninput="_dateSegAdvance(this,2,'fc-yyyy')" style="width:20px;text-align:center;font-size:.85em;border:none;outline:none;padding:0">
+            <span style="font-size:.85em;color:var(--muted)">/</span>
+            <input type="text" inputmode="numeric" maxlength="4" placeholder="AAAA" id="fc-yyyy" oninput="_dateSegAdvance(this,4,null)" style="width:36px;text-align:center;font-size:.85em;border:none;outline:none;padding:0">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">HORA</label>
+          <input id="fc-hora" type="text" placeholder="HH:MM" style="width:64px;padding:8px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.85em;box-sizing:border-box;outline:none">
+        </div>
+      </div>
+      <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">LUGAR</label>
+      <input id="fc-lugar" type="text" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.85em;margin-bottom:12px;box-sizing:border-box;outline:none">
+      <label style="font-size:.72em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">LINK (opcional)</label>
+      <input id="fc-link" type="text" placeholder="https://..." style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.85em;margin-bottom:12px;box-sizing:border-box;outline:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <label style="font-size:.72em;font-weight:700;color:var(--muted)">AUFTV</label>
+        <button type="button" id="fc-auftv-si" onclick="_fcSetAufTv(true)" style="flex:1;padding:7px;border-radius:8px;font-size:.8em;font-weight:700;cursor:pointer">Sí</button>
+        <button type="button" id="fc-auftv-no" onclick="_fcSetAufTv(false)" style="flex:1;padding:7px;border-radius:8px;font-size:.8em;font-weight:700;cursor:pointer">No</button>
+      </div>
+      <button onclick="_saveForlanConf()" style="width:100%;padding:10px;background:#1D4ED8;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.88em;cursor:pointer">Guardar</button>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click',function(e){if(e.target===modal)modal.style.display='none';});
+  }
+  modal._n=n;
+  const base=FORLAN_CONFS_DEFAULT.find(c=>c.n===n)||{};
   const edits=stor.get('auf4_forlanconf',{});
   const cur=edits[n]||{};
-  const lugar=prompt('Lugar:',cur.lugar||'');
-  if(lugar===null) return;
-  const hora=prompt('Hora (ej: 18:00):',cur.hora||'');
-  if(hora===null) return;
-  const aufTvIn=prompt('¿Va por AUFtv? (si/no):',cur.aufTv?'si':'no');
-  if(aufTvIn===null) return;
-  const link=prompt('Link (vacío para quitar):',cur.link||'');
-  if(link===null) return;
-  edits[n]={lugar:lugar.trim(),hora:hora.trim(),aufTv:/^s/i.test(aufTvIn.trim()),link:link.trim()};
+  document.getElementById('fc-nombre').value=cur.txt||base.txt||'';
+  const fecha=cur.fecha||base.fecha||'';
+  const parts=fecha.split('-');
+  document.getElementById('fc-yyyy').value=parts.length===3?parts[0]:'';
+  document.getElementById('fc-mm').value=parts.length===3?parts[1]:'';
+  document.getElementById('fc-dd').value=parts.length===3?parts[2]:'';
+  document.getElementById('fc-hora').value=cur.hora||'';
+  document.getElementById('fc-lugar').value=cur.lugar||'';
+  document.getElementById('fc-link').value=cur.link||'';
+  window._fcSetAufTv(!!cur.aufTv);
+  modal.style.display='flex';
+};
+window._fcSetAufTv=function(val){
+  window._fcAufTv=val;
+  const si=document.getElementById('fc-auftv-si'), no=document.getElementById('fc-auftv-no');
+  if(si){ si.style.background=val?'#059669':'transparent'; si.style.color=val?'#fff':'var(--muted)'; si.style.border='1.5px solid '+(val?'#059669':'var(--border)'); }
+  if(no){ no.style.background=!val?'#DC2626':'transparent'; no.style.color=!val?'#fff':'var(--muted)'; no.style.border='1.5px solid '+(!val?'#DC2626':'var(--border)'); }
+};
+window._saveForlanConf=function(){
+  const modal=document.getElementById('forlan-conf-modal');
+  const n=modal._n;
+  const dd=document.getElementById('fc-dd').value, mm=document.getElementById('fc-mm').value, yyyy=document.getElementById('fc-yyyy').value;
+  const fecha=(dd.length===2&&mm.length===2&&yyyy.length===4)?`${yyyy}-${mm}-${dd}`:'';
+  const edits=stor.get('auf4_forlanconf',{});
+  edits[n]={
+    txt:document.getElementById('fc-nombre').value.trim(),
+    fecha,
+    hora:document.getElementById('fc-hora').value.trim(),
+    lugar:document.getElementById('fc-lugar').value.trim(),
+    link:document.getElementById('fc-link').value.trim(),
+    aufTv:!!window._fcAufTv,
+  };
   stor.set('auf4_forlanconf',edits);
+  modal.style.display='none';
   renderTecnicos();
 };
 function buildForlanConfsHtml(){
-  const confs=[
-    {n:1,txt:'Conferencia de prensa de presentación',fecha:'3/8/26',pendiente:true},
-  ];
   const edits=stor.get('auf4_forlanconf',{});
   return `<div class="stats-section">
     <div class="phase">🎙️ Atención de prensa · Diego Forlán</div>
     <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
-      ${confs.map(c=>{
+      ${FORLAN_CONFS_DEFAULT.map(c=>{
         const ed=edits[c.n]||{};
+        const txt=ed.txt||c.txt;
+        const fecha=ed.fecha||c.fecha;
         const lugar=ed.lugar||'por confirmar';
         const hora=ed.hora||'';
         return `
         <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--surface);border:0.5px solid var(--border)">
           <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
           <div style="flex:1">
-            <div style="font-size:12px;font-weight:600;color:var(--text)">${ed.link?`<a href="${ed.link}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}${c.pendiente&&!ed.lugar?`<span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">por confirmar</span>`:''}${ed.aufTv?`<span style="font-size:8px;font-weight:700;color:#059669;background:rgba(5,150,105,.12);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">AUFtv</span>`:''}</div>
-            <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${c.fecha}${hora?' · '+hora:''} · ${lugar}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text)">${ed.link?`<a href="${ed.link}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${txt} ↗</a>`:txt}${!ed.lugar?`<span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">por confirmar</span>`:''}${ed.aufTv?`<span style="font-size:8px;font-weight:700;color:#059669;background:rgba(5,150,105,.12);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">AUFtv</span>`:''}</div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${fecha?_fmtDateCorta(fecha):'sin fecha'}${hora?' · '+hora:''} · ${lugar}</div>
           </div>
-          <button onclick="_editForlanConf(${c.n})" title="Editar lugar/hora/AUFtv/link" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:var(--hint);line-height:1">✏️</button>
+          <button onclick="_openForlanConfModal(${c.n})" title="Editar" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:var(--hint);line-height:1">✏️</button>
         </div>`;}).join('')}
     </div>
   </div>`;
