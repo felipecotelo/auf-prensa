@@ -27804,11 +27804,17 @@ function _pwEnsureAtenModal(){
       <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px">
         <div>
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
-          <input id="pw-aten-fecha" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <div style="display:flex;align-items:center;gap:3px;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;box-sizing:border-box">
+            <input type="text" inputmode="numeric" maxlength="2" placeholder="DD" id="pw-aten-fecha-dd" oninput="_dateSegAdvance(this,2,'pw-aten-fecha-mm')" style="width:20px;text-align:center;font-size:.88em;border:none;outline:none;padding:0">
+            <span style="font-size:.88em;color:var(--muted)">/</span>
+            <input type="text" inputmode="numeric" maxlength="2" placeholder="MM" id="pw-aten-fecha-mm" oninput="_dateSegAdvance(this,2,'pw-aten-fecha-yyyy')" style="width:20px;text-align:center;font-size:.88em;border:none;outline:none;padding:0">
+            <span style="font-size:.88em;color:var(--muted)">/</span>
+            <input type="text" inputmode="numeric" maxlength="4" placeholder="AAAA" id="pw-aten-fecha-yyyy" oninput="_dateSegAdvance(this,4,null)" style="width:36px;text-align:center;font-size:.88em;border:none;outline:none;padding:0">
+          </div>
         </div>
         <div>
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
-          <input id="pw-aten-hora" type="time" lang="es-UY" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <input id="pw-aten-hora" type="text" placeholder="HH:MM" style="width:70px;padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         </div>
       </div>
       <div style="margin-bottom:12px">
@@ -27901,7 +27907,10 @@ function _pwAtenResetForm(){
   _pwAtenFmtVal=''; _pwAtenEstVal=''; _pwAtenDias=[]; _pwAtenFranjaVal='';
   ['pw-aten-programa','pw-aten-medio','pw-aten-notas','pw-aten-link','pw-aten-emailtxt','pw-aten-email'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('pw-aten-fmtsol').value='';
-  document.getElementById('pw-aten-fecha').value=new Date().toISOString().slice(0,10);
+  const _hoy=new Date().toISOString().slice(0,10).split('-');
+  document.getElementById('pw-aten-fecha-yyyy').value=_hoy[0];
+  document.getElementById('pw-aten-fecha-mm').value=_hoy[1];
+  document.getElementById('pw-aten-fecha-dd').value=_hoy[2];
   document.getElementById('pw-aten-hora').value='';
   document.getElementById('pw-aten-realizada').checked=false;
   Object.keys(_pwFmtAten).forEach(k=>{ const btn=document.getElementById('pw-aten-fmt-'+k); if(!btn) return; btn.style.background='#fff'; btn.style.color='var(--muted)'; btn.style.border='1.5px solid var(--border)'; });
@@ -27938,7 +27947,10 @@ function _pwAtenEdit(vwId,idx){
   document.getElementById('pw-aten-prot').value=a.protagonistaLabel||a.protagonistaKey||'';
   document.getElementById('pw-aten-programa').value=a.programa||'';
   document.getElementById('pw-aten-medio').value=a.medio||'';
-  document.getElementById('pw-aten-fecha').value=a.fecha||'';
+  const _afParts=(a.fecha||'').split('-');
+  document.getElementById('pw-aten-fecha-yyyy').value=_afParts.length===3?_afParts[0]:'';
+  document.getElementById('pw-aten-fecha-mm').value=_afParts.length===3?_afParts[1]:'';
+  document.getElementById('pw-aten-fecha-dd').value=_afParts.length===3?_afParts[2]:'';
   document.getElementById('pw-aten-hora').value=a.hora||'';
   document.getElementById('pw-aten-notas').value=a.notas||'';
   document.getElementById('pw-aten-link').value=a.link||'';
@@ -27961,7 +27973,8 @@ function _pwAtenGuardar(){
   const found=null;
   const programa=(document.getElementById('pw-aten-programa').value||'').trim();
   const medio=(document.getElementById('pw-aten-medio').value||'').trim();
-  const fecha=document.getElementById('pw-aten-fecha').value;
+  const _fdd=document.getElementById('pw-aten-fecha-dd').value, _fmm=document.getElementById('pw-aten-fecha-mm').value, _fyy=document.getElementById('pw-aten-fecha-yyyy').value;
+  const fecha=(_fdd.length===2&&_fmm.length===2&&_fyy.length===4)?`${_fyy}-${_fmm}-${_fdd}`:'';
   const hora=document.getElementById('pw-aten-hora').value;
   const notas=document.getElementById('pw-aten-notas').value.trim();
   const link=document.getElementById('pw-aten-link').value.trim();
