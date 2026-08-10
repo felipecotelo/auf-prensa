@@ -4542,6 +4542,34 @@ function cloudPushDebounced(key,value){
   _syncDebounceTimers[key]=setTimeout(()=>cloudPush(key,value),800);
 }
 
+// Antes de pisar localStorage con lo que viene del servidor (acá y en _livePollSync),
+// nunca lo hagamos a ciegas: si lo que ya está en esta pestaña es un array con ítems
+// (por id) que el servidor ya no tiene, esta pestaña es la que tiene la versión más
+// completa (todavía no la pudo subir, o el servidor se achicó por otra causa) — en ese
+// caso NO pisamos, para no perder de vuelta algo que estaba bien local. Así se perdió
+// contenido más de una vez sin que ningún push "malo" haya ocurrido: el pull/poll en
+// vivo lo hacía por su cuenta, sin ningún guard.
+function _safeLocalOverwrite(key,newValueStr){
+  try{
+    const oldRaw=localStorage.getItem(key);
+    if(oldRaw==null){ localStorage.setItem(key,newValueStr); return true; }
+    const newVal=JSON.parse(newValueStr);
+    if(Array.isArray(newVal)){
+      const oldVal=JSON.parse(oldRaw);
+      if(Array.isArray(oldVal)){
+        const idOf=it=>(it&&typeof it==='object'&&'id' in it)?('id:'+it.id):JSON.stringify(it);
+        const newIds=new Set(newVal.map(idOf));
+        const missing=oldVal.filter(it=>!newIds.has(idOf(it)));
+        if(missing.length>0){
+          console.warn(`_safeLocalOverwrite: NO se pisa "${key}" — lo local tiene ${missing.length} ítem(s) que el servidor ya no tiene.`,missing);
+          return false;
+        }
+      }
+    }
+    localStorage.setItem(key,newValueStr);
+    return true;
+  }catch(e){ localStorage.setItem(key,newValueStr); return true; }
+}
 async function cloudPull(){
   try{
     _setSyncStatus('syncing');
@@ -4553,10 +4581,11 @@ async function cloudPull(){
       data.forEach(row=>{
         if(!_SKIP_SYNC.has(row.key)&&row.value!=null){
           try{
-            localStorage.setItem(row.key,row.value);
-            const parsed=JSON.parse(row.value);
-            if(Array.isArray(parsed)) _snapshotArray(row.key,parsed);
-            else if(parsed && typeof parsed==='object') _snapshotObject(row.key,parsed);
+            if(_safeLocalOverwrite(row.key,row.value)){
+              const parsed=JSON.parse(row.value);
+              if(Array.isArray(parsed)) _snapshotArray(row.key,parsed);
+              else if(parsed && typeof parsed==='object') _snapshotObject(row.key,parsed);
+            }
           }catch(e){}
         }
       });
@@ -4874,10 +4903,11 @@ async function _livePollSync(){
     data.forEach(row=>{
       if(_SKIP_SYNC.has(row.key)||row.value==null) return;
       if(_recentlyPushed[row.key] && Date.now()-_recentlyPushed[row.key]<4000) return;
-      try{ const parsed=JSON.parse(row.value); if(Array.isArray(parsed)) _snapshotArray(row.key,parsed); else if(parsed && typeof parsed==='object') _snapshotObject(row.key,parsed); }catch(e){}
       if(localStorage.getItem(row.key)!==row.value){
-        localStorage.setItem(row.key,row.value);
-        changed=true;
+        if(_safeLocalOverwrite(row.key,row.value)){
+          try{ const parsed=JSON.parse(row.value); if(Array.isArray(parsed)) _snapshotArray(row.key,parsed); else if(parsed && typeof parsed==='object') _snapshotObject(row.key,parsed); }catch(e){}
+          changed=true;
+        }
       }
     });
     if(changed){
