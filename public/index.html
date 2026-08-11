@@ -4490,11 +4490,23 @@ async function cloudPush(key,value,opts){
           // ediciones normales de contenido. Solo se permite que el array encoja si quien
           // llama pasa opts.allowShrink=true (ej: borrado explícito confirmado por el usuario).
           if(Array.isArray(serverVal) && !opts.allowShrink){
-            const idOf=it=>(it&&typeof it==='object'&&'id' in it)?('id:'+it.id):JSON.stringify(it);
-            const pushIds=new Set(value.map(idOf));
-            const missing=serverVal.filter(it=>!pushIds.has(idOf(it)));
-            if(missing.length>0){
-              console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${missing.length} ítem(s) que este guardado no incluye.`, missing);
+            // Los arrays con id estable (Planificador, etc.) se comparan por id: así
+            // detectamos que falta un ítem puntual aunque el conteo dé igual o más.
+            // Los que NO tienen id (ej: auf4_tareas_log, texto plano sin identidad propia)
+            // NO se pueden comparar por contenido exacto — con eso alcanzaba con tildar
+            // una tarea como hecha en cualquier lado para que el string ya no matchee y
+            // el guard bloqueara todo el tiempo. Para esos, alcanza con no dejar que el
+            // array total encoja: si tiene igual o más ítems que el servidor, se manda.
+            const hasIds=serverVal.length>0 && serverVal.every(it=>it&&typeof it==='object'&&'id' in it) && value.every(it=>it&&typeof it==='object'&&'id' in it);
+            let missingCount=0;
+            if(hasIds){
+              const pushIds=new Set(value.map(it=>it.id));
+              missingCount=serverVal.filter(it=>!pushIds.has(it.id)).length;
+            } else if(serverVal.length>value.length){
+              missingCount=serverVal.length-value.length;
+            }
+            if(missingCount>0){
+              console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${missingCount} ítem(s) que este guardado no incluye.`);
               _setSyncStatus('error');
               _syncConflictAlert(key, value.length, serverVal.length);
               return;
@@ -4557,11 +4569,19 @@ function _safeLocalOverwrite(key,newValueStr){
     if(Array.isArray(newVal)){
       const oldVal=JSON.parse(oldRaw);
       if(Array.isArray(oldVal)){
-        const idOf=it=>(it&&typeof it==='object'&&'id' in it)?('id:'+it.id):JSON.stringify(it);
-        const newIds=new Set(newVal.map(idOf));
-        const missing=oldVal.filter(it=>!newIds.has(idOf(it)));
-        if(missing.length>0){
-          console.warn(`_safeLocalOverwrite: NO se pisa "${key}" — lo local tiene ${missing.length} ítem(s) que el servidor ya no tiene.`,missing);
+        // Mismo criterio que en cloudPush: por id si lo tienen, por conteo si no
+        // (ver el comentario largo en cloudPush sobre por qué comparar por contenido
+        // exacto en arrays sin id, como auf4_tareas_log, da falsos positivos constantes).
+        const hasIds=oldVal.length>0 && oldVal.every(it=>it&&typeof it==='object'&&'id' in it) && newVal.every(it=>it&&typeof it==='object'&&'id' in it);
+        let missingCount=0;
+        if(hasIds){
+          const newIds=new Set(newVal.map(it=>it.id));
+          missingCount=oldVal.filter(it=>!newIds.has(it.id)).length;
+        } else if(oldVal.length>newVal.length){
+          missingCount=oldVal.length-newVal.length;
+        }
+        if(missingCount>0){
+          console.warn(`_safeLocalOverwrite: NO se pisa "${key}" — lo local tiene ${missingCount} ítem(s) que el servidor ya no tiene.`);
           return false;
         }
       }
