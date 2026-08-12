@@ -5925,7 +5925,7 @@ function renderInicioCobertura(){
   const linkBadge=(val,onclick)=>`<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid ${val?'#1A56C440':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${val?(isMob?'rgba(26,86,196,.18)':'#EFF6FF'):'transparent'};color:${val?'#1A56C4':subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ${val?'ti-send':'ti-send-off'}" style="font-size:11px"></i>Link ${val?'enviado':'sin enviar'}</button>`;
   const lockBtn=(wk,cat,rec)=>{
     const locked=rec.cubierto==='no'&&rec.publicado==='no';
-    return `<button onclick="window._covLockWeek('${wk}','${cat}')" title="${locked?'Desbloquear semana':'Marcar semana sin cobertura'}" style="margin-left:auto;border:1px solid ${locked?'#DC262640':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${locked?(isMob?'rgba(220,38,38,.15)':'#FEE2E2'):'transparent'};color:${locked?'#DC2626':subColor};border-radius:8px;padding:5px 7px;cursor:pointer;font-size:13px;flex-shrink:0;line-height:1"><i class="ti ${locked?'ti-lock':'ti-lock-open'}"></i></button>`;
+    return `<button onclick="window._covLockWeek('${wk}','${cat}')" title="${locked?'Desmarcar':'Marcar semana sin cobertura'}" style="margin-left:auto;border:1px solid ${locked?'#DC262640':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${locked?(isMob?'rgba(220,38,38,.15)':'#FEE2E2'):'transparent'};color:${locked?'#DC2626':subColor};border-radius:8px;padding:5px 7px;cursor:pointer;font-size:13px;flex-shrink:0;line-height:1">🚫</button>`;
   };
 
   const rows=COV_CATS.map((c,i)=>{
@@ -24859,6 +24859,10 @@ async function _loadJuvPhotoCache(){
   if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles();
   document.getElementById('sparr-grid') && renderSparrings();
   if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
+  // Ojo: el widget "Hoy en Selección" de Inicio también depende de esta caché (jugadores
+  // de Juveniles/Local que cumplen años) — si no se refresca acá, la foto queda pegada
+  // en iniciales hasta que el usuario navegue a otra sección y vuelva.
+  if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
   // Cargar fotos desde Supabase Storage (cross-device)
   _loadPhotosFromSupabase();
 }
@@ -24903,6 +24907,7 @@ async function _loadPhotosFromSupabase(){
     if(document.getElementById('sec-local')?.classList.contains('active') && typeof renderSecLocal==='function') renderSecLocal();
     if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
     if(patchedEst && typeof renderEstructura==='function') renderEstructura();
+    if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
   }catch(e){console.warn('Supabase photo load:',e);}
 }
 
