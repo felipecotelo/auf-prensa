@@ -10555,6 +10555,10 @@ function _openJuvDetail(nomEnc){
   }
   // Sort by fecha (year) ascending
   comps.sort((a,b)=>(a.comp.fecha||'').localeCompare(b.comp.fecha||''));
+  // Solo Sudamericanos/Mundiales/Preolímpicos/Panamericanos etc. (tipo:'oficial') cuentan
+  // como "oficiales" — amistosos (Pioneros) y pools de seguimiento (visualización) van aparte.
+  const compsOficial = comps.filter(c=>c.comp.tipo==='oficial');
+  const compsOtras = comps.filter(c=>c.comp.tipo!=='oficial');
 
   // Convocatorias (amistosos/selecciones menores)
   const convRows = [];
@@ -10584,10 +10588,7 @@ function _openJuvDetail(nomEnc){
     ? `<button onclick="_closeJuvDetail();showJugador('${nom.replace(/'/g,"\\'")}');showSection('sec-jugadores')" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;background:none;cursor:pointer;font-size:.8em;font-weight:700;color:var(--fg);text-align:left">⚽ Ver perfil en Mayor &rarr;</button>`
     : '';
 
-  const compsHtml = comps.length ? `
-    <div style="margin-top:14px">
-      <div style="font-size:.68em;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Competencias oficiales</div>
-      ${comps.map(({comp,pl,pj,gols})=>`
+  const _compRow = ({comp,pl,pj,gols})=>`
         <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
           <span style="font-size:1.3em;flex-shrink:0;margin-top:1px">${comp.icon||'🌐'}</span>
           <div style="flex:1;min-width:0">
@@ -10600,7 +10601,16 @@ function _openJuvDetail(nomEnc){
               ${pl.mayor?`<span style="font-size:.65em;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;font-weight:700">Mayor</span>`:''}
             </div>
           </div>
-        </div>`).join('')}
+        </div>`;
+  const compsHtml = compsOficial.length ? `
+    <div style="margin-top:14px">
+      <div style="font-size:.68em;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#047857;margin-bottom:8px">🌎 Competencias oficiales</div>
+      ${compsOficial.map(_compRow).join('')}
+    </div>` : '';
+  const compsOtrasHtml = compsOtras.length ? `
+    <div style="margin-top:14px">
+      <div style="font-size:.68em;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">Otras convocatorias (amistosos / seguimiento)</div>
+      ${compsOtras.map(_compRow).join('')}
     </div>` : '';
 
   const convHtml = convRows.length ? `
@@ -10631,6 +10641,7 @@ function _openJuvDetail(nomEnc){
       <button onclick="_closeJuvDetail()" style="background:rgba(0,0,0,.08);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:var(--fg);font-size:1em;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
     ${compsHtml}
+    ${compsOtrasHtml}
     ${convHtml}
     ${mayorLink?`<div style="margin-top:16px">${mayorLink}</div>`:''}
   `;
@@ -25416,6 +25427,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
           ${isChamp?`<span title="Campeón Mundial Sub-20 · Argentina 2023" style="flex-shrink:0;background:#FEF3C7;color:#92400E;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">🏆</span>`:''}
           ${isChamp17?`<span title="Campeón Sudamericano Sub-20 · Ecuador 2017" style="flex-shrink:0;background:#EFF6FF;color:#1D4ED8;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">🏆</span>`:''}
           ${isFinal13?`<span title="Finalista Mundial Sub-20 · Turquía 2013" style="flex-shrink:0;background:#F3F4F6;color:#374151;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">🥈</span>`:''}
+          ${hasOficial?`<span title="Jugó torneo oficial: ${off.cats.join(', ')}" style="flex-shrink:0;background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;border-radius:4px;padding:0 5px;font-size:.65em;font-weight:700;white-space:nowrap">🌎 Oficial</span>`:''}
           ${isJuvFallecido?`<span title="Fallecido" style="flex-shrink:0;background:#F3F4F6;color:#6B7280;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">✝</span>`:''}
           ${isJuvRetirado?`<span title="Retirado del fútbol profesional" style="flex-shrink:0;background:#F3F4F6;color:#6B7280;border-radius:4px;padding:0 4px;font-size:.65em;font-weight:700">ret.</span>`:''}
           ${p.inv?`<span title="Jugador invitado (uruguayo en el exterior)" style="flex-shrink:0;background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:4px;padding:0 5px;font-size:.62em;font-weight:800;letter-spacing:.04em">INV.</span>`:''}
