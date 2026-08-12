@@ -5866,6 +5866,17 @@ window._covMarkNo=function(wk,cat,field){
   document.getElementById('cov-fecha-modal').style.display='none';
   renderInicio();
 };
+window._covLockWeek=function(wk,cat){
+  const all=_covGetAll();
+  if(!all[wk]) all[wk]={};
+  if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
+  const rec=all[wk][cat];
+  const locked=rec.cubierto==='no'&&rec.publicado==='no';
+  rec.cubierto=locked?null:'no';
+  rec.publicado=locked?null:'no';
+  stor.set(KCovSemanal,all);
+  renderInicio();
+};
 window._covNavWeek=function(dir){
   const cur=window._covViewWeek||_covWeekKey(TODAY);
   const d=new Date(cur+'T00:00:00');
@@ -5894,6 +5905,10 @@ function renderInicioCobertura(){
     return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ ${label}</button>`;
   };
   const linkBadge=(val,onclick)=>`<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid ${val?'#1A56C440':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${val?(isMob?'rgba(26,86,196,.18)':'#EFF6FF'):'transparent'};color:${val?'#1A56C4':subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ${val?'ti-send':'ti-send-off'}" style="font-size:11px"></i>Link ${val?'enviado':'sin enviar'}</button>`;
+  const lockBtn=(wk,cat,rec)=>{
+    const locked=rec.cubierto==='no'&&rec.publicado==='no';
+    return `<button onclick="window._covLockWeek('${wk}','${cat}')" title="${locked?'Desbloquear semana':'Marcar semana sin cobertura'}" style="margin-left:auto;border:1px solid ${locked?'#DC262640':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${locked?(isMob?'rgba(220,38,38,.15)':'#FEE2E2'):'transparent'};color:${locked?'#DC2626':subColor};border-radius:8px;padding:5px 7px;cursor:pointer;font-size:13px;flex-shrink:0;line-height:1"><i class="ti ${locked?'ti-lock':'ti-lock-open'}"></i></button>`;
+  };
 
   const rows=COV_CATS.map((c,i)=>{
     const rec=_covGetRec(wk,c.key);
@@ -5903,6 +5918,7 @@ function renderInicioCobertura(){
       ${fechaBadge('Cubierto',rec.cubierto,wk,c.key,'cubierto')}
       ${fechaBadge('Publicado',rec.publicado,wk,c.key,'publicado')}
       ${linkBadge(rec.link,`window._covToggleLink('${wk}','${c.key}')`)}
+      ${lockBtn(wk,c.key,rec)}
     </div>`;
   }).join('');
 
