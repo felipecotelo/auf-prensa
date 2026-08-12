@@ -5793,8 +5793,9 @@ window._covToggleLink=function(wk,cat){
 };
 window._covEditFecha=function(wk,cat,field){
   const rec=_covGetRec(wk,cat);
-  const cur=rec[field]||TODAY;
+  const cur=(rec[field] && rec[field]!=='no')?rec[field]:TODAY;
   const [y,m,d]=cur.split('-');
+  const esNo=rec[field]==='no';
   let modal=document.getElementById('cov-fecha-modal');
   if(!modal){
     modal=document.createElement('div');
@@ -5808,18 +5809,19 @@ window._covEditFecha=function(wk,cat,field){
   modal.innerHTML=`
     <div style="width:100%;max-width:280px;background:#fff;border-radius:14px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4)">
       <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px">${fieldLabel} · ${catLabel}</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Ajustá la fecha</div>
-      <div style="display:flex;align-items:center;gap:4px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${esNo?'Marcado como no cubierto esta semana':'Ajustá la fecha'}</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:12px">
         <input id="cov-fecha-dd" value="${d}" maxlength="2" inputmode="numeric" oninput="window._dateSegAdvance(this,2,'cov-fecha-mm')" style="width:42px;text-align:center;padding:8px 0;border:1px solid var(--border);border-radius:8px;font-size:14px">
         <span style="color:var(--muted)">/</span>
         <input id="cov-fecha-mm" value="${m}" maxlength="2" inputmode="numeric" oninput="window._dateSegAdvance(this,2,'cov-fecha-yyyy')" style="width:42px;text-align:center;padding:8px 0;border:1px solid var(--border);border-radius:8px;font-size:14px">
         <span style="color:var(--muted)">/</span>
         <input id="cov-fecha-yyyy" value="${y}" maxlength="4" inputmode="numeric" style="width:60px;text-align:center;padding:8px 0;border:1px solid var(--border);border-radius:8px;font-size:14px">
       </div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
         <button onclick="window._covSaveFecha('${wk}','${cat}','${field}')" style="flex:1;background:#1A56C4;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer">Guardar</button>
-        <button onclick="window._covClearFecha('${wk}','${cat}','${field}')" style="background:#FEE2E2;color:#DC2626;border:none;border-radius:8px;padding:9px 12px;font-weight:700;font-size:12.5px;cursor:pointer">Quitar</button>
+        <button onclick="window._covClearFecha('${wk}','${cat}','${field}')" style="background:#F3F4F6;color:var(--muted);border:none;border-radius:8px;padding:9px 12px;font-weight:700;font-size:12.5px;cursor:pointer">Quitar</button>
       </div>
+      <button onclick="window._covMarkNo('${wk}','${cat}','${field}')" style="width:100%;background:${esNo?'#FEE2E2':'#FEF2F2'};color:#DC2626;border:1px solid #DC262630;border-radius:8px;padding:8px;font-weight:700;font-size:12px;cursor:pointer">${esNo?'✓ Marcado como no cubierto':'🚫 Marcar como no cubierto esta semana'}</button>
     </div>`;
   modal.style.display='flex';
 };
@@ -5843,6 +5845,15 @@ window._covClearFecha=function(wk,cat,field){
   document.getElementById('cov-fecha-modal').style.display='none';
   renderInicio();
 };
+window._covMarkNo=function(wk,cat,field){
+  const all=_covGetAll();
+  if(!all[wk]) all[wk]={};
+  if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
+  all[wk][cat][field]=all[wk][cat][field]==='no'?null:'no';
+  stor.set(KCovSemanal,all);
+  document.getElementById('cov-fecha-modal').style.display='none';
+  renderInicio();
+};
 window._covNavWeek=function(dir){
   const cur=window._covViewWeek||_covWeekKey(TODAY);
   const d=new Date(cur+'T00:00:00');
@@ -5861,11 +5872,14 @@ function renderInicioCobertura(){
   const rowBorder=isMob?'1px solid rgba(255,255,255,.08)':'1px solid var(--border)';
 
   const fechaBadge=(label,val,wk,cat,field)=>{
+    if(val==='no'){
+      return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="display:flex;align-items:center;gap:4px;border:1px solid #DC262640;background:${isMob?'rgba(220,38,38,.15)':'#FEE2E2'};color:#DC2626;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-x" style="font-size:11px"></i>No ${label.toLowerCase()}</button>`;
+    }
     if(val){
       const [,m,d]=val.split('-');
       return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="display:flex;align-items:center;gap:4px;border:1px solid #16A34A40;background:${isMob?'rgba(22,163,74,.15)':'#DCFCE7'};color:#16A34A;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-check" style="font-size:11px"></i>${label} ${parseInt(d)}/${parseInt(m)}</button>`;
     }
-    return `<button onclick="window._covToggleFecha('${wk}','${cat}','${field}')" style="border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ ${label}</button>`;
+    return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ ${label}</button>`;
   };
   const linkBadge=(val,onclick)=>`<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid ${val?'#1A56C440':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${val?(isMob?'rgba(26,86,196,.18)':'#EFF6FF'):'transparent'};color:${val?'#1A56C4':subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ${val?'ti-send':'ti-send-off'}" style="font-size:11px"></i>Link ${val?'enviado':'sin enviar'}</button>`;
 
