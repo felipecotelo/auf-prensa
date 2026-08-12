@@ -4581,6 +4581,18 @@ function _safeLocalOverwrite(key,newValueStr){
           return false;
         }
       }
+    } else if(newVal && typeof newVal==='object'){
+      // Mismo criterio que en cloudPush para objetos: solo protege si desaparece una
+      // clave entera (ej: otro jugador con tarjeta que esta pestaña todavía no vio),
+      // no si cambia el valor de una que ya existía en ambos lados.
+      const oldVal=JSON.parse(oldRaw);
+      if(oldVal && typeof oldVal==='object' && !Array.isArray(oldVal)){
+        const missingKeys=Object.keys(oldVal).filter(k=>!(k in newVal));
+        if(missingKeys.length>0){
+          console.warn(`_safeLocalOverwrite: NO se pisa "${key}" — lo local tiene ${missingKeys.length} clave(s) que el servidor ya no tiene.`,missingKeys);
+          return false;
+        }
+      }
     }
     localStorage.setItem(key,newValueStr);
     return true;
