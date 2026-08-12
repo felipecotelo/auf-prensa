@@ -4515,24 +4515,20 @@ async function cloudPush(key,value,opts){
         }
       }catch(_){}
     } else if(value && typeof value==='object'){
-      // Mismo criterio que para arrays, pero por clave: si el servidor tiene una
-      // clave (o un valor distinto para una clave) que esta pestaña nunca vio y que
-      // no coincide con lo que estamos por mandar, es un cambio ajeno — no lo pisamos.
+      // Igual que en el array (ver comentario de arriba): NO usar "_lastServerSnapshot"
+      // para decidir esto — un campo que cambia en cada guardado legítimo (ej: "ts" de
+      // auf4_wc_standings2, que se actualiza solo) nunca queda "known" a tiempo y
+      // bloqueaba prácticamente cualquier guardado normal, no solo pérdidas de verdad.
+      // Solo es pérdida real si una clave que existe en el servidor directamente
+      // DESAPARECE del objeto que mandamos — que cambie de valor no cuenta.
       try{
         const {data,error}=await _sb.from('sync_data').select('value').eq('key',key).maybeSingle();
         if(!error && data?.value){
           const serverVal=JSON.parse(data.value);
-          if(serverVal && typeof serverVal==='object' && !Array.isArray(serverVal)){
-            const known=_lastServerSnapshot[key];
-            const unknownNew=Object.entries(serverVal).filter(([k,v])=>{
-              const s=k+'::'+JSON.stringify(v);
-              const localMatches=JSON.stringify(value[k])===JSON.stringify(v);
-              if(localMatches) return false;
-              if(known && known.has(s)) return false;
-              return true;
-            });
-            if(unknownNew.length>0){
-              console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${unknownNew.length} clave(s) que esta pestaña no conoce o no coinciden.`, unknownNew.map(([k])=>k));
+          if(serverVal && typeof serverVal==='object' && !Array.isArray(serverVal) && !opts.allowShrink){
+            const missingKeys=Object.keys(serverVal).filter(k=>!(k in value));
+            if(missingKeys.length>0){
+              console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${missingKeys.length} clave(s) que este guardado no incluye.`, missingKeys);
               _setSyncStatus('error');
               _syncConflictAlert(key, Object.keys(value).length, Object.keys(serverVal).length);
               return;
@@ -5085,7 +5081,11 @@ function renderInicioHoySeleccion(){
 
     const hoyLinks=stor.get('auf4_hoylinks',{});
     const cumpleRows=cumples.map(c=>{
-      const foto=window._getPhotoByName?.(c.nom)||null;
+      // Fallback directo a la foto fija de JUGADORES: _getPhotoByName primero busca en
+      // cachés que se cargan async (Supabase Storage, IndexedDB) — si este widget se
+      // renderiza antes de que esas cachés estén listas, devuelve null aunque el
+      // jugador SÍ tenga una foto fija cargada (ej: David Terans), y queda con iniciales.
+      const foto=window._getPhotoByName?.(c.nom)||JUGADORES?.[c.nom]?.foto||null;
       const initials=c.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const avatar=foto
         ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<span style=\\'font-size:18px;flex-shrink:0\\'>🎂</span>'">`
