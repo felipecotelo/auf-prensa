@@ -5749,6 +5749,97 @@ function renderInicioProximo(){
     return _inicioBox('Se viene',rows,'#0EA5E9',isMob);
   }catch(_){ return ''; }
 }
+// Cobertura semanal de entrenamientos Juveniles — un registro por semana (lunes de esa
+// semana como key), así queda historial de semanas anteriores, no solo la actual.
+const KCovSemanal='auf4_cov_semanal';
+const COV_CATS=[
+  {key:'sub20',label:'Sub-20',color:'#1D4ED8'},
+  {key:'sub17',label:'Sub-17',color:'#15803d'},
+  {key:'sub15',label:'Sub-15',color:'#9A3412'},
+];
+function _covWeekKey(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  const day=d.getDay();
+  d.setDate(d.getDate()+(day===0?-6:1-day));
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function _covWeekLabel(wk){
+  const [y,m,d]=wk.split('-').map(Number);
+  const start=new Date(y,m-1,d);
+  const end=new Date(start); end.setDate(end.getDate()+6);
+  const fmt=dt=>`${dt.getDate()}/${dt.getMonth()+1}`;
+  return `Semana del ${fmt(start)} al ${fmt(end)}`;
+}
+function _covGetAll(){ return stor.get(KCovSemanal,{}); }
+function _covGetRec(wk,cat){
+  const all=_covGetAll();
+  return (all[wk]&&all[wk][cat]) || {cubierto:null,publicado:null,link:false};
+}
+window._covToggleFecha=function(wk,cat,field){
+  const all=_covGetAll();
+  if(!all[wk]) all[wk]={};
+  if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
+  all[wk][cat][field]=all[wk][cat][field]?null:TODAY;
+  stor.set(KCovSemanal,all);
+  renderInicio();
+};
+window._covToggleLink=function(wk,cat){
+  const all=_covGetAll();
+  if(!all[wk]) all[wk]={};
+  if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
+  all[wk][cat].link=!all[wk][cat].link;
+  stor.set(KCovSemanal,all);
+  renderInicio();
+};
+window._covNavWeek=function(dir){
+  const cur=window._covViewWeek||_covWeekKey(TODAY);
+  const d=new Date(cur+'T00:00:00');
+  d.setDate(d.getDate()+dir*7);
+  const next=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const thisWeek=_covWeekKey(TODAY);
+  window._covViewWeek=next>thisWeek?thisWeek:next;
+  renderInicio();
+};
+function renderInicioCobertura(){
+  const isMob=window.innerWidth<=600;
+  if(typeof window._covViewWeek==='undefined') window._covViewWeek=_covWeekKey(TODAY);
+  const wk=window._covViewWeek;
+  const isCurrentWeek=wk===_covWeekKey(TODAY);
+  const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
+  const rowBorder=isMob?'1px solid rgba(255,255,255,.08)':'1px solid var(--border)';
+
+  const fechaBadge=(label,val,onclick)=>{
+    if(val){
+      const [,m,d]=val.split('-');
+      return `<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid #16A34A40;background:${isMob?'rgba(22,163,74,.15)':'#DCFCE7'};color:#16A34A;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-check" style="font-size:11px"></i>${label} ${parseInt(d)}/${parseInt(m)}</button>`;
+    }
+    return `<button onclick="${onclick}" style="border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ ${label}</button>`;
+  };
+  const linkBadge=(val,onclick)=>`<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid ${val?'#1A56C440':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${val?(isMob?'rgba(26,86,196,.18)':'#EFF6FF'):'transparent'};color:${val?'#1A56C4':subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ${val?'ti-send':'ti-send-off'}" style="font-size:11px"></i>Link ${val?'enviado':'sin enviar'}</button>`;
+
+  const rows=COV_CATS.map((c,i)=>{
+    const rec=_covGetRec(wk,c.key);
+    return `
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 0;${i<COV_CATS.length-1?'border-bottom:'+rowBorder:''}">
+      <span style="font-size:11px;font-weight:800;color:#fff;background:${c.color};border-radius:6px;padding:3px 9px;flex-shrink:0;min-width:50px;text-align:center">${c.label}</span>
+      ${fechaBadge('Cubierto',rec.cubierto,`window._covToggleFecha('${wk}','${c.key}','cubierto')`)}
+      ${fechaBadge('Publicado',rec.publicado,`window._covToggleFecha('${wk}','${c.key}','publicado')`)}
+      ${linkBadge(rec.link,`window._covToggleLink('${wk}','${c.key}')`)}
+    </div>`;
+  }).join('');
+
+  const nextBtn=isCurrentWeek
+    ?`<span style="width:23px;display:inline-block"></span>`
+    :`<button onclick="window._covNavWeek(1)" style="border:none;background:none;color:${subColor};cursor:pointer;font-size:15px;padding:2px 6px"><i class="ti ti-chevron-right"></i></button>`;
+  const nav=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <button onclick="window._covNavWeek(-1)" style="border:none;background:none;color:${subColor};cursor:pointer;font-size:15px;padding:2px 6px"><i class="ti ti-chevron-left"></i></button>
+      <span style="font-size:11px;font-weight:700;color:${subColor}">${_covWeekLabel(wk)}${isCurrentWeek?' · actual':''}</span>
+      ${nextBtn}
+    </div>`;
+
+  return _inicioBox('📸 Cobertura semanal · Juveniles', nav+rows, '#0EA5E9', isMob);
+}
 // Tareas — un solo registro corrido (no uno por día), así queda historial de todo lo
 // que se va agregando. "Tareas de hoy" filtra por fecha de hoy nomás.
 const KTareasLog='auf4_tareas_log';
@@ -5931,6 +6022,7 @@ function renderInicio(){
 
       ${renderInicioHoySeleccion()}
       ${renderInicioTareas()}
+      ${renderInicioCobertura()}
       ${renderInicioProximo()}
       ${renderInicioFutbolUY()}
       ${renderInicioMisIdas()}
@@ -5967,6 +6059,7 @@ function renderInicio(){
   el.innerHTML=`<div style="padding:0 0 2px">
     ${renderInicioHoySeleccion()}
     ${renderInicioTareas()}
+    ${renderInicioCobertura()}
     ${renderInicioProximo()}
     ${renderInicioFutbolUY()}
     ${renderInicioMisIdas()}
