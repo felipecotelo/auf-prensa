@@ -9599,6 +9599,60 @@ function updateDelegArea(gi,el,tKey=''){
   setDelegacion(d,tKey);
   renderInfoGeneral(tKey);
 }
+function delDelegPerson(gi,pi,tKey=''){
+  const d=getDelegacion(tKey);
+  d[gi].people.splice(pi,1);
+  setDelegacion(d,tKey);
+  renderInfoGeneral(tKey);
+}
+// Agregar a la delegación buscando directo en Estructura (en vez de tipear nombre/rol
+// a mano) — modal con buscador accent-insensitive sobre ESTRUCTURA_PERSONAS.
+window._delegAddOpen=function(gi,tKey){
+  let modal=document.getElementById('deleg-add-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='deleg-add-modal';
+    modal.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(7,17,30,.55);display:flex;align-items:flex-start;justify-content:center;padding:60px 20px 20px';
+    modal.addEventListener('mousedown',e=>{ if(e.target===modal) modal.style.display='none'; });
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML=`
+    <div style="width:100%;max-width:380px;max-height:calc(100vh - 100px);background:#fff;border-radius:14px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);display:flex;flex-direction:column">
+      <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:10px">Agregar a la delegación</div>
+      <input id="deleg-add-inp" type="text" placeholder="Buscar en Estructura..." autocomplete="off" spellcheck="false" oninput="window._delegAddSearch(${gi},'${tKey}')" style="padding:9px 12px;border:1px solid var(--border);border-radius:9px;font-size:13px;outline:none;margin-bottom:8px">
+      <div id="deleg-add-results" style="overflow-y:auto;flex:1"></div>
+    </div>`;
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('deleg-add-inp')?.focus(),50);
+  window._delegAddSearch(gi,tKey);
+};
+window._delegAddSearch=function(gi,tKey){
+  const q=_gnavNorm((document.getElementById('deleg-add-inp')?.value||'').trim());
+  const res=document.getElementById('deleg-add-results');
+  if(!res) return;
+  const all=[];
+  ESTRUCTURA_PERSONAS.forEach(d=>{
+    (d.personas||[]).forEach(p=>{
+      if(!q||_gnavNorm(p.label).includes(q)) all.push(p);
+    });
+  });
+  if(!all.length){ res.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:12.5px">Sin resultados</div>`; return; }
+  res.innerHTML=all.slice(0,40).map(p=>`
+    <div onclick="window._delegAddPick(${gi},'${p.key}','${tKey}')" style="padding:9px 8px;border-bottom:0.5px solid var(--border);cursor:pointer;display:flex;flex-direction:column">
+      <span style="font-size:12.5px;font-weight:700;color:var(--text)">${p.label}</span>
+      <span style="font-size:10.5px;color:var(--muted)">${p.rol||''}</span>
+    </div>`).join('');
+};
+window._delegAddPick=function(gi,key,tKey){
+  let found=null;
+  ESTRUCTURA_PERSONAS.forEach(d=>{ (d.personas||[]).forEach(p=>{ if(p.key===key) found=p; }); });
+  if(!found) return;
+  const d=getDelegacion(tKey);
+  d[gi].people.push({name:found.label,iso:'uy',role:found.rol||''});
+  setDelegacion(d,tKey);
+  document.getElementById('deleg-add-modal').style.display='none';
+  renderInfoGeneral(tKey);
+};
 
 // ── Fecha FIFA sep–oct 2026 ────────────────────────────────────────────────
 const FIFASEP26 = {
@@ -9766,6 +9820,7 @@ function renderInfoGeneral(tKey=''){
             <button onclick="toggleDelegHighlight(${gi},${pi},'${tKey}')" title="Destacar" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 2px">${p.highlight?'⭐':'☆'}</button>
             <button onclick="moveDelegPerson(${gi},${pi},-1,'${tKey}')" title="Subir" ${pi===0?'disabled':''} style="background:none;border:none;cursor:${pi===0?'default':'pointer'};font-size:12px;padding:0 2px;opacity:${pi===0?0.3:1}">▲</button>
             <button onclick="moveDelegPerson(${gi},${pi},1,'${tKey}')" title="Bajar" ${pi===g.people.length-1?'disabled':''} style="background:none;border:none;cursor:${pi===g.people.length-1?'default':'pointer'};font-size:12px;padding:0 2px;opacity:${pi===g.people.length-1?0.3:1}">▼</button>
+            <button onclick="delDelegPerson(${gi},${pi},'${tKey}')" title="Quitar" style="background:none;border:none;cursor:pointer;color:#DC2626;font-size:13px;padding:0 2px">✕</button>
           </div>`;
         }
         return `<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;${pi>0?'border-top:0.5px solid var(--border);':''}${hl}">
@@ -9774,6 +9829,7 @@ function renderInfoGeneral(tKey=''){
           <span style="font-size:10.5px;color:var(--muted)">${p.role}</span>
         </div>`;
       }).join('')}
+      ${editing?`<button onclick="window._delegAddOpen(${gi},'${tKey}')" style="display:flex;align-items:center;gap:5px;background:none;border:1px dashed var(--border);border-radius:7px;padding:5px 10px;margin-top:${g.people.length?'6px':'0'};color:var(--muted);font-size:11.5px;font-weight:700;cursor:pointer;align-self:flex-start"><i class="ti ti-plus" style="font-size:12px"></i>Agregar de Estructura</button>`:''}
     </div>`).join('');
 
   const _cm2026closed=!tKey&&getCm2026Closed();
