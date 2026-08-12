@@ -4462,13 +4462,30 @@ function _setSyncStatus(s){
 // Planificador el 4/8/26. Para arrays, si el servidor tiene más ítems que lo que
 // esta pestaña está por mandar, abortamos el push y avisamos en vez de sobreescribir
 // en silencio. No es un merge automático (podría mezclar mal) — obliga a recargar.
-function _syncConflictAlert(key, localLen, serverLen){
-  if(document.getElementById('sync-conflict-banner')) return;
-  const el=document.createElement('div');
+// Ojo con esto: el banner NO puede quedar pegado en pantalla mostrando un
+// conflicto viejo — antes, una vez creado, nunca se actualizaba ni se sacaba
+// (aunque el push siguiente para esa MISMA clave funcionara bien), así que el
+// usuario seguía viendo "no se guardó" con números viejos mucho después de que
+// el problema ya estaba resuelto. Ahora se trackea por clave: se agrega/actualiza
+// cuando se bloquea un push, y se saca (del texto, y del DOM si no queda ninguna)
+// en cuanto esa clave puntual logra guardar bien.
+const _conflictKeys=new Map();
+function _renderConflictBanner(){
+  const existing=document.getElementById('sync-conflict-banner');
+  if(_conflictKeys.size===0){ if(existing) existing.remove(); return; }
+  const el=existing||document.createElement('div');
   el.id='sync-conflict-banner';
   el.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:99999;background:#DC2626;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:700;max-width:92vw;box-shadow:0 4px 20px rgba(0,0,0,.35);display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-family:inherit';
-  el.innerHTML=`<span>⚠️ No se guardó "${key}": esta pestaña tiene ${localLen} elementos pero el servidor ya tiene ${serverLen} más nuevos (de otra pestaña o dispositivo). Recargá antes de seguir editando para no perder nada.</span><button onclick="location.reload()" style="background:#fff;color:#DC2626;border:none;border-radius:6px;padding:6px 12px;font-weight:800;cursor:pointer;white-space:nowrap">Recargar ahora</button>`;
-  document.body.appendChild(el);
+  const detalle=[..._conflictKeys.entries()].map(([k,{localLen,serverLen}])=>`"${k}" (esta pestaña ${localLen}, servidor ${serverLen})`).join(', ');
+  el.innerHTML=`<span>⚠️ No se guardó: ${detalle}. Recargá antes de seguir editando para no perder nada.</span><button onclick="location.reload()" style="background:#fff;color:#DC2626;border:none;border-radius:6px;padding:6px 12px;font-weight:800;cursor:pointer;white-space:nowrap">Recargar ahora</button>`;
+  if(!existing) document.body.appendChild(el);
+}
+function _syncConflictAlert(key, localLen, serverLen){
+  _conflictKeys.set(key,{localLen,serverLen});
+  _renderConflictBanner();
+}
+function _syncConflictResolved(key){
+  if(_conflictKeys.has(key)){ _conflictKeys.delete(key); _renderConflictBanner(); }
 }
 async function cloudPush(key,value,opts){
   opts=opts||{};
@@ -4540,6 +4557,7 @@ async function cloudPush(key,value,opts){
     await _sb.from('sync_data').upsert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()},{onConflict:'key'});
     if(Array.isArray(value)) _snapshotArray(key,value);
     else if(value && typeof value==='object') _snapshotObject(key,value);
+    _syncConflictResolved(key);
     _setSyncStatus('ok');
   }catch(e){_setSyncStatus('error');console.warn('cloudPush error',e);}
 }
