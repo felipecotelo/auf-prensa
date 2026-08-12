@@ -5791,6 +5791,58 @@ window._covToggleLink=function(wk,cat){
   stor.set(KCovSemanal,all);
   renderInicio();
 };
+window._covEditFecha=function(wk,cat,field){
+  const rec=_covGetRec(wk,cat);
+  const cur=rec[field]||TODAY;
+  const [y,m,d]=cur.split('-');
+  let modal=document.getElementById('cov-fecha-modal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='cov-fecha-modal';
+    modal.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(7,17,30,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.addEventListener('mousedown',e=>{ if(e.target===modal) modal.style.display='none'; });
+    document.body.appendChild(modal);
+  }
+  const catLabel=(COV_CATS.find(x=>x.key===cat)||{}).label||cat;
+  const fieldLabel=field==='cubierto'?'Cubierto':'Publicado';
+  modal.innerHTML=`
+    <div style="width:100%;max-width:280px;background:#fff;border-radius:14px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+      <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px">${fieldLabel} · ${catLabel}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Ajustá la fecha</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:14px">
+        <input id="cov-fecha-dd" value="${d}" maxlength="2" inputmode="numeric" oninput="window._dateSegAdvance(this,2,'cov-fecha-mm')" style="width:42px;text-align:center;padding:8px 0;border:1px solid var(--border);border-radius:8px;font-size:14px">
+        <span style="color:var(--muted)">/</span>
+        <input id="cov-fecha-mm" value="${m}" maxlength="2" inputmode="numeric" oninput="window._dateSegAdvance(this,2,'cov-fecha-yyyy')" style="width:42px;text-align:center;padding:8px 0;border:1px solid var(--border);border-radius:8px;font-size:14px">
+        <span style="color:var(--muted)">/</span>
+        <input id="cov-fecha-yyyy" value="${y}" maxlength="4" inputmode="numeric" style="width:60px;text-align:center;padding:8px 0;border:1px solid var(--border);border-radius:8px;font-size:14px">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="window._covSaveFecha('${wk}','${cat}','${field}')" style="flex:1;background:#1A56C4;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer">Guardar</button>
+        <button onclick="window._covClearFecha('${wk}','${cat}','${field}')" style="background:#FEE2E2;color:#DC2626;border:none;border-radius:8px;padding:9px 12px;font-weight:700;font-size:12.5px;cursor:pointer">Quitar</button>
+      </div>
+    </div>`;
+  modal.style.display='flex';
+};
+window._covSaveFecha=function(wk,cat,field){
+  const dd=(document.getElementById('cov-fecha-dd').value||'').padStart(2,'0');
+  const mm=(document.getElementById('cov-fecha-mm').value||'').padStart(2,'0');
+  const yyyy=document.getElementById('cov-fecha-yyyy').value||'';
+  if(dd.length!==2||mm.length!==2||yyyy.length!==4) return;
+  const all=_covGetAll();
+  if(!all[wk]) all[wk]={};
+  if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
+  all[wk][cat][field]=`${yyyy}-${mm}-${dd}`;
+  stor.set(KCovSemanal,all);
+  document.getElementById('cov-fecha-modal').style.display='none';
+  renderInicio();
+};
+window._covClearFecha=function(wk,cat,field){
+  const all=_covGetAll();
+  if(all[wk]&&all[wk][cat]) all[wk][cat][field]=null;
+  stor.set(KCovSemanal,all);
+  document.getElementById('cov-fecha-modal').style.display='none';
+  renderInicio();
+};
 window._covNavWeek=function(dir){
   const cur=window._covViewWeek||_covWeekKey(TODAY);
   const d=new Date(cur+'T00:00:00');
@@ -5808,12 +5860,12 @@ function renderInicioCobertura(){
   const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
   const rowBorder=isMob?'1px solid rgba(255,255,255,.08)':'1px solid var(--border)';
 
-  const fechaBadge=(label,val,onclick)=>{
+  const fechaBadge=(label,val,wk,cat,field)=>{
     if(val){
       const [,m,d]=val.split('-');
-      return `<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid #16A34A40;background:${isMob?'rgba(22,163,74,.15)':'#DCFCE7'};color:#16A34A;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-check" style="font-size:11px"></i>${label} ${parseInt(d)}/${parseInt(m)}</button>`;
+      return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="display:flex;align-items:center;gap:4px;border:1px solid #16A34A40;background:${isMob?'rgba(22,163,74,.15)':'#DCFCE7'};color:#16A34A;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-check" style="font-size:11px"></i>${label} ${parseInt(d)}/${parseInt(m)}</button>`;
     }
-    return `<button onclick="${onclick}" style="border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ ${label}</button>`;
+    return `<button onclick="window._covToggleFecha('${wk}','${cat}','${field}')" style="border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ ${label}</button>`;
   };
   const linkBadge=(val,onclick)=>`<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid ${val?'#1A56C440':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${val?(isMob?'rgba(26,86,196,.18)':'#EFF6FF'):'transparent'};color:${val?'#1A56C4':subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ${val?'ti-send':'ti-send-off'}" style="font-size:11px"></i>Link ${val?'enviado':'sin enviar'}</button>`;
 
@@ -5822,8 +5874,8 @@ function renderInicioCobertura(){
     return `
     <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 0;${i<COV_CATS.length-1?'border-bottom:'+rowBorder:''}">
       <span style="font-size:11px;font-weight:800;color:#fff;background:${c.color};border-radius:6px;padding:3px 9px;flex-shrink:0;min-width:50px;text-align:center">${c.label}</span>
-      ${fechaBadge('Cubierto',rec.cubierto,`window._covToggleFecha('${wk}','${c.key}','cubierto')`)}
-      ${fechaBadge('Publicado',rec.publicado,`window._covToggleFecha('${wk}','${c.key}','publicado')`)}
+      ${fechaBadge('Cubierto',rec.cubierto,wk,c.key,'cubierto')}
+      ${fechaBadge('Publicado',rec.publicado,wk,c.key,'publicado')}
       ${linkBadge(rec.link,`window._covToggleLink('${wk}','${c.key}')`)}
     </div>`;
   }).join('');
