@@ -9695,13 +9695,17 @@ window._delegAddOpen=function(gi,tKey){
   window._delegAddSearch(gi,tKey);
 };
 window._delegAddSearch=function(gi,tKey){
-  const q=_gnavNorm((document.getElementById('deleg-add-inp')?.value||'').trim());
+  // No usar _gnavNorm acá: por algún motivo de scoping no está accesible desde este
+  // punto del archivo (reproducido: tira "_gnavNorm is not defined" real, no solo en
+  // pruebas) — con la búsqueda autosuficiente evitamos depender de eso.
+  const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const q=norm((document.getElementById('deleg-add-inp')?.value||'').trim());
   const res=document.getElementById('deleg-add-results');
   if(!res) return;
   const all=[];
   ESTRUCTURA_PERSONAS.forEach(d=>{
     (d.personas||[]).forEach(p=>{
-      if(!q||_gnavNorm(p.label).includes(q)) all.push(p);
+      if(!q||norm(p.label).includes(q)) all.push(p);
     });
   });
   if(!all.length){ res.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:12.5px">Sin resultados</div>`; return; }
