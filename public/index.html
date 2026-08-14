@@ -24542,15 +24542,20 @@ window._amistGol = function(cat, year, id, nom, delta, leg){
 function _buildJuvAmistosos(cat, year, color, catData){
   const list = _getAmistosos(cat, year);
 
-  // Convocados = solo las convocatorias del ciclo (no competencias ni lista general)
+  // Convocados = SOLO la convocatoria más reciente del ciclo (la primera del array —
+  // acá se cargan siempre al principio, no al final). Antes se unían TODAS las
+  // convocatorias del año entero, así que el selector de cancha de un amistoso puntual
+  // (ej: 20 jugadores que viajan a Brasil) terminaba mostrando 56 jugadores de todo el
+  // año en vez de solo los que corresponden a ese viaje.
   const convSet = new Set();
   const convPosMap = {}; // nom → pos from static convocatorias
   const anoData = JUVENILES[cat]?.anos?.[year];
   if(anoData){
-    (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+    const ultimaConv = (anoData.convocatorias||[])[0];
+    (ultimaConv?.jugadores||[]).forEach(j=>{
       convSet.add(j.nom);
       if(j.pos) convPosMap[j.nom]=j.pos;
-    }));
+    });
   }
   const convocados = [...convSet].sort();
 
