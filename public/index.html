@@ -5683,7 +5683,7 @@ function renderInicioProximo(){
       if(d<hoy0) d=new Date(hoy0.getFullYear()+1, mm-1, dd);
       return d;
     };
-    const CAT_TAGS={...PLAN_CATS, sub23:{label:'Sub-23',color:'#92400e'}, sub18:{label:'Sub-18',color:'#7C3AED'}, sub16:{label:'Sub-16',color:'#B45309'}, sub13:{label:'Sub-13',color:'#DC2626'}, local:{label:'Local',color:'#0EA5E9'}, cumple:{label:'Cumpleaños',color:'#EC4899'}, aniversario:{label:'Aniversario',color:'#F59E0B'}};
+    const CAT_TAGS={...PLAN_CATS, sub23:{label:'Sub-23',color:'#92400e'}, sub18:{label:'Sub-18',color:'#7C3AED'}, sub16:{label:'Sub-16',color:'#B45309'}, sub13:{label:'Sub-13',color:'#DC2626'}, local:{label:'Local',color:'#0EA5E9'}, estructura:{label:'Estructura',color:'#22C55E'}, cumple:{label:'Cumpleaños',color:'#EC4899'}, aniversario:{label:'Aniversario',color:'#F59E0B'}};
 
     // Hitos pendientes de cualquier evento del Planificador (los posteos no se toman acá
     // a propósito: suelen caer en la misma fecha que el hito y duplicaban el mismo evento real).
@@ -5778,6 +5778,22 @@ function renderInicioProximo(){
           const edad=fecha.getFullYear()-parseInt(fn.slice(0,4));
           candidatos.push({label:`🎂 Cumpleaños de ${nom} (${edad} años)`, fecha, cats:['local','cumple'], onclick:`window._gnavGo('local','${encodeURIComponent(nom)}')`});
         }
+      });
+    }
+    // Cumpleaños de Estructura (CT de todas las categorías, gerencia, etc.) — este
+    // widget nunca miraba Estructura, solo lo hacía "Hoy en Selección".
+    if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
+      const estEdits=typeof _estGetEdits==='function'?_estGetEdits():{};
+      ESTRUCTURA_PERSONAS.forEach(d=>{
+        (d.personas||[]).forEach(p=>{
+          const fn=estEdits[p.key]?.fechaNac||p.fechaNac;
+          if(fn && fn.length>=10){
+            const fecha=nextOcurrencia(fn.slice(5,10));
+            const edad=fecha.getFullYear()-parseInt(fn.slice(0,4));
+            const nom=estEdits[p.key]?.label||p.label;
+            candidatos.push({label:`🎂 Cumpleaños de ${nom} (${edad} años)`, fecha, cats:['estructura','cumple'], onclick:`showSection('estructura');setTimeout(()=>_estOpenFicha('${p.key}'),80)`});
+          }
+        });
       });
     }
 
