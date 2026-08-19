@@ -5850,7 +5850,8 @@ function _covGetRec(wk,cat){
   const all=_covGetAll();
   const rec=(all[wk]&&all[wk][cat])||{};
   return {cubierto:rec.cubierto??null, publicado:rec.publicado??null, link:rec.link||false,
-          cubiertoExtra:rec.cubiertoExtra||[], publicadoExtra:rec.publicadoExtra||[]};
+          cubiertoExtra:rec.cubiertoExtra||[], publicadoExtra:rec.publicadoExtra||[],
+          linkExtra:rec.linkExtra||[]};
 }
 window._covToggleFecha=function(wk,cat,field){
   const all=_covGetAll();
@@ -5865,6 +5866,17 @@ window._covToggleLink=function(wk,cat){
   if(!all[wk]) all[wk]={};
   if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
   all[wk][cat].link=!all[wk][cat].link;
+  stor.set(KCovSemanal,all);
+  renderInicio();
+};
+window._covToggleLinkExtra=function(wk,cat,idx){
+  const all=_covGetAll();
+  if(!all[wk]) all[wk]={};
+  if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
+  const rec=all[wk][cat];
+  if(!rec.linkExtra) rec.linkExtra=[];
+  if(idx==='new') rec.linkExtra.push(true);
+  else rec.linkExtra[idx]=!rec.linkExtra[idx];
   stor.set(KCovSemanal,all);
   renderInicio();
 };
@@ -5996,9 +6008,10 @@ function renderInicioCobertura(){
   };
   const addExtraBtn=(wk,cat,field)=>`<button onclick="window._covEditFecha('${wk}','${cat}','${field}','new')" title="Agregar otra cobertura esta semana" style="display:flex;align-items:center;justify-content:center;border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;width:22px;height:22px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">+</button>`;
   const linkBadge=(val,onclick)=>`<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid ${val?'#1A56C440':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${val?(isMob?'rgba(26,86,196,.18)':'#EFF6FF'):'transparent'};color:${val?'#1A56C4':subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ${val?'ti-send':'ti-send-off'}" style="font-size:11px"></i>Link ${val?'enviado':'sin enviar'}</button>`;
+  const addLinkBtn=(wk,cat)=>`<button onclick="window._covToggleLinkExtra('${wk}','${cat}','new')" title="Agregar otro link enviado" style="display:flex;align-items:center;justify-content:center;border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;width:22px;height:22px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">+</button>`;
   const lockBtn=(wk,cat,rec)=>{
     const locked=rec.cubierto==='no'&&rec.publicado==='no';
-    const allDone=!locked && rec.cubierto && rec.cubierto!=='no' && rec.publicado && rec.publicado!=='no' && rec.link===true;
+    const allDone=!locked && rec.cubierto && rec.cubierto!=='no' && rec.publicado && rec.publicado!=='no' && rec.link===true && rec.linkExtra.every(v=>v===true);
     if(allDone){
       return `<span title="Semana completa" style="margin-left:auto;display:flex;align-items:center;justify-content:center;border:1px solid #16A34A40;background:${isMob?'rgba(22,163,74,.15)':'#DCFCE7'};border-radius:8px;padding:5px 7px;font-size:13px;flex-shrink:0;line-height:1">✅</span>`;
     }
@@ -6009,6 +6022,7 @@ function renderInicioCobertura(){
     const rec=_covGetRec(wk,c.key);
     const cubiertoExtras=rec.cubiertoExtra.map((v,idx)=>extraBadge('Cubierto',v,wk,c.key,'cubierto',idx)).join('');
     const publicadoExtras=rec.publicadoExtra.map((v,idx)=>extraBadge('Publicado',v,wk,c.key,'publicado',idx)).join('');
+    const linkExtras=rec.linkExtra.map((v,idx)=>linkBadge(v,`window._covToggleLinkExtra('${wk}','${c.key}',${idx})`)).join('');
     const cubiertoOk=rec.cubierto&&rec.cubierto!=='no';
     const publicadoOk=rec.publicado&&rec.publicado!=='no';
     return `
@@ -6021,6 +6035,8 @@ function renderInicioCobertura(){
       ${publicadoExtras}
       ${publicadoOk?addExtraBtn(wk,c.key,'publicado'):''}
       ${linkBadge(rec.link,`window._covToggleLink('${wk}','${c.key}')`)}
+      ${linkExtras}
+      ${rec.link?addLinkBtn(wk,c.key):''}
       ${lockBtn(wk,c.key,rec)}
     </div>`;
   }).join('');
