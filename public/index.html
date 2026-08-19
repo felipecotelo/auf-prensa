@@ -2306,7 +2306,7 @@ const PLAYERS = [
    stats:{caps:24, goals:0,  wcPart:0, wcCaps:0,  wcGoals:0},
    preT:[]},
 
-  {n:4,aeroUy:2,name:'Ronald Araújo',          pos:'DEF', captain:0, injury:'red',
+  {n:4,aeroUy:2,name:'Ronald Araujo',          pos:'DEF', captain:0, injury:'red',
    club:'FC Barcelona', clubPais:'🇪🇸',
    photo:'./fotos/4-ronald-araujo.jpg',
    stats:{caps:27, goals:1,  wcPart:2, wcCaps:0,  wcGoals:0},
@@ -3315,7 +3315,7 @@ const MAYOR_NAC_DEFAULT = {
   'Maximiliano Araújo':'2000-02-15','Maximiliano Pereira Páez':'1984-06-08',
   'Miguel Merentiel':'1996-02-26','Nahitan Nández':'1995-12-28','Nicolás Fonseca':'1998-10-19',
   'Rodrigo Aguirre':'1994-10-01','Rodrigo Bentancur':'1997-06-25','Rodrigo Zalazar':'1999-08-12',
-  'Ronald Araújo':'1999-03-07','Santiago Bueno':'1998-11-09','Santiago Mele':'1997-09-06',
+  'Ronald Araujo':'1999-03-07','Santiago Bueno':'1998-11-09','Santiago Mele':'1997-09-06',
   'Santiago Mouriño':'2002-02-13','Sebastián Coates':'1990-10-07','Sergio Rochet':'1993-03-23',
   'Thiago Borbas':'2002-04-07','Tiago Palacios':'2001-03-28',
   // Leyendas históricas
@@ -5626,7 +5626,7 @@ function renderInicioFotos(){
       const contracts=typeof _estGetContracts==='function'?_estGetContracts():{};
       ESTRUCTURA_PERSONAS.forEach(dept=>{
         (dept.personas||[]).forEach(p=>{
-          const estado=contracts[p.key]||'activo';
+          const estado=contracts[p.key]||_estDefaultContrato(p);
           if(estado==='finalizado'||estado==='desvinculado') return;
           const has=(window._estPhotoCache||{})[p.key]||p.foto;
           if(!has) faltantes.push({nom:p.label, sub:dept.dept, onclick:`showSection('estructura');window._estOpenFicha('${p.key}')`});
@@ -5848,7 +5848,9 @@ function _covWeekLabel(wk){
 function _covGetAll(){ return stor.get(KCovSemanal,{}); }
 function _covGetRec(wk,cat){
   const all=_covGetAll();
-  return (all[wk]&&all[wk][cat]) || {cubierto:null,publicado:null,link:false};
+  const rec=(all[wk]&&all[wk][cat])||{};
+  return {cubierto:rec.cubierto??null, publicado:rec.publicado??null, link:rec.link||false,
+          cubiertoExtra:rec.cubiertoExtra||[], publicadoExtra:rec.publicadoExtra||[]};
 }
 window._covToggleFecha=function(wk,cat,field){
   const all=_covGetAll();
@@ -5866,11 +5868,15 @@ window._covToggleLink=function(wk,cat){
   stor.set(KCovSemanal,all);
   renderInicio();
 };
-window._covEditFecha=function(wk,cat,field){
+window._covEditFecha=function(wk,cat,field,idx){
   const rec=_covGetRec(wk,cat);
-  const cur=(rec[field] && rec[field]!=='no')?rec[field]:TODAY;
+  const isExtra=idx!==undefined;
+  const isNew=idx==='new';
+  const cur=isExtra
+    ? (isNew?TODAY:(rec[field+'Extra'][idx]||TODAY))
+    : ((rec[field] && rec[field]!=='no')?rec[field]:TODAY);
   const [y,m,d]=cur.split('-');
-  const esNo=rec[field]==='no';
+  const esNo=!isExtra&&rec[field]==='no';
   let modal=document.getElementById('cov-fecha-modal');
   if(!modal){
     modal=document.createElement('div');
@@ -5880,11 +5886,12 @@ window._covEditFecha=function(wk,cat,field){
     document.body.appendChild(modal);
   }
   const catLabel=(COV_CATS.find(x=>x.key===cat)||{}).label||cat;
-  const fieldLabel=field==='cubierto'?'Cubierto':'Publicado';
+  const fieldLabel=(field==='cubierto'?'Cubierto':'Publicado')+(isExtra?' (adicional)':'');
+  const idxArg=idx===undefined?'':(idx==='new'?",'new'":`,${idx}`);
   modal.innerHTML=`
     <div style="width:100%;max-width:280px;background:#fff;border-radius:14px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4)">
       <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px">${fieldLabel} · ${catLabel}</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${esNo?'Marcado como no cubierto esta semana':'Ajustá la fecha'}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${esNo?'Marcado como no cubierto esta semana':(isNew?'Agregá la fecha de la cobertura adicional':'Ajustá la fecha')}</div>
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:12px">
         <input id="cov-fecha-dd" value="${d}" maxlength="2" inputmode="numeric" oninput="window._dateSegAdvance(this,2,'cov-fecha-mm')" style="width:42px;text-align:center;padding:8px 0;border:1px solid var(--border);border-radius:8px;font-size:14px">
         <span style="color:var(--muted)">/</span>
@@ -5893,29 +5900,45 @@ window._covEditFecha=function(wk,cat,field){
         <input id="cov-fecha-yyyy" value="${y}" maxlength="4" inputmode="numeric" style="width:60px;text-align:center;padding:8px 0;border:1px solid var(--border);border-radius:8px;font-size:14px">
       </div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
-        <button onclick="window._covSaveFecha('${wk}','${cat}','${field}')" style="flex:1;background:#1A56C4;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer">Guardar</button>
-        <button onclick="window._covClearFecha('${wk}','${cat}','${field}')" style="background:#F3F4F6;color:var(--muted);border:none;border-radius:8px;padding:9px 12px;font-weight:700;font-size:12.5px;cursor:pointer">Quitar</button>
+        <button onclick="window._covSaveFecha('${wk}','${cat}','${field}'${idxArg})" style="flex:1;background:#1A56C4;color:#fff;border:none;border-radius:8px;padding:9px;font-weight:700;font-size:12.5px;cursor:pointer">Guardar</button>
+        ${!isNew?`<button onclick="window._covClearFecha('${wk}','${cat}','${field}'${idxArg})" style="background:#F3F4F6;color:var(--muted);border:none;border-radius:8px;padding:9px 12px;font-weight:700;font-size:12.5px;cursor:pointer">Quitar</button>`:''}
       </div>
-      <button onclick="window._covMarkNo('${wk}','${cat}','${field}')" style="width:100%;background:${esNo?'#FEE2E2':'#FEF2F2'};color:#DC2626;border:1px solid #DC262630;border-radius:8px;padding:8px;font-weight:700;font-size:12px;cursor:pointer">${esNo?'✓ Marcado como no cubierto':'🚫 Marcar como no cubierto esta semana'}</button>
+      ${!isExtra?`<button onclick="window._covMarkNo('${wk}','${cat}','${field}')" style="width:100%;background:${esNo?'#FEE2E2':'#FEF2F2'};color:#DC2626;border:1px solid #DC262630;border-radius:8px;padding:8px;font-weight:700;font-size:12px;cursor:pointer">${esNo?'✓ Marcado como no cubierto':'🚫 Marcar como no cubierto esta semana'}</button>`:''}
     </div>`;
   modal.style.display='flex';
 };
-window._covSaveFecha=function(wk,cat,field){
+window._covSaveFecha=function(wk,cat,field,idx){
   const dd=(document.getElementById('cov-fecha-dd').value||'').padStart(2,'0');
   const mm=(document.getElementById('cov-fecha-mm').value||'').padStart(2,'0');
   const yyyy=document.getElementById('cov-fecha-yyyy').value||'';
   if(dd.length!==2||mm.length!==2||yyyy.length!==4) return;
+  const dateStr=`${yyyy}-${mm}-${dd}`;
   const all=_covGetAll();
   if(!all[wk]) all[wk]={};
   if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
-  all[wk][cat][field]=`${yyyy}-${mm}-${dd}`;
+  const rec=all[wk][cat];
+  if(idx===undefined){
+    rec[field]=dateStr;
+  }else{
+    const key=field+'Extra';
+    if(!rec[key]) rec[key]=[];
+    if(idx==='new') rec[key].push(dateStr);
+    else rec[key][idx]=dateStr;
+  }
   stor.set(KCovSemanal,all);
   document.getElementById('cov-fecha-modal').style.display='none';
   renderInicio();
 };
-window._covClearFecha=function(wk,cat,field){
+window._covClearFecha=function(wk,cat,field,idx){
   const all=_covGetAll();
-  if(all[wk]&&all[wk][cat]) all[wk][cat][field]=null;
+  if(all[wk]&&all[wk][cat]){
+    const rec=all[wk][cat];
+    if(idx===undefined){ rec[field]=null; }
+    else{
+      const key=field+'Extra';
+      if(rec[key]) rec[key].splice(idx,1);
+    }
+  }
   stor.set(KCovSemanal,all);
   document.getElementById('cov-fecha-modal').style.display='none';
   renderInicio();
@@ -5967,6 +5990,11 @@ function renderInicioCobertura(){
     }
     return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ ${label}</button>`;
   };
+  const extraBadge=(label,val,wk,cat,field,idx)=>{
+    const [,m,d]=val.split('-');
+    return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}',${idx})" style="display:flex;align-items:center;gap:4px;border:1px solid #16A34A40;background:${isMob?'rgba(22,163,74,.15)':'#DCFCE7'};color:#16A34A;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-check" style="font-size:11px"></i>${label} ${parseInt(d)}/${parseInt(m)}</button>`;
+  };
+  const addExtraBtn=(wk,cat,field)=>`<button onclick="window._covEditFecha('${wk}','${cat}','${field}','new')" title="Agregar otra cobertura esta semana" style="display:flex;align-items:center;justify-content:center;border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;width:22px;height:22px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">+</button>`;
   const linkBadge=(val,onclick)=>`<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid ${val?'#1A56C440':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${val?(isMob?'rgba(26,86,196,.18)':'#EFF6FF'):'transparent'};color:${val?'#1A56C4':subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ${val?'ti-send':'ti-send-off'}" style="font-size:11px"></i>Link ${val?'enviado':'sin enviar'}</button>`;
   const lockBtn=(wk,cat,rec)=>{
     const locked=rec.cubierto==='no'&&rec.publicado==='no';
@@ -5979,11 +6007,19 @@ function renderInicioCobertura(){
 
   const rows=COV_CATS.map((c,i)=>{
     const rec=_covGetRec(wk,c.key);
+    const cubiertoExtras=rec.cubiertoExtra.map((v,idx)=>extraBadge('Cubierto',v,wk,c.key,'cubierto',idx)).join('');
+    const publicadoExtras=rec.publicadoExtra.map((v,idx)=>extraBadge('Publicado',v,wk,c.key,'publicado',idx)).join('');
+    const cubiertoOk=rec.cubierto&&rec.cubierto!=='no';
+    const publicadoOk=rec.publicado&&rec.publicado!=='no';
     return `
     <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 0;${i<COV_CATS.length-1?'border-bottom:'+rowBorder:''}">
       <span style="font-size:11px;font-weight:800;color:#fff;background:${c.color};border-radius:6px;padding:3px 9px;flex-shrink:0;min-width:50px;text-align:center">${c.label}</span>
       ${fechaBadge('Cubierto',rec.cubierto,wk,c.key,'cubierto')}
+      ${cubiertoExtras}
+      ${cubiertoOk?addExtraBtn(wk,c.key,'cubierto'):''}
       ${fechaBadge('Publicado',rec.publicado,wk,c.key,'publicado')}
+      ${publicadoExtras}
+      ${publicadoOk?addExtraBtn(wk,c.key,'publicado'):''}
       ${linkBadge(rec.link,`window._covToggleLink('${wk}','${c.key}')`)}
       ${lockBtn(wk,c.key,rec)}
     </div>`;
@@ -9732,6 +9768,7 @@ window._delegAddSearch=function(gi,tKey){
   const all=[];
   ESTRUCTURA_PERSONAS.forEach(d=>{
     (d.personas||[]).forEach(p=>{
+      if(p.rol && p.rol.startsWith('Ex ')) return;
       if(!q||norm(p.label).includes(q)) all.push(p);
     });
   });
@@ -12925,9 +12962,9 @@ const JUGADORES={
   // ═══════════════════════════════════════════════════════
   'Sergio Rochet':           {auf:'sergio-rochet',              pos:'POR',club:'Sport Club Internacional',  pais:'🇧🇷',foto:'./fotos/sergio-rochet.jpg',wc26:true,tmId:264014, total:{pj:35,min:3060,g:0}, comp:{ca:{pj:6},wc:{pj:3},el:{pj:18},am:{pj:8}},fechaNac:'1993-03-23'},
   'Fernando Muslera':        {auf:'fernando-muslera',           pos:'POR',club:'Club Estudiantes de La Plata',   pais:'🇦🇷',foto:'./fotos/fernando-muslera.jpg',wc26:true,tmId:58088, total:{pj:136,min:12285,g:0},comp:{ca:{pj:22},wc:{pj:18},el:{pj:47},am:{pj:45}},fechaNac:'1986-06-16'},
-  'Santiago Mele':           {auf:'santiago-mele',              pos:'POR',club:'CF Monterrey',             pais:'🇲🇽',foto:'./fotos/santiago-mele.jpg',wc26:true,tmId:320739, total:{pj:8,min:675,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:4}},fechaNac:'1997-09-06'},
+  'Santiago Mele':           {auf:'santiago-mele',              pos:'POR',club:'CA Independiente',             pais:'🇦🇷',foto:'./fotos/santiago-mele.jpg',wc26:true,tmId:320739, total:{pj:8,min:675,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:4}},fechaNac:'1997-09-06'},
   'José María Giménez':      {auf:'jose-maria-gimenez',         pos:'DEF',club:'Atlético de Madrid',       pais:'🇪🇸',foto:'./fotos/jose-maria-gimenez.jpg',wc26:true,tmId:250845, total:{pj:99,min:8245,g:8}, comp:{ca:{pj:21},wc:{pj:10},el:{pj:34},am:{pj:34}},fechaNac:'1995-01-20'},
-  'Ronald Araújo':           {auf:'ronald-araujo',              pos:'DEF',club:'FC Barcelona',             pais:'🇪🇸',foto:'./fotos/ronald-araujo.jpg',wc26:true,tmId:480267, total:{pj:27,min:1947,g:1}, comp:{ca:{pj:4},wc:{pj:0},el:{pj:17},am:{pj:6}},fechaNac:'1999-03-07'},
+  'Ronald Araujo':           {auf:'ronald-araujo',              pos:'DEF',club:'Liverpool FC',             pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',foto:'./fotos/ronald-araujo.jpg',wc26:true,tmId:480267, total:{pj:27,min:1947,g:1}, comp:{ca:{pj:4},wc:{pj:0},el:{pj:17},am:{pj:6}},fechaNac:'1999-03-07'},
   'Sebastián Cáceres':       {auf:'sebastian-caceres',          pos:'DEF',club:'CF América',               pais:'🇲🇽',foto:'./fotos/sebastian-caceres.jpg',wc26:true,tmId:532389, total:{pj:26,min:1780,g:0}, comp:{ca:{pj:5},wc:{pj:2},el:{pj:12},am:{pj:7}},fechaNac:'1999-08-18'},
   'Santiago Bueno':          {auf:'santiago-bueno',             pos:'DEF',club:'Wolverhampton Wanderers',  pais:'🇬🇧',foto:'./fotos/santiago-bueno.jpg',wc26:true,tmId:438001, total:{pj:8,min:630,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:4}},fechaNac:'1998-11-09'},
   'Guillermo Varela':        {auf:'guillermo-varela',           pos:'DEF',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/guillermo-varela.jpg',wc26:true,tmId:188862, total:{pj:30,min:2041,g:0}, comp:{ca:{pj:2},wc:{pj:7},el:{pj:8},am:{pj:13}},fechaNac:'1993-03-24'},
@@ -12969,7 +13006,7 @@ const JUGADORES={
   'Nicolás Fonseca':         {auf:'nicolas-fonseca',            pos:'MED',club:'Club León FC',             pais:'🇦🇷',foto:'./fotos/nicolas-fonseca.jpg',wc26:false,tmId:462070,total:{pj:7,min:280,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:3}},fechaNac:'1998-10-19'},
   'Luciano Rodríguez Rosales':       {auf:'luciano-rodriguez',          pos:'DEL',club:'NEOM SC',                  pais:'🇸🇦',foto:'./fotos/luciano-rodriguez.jpg',wc26:false,tmId:856143,total:{pj:5,min:187,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:4}},fechaNac:'2003-07-16'},
   'Lucas Olaza':             {auf:'lucas-olaza',                pos:'DEF',club:'FK Krasnodar',             pais:'🇷🇺',foto:'./fotos/lucas-olaza.jpg',wc26:false,tmId:216240,total:{pj:6,min:438,g:0},    comp:{ca:{pj:1},wc:{pj:0},el:{pj:2},am:{pj:3}},fechaNac:'1994-07-21'},
-  'Marcelo Saracchi':        {auf:'marcelo-saracchi',           pos:'DEF',club:'CA Boca Juniors',                pais:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',foto:'./fotos/marcelo-saracchi.jpg',wc26:false,tmId:373916,total:{pj:11,min:526,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:5},am:{pj:6}},fechaNac:'1998-04-23'},
+  'Marcelo Saracchi':        {auf:'marcelo-saracchi',           pos:'DEF',club:'CA Boca Juniors',                pais:'🇦🇷',foto:'./fotos/marcelo-saracchi.jpg',wc26:false,tmId:373916,total:{pj:11,min:526,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:5},am:{pj:6}},fechaNac:'1998-04-23'},
   'Mateo Ponte':             {auf:'mateo-ponte',                pos:'DEF',club:'Botafogo de Futebol e Regatas',                 pais:'🇧🇷',foto:'./fotos/mateo-ponte.jpg',wc26:false,tmId:856047,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2003-05-24'},
   'Mauricio Lemos':          {auf:'mauricio-lemos',             pos:'DEF',club:'CA Peñarol',         pais:'🇧🇷',foto:'./fotos/mauricio-lemos.jpg',wc26:false,tmId:303140,total:{pj:3,min:140,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:3}},fechaNac:'1995-12-28'},
   'Bruno Méndez':            {auf:'bruno-mendez',               pos:'DEF',club:'Deportivo Toluca FC',         pais:'🇲🇽',foto:'./fotos/bruno-mendez.jpg',wc26:false,tmId:552912,total:{pj:7,min:384,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:5}},fechaNac:'1999-09-10'},
@@ -13275,7 +13312,7 @@ const BIELSA_CONVOCATORIAS=[
   {id:'c03',yr:2023,label:'Fechas 3-4 · Elim. · Oct 2023',rivals:'vs. Colombia y Brasil',
    jugadores:[
     {nom:'Sergio Rochet'},{nom:'Franco Israel', club:'Torino FC', pais:'it'},{nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},
-    {nom:'Ronald Araújo'},{nom:'Bruno Méndez', club:'Deportivo Toluca FC', pais:'mx', fechaNac:'1999-09-10'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
+    {nom:'Ronald Araujo'},{nom:'Bruno Méndez', club:'Deportivo Toluca FC', pais:'mx', fechaNac:'1999-09-10'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
     {nom:'Santiago Bueno', club:'Wolverhampton Wanderers', pais:'gb-eng', fechaNac:'1998-11-09'},{nom:'Matías Viña', club:'CA River Plate', pais:'uy',nota:'1 partido de sanción', fechaNac:'1997-11-09'},
     {nom:'Nahitan Nández'},{nom:'Joaquín Piquerez'},{nom:'Lucas Olaza'},
     {nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},{nom:'Manuel Ugarte'},{nom:'Matías Vecino', club:'RC Celta de Vigo', pais:'es', fechaNac:'1991-08-24'},
@@ -13287,7 +13324,7 @@ const BIELSA_CONVOCATORIAS=[
   {id:'c04',yr:2023,label:'Fechas 5-6 · Elim. · Nov 2023',rivals:'vs. Argentina y Bolivia',
    jugadores:[
     {nom:'Sergio Rochet'},{nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},{nom:'Franco Israel', club:'Torino FC', pais:'it'},
-    {nom:'Ronald Araújo'},{nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
+    {nom:'Ronald Araujo'},{nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
     {nom:'Matías Viña', club:'CA River Plate', pais:'uy', fechaNac:'1997-11-09'},{nom:'Bruno Méndez', club:'Deportivo Toluca FC', pais:'mx', fechaNac:'1999-09-10'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},
     {nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},{nom:'Manuel Ugarte'},{nom:'Rodrigo Bentancur', club:'Tottenham Hotspur', pais:'gb-eng', fechaNac:'1997-06-25'},
     {nom:'Federico Valverde'},{nom:'Felipe Carballo'},{nom:'Agustín Canobbio', club:'Fluminense FC', pais:'br', fechaNac:'1998-10-01'},
@@ -13298,7 +13335,7 @@ const BIELSA_CONVOCATORIAS=[
   {id:'c05',yr:2024,label:'Fecha FIFA · Mar 2024',rivals:'vs. País Vasco y Costa de Marfil',
    jugadores:[
     {nom:'Randall Rodríguez'},{nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},{nom:'Franco Israel', club:'Torino FC', pais:'it'},
-    {nom:'Nahitan Nández'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'Ronald Araújo'},
+    {nom:'Nahitan Nández'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'Ronald Araujo'},
     {nom:'Bruno Méndez', club:'Deportivo Toluca FC', pais:'mx', fechaNac:'1999-09-10'},{nom:'Nicolás Marichal'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
     {nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},{nom:'Matías Viña', club:'CA River Plate', pais:'uy', fechaNac:'1997-11-09'},{nom:'Lucas Olaza'},
     {nom:'Manuel Ugarte'},{nom:'Rodrigo Zalazar', club:'Sporting de Lisboa', pais:'pt', fechaNac:'1999-08-12'},{nom:'Matías Vecino', club:'RC Celta de Vigo', pais:'es', fechaNac:'1991-08-24'},
@@ -13310,7 +13347,7 @@ const BIELSA_CONVOCATORIAS=[
   {id:'c06',yr:2024,label:'Copa América · Jun–Jul 2024',rivals:'3.er puesto — vence a Canadá por penales',
    jugadores:[
     {nom:'Sergio Rochet'},{nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},{nom:'Franco Israel', club:'Torino FC', pais:'it'},
-    {nom:'Ronald Araújo'},{nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
+    {nom:'Ronald Araujo'},{nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
     {nom:'Nicolás Marichal'},{nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},{nom:'Matías Viña', club:'CA River Plate', pais:'uy', fechaNac:'1997-11-09'},
     {nom:'Lucas Olaza'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'Nahitan Nández'},
     {nom:'Manuel Ugarte'},{nom:'Rodrigo Bentancur', club:'Tottenham Hotspur', pais:'gb-eng', fechaNac:'1997-06-25'},{nom:'Federico Valverde'},
@@ -13360,7 +13397,7 @@ const BIELSA_CONVOCATORIAS=[
    jugadores:[
     {nom:'Sergio Rochet'},{nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},{nom:'Franco Israel', club:'Torino FC', pais:'it'},
     {nom:'Kevin Martínez'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'Nahitan Nández'},
-    {nom:'José Luis Rodríguez', club:'CR Vasco da Gama', pais:'br', fechaNac:'1997-03-14'},{nom:'Lucas Agazzi'},{nom:'Ronald Araújo'},
+    {nom:'José Luis Rodríguez', club:'CR Vasco da Gama', pais:'br', fechaNac:'1997-03-14'},{nom:'Lucas Agazzi'},{nom:'Ronald Araujo'},
     {nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},{nom:'Paolo Calione'},{nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},
     {nom:'Santiago Bueno', club:'Wolverhampton Wanderers', pais:'gb-eng', fechaNac:'1998-11-09'},{nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},{nom:'Patricio Pacífico'},
     {nom:'Marcelo Saracchi', club:'CA Boca Juniors', pais:'ar', fechaNac:'1998-04-23'},{nom:'Joaquín Piquerez'},{nom:'Rodrigo Bentancur', club:'Tottenham Hotspur', pais:'gb-eng', fechaNac:'1997-06-25'},
@@ -13376,7 +13413,7 @@ const BIELSA_CONVOCATORIAS=[
    jugadores:[
     {nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},{nom:'Franco Israel', club:'Torino FC', pais:'it'},{nom:'Cristopher Fiermarin'},
     {nom:'Nahitan Nández'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'José Luis Rodríguez', club:'CR Vasco da Gama', pais:'br', fechaNac:'1997-03-14'},
-    {nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},{nom:'Ronald Araújo'},{nom:'Nicolás Marichal'},
+    {nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},{nom:'Ronald Araujo'},{nom:'Nicolás Marichal'},
     {nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},{nom:'Santiago Bueno', club:'Wolverhampton Wanderers', pais:'gb-eng', fechaNac:'1998-11-09'},{nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},
     {nom:'Joaquín Piquerez'},{nom:'Juan Manuel Sanabria', club:'Real Salt Lake', pais:'us', fechaNac:'2000-03-29'},{nom:'Manuel Ugarte'},
     {nom:'Lucas Torreira'},{nom:'Nicolás Fonseca'},{nom:'Emiliano Martínez'},
@@ -13389,7 +13426,7 @@ const BIELSA_CONVOCATORIAS=[
    jugadores:[
     {nom:'Sergio Rochet'},{nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},{nom:'Franco Israel', club:'Torino FC', pais:'it'},
     {nom:'Nahitan Nández'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'José Luis Rodríguez', club:'CR Vasco da Gama', pais:'br', fechaNac:'1997-03-14'},
-    {nom:'Ronald Araújo'},{nom:'Santiago Bueno', club:'Wolverhampton Wanderers', pais:'gb-eng', fechaNac:'1998-11-09'},{nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},
+    {nom:'Ronald Araujo'},{nom:'Santiago Bueno', club:'Wolverhampton Wanderers', pais:'gb-eng', fechaNac:'1998-11-09'},{nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},
     {nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},{nom:'Joaquín Piquerez'},{nom:'Matías Viña', club:'CA River Plate', pais:'uy', fechaNac:'1997-11-09'},
     {nom:'Juan Manuel Sanabria', club:'Real Salt Lake', pais:'us', fechaNac:'2000-03-29'},{nom:'Manuel Ugarte'},{nom:'Rodrigo Bentancur', club:'Tottenham Hotspur', pais:'gb-eng', fechaNac:'1997-06-25'},
     {nom:'Emiliano Martínez'},{nom:'Federico Valverde'},{nom:'Rodrigo Zalazar', club:'Sporting de Lisboa', pais:'pt', fechaNac:'1999-08-12'},
@@ -13411,7 +13448,7 @@ const BIELSA_CONVOCATORIAS=[
    jugadores:[
     {nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},{nom:'Cristopher Fiermarin'},
     {nom:'Nahitan Nández'},{nom:'José Luis Rodríguez', club:'CR Vasco da Gama', pais:'br', fechaNac:'1997-03-14'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},
-    {nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},{nom:'Ronald Araújo'},{nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},
+    {nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},{nom:'Ronald Araujo'},{nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},
     {nom:'Santiago Bueno', club:'Wolverhampton Wanderers', pais:'gb-eng', fechaNac:'1998-11-09'},{nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},{nom:'Matías Viña', club:'CA River Plate', pais:'uy', fechaNac:'1997-11-09'},
     {nom:'Joaquín Piquerez'},{nom:'Juan Manuel Sanabria', club:'Real Salt Lake', pais:'us', fechaNac:'2000-03-29'},{nom:'Santiago Homenchenko'},
     {nom:'Manuel Ugarte'},{nom:'Emiliano Martínez'},{nom:'Rodrigo Bentancur', club:'Tottenham Hotspur', pais:'gb-eng', fechaNac:'1997-06-25'},
@@ -13423,7 +13460,7 @@ const BIELSA_CONVOCATORIAS=[
   {id:'c15',yr:2026,label:'Fecha FIFA · Mar 2026',rivals:'vs. Inglaterra y Argelia',
    jugadores:[
     {nom:'Fernando Muslera'},{nom:'Sergio Rochet'},{nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},
-    {nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'José Luis Rodríguez', club:'CR Vasco da Gama', pais:'br', fechaNac:'1997-03-14'},{nom:'Ronald Araújo'},
+    {nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'José Luis Rodríguez', club:'CR Vasco da Gama', pais:'br', fechaNac:'1997-03-14'},{nom:'Ronald Araujo'},
     {nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},{nom:'Santiago Bueno', club:'Wolverhampton Wanderers', pais:'gb-eng', fechaNac:'1998-11-09'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
     {nom:'Mathías Olivera', club:'SSC Napoli', pais:'it', fechaNac:'1997-10-31'},{nom:'Joaquín Piquerez'},{nom:'Matías Viña', club:'CA River Plate', pais:'uy', fechaNac:'1997-11-09'},
     {nom:'Manuel Ugarte'},{nom:'Nicolás Fonseca'},{nom:'Emiliano Martínez'},
@@ -13436,7 +13473,7 @@ const BIELSA_CONVOCATORIAS=[
   {id:'c16',yr:2026,label:'Copa Mundial 2026',rivals:'vs. Arabia Saudita · Cabo Verde · España',
    jugadores:[
     {nom:'Sergio Rochet'},{nom:'José María Giménez', club:'Atlético de Madrid', pais:'es', fechaNac:'1995-01-20'},{nom:'Sebastián Cáceres', club:'CF América', pais:'mx', fechaNac:'1999-08-18'},
-    {nom:'Ronald Araújo'},{nom:'Manuel Ugarte'},{nom:'Rodrigo Bentancur', club:'Tottenham Hotspur', pais:'gb-eng', fechaNac:'1997-06-25'},
+    {nom:'Ronald Araujo'},{nom:'Manuel Ugarte'},{nom:'Rodrigo Bentancur', club:'Tottenham Hotspur', pais:'gb-eng', fechaNac:'1997-06-25'},
     {nom:'Nicolás De La Cruz', club:'CR Flamengo', pais:'br', fechaNac:'1997-06-01'},{nom:'Federico Valverde'},{nom:'Darwin Núñez'},
     {nom:'Giorgian De Arrascaeta', club:'CR Flamengo', pais:'br', fechaNac:'1994-06-01'},{nom:'Facundo Pellistri'},{nom:'Santiago Mele', club:'CF Monterrey', pais:'mx', fechaNac:'1997-09-06'},
     {nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'Agustín Canobbio', club:'Fluminense FC', pais:'br', fechaNac:'1998-10-01'},{nom:'Emiliano Martínez'},
@@ -14475,7 +14512,7 @@ function buildAlonsoStatsHtml(){
       return`
         <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Jugadores reservados · 64 futbolistas</div>
         ${posBlock('gol','Goleros','🧤',['Sergio Rochet','Fernando Muslera','Sebastián Sosa','Martín Campaña','Guillermo De Amores','Nicolás Vikonis','Santiago Mele','Kevin Dawson','Gastón Olveira'])}
-        ${posBlock('def','Defensas','🛡️',['Diego Godín','José María Giménez','Ronald Araújo','Sebastián Coates','Martín Cáceres','Sebastián Cáceres','Emanuel Gularte','Bruno Méndez','Leandro Cabrera','Damián Suárez','Guillermo Varela','Giovanni González','Matías Viña','Mathías Olivera','Joaquín Piquerez','Agustín Oliveros','Agustín Rogel','Federico Pereira Castelnoble','Santiago Bueno','Gastón Álvarez','José Luis Rodríguez','Lucas Olaza'])}
+        ${posBlock('def','Defensas','🛡️',['Diego Godín','José María Giménez','Ronald Araujo','Sebastián Coates','Martín Cáceres','Sebastián Cáceres','Emanuel Gularte','Bruno Méndez','Leandro Cabrera','Damián Suárez','Guillermo Varela','Giovanni González','Matías Viña','Mathías Olivera','Joaquín Piquerez','Agustín Oliveros','Agustín Rogel','Federico Pereira Castelnoble','Santiago Bueno','Gastón Álvarez','José Luis Rodríguez','Lucas Olaza'])}
         ${posBlock('vol','Volantes','⚙️',['Lucas Torreira','Matías Vecino','Rodrigo Bentancur','Mauro Aramabarri','Manuel Ugarte','Fernando Gorriarán','Giorgian De Arrascaeta','Nicolás De La Cruz','Facundo Pellistri','Facundo Torres','Gastón Pereiro','Federico Valverde','Santiago Rodríguez','Agustín Canobbio','Juan Manuel Sanabria','Rodrigo Zalazar','César Araújo','Felipe Carballo','Maximiliano Araújo','Diego Rossi'])}
         ${posBlock('del','Delanteros','⚽',['Luis Suárez','Edinson Cavani','Darwin Núñez','Maximiliano Gómez González','Nicolás López Alonso','Martín Satriano','David Terans','Federico Martínez','Jonathan Rodríguez','Christian Stuani','Agustín Álvarez Martínez','Thiago Borbas'])}
       `;
@@ -14807,7 +14844,7 @@ function buildBielsaConfsHtml(){
     {n:14,txt:'Post Fecha FIFA de marzo',fecha:'1/4/24',lugar:'Estadio Centenario'},
     {n:15,txt:'Previa de la Fecha FIFA de junio, MD-1 vs. México',fecha:'4/6/24',lugar:'Estadio Power Field (Denver, USA)'},
     {n:16,txt:'Post partido amistoso vs. México (4-0)',fecha:'5/6/24',lugar:'Estadio Power Field (Denver, USA)'},
-    {n:17,txt:'MD-1 vs Panamá + Ronald Araújo',fecha:'22/6/24',lugar:'Hard Rock Stadium (Miami, USA)'},
+    {n:17,txt:'MD-1 vs Panamá + Ronald Araujo',fecha:'22/6/24',lugar:'Hard Rock Stadium (Miami, USA)'},
     {n:18,txt:'Post partido vs. Panamá (3-1)',fecha:'23/6/24',lugar:'Hard Rock Stadium (Miami, USA)'},
     {n:19,txt:'MD-1 vs Bolivia + Rodrigo Bentancur',fecha:'26/6/24',lugar:'Metlife Stadium (Nueva Jersey, USA)'},
     {n:20,txt:'Post partido vs. Bolivia (5-0)',fecha:'27/6/24',lugar:'Metlife Stadium (Nueva Jersey, USA)'},
@@ -18699,7 +18736,7 @@ const JUVENILES = {
             {nom:'Mathias Dofour',          club:'Defensor Sporting',    pais:'uy', pos:'POR'},
             {nom:'Emiliano Busquets',       club:'Peñarol',              pais:'uy', pos:'DEF'},
             {nom:'Bruno Méndez',            club:'Corinthians',          pais:'br', pos:'DEF'},
-            {nom:'Ronald Araújo',           club:'Barcelona B',          pais:'es', pos:'DEF'},
+            {nom:'Ronald Araujo',           club:'Barcelona B',          pais:'es', pos:'DEF'},
             {nom:'Mathias Laborda',         club:'Nacional',             pais:'uy', pos:'DEF'},
             {nom:'Sebastián Cáceres',       club:'Liverpool',            pais:'uy', pos:'DEF'},
             {nom:'Edgar Elizalde',          club:'Pescara',              pais:'it', pos:'DEF', fechaNac:'2000-02-27'},
@@ -20189,11 +20226,11 @@ const JUVENILES = {
             {nom:'Santiago Larrosa',     pos:'DEL', club:'River Plate',               num:6, fechaNac:'2011-06-19'},
             {nom:'Thiago Carballo',      pos:'POR', club:'Peñarol',                   num:7, fechaNac:'2011-01-06'},
             {nom:'Bautista Casco',       pos:'MED', club:'Liverpool',                 num:8, fechaNac:'2011-10-28'},
-            {nom:'Lucca Di Mateo',       pos:'MED', club:'Nacional',                  num:9},
+            {nom:'Luca Di Matteo',       pos:'MED', club:'Nacional',                  num:9, fechaNac:'2011-02-22'},
             {nom:'Tiziano García',       pos:'MED', club:'Racing',                    num:10, fechaNac:'2011-05-30'},
             {nom:'Bautista González',    pos:'DEF', club:'Racing',                    num:11, fechaNac:'2011-07-15'},
             {nom:'Thiago Guimaraens',     pos:'DEL', club:'Nacional',                  num:12, fechaNac:'2011-04-24'},
-            {nom:'Francesco López',      pos:'DEF', club:'Montevideo City Torque',    num:13},
+            {nom:'Francesco López',      pos:'DEF', club:'Montevideo City Torque',    num:13, fechaNac:'2011-03-02'},
             {nom:'Bruno Meza',           pos:'MED', club:'Racing',                    num:14, fechaNac:'2011-06-12'},
             {nom:'Santiago Mieres',      club:'Nacional',                             num:15, fechaNac:'2011-09-23'},
             {nom:'Thiago Nieto',         pos:'MED', club:'Danubio',                   num:16, fechaNac:'2011-05-12'},
@@ -20312,7 +20349,7 @@ const JUVENILES = {
             {nom:'Felipe Newton',         pos:'MED', club:'Liverpool', fechaNac:'2011-07-06'},
             {nom:'Bautista Casco',        pos:'MED', club:'Liverpool', fechaNac:'2011-10-28'},
             {nom:'Bruno Meza',            pos:'MED', club:'Racing', fechaNac:'2011-06-12'},
-            {nom:'Luca Di Mateo',         pos:'MED', club:'Nacional'},
+            {nom:'Luca Di Matteo',         pos:'MED', club:'Nacional', fechaNac:'2011-02-22'},
             {nom:'Kevin Miguelez',        pos:'MED', club:'Defensor Sporting', fechaNac:'2011-04-05'},
             {nom:'Santiago Larrosa',      pos:'DEL', club:'River Plate', fechaNac:'2011-06-19'},
             {nom:'Bruno Salvagno',        pos:'DEL', club:'Danubio', fechaNac:'2011-03-19'},
@@ -22759,7 +22796,7 @@ const TORNEO_DESARROLLO_SUB15_2026 = {
       {nom:'Luan Sosa',club:'Montevideo City Torque', fechaNac:'2011-02-16'},{nom:'Ignacio Echavarría',club:'Montevideo City Torque', fechaNac:'2011-02-10'},{nom:'Valentino Pérez',club:'Nacional', fechaNac:'2011-01-30'},{nom:'Francesco Lopez',club:'Montevideo City Torque', fechaNac:'2011-03-02'},
       {nom:'Guillermo Pintos',club:'Racing', fechaNac:'2011-07-28'},{nom:'Bautista González',club:'Racing', fechaNac:'2011-07-15'},{nom:'Enzo Ferreira',club:'Nacional', fechaNac:'2011-07-31'},{nom:'Joaquín Míguez',club:'Montevideo City Torque', fechaNac:'2011-09-15'},
       {nom:'Martín Sagasta',club:'Defensor Sporting', fechaNac:'2011-11-22'},{nom:'Rafael Feller',club:'Peñarol', fechaNac:'2011-03-10'},{nom:'Tiziano García',club:'Racing', fechaNac:'2011-05-30'},{nom:'Felipe Newton',club:'Liverpool', fechaNac:'2011-07-06'},
-      {nom:'Bautista Casco',club:'Liverpool', fechaNac:'2011-10-28'},{nom:'Bruno Meza',club:'Racing', fechaNac:'2011-06-12'},{nom:'Luca Di Mateo',club:'Nacional'},{nom:'Kevin Miguelez',club:'Defensor Sporting', fechaNac:'2011-04-05'},
+      {nom:'Bautista Casco',club:'Liverpool', fechaNac:'2011-10-28'},{nom:'Bruno Meza',club:'Racing', fechaNac:'2011-06-12'},{nom:'Luca Di Matteo',club:'Nacional', fechaNac:'2011-02-22'},{nom:'Kevin Miguelez',club:'Defensor Sporting', fechaNac:'2011-04-05'},
       {nom:'Santiago Larrosa',club:'River Plate', fechaNac:'2011-06-19'},{nom:'Bruno Salvagno',club:'Danubio', fechaNac:'2011-03-19'},{nom:'Máximo Bentancor',club:'Boston River', fechaNac:'2011-05-02'},{nom:'Nahuel Erediez',club:'Peñarol', fechaNac:'2011-04-06'},
       {nom:'Ezequiel Álvarez',club:'Boston River', fechaNac:'2011-01-09'},{nom:'Thiago Paredes',club:'Nacional', fechaNac:'2011-06-04'},{nom:'Enzo Scagni',club:'Defensor Sporting', fechaNac:'2011-02-21'},
       {nom:'Matías Pérez',club:'AD Alcorcón',pais:'es'},{nom:'Lucca Darío Noguez',club:'Atlético Madrid',pais:'es'},
@@ -22793,11 +22830,11 @@ const TORNEO_DESARROLLO_SUB15_2026 = {
       {nom:'Santiago Larrosa',     club:'River Plate',               num:6, fechaNac:'2011-06-19'},
       {nom:'Thiago Carballo',      club:'Peñarol',                   num:7, fechaNac:'2011-01-06'},
       {nom:'Bautista Casco',       club:'Liverpool',                 num:8, fechaNac:'2011-10-28'},
-      {nom:'Lucca Di Mateo',       club:'Nacional',                  num:9},
+      {nom:'Luca Di Matteo',       club:'Nacional',                  num:9, fechaNac:'2011-02-22'},
       {nom:'Tiziano García',       club:'Racing',                    num:10, fechaNac:'2011-05-30'},
       {nom:'Bautista González',    club:'Racing',                    num:11, fechaNac:'2011-07-15'},
       {nom:'Thiago Guimaraens',     club:'Nacional',                  num:12, fechaNac:'2011-04-24'},
-      {nom:'Francesco López',      club:'Montevideo City Torque',    num:13},
+      {nom:'Francesco López',      club:'Montevideo City Torque',    num:13, fechaNac:'2011-03-02'},
       {nom:'Bruno Meza',           club:'Racing',                    num:14, fechaNac:'2011-06-12'},
       {nom:'Santiago Mieres',      club:'Nacional',                  num:15, fechaNac:'2011-09-23'},
       {nom:'Thiago Nieto',         club:'Danubio',                   num:16, fechaNac:'2011-05-12'},
@@ -22832,7 +22869,7 @@ const TORNEO_DESARROLLO_SUB15_2026 = {
     {nom:'Enzo Scagni',club:'Defensor Sporting', fechaNac:'2011-02-21'},{nom:'Bautista González',club:'Racing', fechaNac:'2011-07-15'},
     {nom:'Thiago Guimaraens',club:'Nacional', fechaNac:'2011-04-24'},
     {nom:'Nahuel Matonte',club:'Leganés',pais:'es', fechaNac:'2012-06-30'},{nom:'Lucio López',club:'Al Ain',pais:'ae', fechaNac:'2011-04-15'},
-    {nom:'Francesco Lopez',club:'Montevideo City Torque', fechaNac:'2011-03-02'},{nom:'Luca Di Mateo',club:'Nacional'},
+    {nom:'Francesco Lopez',club:'Montevideo City Torque', fechaNac:'2011-03-02'},{nom:'Luca Di Matteo',club:'Nacional', fechaNac:'2011-02-22'},
     {nom:'Bruno Salvagno',club:'Danubio', fechaNac:'2011-03-19'},{nom:'Nahuel Erediez',club:'Peñarol', fechaNac:'2011-04-06'},
     {nom:'Thiago Paredes',club:'Nacional', fechaNac:'2011-06-04'},
     {nom:'Matías Pérez',club:'AD Alcorcón',pais:'es'},{nom:'Lucca Darío Noguez',club:'Atlético Madrid',pais:'es'},
@@ -26044,7 +26081,7 @@ function _renderJuvenilesSafe(el){
     // Selector de activos en Estructura para agregar
     const contracts = _estGetContracts();
     const estructuraActivos = (typeof ESTRUCTURA_PERSONAS!=='undefined' ? ESTRUCTURA_PERSONAS : [])
-      .flatMap(d=>d.personas.filter(p=>(contracts[p.key]||'activo')==='activo').map(p=>p.label))
+      .flatMap(d=>d.personas.filter(p=>(contracts[p.key]||_estDefaultContrato(p))==='activo').map(p=>p.label))
       .filter((n,i,a)=>a.indexOf(n)===i)
       .sort();
     const rolesUsados = new Set(ct.map(m=>m.rol));
@@ -30224,6 +30261,10 @@ function _estGetContracts(){
 }
 function _estSaveContracts(obj){ stor.set(KEstContract, obj); }
 
+// Personas cuyo rol arranca con "Ex " (ex-DT, ex-técnico, etc.) son históricas por
+// definición aunque nadie les haya marcado el contrato a mano — si no hay estado
+// explícito en KEstContract, hay que default a "finalizado", no a "activo".
+function _estDefaultContrato(p){ return (p.rol && p.rol.startsWith('Ex '))?'finalizado':'activo'; }
 const _EST_CONTRATO = {
   activo:      {label:'Activo',              bg:'#D1FAE5',color:'#065F46'},
   por_vencer:  {label:'Hasta 31 jul 2026',   bg:'#FFEDD5',color:'#9A3412'},
@@ -30332,6 +30373,22 @@ const _nameToKey = n => 'ct-p:' + n.toLowerCase()
   let changed=false;
   DT_MAYOR_HIST.forEach(m=>{
     const k=_nameToKey(m.name);
+    if(!c[k]){c[k]='finalizado';changed=true;}
+  });
+  if(changed) _estSaveContracts(c);
+}catch(_){}})();
+
+// Migración: el ciclo Alonso de CT Mayor terminó (ahora está Bielsa) — todo su CT
+// pasa a "finalizado" automáticamente, igual que se hace con los DT históricos.
+// Ojo: alguien como Carlos Nicola sigue en el CT de Bielsa, así que si aparece en
+// los dos ciclos no se lo marca finalizado (sigue activo por el ciclo vigente).
+(()=>{try{
+  const c=JSON.parse(localStorage.getItem(KEstContract)||'{}');
+  let changed=false;
+  const bielsaKeys=new Set(CT_MAYOR_BIELSA.map(m=>_nameToKey(m.name)));
+  CT_MAYOR_ALONSO.forEach(m=>{
+    const k=_nameToKey(m.name);
+    if(bielsaKeys.has(k)) return;
     if(!c[k]){c[k]='finalizado';changed=true;}
   });
   if(changed) _estSaveContracts(c);
@@ -30489,13 +30546,13 @@ function _renderEstLista(){
   if(_estTab==='activos'){
     sections.forEach(d=>{
       const _isActive=c=>c==='activo'||c==='por_vencer'||c==='proximo';
-      const personas=d.showAll ? d.personas : d.personas.filter(p=>_isActive(contracts[p.key]||'activo'));
+      const personas=d.showAll ? d.personas : d.personas.filter(p=>_isActive(contracts[p.key]||_estDefaultContrato(p)));
       if(!personas.length) return;
       total+=personas.length;
       const rows=personas.map(p=>{
         const label=edits[p.key]?.label||p.label;
         const rol=edits[p.key]?.rolesEdit?.[d.dept]?.rol||p.rol;
-        const contrato=d.showAll?(contracts[p.key]||'activo'):(contracts[p.key]||'activo');
+        const contrato=contracts[p.key]||_estDefaultContrato(p);
         const fechaNac=edits[p.key]?.fechaNac||p.fechaNac;
         return _renderEstPersonaRow(p,label,rol,_estResolvePhoto(p),contrato,fechaNac);
       }).join('');
@@ -30520,7 +30577,7 @@ function _renderEstLista(){
     sections.forEach(d=>{
       const exInSection=[];
       d.personas.forEach(p=>{
-        const c=contracts[p.key]||'activo';
+        const c=contracts[p.key]||_estDefaultContrato(p);
         if((c==='finalizado'||c==='desvinculado')&&!seen.has(p.key)){
           seen.add(p.key);
           total++;
@@ -30560,7 +30617,7 @@ function _renderEstLista(){
   }
 
   const subtitle=_estTab==='activos'
-    ?`${total} integrantes activos · ${sections.filter(d=>d.personas.some(p=>(contracts[p.key]||'activo')==='activo')).length} áreas`
+    ?`${total} integrantes activos · ${sections.filter(d=>d.personas.some(p=>(contracts[p.key]||_estDefaultContrato(p))==='activo')).length} áreas`
     :`${total} ex integrante${total!==1?'s':''}`;
 
   el.innerHTML=`
