@@ -24213,16 +24213,26 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
   const usedNoms = new Set(Object.values(st).filter(Boolean));
   const curNom = slotId ? st[slotId] : null;
 
-  // Solo jugadores de las convocatorias del ciclo
-  const convSet = new Set();
+  // Solo jugadores de las convocatorias del ciclo. Se agrupa ignorando tildes:
+  // "Joaquin Miguez" y "Joaquín Míguez" son la misma persona aunque en alguna
+  // convocatoria se haya tipeado sin tilde — se guarda una sola vez, prefiriendo
+  // la grafía CON tilde si aparece en cualquier convocatoria.
+  const convMap = new Map(); // clave sin tilde -> nombre canónico (con tilde si existe)
   const anoData = JUVENILES[cat]?.anos?.[year];
   if(anoData){
-    (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>convSet.add(j.nom)));
+    (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+      const k = _norm(j.nom);
+      const prev = convMap.get(k);
+      if(!prev || (prev===_norm(prev) && j.nom!==_norm(j.nom))) convMap.set(k, j.nom);
+    }));
   }
-  const juvPos = getJuvPos();
+  const juvPosRaw = getJuvPos();
+  const juvPosByNorm = {};
+  Object.entries(juvPosRaw).forEach(([k,v])=>{ const nk=_norm(k); if(!(nk in juvPosByNorm)) juvPosByNorm[nk]=v; });
+  const juvPos = new Proxy({}, {get:(_,nom)=>juvPosRaw[nom]??juvPosByNorm[_norm(String(nom))]??''});
   const POS_LABEL={POR:'Porteros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
 
-  const allConv = [...convSet].sort();
+  const allConv = [...convMap.values()].sort();
   const same   = allConv.filter(n=>(juvPos[n]||'')=== posLabel && posLabel!=='any');
   const others = allConv.filter(n=>(juvPos[n]||'')!== posLabel || posLabel==='any');
 
