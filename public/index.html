@@ -26920,7 +26920,7 @@ const ESTRUCTURA_PERSONAS = [
     {key:'mloza',         label:'Mauricio Loza',       rol:'Cocinero'},
     {key:'mcasado',       label:'María Casado',        rol:'Cocinera'},
   ]},
-  {dept:'Cuerpo técnico Selección Mayor', personas:[
+  {dept:'CT Mayor', personas:[
     {key:'ct-p:santiago-ferro',   label:'Santiago Ferro',      rol:'Profe principal', fechaNac:'1987-01-14'},
     {key:'ct-p:diego-estavillo',  label:'Diego Estavillo',     rol:'Profe secundario', fechaNac:'1988-01-16'},
     {key:'ct-p:enzo-ferrari',     label:'Enzo Ferrari',        rol:'Entrenador de arqueros (ex Sub-15 con López Báez, luego Sub-17, luego Mayor)', fechaNac:'1984-02-09'},
@@ -30456,11 +30456,16 @@ function _estBuildAllSections(){
     personas:[...d.personas, ..._customPersonas.filter(c=>c.dept===d.dept)]
   }));
 
-  // CT Mayor — Forlán (interino, activo)
+  // CT Mayor — Forlán (interino, activo) se suma a la sección fija "CT Mayor"
+  // (Ferro/Estavillo/Ferrari), en vez de armar una tarjeta aparte.
   const ctForlan = CT_MAYOR_FORLAN.filter(m=>m.name&&!m.pendiente).map(m=>({
     key:_nameToKey(m.name), label:m.name, rol:m.rol||'Cuerpo técnico', fechaNac:m.fechaNac||''
   }));
-  if(ctForlan.length) sections.push({dept:'CT Mayor — Interino Forlán', color:'#EAB308', personas:ctForlan});
+  if(ctForlan.length){
+    const ctMayorSec=sections.find(s=>s.dept==='CT Mayor');
+    if(ctMayorSec) ctMayorSec.personas=[...ctMayorSec.personas, ...ctForlan];
+    else sections.push({dept:'CT Mayor', color:'#EAB308', personas:ctForlan});
+  }
 
   // CT Mayor — Bielsa (activo)
   const ctMayor = CT_MAYOR_BIELSA.filter(m=>m.name&&!m.pendiente).map(m=>({
