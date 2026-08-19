@@ -30252,10 +30252,20 @@ function _estGetContracts(){
     if(!stored['ct-p:diego-forlan'] && now<aug1){
       stored['ct-p:diego-forlan']='proximo';
     }
-    // CT Bielsa: "por vencer" hasta el 1/8/2026
+    // CT Bielsa: contrato terminó el 31/7/2026. Antes de esa fecha se muestra "por
+    // vencer"; una vez pasada, el contrato ya terminó de verdad, así que se corrige
+    // a "finalizado" acá mismo (tanto lo ya guardado como el default futuro) para
+    // que no quede pegado en "por vencer" para siempre. Ferro y Estavillo NO están
+    // en esta lista: tienen contrato directo con AUF, no dependen del ciclo Bielsa.
+    let ctBielsaChanged=false;
     ['ct-p:marcelo-bielsa','ct-p:pablo-quiroga','ct-p:diego-reyes','ct-p:sara-bouzas','ct-p:lucas-ouvina'].forEach(k=>{
-      if(!stored[k] && now<aug1) stored[k]='por_vencer';
+      if(now<aug1){
+        if(!stored[k]) stored[k]='por_vencer';
+      }else if(stored[k]==='por_vencer'){
+        stored[k]='finalizado'; ctBielsaChanged=true;
+      }
     });
+    if(ctBielsaChanged) _estSaveContracts(stored);
     return stored;
   }catch(_){return{}}
 }
