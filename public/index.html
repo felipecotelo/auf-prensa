@@ -26880,7 +26880,7 @@ const ESTRUCTURA_PERSONAS = [
     {key:'mferrarijuv',   label:'Martín Ferrari',      rol:'Entrenador de arqueros Sub-15'},
     {key:'jprieto',       label:'Juan Prieto',         rol:'Preparador físico Sub-17'},
     {key:'mmansulino',    label:'Marco Mansulino',     rol:'Preparador físico Sub-20', fechaNac:'1989-01-15'},
-    {key:'mvaldez',       label:'Martín Valdéz',       rol:'Preparador físico Sub-15'},
+    {key:'mvaldez',       label:'Martín Valdéz',       rol:'Preparador físico Sub-15', fechaNac:'1992-06-20'},
     {key:'egesto',        label:'Esteban Gesto',       rol:'Coordinador físico Juveniles'},
     {key:'mbroli',        label:'Marcelo Broli',       rol:'Ex Director técnico Sub-20'},
     {key:'fcoito',        label:'Fabián Coito',        rol:'Ex Director técnico Sub-20'},
@@ -30423,7 +30423,7 @@ function renderEstructura(){
 }
 window.renderEstructura=renderEstructura;
 
-function _renderEstPersonaRow(p, label, rol, photo, contrato){
+function _renderEstPersonaRow(p, label, rol, photo, contrato, fechaNac){
   const initials=label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const dim=contrato==='finalizado'||contrato==='desvinculado';
   const avatar=photo
@@ -30434,6 +30434,17 @@ function _renderEstPersonaRow(p, label, rol, photo, contrato){
   const rowBorder=contrato==='proximo'?'border-left:3px solid #EAB308;padding-left:9px;'  :contrato==='por_vencer'?'border-left:3px solid #F97316;padding-left:9px;':'';
   const nota=contrato==='proximo'?`<div style="font-size:.67em;color:#854D0E;font-weight:600;margin-top:2px">Comienza sus funciones el 1 ago 2026</div>`
             :contrato==='por_vencer'?`<div style="font-size:.67em;color:#9A3412;font-weight:600;margin-top:2px">Contrato hasta el 31 jul 2026</div>`:'';
+  let edadHtml='';
+  if(fechaNac && fechaNac.length>=10){
+    const d=new Date(fechaNac+'T00:00:00'), hoy=new Date();
+    let edad=hoy.getFullYear()-d.getFullYear();
+    if(hoy<new Date(hoy.getFullYear(),d.getMonth(),d.getDate())) edad--;
+    const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    edadHtml=`<div style="text-align:right;flex-shrink:0;margin-right:2px">
+      <div style="font-size:.78em;font-weight:800;color:var(--text)">${edad} años</div>
+      <div style="font-size:.65em;color:var(--muted)">${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}</div>
+    </div>`;
+  }
   return `<div onclick="_estOpenFicha('${p.key}')" style="display:flex;align-items:center;gap:10px;padding:10px 0 10px 10px;border-bottom:0.5px solid var(--border);cursor:pointer;${rowBg}${rowBorder}">
     ${avatar}
     <div style="flex:1;min-width:0">
@@ -30441,6 +30452,7 @@ function _renderEstPersonaRow(p, label, rol, photo, contrato){
       <div style="font-size:.72em;color:var(--muted)">${rol}</div>
       ${nota}
     </div>
+    ${edadHtml}
     ${badge}
     <i class="ti ti-chevron-right" style="color:var(--hint);font-size:.85em;flex-shrink:0"></i>
   </div>`;
@@ -30484,7 +30496,8 @@ function _renderEstLista(){
         const label=edits[p.key]?.label||p.label;
         const rol=edits[p.key]?.rolesEdit?.[d.dept]?.rol||p.rol;
         const contrato=d.showAll?(contracts[p.key]||'activo'):(contracts[p.key]||'activo');
-        return _renderEstPersonaRow(p,label,rol,_estResolvePhoto(p),contrato);
+        const fechaNac=edits[p.key]?.fechaNac||p.fechaNac;
+        return _renderEstPersonaRow(p,label,rol,_estResolvePhoto(p),contrato,fechaNac);
       }).join('');
       blocks+=`<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
         <div style="padding:10px 14px;background:${d.color}12;border-bottom:1px solid ${d.color}25;display:flex;align-items:center;justify-content:space-between">
@@ -30524,7 +30537,8 @@ function _renderEstLista(){
           const label=edits[p.key]?.label||p.label;
           const allRoles=_estGetAllRoles(p.key);
           const rolDisplay=allRoles.map(r=>(edits[p.key]?.rolesEdit?.[r.dept]?.rol||r.rol)).join(' · ');
-          return _renderEstPersonaRow(p,label,rolDisplay,_estResolvePhoto(p),c);
+          const fechaNac=edits[p.key]?.fechaNac||p.fechaNac;
+          return _renderEstPersonaRow(p,label,rolDisplay,_estResolvePhoto(p),c,fechaNac);
         }).join('');
         return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
           <button onclick="_estToggleExGroup('${dkey}')" style="
