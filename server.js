@@ -590,10 +590,30 @@ const FUTBOL_LEAGUES = { primera: 161, segunda: 9122 };
 // "annualTable" existe en el esquema pero viene null), así que la sumamos nosotros
 // mismos a partir de los resultados reales de fixtures.allMatches. Nada inventado:
 // si un partido no tiene score válido, no se cuenta.
-function computeAnualTable(allMatches) {
+//
+// FotMob tampoco expone Apertura/Intermedio/Clausura como tablas separadas, y encima
+// el campo "round" no resetea por fase: las rondas 1-7 se repiten TANTO en el Torneo
+// Intermedio (jul-ago, terminó con la final del 5/8/2026) COMO en el Clausura que
+// arrancó justo después — hay que cruzar ronda con fecha para separarlos. Apertura sí
+// usó un rango de rondas propio (8-15, mar-jun 2026) que no se repite. Si esto deja de
+// cerrar cuando arranque un torneo nuevo, hay que revisar (mismo aviso que ya había
+// para _futbolRondaLabel en el cliente, que usa la misma lógica).
+const INTERMEDIO_FINAL = new Date('2026-08-05T23:59:59Z');
+function faseDeRonda(round, utcTime) {
+  const n = parseInt(round, 10);
+  if (isNaN(n)) return null;
+  if (n >= 8 && n <= 15) return 'apertura';
+  if (n >= 1 && n <= 7) {
+    const fecha = utcTime ? new Date(utcTime) : null;
+    return (fecha && fecha > INTERMEDIO_FINAL) ? 'clausura' : 'intermedio';
+  }
+  return null;
+}
+function computeTable(allMatches, filterFn) {
   const map = new Map();
   for (const m of allMatches) {
     if (!m.status.finished) continue;
+    if (!filterFn(m)) continue;
     const parts = (m.status.scoreStr || '').split(' - ').map(Number);
     if (parts.length !== 2 || parts.some(Number.isNaN)) continue;
     const [hg, ag] = parts;
@@ -613,6 +633,9 @@ function computeAnualTable(allMatches) {
   return [...map.values()]
     .sort((x, y) => y.pts - x.pts || (y.gf - y.gc) - (x.gf - x.gc) || y.gf - x.gf)
     .map((r, i) => ({ pos: i + 1, id: r.id, name: r.name, pj: r.pj, w: r.w, d: r.d, l: r.l, gf: r.gf, gc: r.gc, dif: r.gf - r.gc, pts: r.pts }));
+}
+function computeAnualTable(allMatches) {
+  return computeTable(allMatches, () => true);
 }
 
 async function fetchLigaUY(leagueId) {
@@ -646,18 +669,19 @@ async function fetchLigaUY(leagueId) {
     if (anual.length) tablas.push({ nombre: 'Anual', filas: anual });
   } catch (_) {}
   try {
-    const t0 = json.table?.[0]?.data;
-    const grupos = t0?.tables?.length ? t0.tables : (t0?.table?.all ? [{ leagueName: t0.leagueName, table: t0.table }] : []);
-    for (const g of grupos) {
-      const filas = (g.table?.all || []).map(r => ({
-        pos: r.idx, name: r.shortName || r.name, pj: r.played, w: r.wins, d: r.draws, l: r.losses,
-        gf: r.scoresStr ? Number(r.scoresStr.split('-')[0]) : null,
-        gc: r.scoresStr ? Number(r.scoresStr.split('-')[1]) : null,
-        dif: r.goalConDiff, pts: r.pts,
-      }));
-      if (filas.length) tablas.push({ nombre: g.leagueName, filas });
-    }
+    const apertura = computeTable(allMatches, m => faseDeRonda(m.round, m.status.utcTime) === 'apertura')
+      .map(r => ({ ...r, name: shortName(r.id, r.name) }));
+    if (apertura.length) tablas.push({ nombre: 'Apertura', filas: apertura });
   } catch (_) {}
+  try {
+    const clausura = computeTable(allMatches, m => faseDeRonda(m.round, m.status.utcTime) === 'clausura')
+      .map(r => ({ ...r, name: shortName(r.id, r.name) }));
+    if (clausura.length) tablas.push({ nombre: 'Clausura', filas: clausura });
+  } catch (_) {}
+  // Nota: antes acá se agregaba también la tabla "cruda" que devuelve FotMob en
+  // json.table[0].data (nombrada con el leagueName genérico, ej. "Liga AUF Uruguaya"),
+  // pero es exactamente la tabla de la fase actual sin aclarar cuál — redundante y
+  // confuso ahora que Apertura/Clausura ya se calculan y etiquetan bien arriba.
   return { proximos, ultimos, tablas };
 }
 

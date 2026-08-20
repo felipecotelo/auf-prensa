@@ -5382,23 +5382,28 @@ function _futbolDiaLabel(utcTime){
 function _futbolEscudo(id){
   return `<img src="https://images.fotmob.com/image_resources/logo/teamlogo/${id}_xsmall.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
 }
-// Ronda → torneo. FotMob no distingue fase por campo directo, pero la fecha de cada
-// ronda numérica sí es consistente: rondas 1-7 son las jugadas ahora (agosto 2026,
-// terminan con la "final" del 5/8 — confirmado con el evento real del Calendar) y
-// rondas 8-15 son las que ya se jugaron en marzo-junio 2026 (Apertura). Si esto deja de
-// cerrar (por fechas) cuando arranque Clausura, hay que revisar.
-function _futbolRondaLabel(round){
+// Ronda → torneo. FotMob no distingue fase por campo directo, y encima el número de
+// ronda NO resetea por fase: las rondas 1-7 se repiten tanto en el Torneo Intermedio
+// (jul-ago, terminó con la final del 5/8/2026) como en el Clausura que arrancó justo
+// después — hay que cruzar ronda con fecha del partido para separarlos. Rondas 8-15
+// sí fueron un rango propio de Apertura (mar-jun 2026) que no se repite. Mismo criterio
+// que usa el server en /api/futbol-uy (faseDeRonda) para las tablas por fase — si esto
+// deja de cerrar cuando arranque un torneo nuevo, hay que revisar los dos lados.
+const _INTERMEDIO_FINAL = new Date('2026-08-05T23:59:59Z');
+function _futbolRondaLabel(round, utcTime){
   if(round==null || round==='') return {texto:'', esFinal:false};
-  if(String(round).toLowerCase()==='final') return {texto:'FINAL TORNEO INTERMEDIO', esFinal:true};
+  const fecha = utcTime ? new Date(utcTime) : null;
+  const esClausura = fecha && fecha > _INTERMEDIO_FINAL;
+  if(String(round).toLowerCase()==='final') return {texto:esClausura?'FINAL TORNEO CLAUSURA':'FINAL TORNEO INTERMEDIO', esFinal:true};
   const n=parseInt(round,10);
-  if(!isNaN(n) && n>=1 && n<=7) return {texto:`TORNEO INTERMEDIO · FECHA ${n}`, esFinal:false};
+  if(!isNaN(n) && n>=1 && n<=7) return {texto:`TORNEO ${esClausura?'CLAUSURA':'INTERMEDIO'} · FECHA ${n}`, esFinal:false};
   if(!isNaN(n) && n>=8) return {texto:`TORNEO APERTURA · FECHA ${n-7}`, esFinal:false};
   return {texto:`FECHA ${round}`, esFinal:false};
 }
 function _futbolFila(m){
   const toggle=(m.finalizado&&m.id)?`<button onclick="_futGoles('${m.id}')" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;font-weight:800;flex-shrink:0;width:22px;line-height:1;padding:0">+</button>`:`<span style="width:22px;flex-shrink:0"></span>`;
   const panel=(m.finalizado&&m.id)?`<div data-fut-goles="${m.id}" style="display:none;padding:0 10px 8px 10px;font-size:11px;color:var(--muted)"></div>`:'';
-  const ronda=_futbolRondaLabel(m.round);
+  const ronda=_futbolRondaLabel(m.round, m.utcTime);
   return `<div style="${ronda.esFinal?'background:#F59E0B14':''}">
     <div style="display:flex;align-items:center;padding:7px 10px;border-bottom:0.5px solid var(--border)">
       <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:7px;text-align:right">
@@ -13012,7 +13017,7 @@ const JUGADORES={
   'Nahitan Nández':          {auf:'nahitan-nandez',             pos:'MED',club:'Al-Qadsiah FC',               pais:'🇸🇦',foto:'./fotos/nahitan-nandez.jpg',wc26:false,tmId:315063,total:{pj:72,min:4755,g:0},  comp:{ca:{pj:14},wc:{pj:5},el:{pj:31},am:{pj:22}},fechaNac:'1995-12-28'},
   'Lucas Torreira':          {auf:'lucas-torreira',             pos:'MED',club:'Galatasaray',              pais:'🇹🇷',foto:'./fotos/lucas-torreira.jpg',wc26:false,tmId:318077,total:{pj:40,min:2067,g:0}, comp:{ca:{pj:6},wc:{pj:5},el:{pj:11},am:{pj:18}},fechaNac:'1996-02-11'},
   'Facundo Torres':          {auf:'facundo-torres',             pos:'DEL',club:'Austin FC',                pais:'🇺🇸',foto:'./fotos/facundo-torres.jpg',wc26:false,tmId:465822,total:{pj:23,min:912,g:2},   comp:{ca:{pj:5},wc:{pj:0},el:{pj:9},am:{pj:9}},fechaNac:'2000-04-13'},
-  'Agustín Álvarez Martínez':{auf:'agustin-alvarez',            pos:'DEL',club:'US Sassuolo',                 pais:'🇮🇹',foto:'./fotos/agustin-alvarez.jpg',wc26:false,tmId:812625,total:{pj:6,min:331,g:1},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:5},am:{pj:1}},fechaNac:'2001-05-19'},
+  'Agustín Álvarez Martínez':{auf:'agustin-alvarez',            pos:'DEL',club:'CA Talleres',                 pais:'🇦🇷',foto:'./fotos/agustin-alvarez.jpg',wc26:false,tmId:812625,total:{pj:6,min:331,g:1},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:5},am:{pj:1}},fechaNac:'2001-05-19'},
   'Diego Rossi':             {auf:'diego-rossi',                pos:'DEL',club:'CF Monterrey',             pais:'🇲🇽',foto:'./fotos/diego-rossi.jpg',wc26:false,tmId:317454,total:{pj:13,min:786,g:2}, comp:{ca:{pj:0},wc:{pj:1},el:{pj:1},am:{pj:6}},fechaNac:'1998-03-05'},
   'Cristian Olivera':        {auf:'cristian-olivera',           pos:'MED',club:'Esporte Clube Bahia',                 pais:'🇧🇷',foto:'./fotos/cristian-olivera.jpg',wc26:false,tmId:657746,total:{pj:13,min:627,g:0},   comp:{ca:{pj:4},wc:{pj:0},el:{pj:9},am:{pj:0}},fechaNac:'2002-04-17'},
   'Brian Ocampo':            {auf:'brian-ocampo',               pos:'MED',club:'Coritiba FC',              pais:'🇧🇷',foto:'./fotos/brian-ocampo.jpg',wc26:false,tmId:598765,total:{pj:4,min:null,g:0},   comp:{ca:{pj:3},wc:{pj:0},el:{pj:0},am:{pj:1}},fechaNac:'1999-06-25'},
@@ -13020,9 +13025,9 @@ const JUGADORES={
   'Matías Arezo':            {auf:'matias-arezo',               pos:'DEL',club:'CA Peñarol',               pais:'🇺🇾',foto:'./fotos/matias-arezo.jpg',wc26:false,tmId:611426,total:{pj:3,g:1},         comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:1}},fechaNac:'2002-11-21'},
   'Franco Israel':           {auf:'franco-israel',              pos:'POR',club:'Torino FC',                  pais:'🇮🇹',foto:'./fotos/franco-israel.jpg',wc26:false,tmId:492319,total:{pj:3,min:270,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:3}},fechaNac:'2000-04-22'},
   'Nicolás Fonseca':         {auf:'nicolas-fonseca',            pos:'MED',club:'Club León FC',             pais:'🇦🇷',foto:'./fotos/nicolas-fonseca.jpg',wc26:false,tmId:462070,total:{pj:7,min:280,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:3}},fechaNac:'1998-10-19'},
-  'Luciano Rodríguez Rosales':       {auf:'luciano-rodriguez',          pos:'DEL',club:'NEOM SC',                  pais:'🇸🇦',foto:'./fotos/luciano-rodriguez.jpg',wc26:false,tmId:856143,total:{pj:5,min:187,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:4}},fechaNac:'2003-07-16'},
+  'Luciano Rodríguez Rosales':       {auf:'luciano-rodriguez',          pos:'DEL',club:'Cruzeiro Esporte Clube',   pais:'🇧🇷',foto:'./fotos/luciano-rodriguez.jpg',wc26:false,tmId:856143,total:{pj:5,min:187,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:4}},fechaNac:'2003-07-16'},
   'Lucas Olaza':             {auf:'lucas-olaza',                pos:'DEF',club:'FK Krasnodar',             pais:'🇷🇺',foto:'./fotos/lucas-olaza.jpg',wc26:false,tmId:216240,total:{pj:6,min:438,g:0},    comp:{ca:{pj:1},wc:{pj:0},el:{pj:2},am:{pj:3}},fechaNac:'1994-07-21'},
-  'Marcelo Saracchi':        {auf:'marcelo-saracchi',           pos:'DEF',club:'CA Boca Juniors',                pais:'🇦🇷',foto:'./fotos/marcelo-saracchi.jpg',wc26:false,tmId:373916,total:{pj:11,min:526,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:5},am:{pj:6}},fechaNac:'1998-04-23'},
+  'Marcelo Saracchi':        {auf:'marcelo-saracchi',           pos:'DEF',club:'Houston Dynamo FC',              pais:'🇺🇸',foto:'./fotos/marcelo-saracchi.jpg',wc26:false,tmId:373916,total:{pj:11,min:526,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:5},am:{pj:6}},fechaNac:'1998-04-23'},
   'Mateo Ponte':             {auf:'mateo-ponte',                pos:'DEF',club:'Botafogo de Futebol e Regatas',                 pais:'🇧🇷',foto:'./fotos/mateo-ponte.jpg',wc26:false,tmId:856047,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2003-05-24'},
   'Mauricio Lemos':          {auf:'mauricio-lemos',             pos:'DEF',club:'CA Peñarol',         pais:'🇧🇷',foto:'./fotos/mauricio-lemos.jpg',wc26:false,tmId:303140,total:{pj:3,min:140,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:3}},fechaNac:'1995-12-28'},
   'Bruno Méndez':            {auf:'bruno-mendez',               pos:'DEF',club:'Deportivo Toluca FC',         pais:'🇲🇽',foto:'./fotos/bruno-mendez.jpg',wc26:false,tmId:552912,total:{pj:7,min:384,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:5}},fechaNac:'1999-09-10'},
@@ -13044,8 +13049,8 @@ const JUGADORES={
   'Erico Cuello':            {auf:'erico-cuello',               pos:'DEF',club:'Defensor Sporting Club',        pais:'🇺🇾',foto:'./fotos/erico-cuello.jpg',wc26:false,tmId:1106326,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2005-05-25'},
   'Lucas Agazzi':            {auf:'lucas-agazzi',               pos:'POR',club:'Defensor Sporting Club',        pais:'🇺🇾',foto:'./fotos/lucas-agazzi.jpg',wc26:false,tmId:1106327,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2005-05-02'},
   'Lucas Sanabria':          {auf:'lucas-sanabria',             pos:'DEL',club:'Los Ángeles Galaxy',            pais:'🇺🇸',foto:'./fotos/lucas-sanabria.jpg',wc26:false,tmId:1220232,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2003-12-26'},
-  'Kevin Amaro':             {auf:'kevin-amaro',                pos:'DEL',club:'Liverpool FC Montevideo',     pais:'🇺🇾',foto:'./fotos/kevin-amaro.jpg',wc26:false,tmId:1038224,total:{pj:3,min:107,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:2}},fechaNac:'2004-03-03'},
-  'Facundo Bernal':          {auf:'facundo-bernal',             pos:'DEL',club:'Fluminense FC',            pais:'🇧🇷',foto:'./fotos/facundo-bernal.jpg',wc26:false,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2003-08-21'},
+  'Kevin Amaro':             {auf:'kevin-amaro',                pos:'DEL',club:'KRC Genk',                    pais:'🇧🇪',foto:'./fotos/kevin-amaro.jpg',wc26:false,tmId:1038224,total:{pj:3,min:107,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:2}},fechaNac:'2004-03-03'},
+  'Facundo Bernal':          {auf:'facundo-bernal',             pos:'DEL',club:'Real Betis Balompié',       pais:'🇪🇸',foto:'./fotos/facundo-bernal.jpg',wc26:false,tmId:898350,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2003-08-21'},
 
   // ═══════════════════════════════════════════════════════
   //  CITADOS SUB-20 / JUVENILES
@@ -13283,10 +13288,10 @@ Object.assign(JUGADORES,{
   'Diego Rolán':           {auf:'diego-rolan',            pos:'DEL',club:'CS Cerrito',         pais:'🇺🇾',foto:'',wc26:false,tmId:0,total:{pj:25,min:0,g:4},  comp:null,fechaNac:'1993-03-24'},
   'Gastón Silva':          {auf:'gaston-silva',           pos:'DEF',club:'CA Progreso',        pais:'🇺🇾',foto:'',wc26:false,tmId:0,total:{pj:19,min:0,g:0},  comp:null,fechaNac:'1994-03-05'},
   'Emiliano Velázquez':    {auf:'emiliano-velazquez',     pos:'DEF',club:'Danubio FC',         pais:'🇺🇾',foto:'',wc26:false,tmId:0,total:{pj:1,min:0,g:0},   comp:null,fechaNac:'1994-04-30'},
-  'Brian Lozano':          {auf:'brian-lozano',           pos:'DEL',club:'Santos Laguna',      pais:'🇲🇽',foto:'',wc26:false,tmId:0,total:{pj:8,min:0,g:0},   comp:null,fechaNac:'1994-02-23'},
+  'Brian Lozano':          {auf:'brian-lozano',           pos:'DEL',club:'Cerro Largo FC',      pais:'🇺🇾',foto:'',wc26:false,tmId:338889,total:{pj:8,min:0,g:0},   comp:null,fechaNac:'1994-02-23'},
   'Michael Santos':        {auf:'michael-santos',         pos:'DEL',club:'Talleres',           pais:'🇦🇷',foto:'',wc26:false,tmId:0,total:{pj:2,min:0,g:0},   comp:null,fechaNac:'1993-03-13'},
   'Mathías Suárez':        {auf:'mathias-suarez',         pos:'DEF',club:'Dep. Antofagasta',   pais:'🇨🇱',foto:'',wc26:false,tmId:0,total:{pj:3,min:0,g:0},   comp:null,fechaNac:'1996-06-24'},
-  'Camilo Mayada':         {auf:'camilo-mayada',          pos:'MED',club:null,                  pais:'',   foto:'',wc26:false,tmId:0,total:{pj:8,min:249,g:0},  comp:null,fechaNac:'1991-01-08'},
+  'Camilo Mayada':         {auf:'camilo-mayada',          pos:'MED',club:'Club Deportivo Maldonado',pais:'🇺🇾',foto:'',wc26:false,tmId:130197,total:{pj:8,min:249,g:0},  comp:null,fechaNac:'1991-01-08'},
   'Mathías Cardaccio':     {auf:null,                     pos:'MED',club:null,                  pais:'',   foto:'',wc26:false,tmId:0,total:null,comp:null,estKey:'mcardaccio'},
   'Matías Aguirregaray':   {auf:'matias-aguirregaray',    pos:'DEF',club:'San Eugenio FC',      pais:'🇺🇾',foto:'',wc26:false,tmId:0,total:{pj:6,min:0,g:0},   comp:null,fechaNac:'1989-04-01'},
   'Nicolás Lodeiro':       {auf:'nicolas-lodeiro',        pos:'MED',club:'Nacional',             pais:'🇺🇾',foto:'',wc26:false,tmId:0,total:{pj:60,min:0,g:5},  comp:null,fechaNac:'1989-03-21'},
