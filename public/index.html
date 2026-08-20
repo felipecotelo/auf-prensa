@@ -5201,9 +5201,16 @@ function renderInicioHoySeleccion(dayOffset){
         </div>
       </div>`).join('');
 
-    if(!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !planHoy.length) return '';
+    const vacio=!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !planHoy.length;
+    // "Hoy" siempre se muestra, aunque no haya nada — así el widget da una señal
+    // clara de "reviewed, no hay nada" en vez de simplemente desaparecer. Ayer y
+    // Mañana, al ser menos críticos de tener siempre a la vista, se ocultan si
+    // no hay nada (mismo comportamiento de antes).
+    if(vacio && dayOffset!==0) return '';
     const planLabel=esAyer?'Planificador · ayer':esManana?'Planificador · mañana':'Planificador';
-    const body=(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
+    const body=vacio
+      ? `<div style="font-size:${isMob?'12.5px':'12px'};color:${subColor}">No hay nada específico para hoy — revisá las tareas.</div>`
+      : (cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
       +(cumpleEstructuraRows?subHdr('🎂 Cumpleaños · Estructura')+cumpleEstructuraRows:'')
       +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
       +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
