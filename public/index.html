@@ -4971,6 +4971,11 @@ async function _livePollSync(){
         if(_safeLocalOverwrite(row.key,row.value)){
           try{ const parsed=JSON.parse(row.value); if(Array.isArray(parsed)) _snapshotArray(row.key,parsed); else if(parsed && typeof parsed==='object') _snapshotObject(row.key,parsed); }catch(e){}
           changed=true;
+          // Si esta pestaña estaba atrasada respecto al servidor para esta key (por
+          // eso el cartel rojo de "no se guardó"), este pull la puso al día — el
+          // cartel quedaba pegado para siempre porque antes solo se limpiaba con un
+          // push exitoso, nunca con un pull. Se limpia acá también.
+          _syncConflictResolved(row.key);
         }
       }
     });
@@ -5032,14 +5037,22 @@ const CALENDARIO_SELECCION_DEFAULT=[
 ];
 function getCalendarioSeleccion(){ return stor.get(KCalendarioHoy, CALENDARIO_SELECCION_DEFAULT); }
 
-function renderInicioHoySeleccion(){
+function renderInicioHoySeleccion(dayOffset){
+  dayOffset=dayOffset||0;
   try{
     const hoy=new Date();
+    if(dayOffset) hoy.setDate(hoy.getDate()+dayOffset);
     const mesHoy=hoy.getMonth()+1, diaHoy=hoy.getDate();
     const mmdd=String(mesHoy).padStart(2,'0')+'-'+String(diaHoy).padStart(2,'0');
-    const isoHoy=TODAY;
+    const isoHoy=dayOffset?`${hoy.getFullYear()}-${String(mesHoy).padStart(2,'0')}-${String(diaHoy).padStart(2,'0')}`:TODAY;
     const isMob=window.innerWidth<=600;
-    const rowColor=isMob?'#EFF3F8':'var(--text)';
+    const esAyer=dayOffset<0, esManana=dayOffset>0;
+    const rel=esAyer?'ayer':esManana?'mañana':'hoy';
+    const verboCumple=esAyer?'cumplió':'cumple';
+    const tituloBox=esAyer?'Ayer en Selección':esManana?'Mañana en Selección':'Hoy en Selección';
+    const colorBox=esAyer?'#94A3B8':esManana?'#8B5CF6':'#EC4899';
+    // Ayer se ve apagado (ya pasó); Hoy y Mañana mantienen el look normal del box.
+    const rowColor=isMob?(esAyer?'rgba(239,243,248,.65)':'#EFF3F8'):(esAyer?'var(--muted)':'var(--text)');
     const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
     const borderCss=isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)';
     const subHdr=t=>`<div style="font-size:9px;font-weight:800;color:${subColor};text-transform:uppercase;letter-spacing:.07em;margin:10px 0 4px">${t}</div>`;
@@ -5121,7 +5134,7 @@ function renderInicioHoySeleccion(){
         ${avatar}
         <div style="flex:1;min-width:0">
           <div style="font-size:${isMob?'13px':'12.5px'};font-weight:700;color:${rowColor}">${c.nom}</div>
-          <div style="font-size:${isMob?'11px':'10.5px'};color:${subColor}">${c.dept} · cumple ${c.edad} años hoy</div>
+          <div style="font-size:${isMob?'11px':'10.5px'};color:${subColor}">${c.dept} · ${verboCumple} ${c.edad} años ${rel}</div>
         </div>
         <i class="ti ti-chevron-right" style="color:${subColor};font-size:13px;flex-shrink:0"></i>
       </div>`;
@@ -5140,14 +5153,15 @@ function renderInicioHoySeleccion(){
         :`<div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};color:${subColor};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${initials}</div>`;
       const lkey=isoHoy+'_'+c.nom;
       const saludo=(hoyLinks[lkey]||{}).saludo||'pendiente';
-      const saludoBtn=`<button onclick="event.stopPropagation();window._hoySaludoCycle('${lkey}')" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
+      // Mañana todavía no pasó: no tiene sentido trackear si se mandó saludo.
+      const saludoBtn=esManana?'':`<button onclick="event.stopPropagation();window._hoySaludoCycle('${lkey}')" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
       const leyendaBadge=c.leyenda?`<span style="font-size:8px;font-weight:800;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">⭐ LEYENDA</span>`:'';
       return `
       <div onclick="${c.onclick}" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;${borderCss}">
         ${avatar}
         <div style="flex:1;min-width:0">
           <div style="font-size:${isMob?'13px':'12.5px'};font-weight:700;color:${rowColor}">${c.nom}${leyendaBadge}</div>
-          <div style="font-size:${isMob?'11px':'10.5px'};color:${subColor}">${c.tipo} · ${c.fallecido?`hubiera cumplido ${c.edad} años hoy`:`cumple ${c.edad} años hoy`}</div>
+          <div style="font-size:${isMob?'11px':'10.5px'};color:${subColor}">${c.tipo} · ${c.fallecido?`hubiera cumplido ${c.edad} años ${rel}`:`${verboCumple} ${c.edad} años ${rel}`}</div>
           ${saludoBtn}
         </div>
         <i class="ti ti-chevron-right" style="color:${subColor};font-size:13px;flex-shrink:0"></i>
@@ -5188,21 +5202,24 @@ function renderInicioHoySeleccion(){
       </div>`).join('');
 
     if(!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !planHoy.length) return '';
+    const planLabel=esAyer?'Planificador · ayer':esManana?'Planificador · mañana':'Planificador';
     const body=(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
       +(cumpleEstructuraRows?subHdr('🎂 Cumpleaños · Estructura')+cumpleEstructuraRows:'')
       +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
       +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
-      +(planHoy.length?subHdr('Planificador')+planRows:'');
-    return _inicioBox('Hoy en Selección', body, '#EC4899', isMob);
+      +(planHoy.length?subHdr(planLabel)+planRows:'');
+    return _inicioBox(tituloBox, body, colorBox, isMob, esAyer);
   }catch(_){ return ''; }
 }
-function _inicioBox(title,bodyHtml,color,isMob){
+function renderInicioAyerSeleccion(){ return renderInicioHoySeleccion(-1); }
+function renderInicioMananaSeleccion(){ return renderInicioHoySeleccion(1); }
+function _inicioBox(title,bodyHtml,color,isMob,grisado){
   return isMob
-    ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;margin-bottom:16px">
+    ? `<div style="background:${grisado?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)'};border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;margin-bottom:16px${grisado?';opacity:.8':''}">
         <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${title}</div>
         <div style="font-size:12.5px;color:rgba(239,243,248,.75);line-height:1.5">${bodyHtml}</div>
       </div>`
-    : `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;border-left:3px solid ${color}">
+    : `<div style="background:${grisado?'var(--surface2,#F3F4F6)':'#fff'};border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;border-left:3px solid ${color}">
         <div style="font-size:9.5px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${title}</div>
         <div style="font-size:12.5px;color:var(--text);line-height:1.5">${bodyHtml}</div>
       </div>`;
@@ -6238,7 +6255,9 @@ function renderInicio(){
         <div style="font-size:12px;color:rgba(239,243,248,.5);margin-top:4px">TMO Interno</div>
       </div>
 
+      ${renderInicioAyerSeleccion()}
       ${renderInicioHoySeleccion()}
+      ${renderInicioMananaSeleccion()}
       ${renderInicioTareas()}
       ${renderInicioCobertura()}
       ${renderInicioProximo()}
@@ -6275,7 +6294,9 @@ function renderInicio(){
     ${secBtn('Links','ti-link','#8B5CF6',"showTab('linkgen')")}
   </div>`;
   el.innerHTML=`<div style="padding:0 0 2px">
+    ${renderInicioAyerSeleccion()}
     ${renderInicioHoySeleccion()}
+    ${renderInicioMananaSeleccion()}
     ${renderInicioTareas()}
     ${renderInicioCobertura()}
     ${renderInicioProximo()}
