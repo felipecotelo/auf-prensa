@@ -11310,6 +11310,7 @@ function renderJugadores(){
   let entries=Object.entries(JUGADORES);
   const _norm=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const q=_norm(window._jSearch.trim());
+  const _effPos=(nom,d)=>getJugPos()[nom]||d.pos;
   if(q) entries=entries.filter(([nom])=>_norm(nom).includes(q));
   if(window._jFilter==='wc26')     entries=entries.filter(([nom,d])=>d.wc26);
   if(window._jFilter==='bielsa'){
@@ -11317,15 +11318,26 @@ function renderJugadores(){
     entries=entries.filter(([nom])=>_bs.has(nom)&&!JUGADORES[nom]?.wc26);
   }
   if(window._jFilter==='leyendas') entries=entries.filter(([nom])=>LEYENDAS_SET.has(nom));
-  if(window._jPos!=='todos') entries=entries.filter(([nom,d])=>d.pos===window._jPos);
+  // Comparar contra la posición efectiva (corrección manual vía TM si existe, si no la
+  // del dato estático) — si no, alguien con la posición corregida a mano seguía
+  // apareciendo en el filtro de la posición vieja.
+  if(window._jPos!=='todos') entries=entries.filter(([nom,d])=>_effPos(nom,d)===window._jPos);
 
-  // Sort: leyendas tab → preserve list order; others → callups desc then alpha
+  // Sort: leyendas tab → preserve list order; "todos" (posición) → agrupar
+  // POR/DEF/MED/DEL como en el resto de la web; otros → callups desc then alpha
+  const POS_SORT={POR:0,DEF:1,MED:2,DEL:3};
   if(window._jFilter==='leyendas'){
     const _leyList=[...'Luis Suárez,Diego Forlán,Enzo Francescoli,Edinson Cavani,Diego Godín,Obdulio Varela,Alcides Ghiggia,Diego Lugano,Juan Schiaffino,José Nasazzi,Héctor Scarone,Sebastián Abreu,Fernando Muslera,Ladislao Mazurkiewicz,Diego \'Ruso\' Pérez,Álvaro Recoba,Paolo Montero,Fabián O\'Neill,Fernando Morena,Pablo Bengoechea,Ruben Sosa,Hugo De León,Waldemar Victorino,Roque Gastón Máspoli,Luis Cubilla,Carlos Scarone,Martín Cáceres,José Leandro Andrade,Pedro Rocha,Schubert Gambetta,Antonio Alzamendi,Cristian Rodríguez,Maximiliano Pereira Páez,Venancio Ramos,Óscar Míguez,Juan Eduardo Hohberg,Héctor Castro,Carlos Céspedes,Carlos Aguilera,Rodolfo Rodríguez,René \'Tito\' Borjas,José Piendibene,Pedro Petrone,Bolívar Céspedes,Fernando Álvez,Pedro Cea,José Sasía,Víctor Hugo Diogo,Julio Montero Castillo,Ángel Romano,Isabelino Grandín,Andrés Mazali,Eliseo Álvarez,Lorenzo Fernández,Roberto Chery'.split(',')];
     const _idx=n=>{ const i=_leyList.indexOf(n); return i<0?999:i; };
     entries.sort(([a],[b])=>_idx(a)-_idx(b));
   } else {
-    entries.sort(([a],[b])=>(callupCount[b]||0)-(callupCount[a]||0)||(a<b?-1:1));
+    entries.sort(([a,da],[b,db])=>{
+      if(window._jPos==='todos'){
+        const pa=POS_SORT[_effPos(a,da)]??9, pb=POS_SORT[_effPos(b,db)]??9;
+        if(pa!==pb) return pa-pb;
+      }
+      return (callupCount[b]||0)-(callupCount[a]||0)||(a<b?-1:1);
+    });
   }
 
   // Stats for header
