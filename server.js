@@ -599,6 +599,33 @@ const FUTBOL_LEAGUES = { primera: 161, segunda: 9122 };
 // cerrar cuando arranque un torneo nuevo, hay que revisar (mismo aviso que ya había
 // para _futbolRondaLabel en el cliente, que usa la misma lógica).
 const INTERMEDIO_FINAL = new Date('2026-08-05T23:59:59Z');
+// Torneo Intermedio 2026 (15/5 al 5/8, ya terminado): se jugó en 2 series de 8 equipos,
+// cada una a una rueda (7 fechas). FotMob no expone la serie en el partido y además
+// reutiliza las rondas 1-7 para Intermedio Y Clausura, así que separar por ronda+fecha
+// no alcanza para reconstruir las series de forma confiable (se filtran partidos de
+// otras competencias que caen en la misma ventana). Como el torneo ya terminó y la
+// tabla final es un hecho fijo, se hardcodea con la tabla oficial (fuente: prensa/
+// Wikipedia, verificado 23/8/2026) en vez de intentar recalcularla en vivo.
+const INTERMEDIO_SERIE_A_TABLA = [
+  { pos: 1, name: 'Peñarol',           pj: 7, w: 5, d: 1, l: 1, gf: 12, gc: 3,  dif: 9,  pts: 16 },
+  { pos: 2, name: 'Cerro Largo',       pj: 7, w: 3, d: 2, l: 2, gf: 7,  gc: 5,  dif: 2,  pts: 11 },
+  { pos: 3, name: 'Racing',            pj: 7, w: 2, d: 4, l: 1, gf: 4,  gc: 3,  dif: 1,  pts: 10 },
+  { pos: 4, name: 'Liverpool',         pj: 7, w: 2, d: 3, l: 2, gf: 5,  gc: 5,  dif: 0,  pts: 9  },
+  { pos: 5, name: 'Central Español',   pj: 7, w: 2, d: 3, l: 2, gf: 4,  gc: 4,  dif: 0,  pts: 9  },
+  { pos: 6, name: 'Cerro',             pj: 7, w: 3, d: 0, l: 4, gf: 6,  gc: 10, dif: -4, pts: 9  },
+  { pos: 7, name: 'Def. Sporting',     pj: 7, w: 1, d: 3, l: 3, gf: 6,  gc: 9,  dif: -3, pts: 6  },
+  { pos: 8, name: 'Boston River',      pj: 7, w: 1, d: 2, l: 4, gf: 5,  gc: 9,  dif: -4, pts: 5  },
+];
+const INTERMEDIO_SERIE_B_TABLA = [
+  { pos: 1, name: 'Wanderers',         pj: 7, w: 4, d: 3, l: 0, gf: 12, gc: 4,  dif: 8,  pts: 15 },
+  { pos: 2, name: 'Nacional',          pj: 7, w: 4, d: 1, l: 2, gf: 8,  gc: 8,  dif: 0,  pts: 13 },
+  { pos: 3, name: 'D. Maldonado',      pj: 7, w: 3, d: 3, l: 1, gf: 12, gc: 6,  dif: 6,  pts: 12 },
+  { pos: 4, name: 'M.C. Torque',       pj: 7, w: 4, d: 0, l: 3, gf: 11, gc: 11, dif: 0,  pts: 12 },
+  { pos: 5, name: 'Juventud',          pj: 7, w: 2, d: 2, l: 3, gf: 8,  gc: 11, dif: -3, pts: 8  },
+  { pos: 6, name: 'Albion',            pj: 7, w: 1, d: 3, l: 3, gf: 6,  gc: 8,  dif: -2, pts: 6  },
+  { pos: 7, name: 'Progreso',          pj: 7, w: 2, d: 0, l: 5, gf: 6,  gc: 11, dif: -5, pts: 6  },
+  { pos: 8, name: 'Danubio',           pj: 7, w: 0, d: 4, l: 3, gf: 5,  gc: 9,  dif: -4, pts: 4  },
+];
 function faseDeRonda(round, utcTime) {
   const n = parseInt(round, 10);
   if (isNaN(n)) return null;
@@ -678,6 +705,10 @@ async function fetchLigaUY(leagueId) {
       .map(r => ({ ...r, name: shortName(r.id, r.name) }));
     if (clausura.length) tablas.push({ nombre: 'Clausura', filas: clausura });
   } catch (_) {}
+  if (leagueId === FUTBOL_LEAGUES.primera) {
+    tablas.push({ nombre: 'Intermedio Serie A', filas: INTERMEDIO_SERIE_A_TABLA });
+    tablas.push({ nombre: 'Intermedio Serie B', filas: INTERMEDIO_SERIE_B_TABLA });
+  }
   // Nota: antes acá se agregaba también la tabla "cruda" que devuelve FotMob en
   // json.table[0].data (nombrada con el leagueName genérico, ej. "Liga AUF Uruguaya"),
   // pero es exactamente la tabla de la fase actual sin aclarar cuál — redundante y
