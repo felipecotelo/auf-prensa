@@ -616,6 +616,32 @@ const INTERMEDIO_SERIE_A_TABLA = [
   { pos: 7, name: 'Def. Sporting',     pj: 7, w: 1, d: 3, l: 3, gf: 6,  gc: 9,  dif: -3, pts: 6  },
   { pos: 8, name: 'Boston River',      pj: 7, w: 1, d: 2, l: 4, gf: 5,  gc: 9,  dif: -4, pts: 5  },
 ];
+// Apertura 2026 (mar-jun, ya terminado, campeón Racing): antes se calculaba en vivo con
+// faseDeRonda()==='apertura' (ronda 8-15), pero eso está mal — el Apertura fue una rueda
+// completa de 15 fechas (todos los equipos jugaron PJ:15), no solo 8. Las fechas 1-7 del
+// Apertura quedaban mal clasificadas como Intermedio porque faseDeRonda() asume que toda
+// ronda 1-7 anterior al 5/8 es Intermedio, sin distinguir por fecha real de encuentro. Como
+// el torneo ya terminó, se hardcodea la tabla oficial (auf.org.uy, verificado 23/8/2026) en
+// vez de seguir confiando en ese heurístico. Si en el futuro se quiere volver a calcular
+// fases en vivo, hay que resolver esto primero.
+const APERTURA_2026_TABLA = [
+  { pos: 1,  name: 'Racing',           pj: 15, w: 9, d: 4, l: 2, gf: 23, gc: 14, dif: 9,   pts: 31 },
+  { pos: 2,  name: 'D. Maldonado',     pj: 15, w: 9, d: 2, l: 4, gf: 24, gc: 16, dif: 8,   pts: 29 },
+  { pos: 3,  name: 'Albion',           pj: 15, w: 8, d: 4, l: 3, gf: 26, gc: 16, dif: 10,  pts: 28 },
+  { pos: 4,  name: 'Peñarol',          pj: 15, w: 8, d: 3, l: 4, gf: 23, gc: 16, dif: 7,   pts: 27 },
+  { pos: 5,  name: 'Central Español',  pj: 15, w: 7, d: 3, l: 5, gf: 23, gc: 22, dif: 1,   pts: 24 },
+  { pos: 6,  name: 'M.C. Torque',      pj: 15, w: 6, d: 5, l: 4, gf: 22, gc: 16, dif: 6,   pts: 23 },
+  { pos: 7,  name: 'Nacional',         pj: 15, w: 7, d: 1, l: 7, gf: 26, gc: 21, dif: 5,   pts: 22 },
+  { pos: 8,  name: 'Def. Sporting',    pj: 15, w: 5, d: 6, l: 4, gf: 13, gc: 11, dif: 2,   pts: 21 },
+  { pos: 9,  name: 'Liverpool',        pj: 15, w: 5, d: 5, l: 5, gf: 20, gc: 18, dif: 2,   pts: 20 },
+  { pos: 10, name: 'Wanderers',        pj: 15, w: 6, d: 2, l: 7, gf: 16, gc: 21, dif: -5,  pts: 20 },
+  { pos: 11, name: 'Danubio',          pj: 15, w: 4, d: 6, l: 5, gf: 17, gc: 21, dif: -4,  pts: 18 },
+  { pos: 12, name: 'Cerro Largo',      pj: 15, w: 5, d: 2, l: 8, gf: 16, gc: 19, dif: -3,  pts: 17 },
+  { pos: 13, name: 'Boston River',     pj: 15, w: 5, d: 2, l: 8, gf: 14, gc: 20, dif: -6,  pts: 17 },
+  { pos: 14, name: 'Juventud',         pj: 15, w: 4, d: 3, l: 8, gf: 17, gc: 22, dif: -5,  pts: 15 },
+  { pos: 15, name: 'Progreso',         pj: 15, w: 2, d: 4, l: 9, gf: 12, gc: 23, dif: -11, pts: 10 },
+  { pos: 16, name: 'Cerro',            pj: 15, w: 2, d: 4, l: 9, gf: 8,  gc: 24, dif: -16, pts: 10 },
+];
 const INTERMEDIO_SERIE_B_TABLA = [
   { pos: 1, name: 'Wanderers',         pj: 7, w: 4, d: 3, l: 0, gf: 12, gc: 4,  dif: 8,  pts: 15 },
   { pos: 2, name: 'Nacional',          pj: 7, w: 4, d: 1, l: 2, gf: 8,  gc: 8,  dif: 0,  pts: 13 },
@@ -695,11 +721,15 @@ async function fetchLigaUY(leagueId) {
     const anual = computeAnualTable(allMatches).map(r => ({ ...r, name: shortName(r.id, r.name) }));
     if (anual.length) tablas.push({ nombre: 'Anual', filas: anual });
   } catch (_) {}
-  try {
-    const apertura = computeTable(allMatches, m => faseDeRonda(m.round, m.status.utcTime) === 'apertura')
-      .map(r => ({ ...r, name: shortName(r.id, r.name) }));
-    if (apertura.length) tablas.push({ nombre: 'Apertura', filas: apertura });
-  } catch (_) {}
+  if (leagueId === FUTBOL_LEAGUES.primera) {
+    tablas.push({ nombre: 'Apertura', filas: APERTURA_2026_TABLA });
+  } else {
+    try {
+      const apertura = computeTable(allMatches, m => faseDeRonda(m.round, m.status.utcTime) === 'apertura')
+        .map(r => ({ ...r, name: shortName(r.id, r.name) }));
+      if (apertura.length) tablas.push({ nombre: 'Apertura', filas: apertura });
+    } catch (_) {}
+  }
   try {
     const clausura = computeTable(allMatches, m => faseDeRonda(m.round, m.status.utcTime) === 'clausura')
       .map(r => ({ ...r, name: shortName(r.id, r.name) }));
