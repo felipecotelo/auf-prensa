@@ -30448,8 +30448,43 @@ const _DEPT_COLORS = [
 
 const KEstEdits    = 'auf4_est_edits';
 const KEstContract = 'auf4_est_contract';
+const KEstOrder    = 'auf4_est_order';
 function _estGetEdits(){ try{return JSON.parse(localStorage.getItem(KEstEdits)||'{}')}catch(_){return{}} }
 function _estSaveEdits(obj){ stor.set(KEstEdits, obj); }
+// Orden manual dentro de cada grupo de Estructura — {dept: [key1, key2, ...]}. Solo se
+// guarda cuando alguien lo reordena a mano con las flechitas; si un dept no tiene entrada
+// acá, se usa el orden natural (hardcodeado + agregados a mano al final).
+function _estGetOrder(){ return stor.get(KEstOrder, {}); }
+function _estSaveOrder(obj){ stor.set(KEstOrder, obj); }
+function _estApplyOrder(dept, personas){
+  const order=(_estGetOrder()||{})[dept];
+  if(!order||!order.length) return personas;
+  const byKey=new Map(personas.map(p=>[p.key,p]));
+  const ordered=order.map(k=>byKey.get(k)).filter(Boolean);
+  const seen=new Set(ordered.map(p=>p.key));
+  personas.forEach(p=>{ if(!seen.has(p.key)) ordered.push(p); }); // nuevos al final
+  return ordered;
+}
+// Misma lógica de filtro+orden que usa la lista de "Integrantes activos" — se comparte
+// para que mover con las flechitas opere exactamente sobre lo que se ve en pantalla.
+function _estVisiblePersonasFor(d, contracts){
+  const _isActive=c=>c==='activo'||c==='por_vencer'||c==='proximo';
+  const raw=d.showAll ? d.personas : d.personas.filter(p=>_isActive(contracts[p.key]||_estDefaultContrato(p)));
+  return _estApplyOrder(d.dept, raw);
+}
+window._estMovePersona=function(dept, key, dir){
+  const sec=_estBuildAllSections().find(s=>s.dept===dept);
+  if(!sec) return;
+  const personas=_estVisiblePersonasFor(sec, _estGetContracts());
+  const idx=personas.findIndex(p=>p.key===key);
+  const j=idx+dir;
+  if(idx<0||j<0||j>=personas.length) return;
+  [personas[idx],personas[j]]=[personas[j],personas[idx]];
+  const order=_estGetOrder();
+  order[dept]=personas.map(p=>p.key);
+  _estSaveOrder(order);
+  renderEstructura();
+};
 // Migración (una sola vez): las claves cortas sferro/destavillo/eferrari se unificaron con
 // su identidad real ct-p:* (ya tenían foto propia como ex jugadores/Sub-20 campeones) —
 // mudar cualquier edición/contrato que haya quedado bajo la clave vieja.
@@ -30748,7 +30783,7 @@ function renderEstructura(){
 }
 window.renderEstructura=renderEstructura;
 
-function _renderEstPersonaRow(p, label, rol, photo, contrato, fechaNac){
+function _renderEstPersonaRow(p, label, rol, photo, contrato, fechaNac, moveCtx){
   const initials=label.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const dim=contrato==='finalizado'||contrato==='desvinculado';
   const avatar=photo
@@ -30770,6 +30805,15 @@ function _renderEstPersonaRow(p, label, rol, photo, contrato, fechaNac){
       <div style="font-size:.65em;color:var(--muted)">${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}</div>
     </div>`;
   }
+  const moveHtml = moveCtx ? `
+    <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0" onclick="event.stopPropagation()">
+      <button onclick="window._estMovePersona('${moveCtx.dept.replace(/'/g,"\\'")}','${p.key}',-1)" ${moveCtx.isFirst?'disabled':''} title="Subir" style="border:none;background:none;color:${moveCtx.isFirst?'var(--border)':'var(--muted)'};cursor:${moveCtx.isFirst?'default':'pointer'};padding:0;line-height:1;font-size:15px">
+        <i class="ti ti-chevron-up"></i>
+      </button>
+      <button onclick="window._estMovePersona('${moveCtx.dept.replace(/'/g,"\\'")}','${p.key}',1)" ${moveCtx.isLast?'disabled':''} title="Bajar" style="border:none;background:none;color:${moveCtx.isLast?'var(--border)':'var(--muted)'};cursor:${moveCtx.isLast?'default':'pointer'};padding:0;line-height:1;font-size:15px">
+        <i class="ti ti-chevron-down"></i>
+      </button>
+    </div>` : '';
   return `<div onclick="_estOpenFicha('${p.key}')" style="display:flex;align-items:center;gap:10px;padding:10px 0 10px 10px;border-bottom:0.5px solid var(--border);cursor:pointer;${rowBg}${rowBorder}">
     ${avatar}
     <div style="flex:1;min-width:0">
@@ -30779,6 +30823,7 @@ function _renderEstPersonaRow(p, label, rol, photo, contrato, fechaNac){
     </div>
     ${edadHtml}
     ${badge}
+    ${moveHtml}
     <i class="ti ti-chevron-right" style="color:var(--hint);font-size:.85em;flex-shrink:0"></i>
   </div>`;
 }
@@ -30813,16 +30858,15 @@ function _renderEstLista(){
 
   if(_estTab==='activos'){
     sections.forEach(d=>{
-      const _isActive=c=>c==='activo'||c==='por_vencer'||c==='proximo';
-      const personas=d.showAll ? d.personas : d.personas.filter(p=>_isActive(contracts[p.key]||_estDefaultContrato(p)));
+      const personas=_estVisiblePersonasFor(d, contracts);
       if(!personas.length) return;
       total+=personas.length;
-      const rows=personas.map(p=>{
+      const rows=personas.map((p,i)=>{
         const label=edits[p.key]?.label||p.label;
         const rol=edits[p.key]?.rolesEdit?.[d.dept]?.rol||p.rol;
         const contrato=contracts[p.key]||_estDefaultContrato(p);
         const fechaNac=edits[p.key]?.fechaNac||p.fechaNac;
-        return _renderEstPersonaRow(p,label,rol,_estResolvePhoto(p),contrato,fechaNac);
+        return _renderEstPersonaRow(p,label,rol,_estResolvePhoto(p),contrato,fechaNac,{dept:d.dept,isFirst:i===0,isLast:i===personas.length-1});
       }).join('');
       blocks+=`<div style="background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px">
         <div style="padding:10px 14px;background:${d.color}12;border-bottom:1px solid ${d.color}25;display:flex;align-items:center;justify-content:space-between">
