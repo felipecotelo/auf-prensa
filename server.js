@@ -605,9 +605,11 @@ const INTERMEDIO_FINAL = new Date('2026-08-05T23:59:59Z');
 // no alcanza para reconstruir las series de forma confiable (se filtran partidos de
 // otras competencias que caen en la misma ventana). Como el torneo ya terminó y la
 // tabla final es un hecho fijo, se hardcodea con la tabla oficial (fuente: prensa/
-// Wikipedia, verificado 23/8/2026) en vez de intentar recalcularla en vivo.
+// Wikipedia, verificado 23/8/2026) en vez de intentar recalcularla en vivo. `campeon:true`
+// marca al campeón real del TORNEO (Peñarol le ganó la final 5-1 a Wanderers, líder de la
+// Serie B) — no es lo mismo que liderar la serie, por eso Wanderers no lleva el flag.
 const INTERMEDIO_SERIE_A_TABLA = [
-  { pos: 1, name: 'Peñarol',           pj: 7, w: 5, d: 1, l: 1, gf: 12, gc: 3,  dif: 9,  pts: 16 },
+  { pos: 1, name: 'Peñarol',           pj: 7, w: 5, d: 1, l: 1, gf: 12, gc: 3,  dif: 9,  pts: 16, campeon: true },
   { pos: 2, name: 'Cerro Largo',       pj: 7, w: 3, d: 2, l: 2, gf: 7,  gc: 5,  dif: 2,  pts: 11 },
   { pos: 3, name: 'Racing',            pj: 7, w: 2, d: 4, l: 1, gf: 4,  gc: 3,  dif: 1,  pts: 10 },
   { pos: 4, name: 'Liverpool',         pj: 7, w: 2, d: 3, l: 2, gf: 5,  gc: 5,  dif: 0,  pts: 9  },
@@ -625,7 +627,7 @@ const INTERMEDIO_SERIE_A_TABLA = [
 // vez de seguir confiando en ese heurístico. Si en el futuro se quiere volver a calcular
 // fases en vivo, hay que resolver esto primero.
 const APERTURA_2026_TABLA = [
-  { pos: 1,  name: 'Racing',           pj: 15, w: 9, d: 4, l: 2, gf: 23, gc: 14, dif: 9,   pts: 31 },
+  { pos: 1,  name: 'Racing',           pj: 15, w: 9, d: 4, l: 2, gf: 23, gc: 14, dif: 9,   pts: 31, campeon: true },
   { pos: 2,  name: 'D. Maldonado',     pj: 15, w: 9, d: 2, l: 4, gf: 24, gc: 16, dif: 8,   pts: 29 },
   { pos: 3,  name: 'Albion',           pj: 15, w: 8, d: 4, l: 3, gf: 26, gc: 16, dif: 10,  pts: 28 },
   { pos: 4,  name: 'Peñarol',          pj: 15, w: 8, d: 3, l: 4, gf: 23, gc: 16, dif: 7,   pts: 27 },
