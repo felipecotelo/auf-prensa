@@ -9842,23 +9842,43 @@ window._delegAddPick=function(gi,key,tKey){
 // ── Fecha FIFA sep–oct 2026 ────────────────────────────────────────────────
 const FIFASEP26 = {
   label: 'Fecha FIFA sep–oct 2026',
-  desde: '2026-09-21',
-  hasta: '2026-10-06',
-  partidos: 4,
-  desc: 'Primera Fecha FIFA de la Selección Mayor post Copa Mundial 2026. Cuatro partidos por confirmar.',
+  desde: '2026-09-17',
+  hasta: '2026-10-08',
+  partidos: 3,
+  desc: 'Segunda Fecha FIFA del año, la primera post Copa Mundial 2026. Gira por tres destinos — Japón (Miyagi), Corea del Sur (Seúl) e India (Calcuta) — con un amistoso en cada uno (salvo que se agregue alguno más).',
   dt: 'Diego Forlán',
+  periodoFifa: {desde:'2026-09-21', hasta:'2026-10-06'},
+  deadlines: [
+    {fecha:'2026-09-04', txt:'Fecha límite para la lista de reservados'},
+    {fecha:'2026-09-18', txt:'Fecha límite para la lista de convocados — 23 jugadores (26 si finalmente son 3 partidos)'},
+  ],
+  reglasLista: [
+    'En la lista de cada partido figurarán máximo 23 jugadores: once titulares y doce suplentes',
+    'En el banco podrán sentarse máximo 23 personas: once del cuerpo técnico y doce suplentes',
+  ],
   partidosData: [
-    {fecha:'2026-09-24', rival:'Japón',         rivalBandera:'🇯🇵', sede:'Parque Deportivo General de la Prefectura de Miyagi ("Grandy-21")', hora:'7:05', local:false, confirmado:true},
-    {fecha:'2026-09-28', rival:'Corea del Sur',  rivalBandera:'🇰🇷', sede:'Seoul World Cup Stadium', hora:'8:00', local:false, confirmado:true},
-    {fecha:'2026-10-06', rival:'India',         rivalBandera:'🇮🇳', sede:'India (ciudad a confirmar)', local:false, confirmado:false},
+    {fecha:'2026-09-24', rival:'Japón',         rivalBandera:'🇯🇵', sede:'Parque Deportivo General de la Prefectura de Miyagi ("Grandy-21")', hora:'7:05', horaLocal:'19:05', local:false, confirmado:true},
+    {fecha:'2026-09-28', rival:'Corea del Sur',  rivalBandera:'🇰🇷', sede:'Seoul World Cup Stadium', hora:'8:00', horaLocal:'20:00', local:false, confirmado:true},
+    {fecha:'2026-10-06', rival:'India',         rivalBandera:'🇮🇳', sede:'Calcuta, India (estadio a confirmar)', local:false, confirmado:false},
   ],
   itinerario: [
-    'La delegación viaja el 17/9 para llegar el 19/9',
-    'Hotel en Japón: The Westin Sendai',
-    'Hotel en Corea del Sur: Mayfield Hotel Seoul (mismo hotel que en la Fecha FIFA post Mundial de Catar, 2023)',
-    'El 25/9 se viaja a Seúl',
-    'Después de jugar con Corea del Sur, la delegación viaja a India',
-    'Vuelta prevista: sale el 7/10, llega a Uruguay el 8/10',
+    'Viaje de la delegación: sale el jueves 17/9, llega el sábado 19/9 — ruta Montevideo — San Pablo — Doha — Tokio + tren a Miyagi',
+    'Los jugadores viajan directo a destino (excepto los del fútbol uruguayo, que se suman a la delegación en Montevideo)',
+    'Hotel en Japón: The Westin Sendai · Centro de entrenamiento: por confirmar',
+    'Viaje a Seúl: 25/9 · Hotel en Corea del Sur: Mayfield Hotel Seoul (mismo hotel que en la Fecha FIFA post Mundial de Catar, 2023) · Centro de entrenamiento: por confirmar',
+    'Viaje a Calcuta: fecha por confirmar · Hotel en Calcuta: por confirmar · Centro de entrenamiento: por confirmar',
+    'Vuelta: sale el 7/10, llega a Uruguay el 8/10',
+  ],
+  // Calendario día a día de la gira (17/9 salida — 8/10 vuelta). tipo: 'viaje' | 'partido'.
+  calendario: [
+    {fecha:'2026-09-17', txt:'La delegación viaja desde Uruguay (Montevideo — San Pablo — Doha — Tokio)', tipo:'viaje'},
+    {fecha:'2026-09-19', txt:'Llegada a Japón (tren a Miyagi) · hotel The Westin Sendai', tipo:'viaje'},
+    {fecha:'2026-09-24', txt:'vs. Japón · 19:05h (JAP) / 7:05h (UY) · Estadio Grandy-21, Miyagi', tipo:'partido'},
+    {fecha:'2026-09-25', txt:'Viaje a Seúl, Corea del Sur · hotel Mayfield Hotel Seoul', tipo:'viaje'},
+    {fecha:'2026-09-28', txt:'vs. Corea del Sur · 20h (COR) / 8h (UY) · Seoul World Cup Stadium', tipo:'partido'},
+    {fecha:'2026-10-06', txt:'vs. India · Calcuta (estadio y horario a confirmar)', tipo:'partido'},
+    {fecha:'2026-10-07', txt:'Vuelta a Uruguay: sale la delegación', tipo:'viaje'},
+    {fecha:'2026-10-08', txt:'Llegada a Uruguay', tipo:'viaje'},
   ],
 };
 
@@ -9911,9 +9931,19 @@ function renderFifaSep26(tabId){
     </div>`;
   const _fifaMatchesFaltan = (FIFASEP26.partidos||0) - _fifaMatches.length;
 
+  const _fifaCalRow = (c) => `
+    <div style="display:flex;align-items:flex-start;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:8px">
+      <div style="font-size:1.3em;flex-shrink:0;line-height:1.3">${c.tipo==='partido'?'⚽':'✈️'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.72em;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">${_fmtDateCorta(c.fecha)}</div>
+        <div style="font-weight:700;font-size:.86em;color:var(--text);margin-top:1px">${c.txt}</div>
+      </div>
+    </div>`;
+
   if(slug==='calendario'){
-    con.innerHTML = _header('📅','Calendario','21 sep – 6 oct 2026 · Período reglamentario FIFA') +
-      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+    const cal = FIFASEP26.calendario||[];
+    con.innerHTML = _header('📅','Calendario', `${_fmtDateCorta(FIFASEP26.desde)} – ${_fmtDateCorta(FIFASEP26.hasta)} · viaje completo de la delegación`) +
+      (cal.length ? cal.map(_fifaCalRow).join('') : (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '')) +
       (_fifaMatchesFaltan>0 ? _placeholder('🗓️',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'Se completará cuando se confirmen sede y logística de los restantes.') : '');
   } else if(slug==='disponibilidad'){
     con.innerHTML = _header('✅','Disponibilidad','Seguimiento de convocados') +
@@ -9954,10 +9984,12 @@ function _infoGeneralDefaults(tKey){
     return {
       title: '📅 '+FIFASEP26.label,
       sub: 'Período reglamentario FIFA',
-      dataGeneral: `<li>Del 21 de septiembre al 6 de octubre de 2026</li>
+      dataGeneral: `<li>Período reglamentario FIFA: del ${_fmtDateCorta(FIFASEP26.periodoFifa?.desde||'2026-09-21')} al ${_fmtDateCorta(FIFASEP26.periodoFifa?.hasta||'2026-10-06')} de 2026</li>
           <li>${FIFASEP26.desc}</li>
           <li>Director técnico: ${FIFASEP26.dt||'Por confirmar'}</li>
-          <li>Rivales: ${rivalesTxt}</li>`,
+          <li>Rivales: ${rivalesTxt}</li>
+          ${(FIFASEP26.deadlines||[]).map(d=>`<li>${_fmtDateCorta(d.fecha)}: ${d.txt}</li>`).join('')}
+          ${(FIFASEP26.reglasLista||[]).map(t=>`<li>${t}</li>`).join('')}`,
       dataNuestra: (FIFASEP26.itinerario||[]).length
         ? `<ul style="margin:0;padding-left:18px">${FIFASEP26.itinerario.map(t=>`<li>${t}</li>`).join('')}</ul>`
         : `<div style="color:var(--muted)">Se cargará cuando se confirmen sede, hoteles y logística de los partidos.</div>`,
@@ -27140,6 +27172,7 @@ const ESTRUCTURA_PERSONAS = [
     {key:'ct-p:santiago-ferro',   label:'Santiago Ferro',      rol:'Profe principal', fechaNac:'1987-01-14'},
     {key:'ct-p:diego-estavillo',  label:'Diego Estavillo',     rol:'Profe secundario', fechaNac:'1988-01-16'},
     {key:'ct-p:enzo-ferrari',     label:'Enzo Ferrari',        rol:'Entrenador de arqueros (ex Sub-15 con López Báez, luego Sub-17, luego Mayor)', fechaNac:'1984-02-09'},
+    {key:'ibordad',               label:'Ignacio Bordad',      rol:'Entrenador de arqueros interino (ago 2026–mar 2027)', fechaNac:'1976-09-14'},
   ]},
   {dept:'Videoanalistas', personas:[
     {key:'kbekmann',      label:'Kevin Bekmann',       rol:'Analista Selección Mayor', fechaNac:'1989-08-19'},
@@ -30565,7 +30598,8 @@ const _EST_CONTRATO = {
 // Usa la misma key que su ficha de Cuerpo técnico Juveniles para que comparta
 // foto/fecha de nacimiento/estado de contrato con esa entrada.
 const CT_MAYOR_FORLAN = [
-  {iso:'uy',name:'Diego Forlán', rol:'Director técnico interino'},
+  {iso:'uy',name:'Diego Forlán', rol:'Director técnico interino (ago 2026–mar 2027)'},
+  {iso:'uy',name:'Diego Pérez',  rol:'Ayudante técnico interino (ago 2026–mar 2027)'},
 ];
 
 // CT Mayor — Ciclo Bielsa
