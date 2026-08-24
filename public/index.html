@@ -9869,18 +9869,36 @@ const FIFASEP26 = {
     'Viaje a Calcuta: fecha por confirmar · Hotel en Calcuta: por confirmar · Centro de entrenamiento: por confirmar',
     'Vuelta: sale el 7/10, llega a Uruguay el 8/10',
   ],
-  // Calendario día a día de la gira (17/9 salida — 8/10 vuelta). tipo: 'viaje' | 'partido'.
-  calendario: [
-    {fecha:'2026-09-17', txt:'La delegación viaja desde Uruguay (Montevideo — San Pablo — Doha — Tokio)', tipo:'viaje'},
-    {fecha:'2026-09-19', txt:'Llegada a Japón (tren a Miyagi) · hotel The Westin Sendai', tipo:'viaje'},
-    {fecha:'2026-09-24', txt:'vs. Japón · 19:05h (JAP) / 7:05h (UY) · Estadio Grandy-21, Miyagi', tipo:'partido'},
-    {fecha:'2026-09-25', txt:'Viaje a Seúl, Corea del Sur · hotel Mayfield Hotel Seoul', tipo:'viaje'},
-    {fecha:'2026-09-28', txt:'vs. Corea del Sur · 20h (COR) / 8h (UY) · Seoul World Cup Stadium', tipo:'partido'},
-    {fecha:'2026-10-06', txt:'vs. India · Calcuta (estadio y horario a confirmar)', tipo:'partido'},
-    {fecha:'2026-10-07', txt:'Vuelta a Uruguay: sale la delegación', tipo:'viaje'},
-    {fecha:'2026-10-08', txt:'Llegada a Uruguay', tipo:'viaje'},
-  ],
 };
+
+// Calendario día a día de la gira (17/9 salida — 8/10 vuelta), mismo esqueleto que
+// CALENDAR_DAYS (Copa Mundial): un día por fila, con lo puramente factual ya cargado
+// (viajes/partidos conocidos) y `eventos:[]` vacío — el resto se arma desde la app con
+// "+ Agregar actividad", como cualquier otro día del calendario del Mundial.
+const FIFASEP26_CAL_DAYS = [
+  {date:'2026-09-17', dow:'Jue', label:'17 sep', tipo:'viaje',   lugar:'Montevideo 🇺🇾 → Miyagi 🇯🇵 (vía San Pablo, Doha y Tokio)', eventos:[]},
+  {date:'2026-09-18', dow:'Vie', label:'18 sep', tipo:'viaje',   lugar:'En viaje', eventos:[]},
+  {date:'2026-09-19', dow:'Sáb', label:'19 sep', tipo:'llegada', lugar:'Llegada a Japón (Miyagi) · hotel The Westin Sendai', eventos:[]},
+  {date:'2026-09-20', dow:'Dom', label:'20 sep', tipo:'libre',   lugar:'Japón (Miyagi)', eventos:[]},
+  {date:'2026-09-21', dow:'Lun', label:'21 sep', tipo:'libre',   lugar:'Japón (Miyagi)', eventos:[]},
+  {date:'2026-09-22', dow:'Mar', label:'22 sep', tipo:'libre',   lugar:'Japón (Miyagi)', eventos:[]},
+  {date:'2026-09-23', dow:'Mié', label:'23 sep', tipo:'libre',   lugar:'Japón (Miyagi)', eventos:[]},
+  {date:'2026-09-24', dow:'Jue', label:'24 sep', tipo:'partido', rival:'Japón', sede:'Estadio Grandy-21, Miyagi', eventos:[]},
+  {date:'2026-09-25', dow:'Vie', label:'25 sep', tipo:'viaje',   lugar:'Miyagi 🇯🇵 → Seúl 🇰🇷 · hotel Mayfield Hotel Seoul', eventos:[]},
+  {date:'2026-09-26', dow:'Sáb', label:'26 sep', tipo:'libre',   lugar:'Corea del Sur (Seúl)', eventos:[]},
+  {date:'2026-09-27', dow:'Dom', label:'27 sep', tipo:'libre',   lugar:'Corea del Sur (Seúl)', eventos:[]},
+  {date:'2026-09-28', dow:'Lun', label:'28 sep', tipo:'partido', rival:'Corea del Sur', sede:'Seoul World Cup Stadium', eventos:[]},
+  {date:'2026-09-29', dow:'Mar', label:'29 sep', tipo:'libre',   lugar:'', eventos:[]},
+  {date:'2026-09-30', dow:'Mié', label:'30 sep', tipo:'libre',   lugar:'', eventos:[]},
+  {date:'2026-10-01', dow:'Jue', label:'1 oct',  tipo:'libre',   lugar:'', eventos:[]},
+  {date:'2026-10-02', dow:'Vie', label:'2 oct',  tipo:'libre',   lugar:'', eventos:[]},
+  {date:'2026-10-03', dow:'Sáb', label:'3 oct',  tipo:'libre',   lugar:'', eventos:[]},
+  {date:'2026-10-04', dow:'Dom', label:'4 oct',  tipo:'libre',   lugar:'', eventos:[]},
+  {date:'2026-10-05', dow:'Lun', label:'5 oct',  tipo:'libre',   lugar:'', eventos:[]},
+  {date:'2026-10-06', dow:'Mar', label:'6 oct',  tipo:'partido', rival:'India', sede:'Calcuta (estadio a confirmar)', eventos:[]},
+  {date:'2026-10-07', dow:'Mié', label:'7 oct',  tipo:'viaje',   lugar:'Calcuta 🇮🇳 → Uruguay 🇺🇾 (sale la delegación)', eventos:[]},
+  {date:'2026-10-08', dow:'Jue', label:'8 oct',  tipo:'llegada', lugar:'Llegada a Uruguay', eventos:[]},
+];
 
 // Delegación de Fecha FIFA sep-oct 2026, misma estructura que la del Mundial
 // (áreas con gente adentro), para que "Info general" sea igual en todos los eventos.
@@ -9931,20 +9949,10 @@ function renderFifaSep26(tabId){
     </div>`;
   const _fifaMatchesFaltan = (FIFASEP26.partidos||0) - _fifaMatches.length;
 
-  const _fifaCalRow = (c) => `
-    <div style="display:flex;align-items:flex-start;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:8px">
-      <div style="font-size:1.3em;flex-shrink:0;line-height:1.3">${c.tipo==='partido'?'⚽':'✈️'}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:.72em;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">${_fmtDateCorta(c.fecha)}</div>
-        <div style="font-weight:700;font-size:.86em;color:var(--text);margin-top:1px">${c.txt}</div>
-      </div>
-    </div>`;
-
   if(slug==='calendario'){
-    const cal = FIFASEP26.calendario||[];
     con.innerHTML = _header('📅','Calendario', `${_fmtDateCorta(FIFASEP26.desde)} – ${_fmtDateCorta(FIFASEP26.hasta)} · viaje completo de la delegación`) +
-      (cal.length ? cal.map(_fifaCalRow).join('') : (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '')) +
-      (_fifaMatchesFaltan>0 ? _placeholder('🗓️',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'Se completará cuando se confirmen sede y logística de los restantes.') : '');
+      `<div id="fifasep26-cal-timeline"></div>`;
+    renderFifaSepCal();
   } else if(slug==='disponibilidad'){
     con.innerHTML = _header('✅','Disponibilidad','Seguimiento de convocados') +
       (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
@@ -9973,6 +9981,109 @@ function renderFifaSep26(tabId){
   }
 }
 // ────────────────────────────────────────────────────────────────────────────
+
+// ── Calendario día a día de la Fecha FIFA sep-oct 2026 ───────────────────────
+// Mismo diseño/estructura que el calendario de la Copa Mundial (CALENDAR_DAYS +
+// renderCal): tarjeta por día, eventos con hora, "+ Agregar actividad" y nota del
+// día. Reutiliza el mismo storage genérico por fecha (getDayActs/getDayNotes) —
+// no colisiona con las fechas del Mundial (jun-jul) porque son rangos disjuntos.
+// Es una función propia (no renderCal) porque renderCal trae lógica exclusiva del
+// Mundial (obligaciones FIFA, chips de jugadores/DT, cierre de entrenamientos,
+// cache de partidos ESPN) que no aplica acá.
+const FIFASEP_TYPE_LABELS={viaje:'Viaje',llegada:'Llegada',partido:'PARTIDO',libre:'Libre'};
+const FIFASEP_TYPE_BADGE ={viaje:'cb-viaje',llegada:'cb-llegada',partido:'cb-partido',libre:'cb-descanso'};
+
+function renderFifaSepCal(){
+  const tl=document.getElementById('fifasep26-cal-timeline');
+  if(!tl) return;
+  const dn=getDayNotes();
+  const acts=getDayActs();
+  tl.innerHTML='';
+  FIFASEP26_CAL_DAYS.forEach(day=>{
+    const custom=acts[day.date]||[];
+    const isToday=day.date===TODAY;
+    const note=dn[day.date]||'';
+    const rival=day.rival?` · vs. ${day.rival}${day.sede?' ('+day.sede+')':''}`:'';
+    const evsHtml=custom.length ? custom.map((e,idx)=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:.72em;font-weight:700;color:var(--muted);width:52px;flex-shrink:0">${e.h||'TBD'}</div>
+        <div style="flex:1;font-size:.85em;color:var(--text)">${e.txt}</div>
+        <button onclick="deleteFifaSepAct('${day.date}',${idx},event)" title="Eliminar" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;flex-shrink:0">✕</button>
+      </div>`).join('')
+      : `<div style="padding:8px 0;color:var(--muted);font-size:.8em">Sin actividades cargadas todavía.</div>`;
+    const div=document.createElement('div');
+    div.className='cal-day'+(isToday?' today open':'')+(day.tipo==='partido'?' tipo-partido':'');
+    div.dataset.date=day.date;
+    div.innerHTML=`
+      <div class="cal-day-hdr" onclick="event.target.closest('.cal-day-hdr')===this&&toggleCalDay(this.parentElement)">
+        <div class="cal-dow">${day.dow}</div>
+        <div class="cal-date">${day.label}</div>
+        <span class="cal-badge ${FIFASEP_TYPE_BADGE[day.tipo]}">${FIFASEP_TYPE_LABELS[day.tipo]}</span>
+        <div class="cal-rival" style="flex:1">${rival}</div>
+        ${day.lugar?`<div class="cal-lugar" style="margin-left:6px">${day.lugar}</div>`:''}
+        ${isToday?'<span class="cal-today-chip" style="margin-left:4px">Hoy</span>':''}
+      </div>
+      <div class="cal-day-body">
+        <div class="cal-events" style="display:flex;flex-direction:column;gap:0">${evsHtml}</div>
+        <div class="add-act-wrap">
+          <button class="add-act-btn" onclick="toggleFifaSepAddAct('${day.date}',this)">＋ Agregar actividad</button>
+          <div id="fsap-${day.date}" style="display:none;margin-top:8px;gap:6px;flex-direction:column">
+            <input class="aap-input" id="fsap-txt-${day.date}" placeholder="Ej: Entrenamiento, viaje al estadio, zona mixta…"
+              onkeydown="if(event.key==='Enter')document.getElementById('fsap-h-${day.date}').focus()">
+            <input class="aap-input" id="fsap-h-${day.date}" placeholder="Hora — ej: 11:30 o TBD" style="width:160px"
+              onkeydown="if(event.key==='Enter')addFifaSepAct('${day.date}')">
+            <div>
+              <button class="btn primary sm" onclick="addFifaSepAct('${day.date}')">Agregar</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:7px">
+          <div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">📝 Nota del día</div>
+          <textarea class="cal-day-note${note?' has-note':''}"
+            placeholder="Nota general del día..."
+            rows="1"
+            oninput="saveDayNote('${day.date}',this)"
+            onfocus="this.rows=3"
+            onblur="if(!this.value)this.rows=1"
+          >${note}</textarea>
+        </div>
+      </div>`;
+    tl.appendChild(div);
+  });
+}
+window.renderFifaSepCal=renderFifaSepCal;
+
+window.toggleFifaSepAddAct=function(date,btn){
+  const wrap=document.getElementById(`fsap-${date}`);
+  if(!wrap) return;
+  const open=wrap.style.display!=='none';
+  wrap.style.display=open?'none':'flex';
+  btn.textContent=open?'＋ Agregar actividad':'✕ Cerrar';
+  if(!open) document.getElementById(`fsap-txt-${date}`)?.focus();
+};
+
+window.addFifaSepAct=function(date){
+  const txtEl=document.getElementById(`fsap-txt-${date}`);
+  const hEl=document.getElementById(`fsap-h-${date}`);
+  const txt=(txtEl?.value||'').trim();
+  if(!txt) return;
+  const acts=getDayActs();
+  if(!acts[date]) acts[date]=[];
+  acts[date].push({txt, h:(hEl?.value||'').trim()||'TBD'});
+  stor.set(KDayActs,acts);
+  renderFifaSepCal();
+  toast('Actividad agregada');
+};
+
+window.deleteFifaSepAct=function(date,idx,ev){
+  if(ev) ev.stopPropagation();
+  const acts=getDayActs();
+  if(!acts[date]||!acts[date][idx]) return;
+  acts[date].splice(idx,1);
+  stor.set(KDayActs,acts);
+  renderFifaSepCal();
+  toast('Actividad eliminada');
+};
 
 function _infoGeneralDefaults(tKey){
   if(tKey==='fifasep26'){
