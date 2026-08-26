@@ -10180,12 +10180,66 @@ window.addFifaSepAct=function(date){
   toast('Actividad agregada');
 };
 
+// Los overrides por evento (texto editado, hora, estado, nota, links) se guardan
+// por posición — evKey(date,idx) — no por identidad del evento. Si se borra o
+// reordena una actividad sin reacomodar estos overrides, la actividad que pasa a
+// ocupar ese índice "hereda" los datos editados de la que estaba antes ahí (bug
+// real detectado en vivo: se borró un "Viaje a San Pablo" ya editado, se cargó
+// una actividad nueva en su lugar, y le quedó pegado el texto viejo). Estas dos
+// funciones reacomodan todos los stores relevantes para que sigan el evento.
+const _FSAP_FLAT_STORES=[KEvTxt,KEvS,KEvN,KEvLink];
+function _fsapReindexAfterDelete(date,removedIdx){
+  _FSAP_FLAT_STORES.forEach(storeKey=>{
+    const obj=stor.get(storeKey,{});
+    let maxIdx=-1;
+    const prefix=date+'_';
+    Object.keys(obj).forEach(k=>{
+      if(!k.startsWith(prefix))return;
+      const n=parseInt(k.slice(prefix.length));
+      if(!isNaN(n))maxIdx=Math.max(maxIdx,n);
+    });
+    for(let i=removedIdx+1;i<=maxIdx;i++){
+      const fromKey=evKey(date,i), toKey=evKey(date,i-1);
+      if(obj[fromKey]!==undefined) obj[toKey]=obj[fromKey]; else delete obj[toKey];
+    }
+    if(maxIdx>=removedIdx) delete obj[evKey(date,maxIdx)];
+    stor.set(storeKey,obj);
+  });
+  const ct=stor.get(KCalT,{});
+  if(ct[date]){
+    const idxs=Object.keys(ct[date]).map(Number);
+    const maxIdx=idxs.length?Math.max(...idxs):-1;
+    for(let i=removedIdx+1;i<=maxIdx;i++){
+      if(ct[date][i]!==undefined) ct[date][i-1]=ct[date][i]; else delete ct[date][i-1];
+    }
+    if(maxIdx>=removedIdx) delete ct[date][maxIdx];
+    stor.set(KCalT,ct);
+  }
+}
+function _fsapSwapOverrides(date,i,j){
+  _FSAP_FLAT_STORES.forEach(storeKey=>{
+    const obj=stor.get(storeKey,{});
+    const kI=evKey(date,i), kJ=evKey(date,j);
+    const vI=obj[kI], vJ=obj[kJ];
+    if(vJ!==undefined) obj[kI]=vJ; else delete obj[kI];
+    if(vI!==undefined) obj[kJ]=vI; else delete obj[kJ];
+    stor.set(storeKey,obj);
+  });
+  const ct=stor.get(KCalT,{});
+  if(ct[date]){
+    const vI=ct[date][i], vJ=ct[date][j];
+    if(vJ!==undefined) ct[date][i]=vJ; else delete ct[date][i];
+    if(vI!==undefined) ct[date][j]=vI; else delete ct[date][j];
+    stor.set(KCalT,ct);
+  }
+}
 window.deleteFifaSepAct=function(date,idx,ev){
   if(ev) ev.stopPropagation();
   const acts=getDayActs();
   if(!acts[date]||!acts[date][idx]) return;
   acts[date].splice(idx,1);
   stor.set(KDayActs,acts);
+  _fsapReindexAfterDelete(date,idx);
   renderFifaSepCal();
   toast('Actividad eliminada');
 };
@@ -10242,6 +10296,7 @@ window._fifaSepMoveAct=function(date,idx,dir,ev){
   if(j<0||j>=list.length) return;
   [list[idx],list[j]]=[list[j],list[idx]];
   stor.set(KDayActs,acts);
+  _fsapSwapOverrides(date,idx,j);
   renderFifaSepCal();
 };
 
