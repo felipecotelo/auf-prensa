@@ -10015,11 +10015,17 @@ const FIFASEP_TAG_HTML={
   team:   `<span class="tag" style="font-size:9.5px;background:#F1F5F9;color:#64748B;font-weight:600">Cronograma</span>`,
 };
 
+function _fsapFmtHora(h){
+  if(!h||h==='TBD') return 'TBD';
+  return /^\d{1,2}(:\d{2})?$/.test(h) ? `${h}h (UY)` : h;
+}
 function _fifaSepEvRowHtml(date,e,idx,total){
   const k=evKey(date,idx);
   const s=(getEvStatus()[k])||'';
   const note=getEvNotes()[k]||'';
   const link=getEvLinks()[k]||'';
+  const txt=getEvTxt(date,idx,e.txt);
+  const hora=getCalTime(date,idx,e.h||'TBD');
   const statusClass=s==='done'?'st-done':s==='sus'?'st-sus':s==='no'?'st-no':'';
   const icons={'done':'✓','sus':'⏸','no':'✗','':'○'};
   const dotClass=e.tipo==='viaje'?'ce-viaje':e.auf?'ce-oblig':e.auftv?'ce-info':'ce-team';
@@ -10033,10 +10039,10 @@ function _fifaSepEvRowHtml(date,e,idx,total){
           <button class="ev-st st-no${s==='no'?' act':''}" onclick="_fsapSetEvSt('${date}',${idx},'no')" title="No realizada">✗</button>
           <button class="ev-st-cycle${statusClass?' '+statusClass:''}" onclick="_fsapCycleEvSt('${date}',${idx})" title="${s==='done'?'Hecho':s==='sus'?'Suspendida':s==='no'?'No realizada':'Sin estado'}">${icons[s]||'○'}</button>
         </div>
-        <div class="cal-event-h" style="margin-top:2px;min-width:50px">${e.h||'TBD'}</div>
+        <div class="cal-event-h" style="margin-top:2px;min-width:64px;cursor:pointer" title="Click para editar horario" onclick="_fsapEditTime('${date}',${idx},this)">${_fsapFmtHora(hora)}</div>
         <div class="ev-txt-wrap">
           <div class="ev-main-txt${statusClass?' '+statusClass:''}">
-            <span class="ev-editable-txt">${e.txt}</span>
+            <span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${date}',${idx},this)">${txt}</span>
             ${tag}
             ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" style="font-size:11px;text-decoration:none;margin-left:2px">🔗${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
           </div>
@@ -10113,7 +10119,7 @@ function renderFifaSepCal(){
             </div>
             <input class="aap-input" id="fsap-txt-${day.date}" placeholder="Ej: Entrenamiento, viaje al estadio, zona mixta…" autocomplete="off"
               onkeydown="if(event.key==='Enter')document.getElementById('fsap-h-${day.date}').focus()">
-            <input class="aap-input" id="fsap-h-${day.date}" placeholder="Hora — ej: 11:30 o TBD" autocomplete="off"
+            <input class="aap-input" id="fsap-h-${day.date}" placeholder="Hora en Uruguay (0-24hs) — ej: 11:30 o TBD" autocomplete="off"
               onkeydown="if(event.key==='Enter')addFifaSepAct('${day.date}')">
             <div>
               <button class="btn primary sm" onclick="addFifaSepAct('${day.date}')">Agregar</button>
@@ -10209,6 +10215,23 @@ window._fsapToggleDayClosed=function(date){
   stor.set(KDayClosed,dc);
   toast(dc[date]?'🔒 Cerrado (sin apertura de prensa)':'🟢 Abierto (15 min para prensa)');
   renderFifaSepCal();
+};
+window._fsapEditTime=function(date,idx,el){
+  const cur=getCalTime(date,idx,'');
+  const inp=document.createElement('input');
+  inp.type='text'; inp.value=cur==='TBD'?'':cur;
+  inp.placeholder='ej: 17:30 (hora UY)';
+  inp.style.cssText='width:110px;font-size:11px;font-weight:700;border:1.5px solid var(--cel);border-radius:5px;padding:2px 6px;font-family:inherit;background:#fff;outline:none';
+  el.replaceWith(inp); inp.focus(); inp.select();
+  let committed=false;
+  function commit(){
+    if(committed) return; committed=true;
+    const val=inp.value.trim()||'TBD';
+    saveCalTime(date,idx,val);
+    renderFifaSepCal();
+  }
+  inp.onblur=commit;
+  inp.onkeydown=ev=>{ if(ev.key==='Enter') commit(); if(ev.key==='Escape'){ committed=true; renderFifaSepCal(); } };
 };
 window._fifaSepMoveAct=function(date,idx,dir,ev){
   if(ev) ev.stopPropagation();
