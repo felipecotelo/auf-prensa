@@ -25948,6 +25948,35 @@ window._juvCompCTReset=function(compId){
   _saveJuvCompCTOverrides(ov); _juvCompCtEdit=false; window.renderJuveniles?.();
 };
 
+// Delegación de una competencia — mismo patrón que el CT de arriba (override por
+// compId, arranca desde comp.delegacion). Antes esta pestaña ("CT · Delegación")
+// solo mostraba el cuerpo técnico y nunca la delegación, pese al nombre.
+const K_JUV_COMP_DEL = 'auf4_juv_comp_del';
+let _juvCompDelEdit=false;
+function _getJuvCompDelOverrides(){ return stor.get(K_JUV_COMP_DEL,{}); }
+function _saveJuvCompDelOverrides(o){ stor.set(K_JUV_COMP_DEL, o); }
+window._juvCompDelToggleEdit=function(){ _juvCompDelEdit=!_juvCompDelEdit; window.renderJuveniles?.(); };
+window._juvCompDelAdd=function(compId,fid){
+  const nom=(document.getElementById(fid+'-nom')?.value||'').trim();
+  const rol=(document.getElementById(fid+'-rol')?.value||'').trim();
+  if(!nom||!rol) return;
+  const ov=_getJuvCompDelOverrides();
+  if(!ov[compId]) ov[compId]=[...(COMP_DATA[compId]?.delegacion||[])];
+  ov[compId].push({name:nom, rol});
+  _saveJuvCompDelOverrides(ov); window.renderJuveniles?.();
+};
+window._juvCompDelRemove=function(compId,idx){
+  const ov=_getJuvCompDelOverrides();
+  if(!ov[compId]) ov[compId]=[...(COMP_DATA[compId]?.delegacion||[])];
+  ov[compId].splice(idx,1);
+  _saveJuvCompDelOverrides(ov); window.renderJuveniles?.();
+};
+window._juvCompDelReset=function(compId){
+  const ov=_getJuvCompDelOverrides();
+  delete ov[compId];
+  _saveJuvCompDelOverrides(ov); _juvCompDelEdit=false; window.renderJuveniles?.();
+};
+
 window._ctPhotoSelected = function(nomEncoded, input){
   const file = input.files[0]; if(!file) return;
   input.value='';
@@ -27283,6 +27312,64 @@ function _buildJuvCompBody(compId, color, catData){
     // sin ordenar/filtrar — si no, "Eliminar" podía borrar a otra persona distinta de la
     // que se veía en pantalla apenas el orden visual difería del orden guardado.
     const ctSorted = _sortCT(ct.map((m,i)=>({...m,_origIdx:i})).filter(m=>!m.coord));
+
+    // Delegación — mismo patrón que el CT de arriba, con su propio override/edit state.
+    const delOv = _getJuvCompDelOverrides();
+    const del = delOv[ctKey] || comp.delegacion || [];
+    const delHasOverride = !!delOv[ctKey];
+    const dfid = 'juv-comp-del-'+compId;
+    const delRolesUsados = new Set(del.map(m=>m.rol));
+    const delRolesDatalist = [...new Set([...delRolesUsados,'Presidente de la delegación','Delegado','Gerente Deportivo','Doctor','Fisioterapeuta','Prensa y marketing','Fotógrafo','Utilero'])];
+    const delMemberRow = (m, idx) => {
+      const photo = window._getPersonPhoto?.(m.name);
+      const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const avatar = photo
+        ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : `<span>${initials}</span>`;
+      return `
+      <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
+        <div onclick="_clickCtPhoto('${encodeURIComponent(m.name)}')" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
+          <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
+          <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
+          <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${encodeURIComponent(m.name)}',this)">
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:.9em">${m.name}</div>
+          <div style="font-size:.75em;color:var(--muted);margin-top:1px">${m.rol}</div>
+        </div>
+        ${_juvCompDelEdit?`<button onclick="_juvCompDelRemove('${ctKey}',${idx})" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:1em;padding:4px;flex-shrink:0"><i class="ti ti-x"></i></button>`:''}
+      </div>`;
+    };
+    const delEditBtn = `<button onclick="_juvCompDelToggleEdit()" style="
+      display:flex;align-items:center;gap:5px;border:1.5px solid ${_juvCompDelEdit?cc:'var(--border)'};
+      background:${_juvCompDelEdit?cc+'18':'transparent'};color:${_juvCompDelEdit?cc:'var(--muted)'};
+      border-radius:8px;padding:5px 10px;font-size:.72em;font-weight:700;cursor:pointer;margin-left:auto
+    "><i class="ti ti-pencil"></i>${_juvCompDelEdit?'Listo':'Editar delegación'}</button>`;
+    const delAddForm = _juvCompDelEdit ? `
+      <div style="background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;padding:12px;margin-top:4px">
+        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Agregar integrante</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div style="position:relative">
+            <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">PERSONA</label>
+            <input id="${dfid}-nom" type="text" autocomplete="off" placeholder="Nombre o elegir de lista…"
+              data-opts='${JSON.stringify(estructuraActivos).replace(/'/g,'&apos;')}'
+              oninput="_accShow(this)" onfocus="_accShow(this)" onblur="_accHide(this)"
+              style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
+            <div id="${dfid}-nom-sugg" style="display:none;position:absolute;z-index:50;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);max-height:180px;overflow-y:auto;margin-top:2px"></div>
+          </div>
+          <div>
+            <label style="font-size:.65em;font-weight:700;color:var(--muted);display:block;margin-bottom:3px">ROL</label>
+            <input id="${dfid}-rol" list="${dfid}-roles" type="text" placeholder="ej: Delegado" style="width:100%;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:.78em;outline:none;box-sizing:border-box">
+            <datalist id="${dfid}-roles">${delRolesDatalist.map(r=>`<option value="${r}">`).join('')}</datalist>
+          </div>
+        </div>
+        <button onclick="_juvCompDelAdd('${ctKey}','${dfid}')" style="width:100%;padding:7px;background:${cc};color:#fff;border:none;border-radius:8px;font-size:.78em;font-weight:700;cursor:pointer">Agregar</button>
+      </div>` : '';
+    const delResetBtn = delHasOverride && _juvCompDelEdit ? `
+      <button onclick="_juvCompDelReset('${ctKey}')" style="margin-top:8px;width:100%;padding:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;border-radius:8px;font-size:.72em;font-weight:700;cursor:pointer">
+        <i class="ti ti-refresh"></i> Restaurar delegación original
+      </button>` : '';
+
     content = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <div style="font-size:.65em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em">Cuerpo técnico</div>
@@ -27290,7 +27377,14 @@ function _buildJuvCompBody(compId, color, catData){
       </div>
       ${ctSorted.map(m=>memberRow(m,m._origIdx)).join('')}
       ${addForm}
-      ${resetBtn}`;
+      ${resetBtn}
+      <div style="display:flex;align-items:center;gap:8px;margin:20px 0 12px">
+        <div style="font-size:.65em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em">Delegación</div>
+        ${delEditBtn}
+      </div>
+      ${del.length?del.map((m,i)=>delMemberRow(m,i)).join(''):`<div style="text-align:center;padding:20px 0;color:var(--muted);font-size:.85em">Sin delegación cargada todavía</div>`}
+      ${delAddForm}
+      ${delResetBtn}`;
   }
 
   else if(_juvCompTab==='amistosos'){
