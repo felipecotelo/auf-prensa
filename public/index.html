@@ -10010,7 +10010,7 @@ const FIFASEP_TAG_HTML={
   team:   `<span class="tag" style="font-size:9.5px;background:#F1F5F9;color:#64748B;font-weight:600">Cronograma</span>`,
 };
 
-function _fifaSepEvRowHtml(date,e,idx){
+function _fifaSepEvRowHtml(date,e,idx,total){
   const k=evKey(date,idx);
   const s=(getEvStatus()[k])||'';
   const note=getEvNotes()[k]||'';
@@ -10023,7 +10023,10 @@ function _fifaSepEvRowHtml(date,e,idx){
     <div class="cal-ev" id="cev-${date}-${idx}">
       <div class="cal-ev-row">
         <div class="ev-sts">
-          <button class="ev-st-cycle${statusClass?' '+statusClass:''}" onclick="cycleEvSt('${date}',${idx},this)" title="${s==='done'?'Hecho':s==='sus'?'Suspendida':s==='no'?'No realizada':'Sin estado'}">${icons[s]||'○'}</button>
+          <button class="ev-st st-done${s==='done'?' act':''}" onclick="_fsapSetEvSt('${date}',${idx},'done')" title="Hecho">✓</button>
+          <button class="ev-st st-sus${s==='sus'?' act':''}" onclick="_fsapSetEvSt('${date}',${idx},'sus')" title="Suspendida">⏸</button>
+          <button class="ev-st st-no${s==='no'?' act':''}" onclick="_fsapSetEvSt('${date}',${idx},'no')" title="No realizada">✗</button>
+          <button class="ev-st-cycle${statusClass?' '+statusClass:''}" onclick="_fsapCycleEvSt('${date}',${idx})" title="${s==='done'?'Hecho':s==='sus'?'Suspendida':s==='no'?'No realizada':'Sin estado'}">${icons[s]||'○'}</button>
         </div>
         <div class="cal-event-h" style="margin-top:2px;min-width:50px">${e.h||'TBD'}</div>
         <div class="ev-txt-wrap">
@@ -10035,6 +10038,10 @@ function _fifaSepEvRowHtml(date,e,idx){
         </div>
         <div class="cal-event-dot ${dotClass}" style="margin-top:5px;flex-shrink:0"></div>
         <button onclick="deleteFifaSepAct('${date}',${idx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>
+        <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+          <button onclick="_fifaSepMoveAct('${date}',${idx},-1,event)" title="Mover arriba" ${idx===0?'disabled':''} style="background:none;border:none;cursor:${idx===0?'default':'pointer'};font-size:9px;padding:0 2px;color:${idx===0?'var(--border)':'var(--hint)'};line-height:1">▲</button>
+          <button onclick="_fifaSepMoveAct('${date}',${idx},1,event)" title="Mover abajo" ${idx>=total-1?'disabled':''} style="background:none;border:none;cursor:${idx>=total-1?'default':'pointer'};font-size:9px;padding:0 2px;color:${idx>=total-1?'var(--border)':'var(--hint)'};line-height:1">▼</button>
+        </div>
         <button class="ev-expand" onclick="toggleEvDetail('${date}',${idx},this)" title="Nota / links">⌄</button>
       </div>
       <div class="cal-ev-detail" id="ced-${date}-${idx}">
@@ -10069,8 +10076,9 @@ function renderFifaSepCal(){
     const note=dn[day.date]||'';
     const rival=day.rival?` · vs. ${day.rival}${day.sede?' ('+day.sede+')':''}`:'';
     const evsHtml=custom.length
-      ? custom.map((e,idx)=>_fifaSepEvRowHtml(day.date,e,idx)).join('')
+      ? custom.map((e,idx)=>_fifaSepEvRowHtml(day.date,e,idx,custom.length)).join('')
       : `<div style="padding:8px 0;color:var(--muted);font-size:.8em">Sin actividades cargadas todavía.</div>`;
+    const isClosed=getDayClosed()[day.date]||false;
     const div=document.createElement('div');
     div.className='cal-day'+((isToday||openDates.has(day.date))?' today open':'')+(day.tipo==='partido'?' tipo-partido':'');
     div.dataset.date=day.date;
@@ -10080,6 +10088,11 @@ function renderFifaSepCal(){
         <div class="cal-date">${day.label}</div>
         <span class="cal-badge ${FIFASEP_TYPE_BADGE[day.tipo]}">${FIFASEP_TYPE_LABELS[day.tipo]}</span>
         <div class="cal-rival" style="flex:1">${rival}</div>
+        ${day.tipo!=='partido'?`<button class="day-closed-btn ${isClosed?'closed':'open'}"
+          onclick="event.stopPropagation();_fsapToggleDayClosed('${day.date}')"
+          title="${isClosed?'Cerrado — click para abrir':'Abierto — click para cerrar'}">
+          ${isClosed?'🔒 Cerrado':'🟢 Abierto'}
+        </button>`:''}
         ${day.lugar?`<div class="cal-lugar" style="margin-left:6px">${day.lugar}</div>`:''}
         ${isToday?'<span class="cal-today-chip" style="margin-left:4px">Hoy</span>':''}
       </div>
@@ -10159,6 +10172,44 @@ window.deleteFifaSepAct=function(date,idx,ev){
   stor.set(KDayActs,acts);
   renderFifaSepCal();
   toast('Actividad eliminada');
+};
+
+// Variantes propias de setEvSt/cycleEvSt/toggleDayClosed que refrescan
+// renderFifaSepCal() en vez de renderCal() — las originales del Mundial terminan
+// llamando renderCal(), que rompería acá porque #cal-timeline no existe en esta página.
+window._fsapSetEvSt=function(date,idx,val){
+  const ev=getEvStatus();
+  const k=evKey(date,idx);
+  ev[k]=(ev[k]===val)?'':val;
+  setEvStatus_store(ev);
+  renderFifaSepCal();
+  toast(val==='done'?'✓ Hecho':val==='sus'?'⏸ Suspendida':'✗ No realizada');
+};
+window._fsapCycleEvSt=function(date,idx){
+  const ev=getEvStatus();
+  const k=evKey(date,idx);
+  const cur=ev[k]||'';
+  ev[k]=cur===''?'done':cur==='done'?'sus':cur==='sus'?'no':'';
+  setEvStatus_store(ev);
+  renderFifaSepCal();
+};
+window._fsapToggleDayClosed=function(date){
+  const dc=getDayClosed();
+  dc[date]=!dc[date];
+  stor.set(KDayClosed,dc);
+  toast(dc[date]?'🔒 Cerrado (sin apertura de prensa)':'🟢 Abierto (15 min para prensa)');
+  renderFifaSepCal();
+};
+window._fifaSepMoveAct=function(date,idx,dir,ev){
+  if(ev) ev.stopPropagation();
+  const acts=getDayActs();
+  const list=acts[date];
+  if(!list) return;
+  const j=idx+dir;
+  if(j<0||j>=list.length) return;
+  [list[idx],list[j]]=[list[j],list[idx]];
+  stor.set(KDayActs,acts);
+  renderFifaSepCal();
 };
 
 function _infoGeneralDefaults(tKey){
