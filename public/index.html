@@ -5086,25 +5086,29 @@ function renderInicioHoySeleccion(dayOffset){
       });
     }
     if(typeof JUVENILES!=='undefined'){
-      const juvNac=typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES:{};
-      const juvNames=new Map();
-      Object.entries(JUVENILES).forEach(([catKey,catData])=>{
-        const label=catData.label||catKey.replace('sub','Sub-');
-        Object.values(catData.anos||{}).forEach(anoData=>{
-          (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
-            if(j.nom && !juvNames.has(j.nom)){
-              const fn=juvNac[j.nom]||j.fechaNac;
-              if(fn) juvNames.set(j.nom,{fn,label});
-            }
-          }));
+      try{
+        const juvNac=typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES:{};
+        const juvNames=new Map();
+        Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+          try{
+            const label=catData.label||catKey.replace('sub','Sub-');
+            Object.values(catData.anos||{}).forEach(anoData=>{
+              (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+                if(j.nom && !juvNames.has(j.nom)){
+                  const fn=juvNac[j.nom]||j.fechaNac;
+                  if(fn) juvNames.set(j.nom,{fn,label});
+                }
+              }));
+            });
+          }catch(catErr){ console.error('cumples: error escaneando categoría',catKey,catErr); }
         });
-      });
-      juvNames.forEach(({fn,label},nom)=>{
-        if(fn.length>=10 && fn.slice(5,10)===mmdd){
-          const fallecido=!!fallecidoMayorLS[nom];
-          cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Juveniles · '+label, fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo?window._gnavGo('juveniles','${encodeURIComponent(nom)}'):showSection('juveniles')`});
-        }
-      });
+        juvNames.forEach(({fn,label},nom)=>{
+          if(fn.length>=10 && fn.slice(5,10)===mmdd){
+            const fallecido=!!fallecidoMayorLS[nom];
+            cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Juveniles · '+label, fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo?window._gnavGo('juveniles','${encodeURIComponent(nom)}'):showSection('juveniles')`});
+          }
+        });
+      }catch(juvErr){ console.error('cumples: error general en escaneo de Juveniles',juvErr); }
     }
     if(typeof _getLocalStats==='function' && typeof LOCAL_NAC_DATES!=='undefined'){
       Object.keys(_getLocalStats()).forEach(nom=>{
