@@ -25106,7 +25106,7 @@ window._amistRemoveCard = function(cat, year, matchId, leg, idx){
 };
 
 // Returns {pitchHtml, benchHtml} — assembled into piz-3col layout
-function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas){
+function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, convNumMap){
   const sfx = leg===2?'2':'';
   const lu = m['lineup'+sfx]||{formation:'4-3-3',starters:{}};
   const form = lu.formation||'4-3-3';
@@ -25212,7 +25212,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas){
           const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
           const isTit = usedNoms.has(nom);
           const sub = subs.find(s=>s.nom===nom);
-          const pNum = nums[nom]||null;
+          const pNum = nums[nom]||convNumMap?.[nom]||null;
           const pts = nom.trim().split(' ');
           const shortNom = pts.length>1 ? pts[0][0]+'. '+pts.slice(1).join(' ') : pts[0];
           const nomKey = nom.replace(/[^a-z0-9]/gi,'-');
@@ -25423,15 +25423,31 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
   // convocatorias del año entero, así que el selector de cancha de un amistoso puntual
   // (ej: 20 jugadores que viajan a Brasil) terminaba mostrando 56 jugadores de todo el
   // año en vez de solo los que corresponden a ese viaje.
+  //
+  // Para partidos oficiales (filterCompId): si la competencia ya tiene su convocatoria
+  // FINAL cargada (comp.convocados, con los números de camiseta del torneo), el
+  // selector de cancha se restringe SOLO a esos jugadores — no al pool de preparación
+  // del ciclo general, que puede incluir gente que no quedó en la lista final. Hasta
+  // que se cargue esa lista final, cae al pool general como antes (mejor eso que nada).
   const convSet = new Set();
   const convPosMap = {}; // nom → pos from static convocatorias
-  const anoData = JUVENILES[cat]?.anos?.[year];
-  if(anoData){
-    const ultimaConv = (anoData.convocatorias||[])[0];
-    (ultimaConv?.jugadores||[]).forEach(j=>{
+  const convNumMap = {}; // nom → num oficial del torneo (si hay convocatoria final)
+  const compFinal = filterCompId ? COMP_DATA[filterCompId]?.convocados : null;
+  if(compFinal && compFinal.length){
+    compFinal.forEach(j=>{
       convSet.add(j.nom);
       if(j.pos) convPosMap[j.nom]=j.pos;
+      if(j.num!=null) convNumMap[j.nom]=j.num;
     });
+  } else {
+    const anoData = JUVENILES[cat]?.anos?.[year];
+    if(anoData){
+      const ultimaConv = (anoData.convocatorias||[])[0];
+      (ultimaConv?.jugadores||[]).forEach(j=>{
+        convSet.add(j.nom);
+        if(j.pos) convPosMap[j.nom]=j.pos;
+      });
+    }
   }
   const convocados = [...convSet].sort();
 
@@ -25538,7 +25554,7 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
       }).join('')
       : `<div style="font-size:10.5px;color:var(--hint);padding:4px 0">Sin incidencias registradas</div>`;
 
-      const {pitchHtml, benchHtml} = _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas);
+      const {pitchHtml, benchHtml} = _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, convNumMap);
 
       // ── Columna izquierda — CSS idéntico a la Mayor ──
       const leftCol = `
