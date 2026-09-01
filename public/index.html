@@ -23534,13 +23534,10 @@ const TORNEO_DESARROLLO_SUB15_2026 = {
     {nom:'Thiago Paredes',club:'Nacional', fechaNac:'2011-06-04'},
     {nom:'Matías Pérez',club:'AD Alcorcón',pais:'es'},{nom:'Lucca Darío Noguez',club:'Atlético Madrid',pais:'es'},
   ],
-  partidos:[
-    {fase:'Fase de grupos', fecha:'Martes 8/9', rival:'Argentina', hora:'8:30h'},
-    {fase:'Fase de grupos', fecha:'Sábado 12/9', rival:'Chile', hora:'8h'},
-    {fase:'Fase de grupos', fecha:'Miércoles 16/9', rival:'Paraguay', hora:'8h'},
-    {fase:'Fase de grupos', fecha:'Viernes 18/9', rival:'Bolivia', hora:'8:30h'},
-    {fase:'Partido final', fecha:'Domingo 20/9', rival:'Por confirmar', hora:'Por confirmar', nota:'El rival y el horario dependen de cómo termine Uruguay en la fase de grupos'},
-  ],
+  // Los partidos ahora viven en el mismo storage que los amistosos (compId:
+  // 'torneo-desarrollo-sub15-2026', oficial:true) — así la pestaña Fixture usa el
+  // motor interactivo (formación, goles, tarjetas, DT) en vez de esta lista estática.
+  partidos:[],
   fixture:[],
   goleadores:[],
 };
@@ -23881,11 +23878,10 @@ const ODESUR_2026 = {
     {num:44, nom:'Nicolás Azambuja',           club:'Danubio',                     pos:'DEL', pais:'uy'},
   ],
   // Fixture oficial del sorteo (fase de grupos, Grupo B) — hora Argentina, misma que Uruguay (UTC-3).
-  partidos:[
-    {fase:'Fase de grupos · Fecha 1', fecha:'2026-09-17', hora:'14:00', rival:'Venezuela', sede:'Estadio Marcelo Bielsa (Newell\'s Old Boys), Rosario'},
-    {fase:'Fase de grupos · Fecha 2', fecha:'2026-09-19', hora:'14:00', rival:'Argentina', sede:'Estadio Marcelo Bielsa (Newell\'s Old Boys), Rosario'},
-    {fase:'Fase de grupos · Fecha 3', fecha:'2026-09-21', hora:'10:00', rival:'Paraguay', sede:'Estadio Marcelo Bielsa (Newell\'s Old Boys), Rosario'},
-  ],
+  // Los partidos ahora viven en el mismo storage que los amistosos (compId:
+  // 'odesur-2026', oficial:true) — así la pestaña Fixture usa el motor interactivo
+  // (formación, goles, tarjetas, DT) en vez de esta lista estática.
+  partidos:[],
 };
 
 const SUD17_COLOMBIA_2025 = {
@@ -25315,7 +25311,7 @@ window._amistToggleIV = function(){
   const el=document.getElementById('amist-vuelta-row');
   if(el) el.style.display=iv?'flex':'none';
 };
-window._amistAddMatch = function(cat, year){
+window._amistAddMatch = function(cat, year, compId){
   const rival = (document.getElementById('amist-rival')?.value||'').trim();
   if(!rival) return;
   const m = {
@@ -25337,6 +25333,7 @@ window._amistAddMatch = function(cat, year){
     gLocal2: null, gRival2: null,
     titulares2: [], subs2: [], goles2: {}, dt2: '',
   };
+  if(compId){ m.compId = compId; m.oficial = true; }
   const list = _getAmistosos(cat, year);
   list.push(m);
   _saveAmistosos(cat, year, list);
@@ -25413,8 +25410,13 @@ window._amistGol = function(cat, year, id, nom, delta, leg){
 };
 
 
-function _buildJuvAmistosos(cat, year, color, catData){
-  const list = _getAmistosos(cat, year);
+function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
+  // Mismo motor para amistosos y partidos oficiales: se guardan en la misma lista
+  // (_getAmistosos), distinguidos por m.compId/m.oficial. Sin filterCompId (pestaña
+  // "Amistosos") se ven los de preparación; con filterCompId (pestaña "Fixture" de
+  // una competencia oficial) se ven solo los partidos de ESA competencia.
+  const esOficial = !!filterCompId;
+  const list = _getAmistosos(cat, year).filter(m=>filterCompId ? m.compId===filterCompId : !m.oficial);
 
   // Convocados = SOLO la convocatoria más reciente del ciclo (la primera del array —
   // acá se cargan siempre al principio, no al final). Antes se unían TODAS las
@@ -25541,7 +25543,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
       // ── Columna izquierda — CSS idéntico a la Mayor ──
       const leftCol = `
         <div class="piz-info-card">
-          <div class="piz-card-banner">AMISTOSO · ${_juvCat.replace('sub','Sub-').toUpperCase()}</div>
+          <div class="piz-card-banner">${esOficial?'OFICIAL':'AMISTOSO'} · ${_juvCat.replace('sub','Sub-').toUpperCase()}</div>
           <div class="piz-card-body">
             <div class="piz-card-teams">
               <div class="piz-card-team">
@@ -25690,7 +25692,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
       </div>
     </div>
     ${topGol.length?`<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:9px 12px;margin-bottom:12px">
-      <div style="font-size:.62em;font-weight:800;color:#C2410C;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Goleadores (amistosos)</div>
+      <div style="font-size:.62em;font-weight:800;color:#C2410C;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Goleadores${esOficial?'':' (amistosos)'}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px">${topGol.map(([n,g])=>`<span style="background:#fff;border:1px solid #FED7AA;border-radius:6px;padding:2px 9px;font-size:.76em;font-weight:700">${n} <span style="color:#C2410C">${g}</span></span>`).join('')}</div>
     </div>`:''}` : '';
 
@@ -25700,7 +25702,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
       <i class="ti ti-plus"></i> Agregar partido
     </button>
     <div id="amist-add-form" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">
-      <div style="font-size:.68em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Nuevo partido amistoso</div>
+      <div style="font-size:.68em;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Nuevo partido${esOficial?' oficial':' amistoso'}</div>
       <datalist id="amist-rivals-dl">${_AMIST_RIVALS.map(r=>`<option value="${r}">`).join('')}</datalist>
 
       <div style="margin-bottom:10px">
@@ -25761,7 +25763,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
           </label>
         </div>
       </div>
-      <button onclick="_amistAddMatch('${cat}','${year}')"
+      <button onclick="_amistAddMatch('${cat}','${year}','${filterCompId||''}')"
         style="width:100%;padding:10px;background:${color};color:#fff;border:none;border-radius:10px;font-size:.84em;font-weight:800;cursor:pointer">
         Crear partido
       </button>
@@ -25771,7 +25773,7 @@ function _buildJuvAmistosos(cat, year, color, catData){
   const matchesHtml = list.length===0 ? `
     <div style="text-align:center;padding:36px 16px;color:var(--muted)">
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
-      <div style="font-weight:700;margin-bottom:3px">Sin amistosos registrados</div>
+      <div style="font-weight:700;margin-bottom:3px">Sin partidos${esOficial?' oficiales':' amistosos'} registrados</div>
       <div style="font-size:.78em">Creá un partido con el botón de arriba</div>
     </div>` : list.map(m=>{
       const gl=m.gLocal, gr=m.gRival;
@@ -25805,9 +25807,11 @@ function _buildJuvAmistosos(cat, year, color, catData){
     }).join('');
 
   return `
-    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:9px 13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
-      <i class="ti ti-info-circle" style="color:#2563EB;flex-shrink:0"></i>
-      <div style="font-size:.75em;color:#1E40AF;line-height:1.4"><strong>Preparación</strong> — Goles y partidos aquí <strong>no suman a estadísticas oficiales</strong>. Solo cuentan Sudamericano, Mundial Juvenil y Preolímpico.</div>
+    <div style="background:${esOficial?'#ECFDF5':'#EFF6FF'};border:1px solid ${esOficial?'#A7F3D0':'#BFDBFE'};border-radius:10px;padding:9px 13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-info-circle" style="color:${esOficial?'#059669':'#2563EB'};flex-shrink:0"></i>
+      <div style="font-size:.75em;color:${esOficial?'#065F46':'#1E40AF'};line-height:1.4">${esOficial
+        ? `<strong>Partido oficial</strong> — cuenta para las estadísticas de esta competencia.`
+        : `<strong>Preparación</strong> — Goles y partidos aquí <strong>no suman a estadísticas oficiales</strong>. Solo cuentan Sudamericano, Mundial Juvenil y Preolímpico.`}</div>
     </div>
     ${resumenHtml}
     ${addForm}
@@ -27333,6 +27337,12 @@ function _buildJuvCompBody(compId, color, catData){
   }
 
   else if(_juvCompTab==='fixture'){
+   if(!(comp.partidos||[]).length){
+    // Competencia sin partidos "estáticos" cargados a mano (históricos ya jugados) —
+    // se usa el mismo motor interactivo de los amistosos (mismo storage, filtrado por
+    // comp.id): formación con selector de cancha, goles, tarjetas, DT, resultado.
+    content = _buildJuvAmistosos(_juvCat, _juvYear, cc, catData, comp.id);
+   } else {
     content = (comp.partidos||[]).map((p,i)=>{
       if(!p.res){
         // Partido todavía no jugado — sin resultado ni formación, solo la ficha básica.
@@ -27392,6 +27402,7 @@ function _buildJuvCompBody(compId, color, catData){
           </div>
         </div>`;
     }).join('');
+   }
   }
 
   else if(_juvCompTab==='goleadores'){
