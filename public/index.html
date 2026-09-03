@@ -3915,6 +3915,11 @@ function applyPostMatchUpdates(pizMatchId, evs){
   // Revertir snapshot anterior de este partido y aplicar el nuevo
   const allMatchDeltas=stor.get(KMatchDelta,{});
   const prevSnap=allMatchDeltas[pizMatchId]||{};
+  // Si el snapshot de este partido no cambió respecto a la última vez que se procesó,
+  // esta corrida es un re-render sin novedad (pasa en CADA carga de página) — no hay
+  // nada que revertir/reaplicar. Evita que las sanciones (más abajo) se sigan
+  // incrementando sin límite en cada reload, que es justo lo que las rompía antes.
+  const snapChanged = JSON.stringify(prevSnap) !== JSON.stringify(snap);
   const delta=getStatsDelta();
   // Restar lo que había antes
   Object.entries(prevSnap).forEach(([num,fields])=>{
@@ -3934,29 +3939,33 @@ function applyPostMatchUpdates(pizMatchId, evs){
 
   // Sanciones (2 amarillas = suspendido para el próximo partido; roja = directo) — el
   // conteo de tarjetas para stats ya se sumó arriba, adentro del snap; esto solo maneja
-  // el estado de suspensión (ct/yellows), que es aparte.
-  const ct=getCardTrack();
-  const yellows=getYellows();
-  const nextMatch=nextPizMatch(pizMatchId);
-  evs.forEach(e=>{
-    if(e.type!=='card' || e.side!=='uru') return;
-    const num=matchNum(e.player);
-    if(!num) return;
-    ct[num]=ct[num]||{yellows:0,suspendedFor:null,redCard:false};
-    if(e.extra==='r'){
-      ct[num].redCard=true;
-      if(nextMatch) ct[num].suspendedFor=nextMatch;
-    }else{
-      ct[num].yellows=(ct[num].yellows||0)+1;
-      if(ct[num].yellows>=2){
-        ct[num].yellows=0;
+  // el estado de suspensión (ct/yellows), que es aparte. Solo corre si el snapshot de
+  // este partido cambió — si no, ya se procesó antes y volver a sumar rompería el
+  // conteo (2 amarillas siempre suspende, no "2 amarillas cada vez que se recarga").
+  if(snapChanged){
+    const ct=getCardTrack();
+    const yellows=getYellows();
+    const nextMatch=nextPizMatch(pizMatchId);
+    evs.forEach(e=>{
+      if(e.type!=='card' || e.side!=='uru') return;
+      const num=matchNum(e.player);
+      if(!num) return;
+      ct[num]=ct[num]||{yellows:0,suspendedFor:null,redCard:false};
+      if(e.extra==='r'){
+        ct[num].redCard=true;
         if(nextMatch) ct[num].suspendedFor=nextMatch;
+      }else{
+        ct[num].yellows=(ct[num].yellows||0)+1;
+        if(ct[num].yellows>=2){
+          ct[num].yellows=0;
+          if(nextMatch) ct[num].suspendedFor=nextMatch;
+        }
       }
-    }
-    yellows[num]=ct[num].yellows===1;
-  });
-  setCardTrack(ct);
-  setYellows(yellows);
+      yellows[num]=ct[num].yellows===1;
+    });
+    setCardTrack(ct);
+    setYellows(yellows);
+  }
 }
 
 function getEvTxts(){return stor.get(KEvTxt,{})}
@@ -17675,16 +17684,22 @@ function lgCopy(i,url){
       });
     });
     setMatchEvents(all);
-    // Migración v4: forzar recálculo limpio. Las tarjetas (yellowsWC/redsWC) se sumaban
+    // Migración v5: forzar recálculo limpio. Las tarjetas (yellowsWC/redsWC) se sumaban
     // sueltas, sin pasar por el ciclo revert-then-reapply de KMatchDelta, así que cada
     // carga de página en cada dispositivo las volvía a sumar para siempre (se llegó a
     // ver "338 amarillas" en el resumen del Mundial). Ahora entran al snap igual que
-    // caps/goles — este reset de una sola vez recalcula todo limpio con la lógica nueva.
+    // caps/goles. Lo mismo pasaba con el estado de suspensión (auf4_cardtrack/
+    // auf4_yellow): se re-incrementaba en cada carga sin ningún guard, lo que además
+    // hacía que distintos dispositivos quedaran con "versiones" distintas de esas keys
+    // y disparaba el cartel rojo de conflicto de sync. Este reset de una sola vez
+    // recalcula todo limpio con la lógica nueva (idempotente) en todos los dispositivos.
     const _statsMigV='auf4_statsmigv';
-    if(stor.get(_statsMigV,'')!=='v4'){
+    if(stor.get(_statsMigV,'')!=='v5'){
       stor.set(KMatchDelta,{});
       setStatsDelta({});
-      stor.set(_statsMigV,'v4');
+      stor.set(KCardTrack,{});
+      stor.set(KYellow,{});
+      stor.set(_statsMigV,'v5');
     }
     // Recalcular stats para todos los partidos que tienen eventos guardados
     Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
