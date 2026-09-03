@@ -17694,39 +17694,44 @@ function lgCopy(i,url){
     // y disparaba el cartel rojo de conflicto de sync. Este reset de una sola vez
     // recalcula todo limpio con la lógica nueva (idempotente) en todos los dispositivos.
     const _statsMigV='auf4_statsmigv';
-    if(stor.get(_statsMigV,'')!=='v5'){
+    if(stor.get(_statsMigV,'')!=='v6'){
       stor.set(KMatchDelta,{});
       setStatsDelta({});
       stor.set(KCardTrack,{});
       stor.set(KYellow,{});
-      stor.set(_statsMigV,'v5');
-    }
-    // Recalcular stats para todos los partidos que tienen eventos guardados
-    Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
-    // Siempre recalcular tarjetas desde datos oficiales FIFA DESPUÉS de applyPostMatchUpdates
-    // (evita que ESPN traiga amarillas erróneas que disparen suspensiones incorrectas)
-    (()=>{
-      const nameMap=buildNameMap();
-      const matchNum=name=>nameMap[normName(name)]||nameMap[normName((name||'').split(' ').pop())];
-      const ct={}, yellows={};
-      ['uru-ksa','uru-cpv','uru-esp'].forEach(mid=>{
-        const evs=FIFA_OFFICIAL_EVENTS[mid]||[];
-        const next=nextPizMatch(mid);
-        evs.forEach(e=>{
-          if(e.type!=='card'||e.side!=='uru') return;
-          const num=matchNum(e.player); if(!num) return;
-          ct[num]=ct[num]||{yellows:0,suspendedFor:null,redCard:false};
-          if(e.extra==='r'){ct[num].redCard=true;if(next)ct[num].suspendedFor=next;}
-          else{
-            ct[num].yellows=(ct[num].yellows||0)+1;
-            if(ct[num].yellows>=2){ct[num].yellows=0;if(next)ct[num].suspendedFor=next;}
-          }
-          yellows[num]=ct[num].yellows===1;
+      // Recalcular stats para todos los partidos que tienen eventos guardados
+      Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
+      // Recalcular tarjetas desde datos oficiales FIFA DESPUÉS de applyPostMatchUpdates
+      // (evita que ESPN traiga amarillas erróneas que disparen suspensiones incorrectas).
+      // v6: esto antes corría SIEMPRE, en cada carga de página — con el Mundial ya
+      // terminado no hace falta recalcularlo de nuevo cada vez (los eventos oficiales
+      // no cambian), y repetirlo en cada load era lo que disparaba pushes de más y el
+      // cartel rojo de conflicto de sync. Ahora corre una sola vez, junto con el resto
+      // de esta migración.
+      (()=>{
+        const nameMap=buildNameMap();
+        const matchNum=name=>nameMap[normName(name)]||nameMap[normName((name||'').split(' ').pop())];
+        const ct={}, yellows={};
+        ['uru-ksa','uru-cpv','uru-esp'].forEach(mid=>{
+          const evs=FIFA_OFFICIAL_EVENTS[mid]||[];
+          const next=nextPizMatch(mid);
+          evs.forEach(e=>{
+            if(e.type!=='card'||e.side!=='uru') return;
+            const num=matchNum(e.player); if(!num) return;
+            ct[num]=ct[num]||{yellows:0,suspendedFor:null,redCard:false};
+            if(e.extra==='r'){ct[num].redCard=true;if(next)ct[num].suspendedFor=next;}
+            else{
+              ct[num].yellows=(ct[num].yellows||0)+1;
+              if(ct[num].yellows>=2){ct[num].yellows=0;if(next)ct[num].suspendedFor=next;}
+            }
+            yellows[num]=ct[num].yellows===1;
+          });
         });
-      });
-      setCardTrack(ct);
-      setYellows(yellows);
-    })();
+        setCardTrack(ct);
+        setYellows(yellows);
+      })();
+      stor.set(_statsMigV,'v6');
+    }
   })();
   // Orden: GitHub base → Supabase overlay (per-key más reciente gana sobre bulk de GitHub)
   await tryAutoLoad();
