@@ -4959,11 +4959,18 @@ function _rerenderTab(id){
 // Mientras la app queda abierta, revisa cada 20s si cambió algo en otro dispositivo
 // y lo refleja en el lugar (sin recargar). No pisa una clave que nosotros mismos
 // acabamos de escribir hace poco, para no clobbearnos con la vuelta del round-trip.
+// Solo trae filas con updated_at > la última vez que se revisó (no la tabla entera
+// cada 20s) — bajar esto a la tabla completa en cada poll fue lo que hizo explotar
+// el egress de Supabase y dejó el proyecto restringido por plan.
+let _lastPollAt = new Date().toISOString();
 async function _livePollSync(){
   if(document.hidden) return;
   try{
-    const {data,error}=await _sb.from('sync_data').select('key,value').not('key','like','_syncbackup_%');
-    if(error||!data) return;
+    const pollStart = new Date().toISOString();
+    const {data,error}=await _sb.from('sync_data').select('key,value,updated_at').not('key','like','_syncbackup_%').gt('updated_at',_lastPollAt);
+    if(error) return;
+    _lastPollAt = pollStart;
+    if(!data) return;
     let changed=false;
     data.forEach(row=>{
       if(_SKIP_SYNC.has(row.key)||row.value==null) return;
@@ -27828,11 +27835,11 @@ const ESTRUCTURA_PERSONAS = [
   ]},
 ];
 
-function _pwInitSync(){ try{ const d=_pwGetAll(); if(d.length>0) fetch(_SB_URL+'/rest/v1/sync_data?on_conflict=key',{method:'POST',headers:{'apikey':_SB_KEY,'Authorization':'Bearer '+_SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},body:JSON.stringify([{key:KPW,value:JSON.stringify(d)}])}); }catch(e){} }
+function _pwInitSync(){ try{ const d=_pwGetAll(); if(d.length>0) fetch(_SB_URL+'/rest/v1/sync_data?on_conflict=key',{method:'POST',headers:{'apikey':_SB_KEY,'Authorization':'Bearer '+_SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},body:JSON.stringify([{key:KPW,value:JSON.stringify(d),updated_at:new Date().toISOString()}])}); }catch(e){} }
 function _pwGetAll(){
   try{ return JSON.parse(localStorage.getItem(KPW)||'[]'); }catch(_){ return []; }
 }
-function _pwSave(list){ localStorage.setItem(KPW, JSON.stringify(list)); fetch(_SB_URL+'/rest/v1/sync_data?on_conflict=key',{method:'POST',headers:{'apikey':_SB_KEY,'Authorization':'Bearer '+_SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},body:JSON.stringify([{key:KPW,value:JSON.stringify(list)}])}); }
+function _pwSave(list){ localStorage.setItem(KPW, JSON.stringify(list)); fetch(_SB_URL+'/rest/v1/sync_data?on_conflict=key',{method:'POST',headers:{'apikey':_SB_KEY,'Authorization':'Bearer '+_SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},body:JSON.stringify([{key:KPW,value:JSON.stringify(list),updated_at:new Date().toISOString()}])}); }
 function _pwId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 // Migración: actualizar ventana "Atenciones post-Mundial" con cat y fecha
 (function _pwMigratePostMundial(){

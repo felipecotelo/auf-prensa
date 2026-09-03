@@ -894,15 +894,22 @@ function sbRequest(method, urlPath, body) {
 
 async function runSyncDataBackup() {
   try {
-    const raw = await sbRequest('GET', '/rest/v1/sync_data?select=key,value,updated_at');
-    const rows = JSON.parse(raw || '[]');
-    const realRows = rows.filter(r => !r.key.startsWith(BACKUP_PREFIX));
+    // Antes esto traía la tabla ENTERA (select sin filtro) y descartaba los backups
+    // viejos en JS — con hasta 240 snapshots acumulados, cada uno una copia completa
+    // de los datos reales, cada corrida re-bajaba todo eso solo para tirarlo. Eso
+    // creció sin techo y fue la causa principal de que el egress de Supabase explotara
+    // y el proyecto quedara restringido. Ahora se filtra en la query: una lectura trae
+    // solo los datos reales (lo que hace falta snapshotear), y la otra trae solo las
+    // keys de los backups (no su value, que es lo pesado) para decidir cuáles podar.
+    const rawReal = await sbRequest('GET', `/rest/v1/sync_data?select=key,value,updated_at&key=not.like.${encodeURIComponent(BACKUP_PREFIX + '%')}`);
+    const realRows = JSON.parse(rawReal || '[]');
     if (!realRows.length) { console.warn('[backup] snapshot vacío, no se guarda'); return; }
     const key = BACKUP_PREFIX + new Date().toISOString().replace(/[:.]/g, '-');
     await sbRequest('POST', '/rest/v1/sync_data', [{ key, value: JSON.stringify(realRows), updated_at: new Date().toISOString() }]);
     console.log(`[backup] snapshot guardado: ${key} (${realRows.length} filas)`);
 
-    const backupRows = rows.filter(r => r.key.startsWith(BACKUP_PREFIX)).sort((a, b) => a.key < b.key ? 1 : -1);
+    const rawBackupKeys = await sbRequest('GET', `/rest/v1/sync_data?select=key&key=like.${encodeURIComponent(BACKUP_PREFIX + '%')}`);
+    const backupRows = JSON.parse(rawBackupKeys || '[]').sort((a, b) => a.key < b.key ? 1 : -1);
     const toDelete = backupRows.slice(BACKUP_KEEP - 1);
     for (const r of toDelete) {
       await sbRequest('DELETE', `/rest/v1/sync_data?key=eq.${encodeURIComponent(r.key)}`);
