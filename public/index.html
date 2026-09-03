@@ -4450,7 +4450,14 @@ let _autoSyncDirty=false;
 const _SB_URL='https://wsiudiexcodrhyejevco.supabase.co';
 const _SB_KEY='sb_publishable_GaiAMaH49DGCJgzDOTKHSQ_42jKWXNq';
 const _sb=supabase.createClient(_SB_URL,_SB_KEY);
-const _SKIP_SYNC=new Set([KWCCache]); // caché ESPN: no sincronizar entre dispositivos
+// 'auf4_statsmigv': flag de "ya corrí esta migración una vez" — tiene que ser
+// puramente local por dispositivo. Al sincronizarse como cualquier otra key, cloudPull()
+// la pisaba de vuelta al valor viejo apenas terminaba de correr la migración local (los
+// strings no tienen ningún guard contra sobreescritura, a diferencia de arrays/objetos),
+// así que el "correr una sola vez" nunca se sostenía — corría de nuevo en cada carga de
+// página, en cada dispositivo, para siempre. Eso era lo que seguía dañando
+// auf4_cardtrack/auf4_yellow y disparando el cartel rojo de conflicto sin parar.
+const _SKIP_SYNC=new Set([KWCCache,'auf4_statsmigv']); // caché ESPN + flags de migración: no sincronizar entre dispositivos
 let _syncDebounceTimers={};
 let _syncStatus='idle'; // 'idle'|'syncing'|'ok'|'error'
 // Marca de tiempo del último push propio por clave — el polling de "actualización en
@@ -17694,7 +17701,7 @@ function lgCopy(i,url){
     // y disparaba el cartel rojo de conflicto de sync. Este reset de una sola vez
     // recalcula todo limpio con la lógica nueva (idempotente) en todos los dispositivos.
     const _statsMigV='auf4_statsmigv';
-    if(stor.get(_statsMigV,'')!=='v6'){
+    if(stor.get(_statsMigV,'')!=='v7'){
       stor.set(KMatchDelta,{});
       setStatsDelta({});
       stor.set(KCardTrack,{});
@@ -17730,7 +17737,7 @@ function lgCopy(i,url){
         setCardTrack(ct);
         setYellows(yellows);
       })();
-      stor.set(_statsMigV,'v6');
+      stor.set(_statsMigV,'v7');
     }
   })();
   // Orden: GitHub base → Supabase overlay (per-key más reciente gana sobre bulk de GitHub)
