@@ -3901,6 +3901,17 @@ function applyPostMatchUpdates(pizMatchId, evs){
     addSnap(num,'minutesWC',minutes);
   });
 
+  // Tarjetas — sumadas acá adentro del snap (no más abajo, suelto) para que participen
+  // del mismo ciclo revert-then-reapply que caps/goles. Antes se sumaban directo sobre
+  // `delta` sin ningún revert, así que cada re-render (cada carga de página, en TODOS
+  // los dispositivos) volvía a sumar +1 para siempre — así se llegó a "338 amarillas".
+  evs.forEach(e=>{
+    if(e.type!=='card' || e.side!=='uru') return;
+    const num=matchNum(e.player);
+    if(!num) return;
+    addSnap(num, e.extra==='r' ? 'redsWC' : 'yellowsWC');
+  });
+
   // Revertir snapshot anterior de este partido y aplicar el nuevo
   const allMatchDeltas=stor.get(KMatchDelta,{});
   const prevSnap=allMatchDeltas[pizMatchId]||{};
@@ -3921,7 +3932,9 @@ function applyPostMatchUpdates(pizMatchId, evs){
   stor.set(KMatchDelta,allMatchDeltas);
   setStatsDelta(delta);
 
-  // Tarjetas y sanciones (2 amarillas = suspendido para el próximo partido; roja = directo)
+  // Sanciones (2 amarillas = suspendido para el próximo partido; roja = directo) — el
+  // conteo de tarjetas para stats ya se sumó arriba, adentro del snap; esto solo maneja
+  // el estado de suspensión (ct/yellows), que es aparte.
   const ct=getCardTrack();
   const yellows=getYellows();
   const nextMatch=nextPizMatch(pizMatchId);
@@ -3930,13 +3943,10 @@ function applyPostMatchUpdates(pizMatchId, evs){
     const num=matchNum(e.player);
     if(!num) return;
     ct[num]=ct[num]||{yellows:0,suspendedFor:null,redCard:false};
-    delta[num]=delta[num]||{};
     if(e.extra==='r'){
       ct[num].redCard=true;
-      delta[num].redsWC=(delta[num].redsWC||0)+1;
       if(nextMatch) ct[num].suspendedFor=nextMatch;
     }else{
-      delta[num].yellowsWC=(delta[num].yellowsWC||0)+1;
       ct[num].yellows=(ct[num].yellows||0)+1;
       if(ct[num].yellows>=2){
         ct[num].yellows=0;
@@ -3947,7 +3957,6 @@ function applyPostMatchUpdates(pizMatchId, evs){
   });
   setCardTrack(ct);
   setYellows(yellows);
-  setStatsDelta(delta);
 }
 
 function getEvTxts(){return stor.get(KEvTxt,{})}
@@ -17666,12 +17675,16 @@ function lgCopy(i,url){
       });
     });
     setMatchEvents(all);
-    // Migración v2: forzar recálculo limpio para corregir caps pre-partido mal aplicados
+    // Migración v4: forzar recálculo limpio. Las tarjetas (yellowsWC/redsWC) se sumaban
+    // sueltas, sin pasar por el ciclo revert-then-reapply de KMatchDelta, así que cada
+    // carga de página en cada dispositivo las volvía a sumar para siempre (se llegó a
+    // ver "338 amarillas" en el resumen del Mundial). Ahora entran al snap igual que
+    // caps/goles — este reset de una sola vez recalcula todo limpio con la lógica nueva.
     const _statsMigV='auf4_statsmigv';
-    if(stor.get(_statsMigV,'')!=='v3'){
+    if(stor.get(_statsMigV,'')!=='v4'){
       stor.set(KMatchDelta,{});
       setStatsDelta({});
-      stor.set(_statsMigV,'v3');
+      stor.set(_statsMigV,'v4');
     }
     // Recalcular stats para todos los partidos que tienen eventos guardados
     Object.entries(all).forEach(([mid,evs])=>{ if(evs.length) applyPostMatchUpdates(mid,evs); });
