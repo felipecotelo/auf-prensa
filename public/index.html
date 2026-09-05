@@ -5446,30 +5446,23 @@ function _futbolDiaLabel(utcTime){
   return new Date(utcTime).toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Montevideo'}).replace(/^\w/,c=>c.toUpperCase());
 }
 function _futbolEscudo(id){
-  return `<img src="https://images.fotmob.com/image_resources/logo/teamlogo/${id}_xsmall.png" style="width:20px;height:20px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
+  return `<img src="https://imagecache.365scores.com/image/upload/f_png,w_40,h_40,c_limit,q_auto:eco,dpr_2,d_Competitors:default1.png/v2/Competitors/${id}" style="width:20px;height:20px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
 }
-// Ronda → torneo. FotMob no distingue fase por campo directo, y encima el número de
-// ronda NO resetea por fase: las rondas 1-7 se repiten tanto en el Torneo Intermedio
-// (jul-ago, terminó con la final del 5/8/2026) como en el Clausura que arrancó justo
-// después — hay que cruzar ronda con fecha del partido para separarlos. Rondas 8-15
-// sí fueron un rango propio de Apertura (mar-jun 2026) que no se repite. Mismo criterio
-// que usa el server en /api/futbol-uy (faseDeRonda) para las tablas por fase — si esto
-// deja de cerrar cuando arranque un torneo nuevo, hay que revisar los dos lados.
-const _INTERMEDIO_FINAL = new Date('2026-08-05T23:59:59Z');
-function _futbolRondaLabel(round, utcTime){
+// Ronda → torneo. Antes esto tenía que ADIVINAR la fase cruzando ronda+fecha (FotMob no
+// la exponía directo, y el número de ronda ni siquiera reseteaba entre fases) — eso
+// mismo causó un bug real en producción (Clausura mostrado como "Torneo Intermedio").
+// Ahora /api/futbol-uy manda `fase` directo desde 365scores (nombre nativo del torneo,
+// ej. "Clausura"), así que acá solo se formatea, no se infiere nada.
+function _futbolRondaLabel(round, fase){
   if(round==null || round==='') return {texto:'', esFinal:false};
-  const fecha = utcTime ? new Date(utcTime) : null;
-  const esClausura = fecha && fecha > _INTERMEDIO_FINAL;
-  if(String(round).toLowerCase()==='final') return {texto:esClausura?'FINAL TORNEO CLAUSURA':'FINAL TORNEO INTERMEDIO', esFinal:true};
-  const n=parseInt(round,10);
-  if(!isNaN(n) && n>=1 && n<=7) return {texto:`TORNEO ${esClausura?'CLAUSURA':'INTERMEDIO'} · FECHA ${n}`, esFinal:false};
-  if(!isNaN(n) && n>=8) return {texto:`TORNEO APERTURA · FECHA ${n-7}`, esFinal:false};
-  return {texto:`FECHA ${round}`, esFinal:false};
+  const faseUpper = (fase||'').toUpperCase();
+  if(String(round).toLowerCase()==='final') return {texto:`FINAL TORNEO ${faseUpper}`, esFinal:true};
+  return {texto:faseUpper?`TORNEO ${faseUpper} · FECHA ${round}`:`FECHA ${round}`, esFinal:false};
 }
 function _futbolFila(m){
   const toggle=(m.finalizado&&m.id)?`<button onclick="_futGoles('${m.id}')" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;font-weight:800;flex-shrink:0;width:22px;line-height:1;padding:0">+</button>`:`<span style="width:22px;flex-shrink:0"></span>`;
   const panel=(m.finalizado&&m.id)?`<div data-fut-goles="${m.id}" style="display:none;padding:0 10px 8px 10px;font-size:11px;color:var(--muted)"></div>`:'';
-  const ronda=_futbolRondaLabel(m.round, m.utcTime);
+  const ronda=_futbolRondaLabel(m.round, m.fase);
   return `<div style="${ronda.esFinal?'background:#F59E0B14':''}">
     <div style="display:flex;align-items:center;padding:7px 10px;border-bottom:0.5px solid var(--border)">
       <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:7px;text-align:right">

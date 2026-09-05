@@ -577,37 +577,33 @@ app.get('/api/mis-idas', async (req, res) => {
   }
 });
 
-// Fútbol Uruguayo (Primera y Segunda) — datos en vivo de FotMob (API no oficial pero
-// pública, sin auth; es la misma que usa fotmob.com/fotmob app). Las fechas de partidos
-// que la AUF todavía no confirmó simplemente no aparecen en el fixture — reflejando bien
-// que "se confirman de a poco" en vez de mostrar placeholders inventados.
+// Fútbol Uruguayo (Primera y Segunda) — datos en vivo de 365scores (API interna no
+// oficial pero pública, sin auth; es la misma que usa 365scores.com/app). Las fechas de
+// partidos que la AUF todavía no confirmó simplemente no aparecen en el fixture —
+// reflejando bien que "se confirman de a poco" en vez de mostrar placeholders inventados.
+//
+// Antes esto salía de FotMob, pero FotMob no distingue fase (Apertura/Intermedio/
+// Clausura) por campo directo — el "round" ni siquiera resetea entre fases, así que
+// había que cruzar ronda+fecha con un corte hardcodeado (INTERMEDIO_FINAL) para
+// separarlas, y ESO YA CAUSÓ UN BUG REAL en producción (el Clausura se mostraba
+// etiquetado "Torneo Intermedio"). 365scores en cambio devuelve la fase en cada partido
+// (`stageName`) y en el nombre de la tabla de posiciones (`displayName`, ej. "Liga AUF
+// Uruguaya - Clausura") de forma nativa — no hace falta adivinar nada.
 let _futbolCache = null; // {ts, data}
 const FUTBOL_TTL = 30 * 60 * 1000; // 30 min
-const FUTBOL_LEAGUES = { primera: 161, segunda: 9122 };
+const FUTBOL_LEAGUES = { primera: 617, segunda: 5523 }; // IDs de competencia en 365scores
 
-// Tabla "Anual" (Apertura+Intermedio+Clausura combinados) — la AUF la calcula sumando
-// todos los partidos jugados en el año; FotMob no la expone directo (su campo
-// "annualTable" existe en el esquema pero viene null), así que la sumamos nosotros
-// mismos a partir de los resultados reales de fixtures.allMatches. Nada inventado:
-// si un partido no tiene score válido, no se cuenta.
+// Apertura e Intermedio 2026 ya terminaron y sus tablas finales no cambian más — se
+// mantienen como estaban (hardcodeadas, verificadas contra prensa/auf.org.uy) en vez de
+// perseguir el historial de temporada en 365scores, que solo expone bien la tabla de la
+// fase EN CURSO por esta vía. Si más adelante hace falta la tabla histórica en vivo
+// (para otra fase que ya cerró), hay que investigar el endpoint de temporadas/stages
+// archivadas de 365scores — no lo encontramos al armar esto (03/09/2026).
 //
-// FotMob tampoco expone Apertura/Intermedio/Clausura como tablas separadas, y encima
-// el campo "round" no resetea por fase: las rondas 1-7 se repiten TANTO en el Torneo
-// Intermedio (jul-ago, terminó con la final del 5/8/2026) COMO en el Clausura que
-// arrancó justo después — hay que cruzar ronda con fecha para separarlos. Apertura sí
-// usó un rango de rondas propio (8-15, mar-jun 2026) que no se repite. Si esto deja de
-// cerrar cuando arranque un torneo nuevo, hay que revisar (mismo aviso que ya había
-// para _futbolRondaLabel en el cliente, que usa la misma lógica).
-const INTERMEDIO_FINAL = new Date('2026-08-05T23:59:59Z');
-// Torneo Intermedio 2026 (15/5 al 5/8, ya terminado): se jugó en 2 series de 8 equipos,
-// cada una a una rueda (7 fechas). FotMob no expone la serie en el partido y además
-// reutiliza las rondas 1-7 para Intermedio Y Clausura, así que separar por ronda+fecha
-// no alcanza para reconstruir las series de forma confiable (se filtran partidos de
-// otras competencias que caen en la misma ventana). Como el torneo ya terminó y la
-// tabla final es un hecho fijo, se hardcodea con la tabla oficial (fuente: prensa/
-// Wikipedia, verificado 23/8/2026) en vez de intentar recalcularla en vivo. `campeon:true`
-// marca al campeón real del TORNEO (Peñarol le ganó la final 5-1 a Wanderers, líder de la
-// Serie B) — no es lo mismo que liderar la serie, por eso Wanderers no lleva el flag.
+// Torneo Intermedio 2026 (15/5 al 5/8): se jugó en 2 series de 8 equipos, cada una a una
+// rueda (7 fechas). `campeon:true` marca al campeón real del TORNEO (Peñarol le ganó la
+// final 5-1 a Wanderers, líder de la Serie B) — no es lo mismo que liderar la serie, por
+// eso Wanderers no lleva el flag.
 const INTERMEDIO_SERIE_A_TABLA = [
   { pos: 1, name: 'Peñarol',           pj: 7, w: 5, d: 1, l: 1, gf: 12, gc: 3,  dif: 9,  pts: 16, campeon: true },
   { pos: 2, name: 'Cerro Largo',       pj: 7, w: 3, d: 2, l: 2, gf: 7,  gc: 5,  dif: 2,  pts: 11 },
@@ -654,97 +650,59 @@ const INTERMEDIO_SERIE_B_TABLA = [
   { pos: 7, name: 'Progreso',          pj: 7, w: 2, d: 0, l: 5, gf: 6,  gc: 11, dif: -5, pts: 6  },
   { pos: 8, name: 'Danubio',           pj: 7, w: 0, d: 4, l: 3, gf: 5,  gc: 9,  dif: -4, pts: 4  },
 ];
-function faseDeRonda(round, utcTime) {
-  const n = parseInt(round, 10);
-  if (isNaN(n)) return null;
-  if (n >= 8 && n <= 15) return 'apertura';
-  if (n >= 1 && n <= 7) {
-    const fecha = utcTime ? new Date(utcTime) : null;
-    return (fecha && fecha > INTERMEDIO_FINAL) ? 'clausura' : 'intermedio';
-  }
-  return null;
-}
-function computeTable(allMatches, filterFn) {
-  const map = new Map();
-  for (const m of allMatches) {
-    if (!m.status.finished) continue;
-    if (!filterFn(m)) continue;
-    const parts = (m.status.scoreStr || '').split(' - ').map(Number);
-    if (parts.length !== 2 || parts.some(Number.isNaN)) continue;
-    const [hg, ag] = parts;
-    const get = (id, name) => {
-      if (!map.has(id)) map.set(id, { id, name, pj: 0, w: 0, d: 0, l: 0, gf: 0, gc: 0, pts: 0 });
-      return map.get(id);
-    };
-    const h = get(m.home.id, m.home.name);
-    const a = get(m.away.id, m.away.name);
-    h.pj++; a.pj++;
-    h.gf += hg; h.gc += ag;
-    a.gf += ag; a.gc += hg;
-    if (hg > ag) { h.w++; h.pts += 3; a.l++; }
-    else if (hg < ag) { a.w++; a.pts += 3; h.l++; }
-    else { h.d++; a.d++; h.pts++; a.pts++; }
-  }
-  return [...map.values()]
-    .sort((x, y) => y.pts - x.pts || (y.gf - y.gc) - (x.gf - x.gc) || y.gf - x.gf)
-    .map((r, i) => ({ pos: i + 1, id: r.id, name: r.name, pj: r.pj, w: r.w, d: r.d, l: r.l, gf: r.gf, gc: r.gc, dif: r.gf - r.gc, pts: r.pts }));
-}
-function computeAnualTable(allMatches) {
-  return computeTable(allMatches, () => true);
-}
+const _365_BASE = 'https://webws.365scores.com/web';
+const _365_QS = 'appTypeId=5&langId=29&timezoneName=America/Montevideo&userCountryId=111';
 
 async function fetchLigaUY(leagueId) {
-  const raw = await fetchText(`https://www.fotmob.com/api/data/leagues?id=${leagueId}`);
-  const json = JSON.parse(raw);
-  const allMatches = json?.fixtures?.allMatches || [];
+  const qs = `${_365_QS}&competitions=${leagueId}`;
+  const [fixturesRaw, resultsRaw, standingsRaw] = await Promise.all([
+    fetchText(`${_365_BASE}/games/fixtures/?${qs}`),
+    fetchText(`${_365_BASE}/games/results/?${qs}`),
+    fetchText(`${_365_BASE}/standings/?${qs}&live=false`),
+  ]);
+  const fixtures = JSON.parse(fixturesRaw).games || [];
+  const results = JSON.parse(resultsRaw).games || [];
+  const standings = JSON.parse(standingsRaw).standings || [];
 
-  // Nombres cortos (ej. "Peñarol" en vez de "Club Atletico Penarol") — los sacamos de
-  // las tablas de posiciones, que sí traen shortName; fixtures.allMatches solo trae el nombre largo.
-  const teamShort = {};
-  try {
-    const t0 = json.table?.[0]?.data;
-    const grupos = t0?.tables?.length ? t0.tables : (t0?.table?.all ? [{ table: t0.table }] : []);
-    for (const g of grupos) (g.table?.all || []).forEach(r => { if (r.id != null) teamShort[r.id] = r.shortName || r.name; });
-  } catch (_) {}
-  const shortName = (id, fallback) => teamShort[id] || fallback;
+  const shortName = c => c.shortName || c.name;
 
-  const proximos = allMatches
-    .filter(m => !m.status.finished && !m.status.cancelled)
-    .sort((a, b) => new Date(a.status.utcTime) - new Date(b.status.utcTime))
+  const proximos = fixtures
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
     .slice(0, 4)
-    .map(m => ({ home: shortName(m.home.id, m.home.name), homeId: m.home.id, away: shortName(m.away.id, m.away.name), awayId: m.away.id, utcTime: m.status.utcTime, round: m.round }));
-  const ultimos = allMatches
-    .filter(m => m.status.finished)
-    .sort((a, b) => new Date(b.status.utcTime) - new Date(a.status.utcTime))
+    .map(m => ({
+      home: shortName(m.homeCompetitor), homeId: m.homeCompetitor.id,
+      away: shortName(m.awayCompetitor), awayId: m.awayCompetitor.id,
+      utcTime: m.startTime, round: m.roundNum, fase: m.stageName,
+    }));
+  const ultimos = results
+    .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
     .slice(0, 3)
-    .map(m => ({ id: m.id, home: shortName(m.home.id, m.home.name), homeId: m.home.id, away: shortName(m.away.id, m.away.name), awayId: m.away.id, score: m.status.scoreStr, utcTime: m.status.utcTime, round: m.round }));
+    .map(m => ({
+      id: m.id,
+      home: shortName(m.homeCompetitor), homeId: m.homeCompetitor.id,
+      away: shortName(m.awayCompetitor), awayId: m.awayCompetitor.id,
+      score: `${m.homeCompetitor.score} - ${m.awayCompetitor.score}`,
+      utcTime: m.startTime, round: m.roundNum, fase: m.stageName,
+    }));
+
   const tablas = [];
-  try {
-    const anual = computeAnualTable(allMatches).map(r => ({ ...r, name: shortName(r.id, r.name) }));
-    if (anual.length) tablas.push({ nombre: 'Anual', filas: anual });
-  } catch (_) {}
   if (leagueId === FUTBOL_LEAGUES.primera) {
     tablas.push({ nombre: 'Apertura', filas: APERTURA_2026_TABLA });
-  } else {
-    try {
-      const apertura = computeTable(allMatches, m => faseDeRonda(m.round, m.status.utcTime) === 'apertura')
-        .map(r => ({ ...r, name: shortName(r.id, r.name) }));
-      if (apertura.length) tablas.push({ nombre: 'Apertura', filas: apertura });
-    } catch (_) {}
-  }
-  try {
-    const clausura = computeTable(allMatches, m => faseDeRonda(m.round, m.status.utcTime) === 'clausura')
-      .map(r => ({ ...r, name: shortName(r.id, r.name) }));
-    if (clausura.length) tablas.push({ nombre: 'Clausura', filas: clausura });
-  } catch (_) {}
-  if (leagueId === FUTBOL_LEAGUES.primera) {
     tablas.push({ nombre: 'Intermedio Serie A', filas: INTERMEDIO_SERIE_A_TABLA });
     tablas.push({ nombre: 'Intermedio Serie B', filas: INTERMEDIO_SERIE_B_TABLA });
   }
-  // Nota: antes acá se agregaba también la tabla "cruda" que devuelve FotMob en
-  // json.table[0].data (nombrada con el leagueName genérico, ej. "Liga AUF Uruguaya"),
-  // pero es exactamente la tabla de la fase actual sin aclarar cuál — redundante y
-  // confuso ahora que Apertura/Clausura ya se calculan y etiquetan bien arriba.
+  // Tabla de la fase EN CURSO — nombre nativo de 365scores (ej. "Liga AUF Uruguaya -
+  // Clausura"), no un heurístico nuestro. Si el torneo cambia de fase, esto se
+  // actualiza solo la próxima vez que se pida (cache de 30 min).
+  for (const s of standings) {
+    const filas = (s.rows || []).map(r => ({
+      pos: r.position, id: r.competitor.id, name: shortName(r.competitor),
+      pj: r.gamePlayed, w: r.gamesWon, d: r.gamesEven, l: r.gamesLost,
+      gf: r.for, gc: r.against, dif: r.for - r.against, pts: r.points,
+    }));
+    const nombre = (s.displayName || '').split(' - ').pop() || 'Actual';
+    if (filas.length) tablas.push({ nombre, filas });
+  }
   return { proximos, ultimos, tablas };
 }
 
@@ -766,37 +724,15 @@ app.get('/api/futbol-uy', async (req, res) => {
 });
 
 // Goleadores de un partido puntual (bajo demanda, al tocar el "+" en Partidos).
-// Cacheado más tiempo porque un partido finalizado no cambia.
-const _golesCache = new Map(); // matchId -> {ts, data}
-const GOLES_TTL = 6 * 60 * 60 * 1000; // 6 hs
-
+//
+// PENDIENTE (03/09/2026): esto consultaba matchDetails de FotMob por matchId. Ahora que
+// /api/futbol-uy usa IDs de partido de 365scores (no de FotMob), este lookup ya no
+// aplica — no encontramos todavía el endpoint de 365scores que da los goles de un
+// partido puntual (se probaron /web/game/, /web/games/current/?games=ID, ninguno trae
+// incidencias). Devuelve vacío en vez de romperse con un 500: el "+" en Partidos no
+// muestra goleadores por ahora hasta que se resuelva esto.
 app.get('/api/futbol-uy/partido/:id', async (req, res) => {
-  const id = req.params.id;
-  try {
-    const cached = _golesCache.get(id);
-    if (cached && (Date.now() - cached.ts) < GOLES_TTL) {
-      return res.json(cached.data);
-    }
-    const raw = await fetchText(`https://www.fotmob.com/api/data/matchDetails?matchId=${id}`);
-    const json = JSON.parse(raw);
-    const ev = json?.header?.events || {};
-    const home = json?.header?.teams?.[0]?.name || '';
-    const away = json?.header?.teams?.[1]?.name || '';
-    const goles = [];
-    const extraer = (grupo, team) => {
-      Object.values(grupo || {}).forEach(lista => (lista || []).forEach(g => {
-        goles.push({ minute: g.overloadTimeStr ? `${g.time}+${g.overloadTime}` : g.time, player: g.nameStr || g.player?.name || '', ownGoal: !!g.ownGoal, team });
-      }));
-    };
-    extraer(ev.homeTeamGoals, 'home');
-    extraer(ev.awayTeamGoals, 'away');
-    goles.sort((a, b) => parseInt(a.minute) - parseInt(b.minute));
-    const data = { home, away, goles };
-    _golesCache.set(id, { ts: Date.now(), data });
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  res.json({ home: '', away: '', goles: [] });
 });
 
 // Tabla de descenso (promedios) — la trae directo de auf.org.uy, la fuente oficial.
