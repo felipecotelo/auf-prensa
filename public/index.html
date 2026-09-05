@@ -9904,6 +9904,69 @@ const FIFASEP26 = {
     'Viaje a Calcuta: fecha por confirmar · Hotel en Calcuta: por confirmar · Centro de entrenamiento: por confirmar',
     'Vuelta: sale el 7/10, llega a Uruguay el 8/10',
   ],
+  // Lista de RESERVADOS (lista larga) — NO es la convocatoria final. De acá sale el
+  // recorte a 23/26 que sí viaja; hasta que llegue esa lista, `finales` queda null y se
+  // muestran todos por igual. Cuando se cargue `finales` (array de nombres), el render de
+  // 'plantel' separa: los de finales en color arriba, el resto en gris abajo — mismo
+  // criterio que ya usamos en Juveniles para reserva→convocatoria final.
+  reservadosFecha: '04/09/2026',
+  finales: null,
+  reservados: {
+    POR: [
+      {nom:'Santiago Mele', club:'CA Independiente'},
+      {nom:'Cristopher Fiermarin', club:'Atlético Bucaramanga'},
+      {nom:'Ignacio de Arruabarrena', club:'FC Arouca'},
+      {nom:'Sebastián Jaume', club:'Albion'},
+      {nom:'Thiago Cardozo', club:'Belgrano'},
+    ],
+    DEF: [
+      {nom:'Kevin Amaro', club:'KRC Genk'},
+      {nom:'José Luis Rodríguez', club:'Clube de Regatas Vasco da Gama'},
+      {nom:'Guillermo Varela', club:'CR Flamengo'},
+      {nom:'Nahitan Nández', club:'Al-Qadisiyah'},
+      {nom:'Santiago Mouriño', club:'Villarreal'},
+      {nom:'Nicolás Marichal', club:'Dinamo Moscú'},
+      {nom:'Ronald Araujo', club:'Liverpool FC'},
+      {nom:'Alexander Barboza', club:'SE Palmeiras'},
+      {nom:'José María Giménez', club:'RC Deportivo de La Coruña'},
+      {nom:'Juan Rodríguez', club:'Cagliari Calcio'},
+      {nom:'Sebastián Boselli', club:'Getafe CF'},
+      {nom:'Santiago Bueno', club:'Wolverhampton Wanderers'},
+      {nom:'Sebastián Cáceres', club:'RC Celta de Vigo'},
+      {nom:'Mathías Olivera', club:'SSC Nápoles'},
+      {nom:'Joaquín Piquerez', club:'SE Palmeiras'},
+      {nom:'Lucas Olaza', club:'FK Krasnodar'},
+      {nom:'Marcelo Saracchi', club:'Houston Dynamo FC'},
+      {nom:'Juan Manuel Sanabria', club:'Real Salt Lake City'},
+    ],
+    MED: [
+      {nom:'Emiliano Martínez', club:'Palmeiras'},
+      {nom:'Lucas Torreira', club:'Galatasaray'},
+      {nom:'Rodrigo Bentancur', club:'Tottenham Hotspur'},
+      {nom:'Facundo Bernal', club:'Real Betis Balompié'},
+      {nom:'Santiago Homenchenko', club:'Querétaro FC'},
+      {nom:'Federico Valverde', club:'Real Madrid CF'},
+      {nom:'Agustín Canobbio', club:'Fluminense Football Club'},
+      {nom:'Matías Abaldo', club:'CA Independiente'},
+      {nom:'Facundo Pellistri', club:'Panathinaikos'},
+      {nom:'Luciano Rodríguez', club:'Cruzeiro Esporte Clube'},
+      {nom:'Maximiliano Araújo', club:'Sporting de Lisboa'},
+      {nom:'Lucas Villalba', club:'Botafogo'},
+      {nom:'Brian Rodríguez', club:'CF América'},
+      {nom:'Rodrigo Zalazar', club:'Sporting de Lisboa'},
+      {nom:'Diego Rossi', club:'CF Monterrey'},
+      {nom:'Giorgian De Arrascaeta', club:'CR Flamengo'},
+    ],
+    DEL: [
+      {nom:'Martín Satriano', club:'Getafe CF'},
+      {nom:'Agustín Álvarez Martínez', club:'CA Talleres'},
+      {nom:'Rodrigo Aguirre', club:'Tigres UANL'},
+      {nom:'Federico Viñas', club:'Deportivo Toluca FC'},
+      {nom:'Miguel Merentiel', club:'CA Boca Juniors'},
+      {nom:'Darwin Núñez', club:'Diriyah Club'},
+      {nom:'Álvaro Rodríguez', club:'AFC Bournemouth'},
+    ],
+  },
 };
 
 // Calendario día a día de la gira (17/9 salida — 8/10 vuelta), mismo esqueleto que
@@ -9997,9 +10060,38 @@ function renderFifaSep26(tabId){
       (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
       _placeholder('🧩','Pizarra disponible al haber convocatoria','Se habilitará partido por partido cuando haya lista de convocados para armar el análisis.');
   } else if(slug==='plantel'){
-    con.innerHTML = _header('👥','Convocados','Lista oficial') +
-      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
-      _placeholder('📋','Lista de convocados por confirmar',`Se cargará cuando ${FIFASEP26.dt||'el DT'} anuncie la convocatoria oficial.`);
+    const res=FIFASEP26.reservados;
+    if(!res){
+      con.innerHTML = _header('👥','Convocados','Lista oficial') +
+        (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+        _placeholder('📋','Lista de convocados por confirmar',`Se cargará cuando ${FIFASEP26.dt||'el DT'} anuncie la convocatoria oficial.`);
+    } else {
+      const finales=FIFASEP26.finales; // null hasta que salga la lista final de 23/26
+      const posLabel={POR:'Goleros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
+      const fila=(p)=>{
+        const d=JUGADORES[p.nom];
+        const primeraConv = !d || !d.total || !d.total.pj;
+        const enFinal = finales ? finales.includes(p.nom) : true;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${enFinal?'var(--card)':'var(--surface)'};border:1px solid var(--border);border-radius:9px;margin-bottom:6px;opacity:${enFinal?'1':'.55'}">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.85em;font-weight:700">${jugLink(p.nom)}</div>
+            <div style="font-size:.72em;color:var(--muted)">${p.club}</div>
+          </div>
+          ${primeraConv?`<span style="font-size:.62em;font-weight:800;color:#BE185D;background:#FCE7F3;border:1px solid #EC4899;border-radius:5px;padding:2px 6px;white-space:nowrap">SERÍA SU 1RA CONVOCATORIA</span>`:''}
+        </div>`;
+      };
+      const grupo=(key)=>{
+        const jugadores=res[key]||[];
+        if(!jugadores.length) return '';
+        return `<div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px">${posLabel[key]} · ${jugadores.length}</div>` +
+          jugadores.map(fila).join('');
+      };
+      const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
+      con.innerHTML = _header('👥', finales?'Convocados':'Lista de reservados', finales?'Convocatoria final':`Lista larga · ${totalRes} jugadores`) +
+        (finales ? '' : `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.78em;color:#92400E"><strong>Todavía no es la convocatoria final.</strong> De esta lista larga sale el recorte a 23/26 que viaja — cuando se confirme, los elegidos quedan destacados acá arriba y el resto en gris abajo.</div>`) +
+        (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+        grupo('POR') + grupo('DEF') + grupo('MED') + grupo('DEL');
+    }
   } else if(slug==='partidos'){
     con.innerHTML = _header('🌍','Partidos','Detalle de cada partido') +
       (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
@@ -13423,6 +13515,10 @@ const JUGADORES={
   'Sergio Rochet':           {auf:'sergio-rochet',              pos:'POR',club:'Sport Club Internacional',  pais:'🇧🇷',foto:'./fotos/sergio-rochet.jpg',wc26:true,tmId:264014, total:{pj:35,min:3060,g:0}, comp:{ca:{pj:6},wc:{pj:3},el:{pj:18},am:{pj:8}},fechaNac:'1993-03-23'},
   'Fernando Muslera':        {auf:'fernando-muslera',           pos:'POR',club:'Club Estudiantes de La Plata',   pais:'🇦🇷',foto:'./fotos/fernando-muslera.jpg',wc26:true,tmId:58088, total:{pj:136,min:12285,g:0},comp:{ca:{pj:22},wc:{pj:18},el:{pj:47},am:{pj:45}},fechaNac:'1986-06-16'},
   'Santiago Mele':           {auf:'santiago-mele',              pos:'POR',club:'CA Independiente',             pais:'🇦🇷',foto:'./fotos/santiago-mele.jpg',wc26:true,tmId:320739, total:{pj:8,min:675,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:4}},fechaNac:'1997-09-06'},
+  // Fichas nuevas — reservados Fecha FIFA sep-oct 2026, sin antecedentes previos en Mayor.
+  'Ignacio de Arruabarrena': {auf:'ignacio-de-arruabarrena',    pos:'POR',club:'FC Arouca',                     pais:'🇵🇹',foto:null,wc26:false, total:{pj:0,min:0,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}}},
+  'Sebastián Jaume':         {auf:'sebastian-jaume',            pos:'POR',club:'Albion',                       pais:'🇺🇾',foto:null,wc26:false, total:{pj:0,min:0,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}}},
+  'Alexander Barboza':       {auf:'alexander-barboza',          pos:'DEF',club:'SE Palmeiras',                 pais:'🇧🇷',foto:null,wc26:false, total:{pj:0,min:0,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}}},
   'José María Giménez':      {auf:'jose-maria-gimenez',         pos:'DEF',club:'RC Deportivo de La Coruña', pais:'🇪🇸',foto:'./fotos/jose-maria-gimenez.jpg',wc26:true,tmId:250845, total:{pj:99,min:8245,g:8}, comp:{ca:{pj:21},wc:{pj:10},el:{pj:34},am:{pj:34}},fechaNac:'1995-01-20'},
   'Ronald Araujo':           {auf:'ronald-araujo',              pos:'DEF',club:'Liverpool FC',             pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',foto:'./fotos/ronald-araujo.jpg',wc26:true,tmId:480267, total:{pj:27,min:1947,g:1}, comp:{ca:{pj:4},wc:{pj:0},el:{pj:17},am:{pj:6}},fechaNac:'1999-03-07'},
   'Sebastián Cáceres':       {auf:'sebastian-caceres',          pos:'DEF',club:'RC Celta de Vigo',          pais:'🇪🇸',foto:'./fotos/sebastian-caceres.jpg',wc26:true,tmId:532389, total:{pj:26,min:1780,g:0}, comp:{ca:{pj:5},wc:{pj:2},el:{pj:12},am:{pj:7}},fechaNac:'1999-08-18'},
