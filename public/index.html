@@ -9929,7 +9929,7 @@ const FIFASEP26 = {
       {nom:'Ronald Araujo', club:'Liverpool FC'},
       {nom:'Alexander Barboza', club:'SE Palmeiras'},
       {nom:'José María Giménez', club:'RC Deportivo de La Coruña'},
-      {nom:'Juan Rodríguez', club:'Cagliari Calcio'},
+      {nom:'Juan Martín Rodríguez', club:'Cagliari Calcio'},
       {nom:'Sebastián Boselli', club:'Getafe CF'},
       {nom:'Santiago Bueno', club:'Wolverhampton Wanderers'},
       {nom:'Sebastián Cáceres', club:'RC Celta de Vigo'},
@@ -10071,27 +10071,35 @@ function renderFifaSep26(tabId){
       const initialsOf=nom=>{const w=nom.split(' ').filter(Boolean);return((w[0]?.[0]||'')+(w[w.length-1]?.[0]||'')).toUpperCase();};
       const tarjeta=(p)=>{
         const d=JUGADORES[p.nom];
-        const pj=d?.total?.pj||0, g=d?.total?.g||0;
+        const pj=d?.total?.pj||0, g=d?.total?.g||0, min=d?.total?.min||0;
+        const edad=d?.fechaNac?_nacAge(d.fechaNac):null;
         const primeraConv = pj===0;
         const enFinal = finales ? finales.includes(p.nom) : true;
-        const photoSrc = d?.foto || window._getPhotoByName?.(p.nom) || '';
+        const photoSrc = window._getPhotoByName?.(p.nom) || d?.foto || '';
         const safe=p.nom.replace(/'/g,"\\'");
-        return `<div class="p-card" style="${enFinal?'':'filter:grayscale(1);opacity:.5'}" onclick="${d?`showJugador('${safe}')`:''}">
-          <div class="p-card-top" style="flex-direction:column;align-items:center;padding:14px 10px 10px">
-            <div class="p-avatar" style="width:58px;height:58px">
-              ${photoSrc?`<img src="${photoSrc}" alt="${p.nom}" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:''}
+        const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');
+        return `<div class="p-card" style="${enFinal?'':'filter:grayscale(1);opacity:.5'}">
+          <div class="p-card-top">
+            <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="width:58px;height:58px;cursor:pointer">
+              ${photoSrc?`<img src="${photoSrc}" alt="${p.nom}" loading="lazy" onerror="this.style.display='none'">`:''}
               <div class="p-avatar-ini" style="font-size:14px;opacity:1">${initialsOf(p.nom)}</div>
+              <span style="position:absolute;bottom:0;right:0;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
+              <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
             </div>
-            <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin-top:8px">${p.pos||''}</span>
+            <div class="p-card-right">
+              <span class="p-pos-badge pos-${p.pos||'DEF'}">${p.pos||''}</span>
+            </div>
           </div>
-          <div class="p-card-body" style="text-align:center">
-            <div class="p-name" style="margin-bottom:2px">${p.nom}</div>
+          <div class="p-card-body">
+            <div class="p-name" onclick="${d?`showJugador('${safe}')`:''}" style="${d?'cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px':''}">${p.nom}</div>
             <div class="p-club">${p.club}</div>
-            <div class="p-stats" style="grid-template-columns:repeat(2,1fr)">
+            ${primeraConv?`<div class="p-ms" style="border-color:#EC4899;background:#FCE7F3;color:#BE185D">🌟 Sería su 1ra convocatoria</div>`:''}
+            <div class="p-stats">
               <div class="p-stat"><div class="p-stat-n">${pj}</div><div class="p-stat-l">Partidos</div></div>
               <div class="p-stat"><div class="p-stat-n">${g}</div><div class="p-stat-l">Goles</div></div>
+              <div class="p-stat"><div class="p-stat-n">${min}</div><div class="p-stat-l">Minutos</div></div>
+              <div class="p-stat"><div class="p-stat-n">${edad!=null?edad:'—'}</div><div class="p-stat-l">Años</div></div>
             </div>
-            ${primeraConv?`<div class="p-ms" style="border-color:#EC4899;background:#FCE7F3;color:#BE185D">🌟 Sería su 1ra convocatoria</div>`:''}
           </div>
         </div>`;
       };
