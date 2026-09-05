@@ -10068,23 +10068,38 @@ function renderFifaSep26(tabId){
     } else {
       const finales=FIFASEP26.finales; // null hasta que salga la lista final de 23/26
       const posLabel={POR:'Goleros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
-      const fila=(p)=>{
+      const initialsOf=nom=>{const w=nom.split(' ').filter(Boolean);return((w[0]?.[0]||'')+(w[w.length-1]?.[0]||'')).toUpperCase();};
+      const tarjeta=(p)=>{
         const d=JUGADORES[p.nom];
-        const primeraConv = !d || !d.total || !d.total.pj;
+        const pj=d?.total?.pj||0, g=d?.total?.g||0;
+        const primeraConv = pj===0;
         const enFinal = finales ? finales.includes(p.nom) : true;
-        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${enFinal?'var(--card)':'var(--surface)'};border:1px solid var(--border);border-radius:9px;margin-bottom:6px;opacity:${enFinal?'1':'.55'}">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:.85em;font-weight:700">${jugLink(p.nom)}</div>
-            <div style="font-size:.72em;color:var(--muted)">${p.club}</div>
+        const photoSrc = d?.foto || window._getPhotoByName?.(p.nom) || '';
+        const safe=p.nom.replace(/'/g,"\\'");
+        return `<div class="p-card" style="${enFinal?'':'filter:grayscale(1);opacity:.5'}" onclick="${d?`showJugador('${safe}')`:''}">
+          <div class="p-card-top" style="flex-direction:column;align-items:center;padding:14px 10px 10px">
+            <div class="p-avatar" style="width:58px;height:58px">
+              ${photoSrc?`<img src="${photoSrc}" alt="${p.nom}" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:''}
+              <div class="p-avatar-ini" style="font-size:14px;opacity:1">${initialsOf(p.nom)}</div>
+            </div>
+            <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin-top:8px">${p.pos||''}</span>
           </div>
-          ${primeraConv?`<span style="font-size:.62em;font-weight:800;color:#BE185D;background:#FCE7F3;border:1px solid #EC4899;border-radius:5px;padding:2px 6px;white-space:nowrap">SERÍA SU 1RA CONVOCATORIA</span>`:''}
+          <div class="p-card-body" style="text-align:center">
+            <div class="p-name" style="margin-bottom:2px">${p.nom}</div>
+            <div class="p-club">${p.club}</div>
+            <div class="p-stats" style="grid-template-columns:repeat(2,1fr)">
+              <div class="p-stat"><div class="p-stat-n">${pj}</div><div class="p-stat-l">Partidos</div></div>
+              <div class="p-stat"><div class="p-stat-n">${g}</div><div class="p-stat-l">Goles</div></div>
+            </div>
+            ${primeraConv?`<div class="p-ms" style="border-color:#EC4899;background:#FCE7F3;color:#BE185D">🌟 Sería su 1ra convocatoria</div>`:''}
+          </div>
         </div>`;
       };
       const grupo=(key)=>{
         const jugadores=res[key]||[];
         if(!jugadores.length) return '';
-        return `<div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px">${posLabel[key]} · ${jugadores.length}</div>` +
-          jugadores.map(fila).join('');
+        return `<div style="font-size:.72em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px">${posLabel[key]} · ${jugadores.length}</div>` +
+          `<div class="p-grid">${jugadores.map(tarjeta).join('')}</div>`;
       };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
       con.innerHTML = _header('👥', finales?'Convocados':'Lista de reservados', finales?'Convocatoria final':`Lista larga · ${totalRes} jugadores`) +
