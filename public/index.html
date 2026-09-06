@@ -3975,6 +3975,20 @@ function getEvTxt(date,idx,def){return getEvTxts()[evKey(date,idx)]||def}
 
 const INJ_STATES=['green','yellow','red'];
 const INJ_LABELS={green:'Disponible',yellow:'Molestia',red:'Lesionado'};
+// Estado físico por NOMBRE (no número de camiseta) — para listas de reservados/pre-
+// convocatoria donde todavía no hay dorsal asignado. Mismos 3 estados que INJ_STATES.
+const KResInjury='auf4_res_injury';
+const getResInjury=(nom)=>stor.get(KResInjury,{})[nom]||'green';
+window._cycleResInjury=function(nomEnc,rerenderFn){
+  const nom=decodeURIComponent(nomEnc);
+  const overrides=stor.get(KResInjury,{});
+  const cur=overrides[nom]||'green';
+  const next=INJ_STATES[(INJ_STATES.indexOf(cur)+1)%INJ_STATES.length];
+  overrides[nom]=next;
+  stor.set(KResInjury,overrides);
+  toast(INJ_LABELS[next]);
+  if(rerenderFn) window[rerenderFn]?.();
+};
 const INJ_ICONS ={green:'🟢',yellow:'🟡',red:'🔴'};
 
 function getPlayerInjury(n){const o=stor.get(KInj,{});const p=PLAYERS.find(x=>x.n===n);return o[n]||(p?p.injury:'green')}
@@ -10063,11 +10077,10 @@ function renderFifaSep26(tabId){
     const res=FIFASEP26.reservados;
     if(!res){
       con.innerHTML = _header('👥','Convocados','Lista oficial') +
-        (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
         _placeholder('📋','Lista de convocados por confirmar',`Se cargará cuando ${FIFASEP26.dt||'el DT'} anuncie la convocatoria oficial.`);
     } else {
       const finales=FIFASEP26.finales; // null hasta que salga la lista final de 23/26
-      const posLabel={POR:'Goleros',DEF:'Defensas',MED:'Mediocampistas',DEL:'Delanteros'};
+      const POS_ORDER=['POR','DEF','MED','DEL'];
       const initialsOf=nom=>{const w=nom.split(' ').filter(Boolean);return((w[0]?.[0]||'')+(w[w.length-1]?.[0]||'')).toUpperCase();};
       const tarjeta=(p)=>{
         const d=JUGADORES[p.nom];
@@ -10079,6 +10092,7 @@ function renderFifaSep26(tabId){
         const safe=p.nom.replace(/'/g,"\\'");
         const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');
         const cid='res-'+nomEnc; // id de tarjeta para switchPTab (no hay número de camiseta todavía)
+        const inj=getResInjury(p.nom);
         return `<div class="p-card" id="pcard-${cid}" style="${enFinal?'':'filter:grayscale(1);opacity:.5'}">
           <div class="p-card-top" style="position:relative">
             <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
@@ -10089,6 +10103,9 @@ function renderFifaSep26(tabId){
             </div>
             <div class="p-card-right">
               <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin:0">${p.pos||''}</span>
+              <button class="inj-toggle ${inj}" style="margin-top:4px" onclick="event.stopPropagation();_cycleResInjury('${nomEnc}','renderFifaSep26Plantel')" title="Click para cambiar">
+                <span class="inj-dot-btn ${inj}"></span>${INJ_LABELS[inj]}
+              </button>
             </div>
           </div>
           <div class="p-card-body">
@@ -10102,6 +10119,7 @@ function renderFifaSep26(tabId){
                 ${primeraConv?`<span style="font-size:8.5px;font-weight:800;background:#FCE7F3;color:#BE185D;padding:1px 5px;border-radius:5px;border:1px solid #EC4899">🌟 SERÍA SU 1RA CONVOCATORIA</span>`:''}
               </div>
               <div class="p-club">${p.clubPais||''} ${p.club}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats">
                 <div class="p-stat"><div class="p-stat-n">${pj}</div><div class="p-stat-l">Partidos</div></div>
                 <div class="p-stat"><div class="p-stat-n">${g}</div><div class="p-stat-l">Goles</div></div>
@@ -10115,17 +10133,11 @@ function renderFifaSep26(tabId){
           </div>
         </div>`;
       };
-      const grupo=(key)=>{
-        const jugadores=res[key]||[];
-        if(!jugadores.length) return '';
-        return `<div style="font-size:.72em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px">${posLabel[key]} · ${jugadores.length}</div>` +
-          `<div class="p-grid">${jugadores.map(p=>tarjeta({...p,pos:key})).join('')}</div>`;
-      };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
+      const todos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
       con.innerHTML = _header('👥', finales?'Convocados':'Lista de reservados', finales?'Convocatoria final':`Lista larga · ${totalRes} jugadores`) +
         (finales ? '' : `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.78em;color:#92400E"><strong>Todavía no es la convocatoria final.</strong> De esta lista larga sale el recorte a 23/26 que viaja — cuando se confirme, los elegidos quedan destacados acá arriba y el resto en gris abajo.</div>`) +
-        (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
-        grupo('POR') + grupo('DEF') + grupo('MED') + grupo('DEL');
+        `<div class="p-grid">${todos.map(tarjeta).join('')}</div>`;
     }
   } else if(slug==='partidos'){
     con.innerHTML = _header('🌍','Partidos','Detalle de cada partido') +
@@ -10142,6 +10154,7 @@ function renderFifaSep26(tabId){
     renderInfoGeneral('fifasep26');
   }
 }
+window.renderFifaSep26Plantel = function(){ renderFifaSep26('fifasep26-plantel'); };
 // ────────────────────────────────────────────────────────────────────────────
 
 // ── Calendario día a día de la Fecha FIFA sep-oct 2026 ───────────────────────
