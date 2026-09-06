@@ -10086,7 +10086,6 @@ function renderFifaSep26(tabId){
         const d=JUGADORES[p.nom];
         const pj=d?.total?.pj||0, g=d?.total?.g||0, min=d?.total?.min||0;
         const edad=d?.fechaNac?_nacAge(d.fechaNac):null;
-        const primeraConv = pj===0;
         const enFinal = finales ? finales.includes(p.nom) : true;
         const photoSrc = window._getPhotoByName?.(p.nom) || d?.foto || '';
         const safe=p.nom.replace(/'/g,"\\'");
@@ -10094,20 +10093,22 @@ function renderFifaSep26(tabId){
         const cid='res-'+nomEnc; // id de tarjeta para switchPTab (no hay número de camiseta todavía)
         const inj=getResInjury(p.nom);
         return `<div class="p-card" id="pcard-${cid}" style="${enFinal?'':'filter:grayscale(1);opacity:.5'}">
-          <div class="p-card-top" style="position:relative">
-            <div class="p-card-num" title="Todavía sin dorsal asignado">#</div>
-            <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
-              ${photoSrc?`<img src="${photoSrc}" alt="${p.nom}" loading="lazy" decoding="async" style="object-position:center 15%" onerror="this.style.display='none'">`:''}
-              <div class="p-avatar-ini">${initialsOf(p.nom)}</div>
-              <span style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
-              <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
+          <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="p-card-num" title="Todavía sin dorsal asignado">#</div>
+              <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
+                ${photoSrc?`<img src="${photoSrc}" alt="${p.nom}" loading="lazy" decoding="async" style="object-position:center 15%" onerror="this.style.display='none'">`:''}
+                <div class="p-avatar-ini">${initialsOf(p.nom)}</div>
+                <span style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
+                <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
+              </div>
+              <div class="p-card-right">
+                <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin:0">${p.pos||''}</span>
+              </div>
             </div>
-            <div class="p-card-right">
-              <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin:0">${p.pos||''}</span>
-              <button class="inj-toggle ${inj}" style="margin-top:4px" onclick="event.stopPropagation();_cycleResInjury('${nomEnc}','renderFifaSep26Plantel')" title="Click para cambiar">
-                <span class="inj-dot-btn ${inj}"></span>${INJ_LABELS[inj]}
-              </button>
-            </div>
+            <button class="inj-toggle ${inj}" style="width:100%;justify-content:center;white-space:nowrap" onclick="event.stopPropagation();_cycleResInjury('${nomEnc}','renderFifaSep26Plantel')" title="Click para cambiar">
+              <span class="inj-dot-btn ${inj}"></span>${INJ_LABELS[inj]}
+            </button>
           </div>
           <div class="p-card-body">
             <div class="p-name" onclick="${d?`showJugador('${safe}')`:''}" style="${d?'cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px':''}">${p.nom}</div>
@@ -10116,9 +10117,6 @@ function renderFifaSep26(tabId){
               <button class="p-card-tab" onclick="switchPTab(this,'prensa','${cid}')">Prensa</button>
             </div>
             <div class="p-tab-pane active" id="ptab-stats-${cid}">
-              <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap">
-                ${primeraConv?`<span style="font-size:8.5px;font-weight:800;background:#FCE7F3;color:#BE185D;padding:1px 5px;border-radius:5px;border:1px solid #EC4899">🌟 SERÍA SU 1RA CONVOCATORIA</span>`:''}
-              </div>
               <div class="p-club">${p.clubPais||''} ${p.club}</div>
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats">
@@ -13570,26 +13568,26 @@ const JUGADORES={
   'Alexander Barboza':       {auf:'alexander-barboza',          pos:'DEF',club:'SE Palmeiras',                 pais:'🇧🇷',foto:null,wc26:false, total:{pj:0,min:0,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}}},
   'José María Giménez':      {auf:'jose-maria-gimenez',         pos:'DEF',club:'RC Deportivo de La Coruña', pais:'🇪🇸',foto:'./fotos/jose-maria-gimenez.jpg',wc26:true,tmId:250845, total:{pj:99,min:8245,g:8}, comp:{ca:{pj:21},wc:{pj:10},el:{pj:34},am:{pj:34}},fechaNac:'1995-01-20'},
   'Ronald Araujo':           {auf:'ronald-araujo',              pos:'DEF',club:'Liverpool FC',             pais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',foto:'./fotos/ronald-araujo.jpg',wc26:true,tmId:480267, total:{pj:27,min:1947,g:1}, comp:{ca:{pj:4},wc:{pj:0},el:{pj:17},am:{pj:6}},fechaNac:'1999-03-07'},
-  'Sebastián Cáceres':       {auf:'sebastian-caceres',          pos:'DEF',club:'RC Celta de Vigo',          pais:'🇪🇸',foto:'./fotos/sebastian-caceres.jpg',wc26:true,tmId:532389, total:{pj:26,min:1780,g:0}, comp:{ca:{pj:5},wc:{pj:2},el:{pj:12},am:{pj:7}},fechaNac:'1999-08-18'},
+  'Sebastián Cáceres':       {auf:'sebastian-caceres',          pos:'DEF',club:'RC Celta de Vigo',          pais:'🇪🇸',foto:'./fotos/sebastian-caceres.jpg',wc26:true,tmId:532389, total:{pj:27,min:1780,g:0}, comp:{ca:{pj:5},wc:{pj:2},el:{pj:12},am:{pj:7}},fechaNac:'1999-08-18'},
   'Santiago Bueno':          {auf:'santiago-bueno',             pos:'DEF',club:'Wolverhampton Wanderers',  pais:'🇬🇧',foto:'./fotos/santiago-bueno.jpg',wc26:true,tmId:438001, total:{pj:8,min:630,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:4},am:{pj:4}},fechaNac:'1998-11-09'},
-  'Guillermo Varela':        {auf:'guillermo-varela',           pos:'DEF',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/guillermo-varela.jpg',wc26:true,tmId:188862, total:{pj:30,min:2041,g:0}, comp:{ca:{pj:2},wc:{pj:7},el:{pj:8},am:{pj:13}},fechaNac:'1993-03-24'},
-  'Mathías Olivera':         {auf:'mathias-olivera-miramontes', pos:'DEF',club:'SSC Nápoles',              pais:'🇮🇹',foto:'./fotos/mathias-olivera.jpg',wc26:true,tmId:376514, total:{pj:37,min:2928,g:2}, comp:{ca:{pj:5},wc:{pj:5},el:{pj:15},am:{pj:12}},fechaNac:'1997-10-31'},
+  'Guillermo Varela':        {auf:'guillermo-varela',           pos:'DEF',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/guillermo-varela.jpg',wc26:true,tmId:188862, total:{pj:31,min:2041,g:0}, comp:{ca:{pj:2},wc:{pj:7},el:{pj:8},am:{pj:13}},fechaNac:'1993-03-24'},
+  'Mathías Olivera':         {auf:'mathias-olivera-miramontes', pos:'DEF',club:'SSC Nápoles',              pais:'🇮🇹',foto:'./fotos/mathias-olivera.jpg',wc26:true,tmId:376514, total:{pj:38,min:2928,g:2}, comp:{ca:{pj:5},wc:{pj:5},el:{pj:15},am:{pj:12}},fechaNac:'1997-10-31'},
   'Matías Viña':             {auf:'matias-vina',                pos:'DEF',club:'CA River Plate',           pais:'🇦🇷',foto:'./fotos/matias-vina.jpg',wc26:true,tmId:439072, total:{pj:44,min:2897,g:1}, comp:{ca:{pj:10},wc:{pj:3},el:{pj:17},am:{pj:14}},fechaNac:'1997-11-09'},
   'Joaquín Piquerez':        {auf:'joaquin-piquerez',           pos:'DEF',club:'SE Palmeiras',             pais:'🇧🇷',foto:'./fotos/joaquin-piquerez.jpg',wc26:true,tmId:496268, total:{pj:19,min:1033,g:0}, comp:{ca:{pj:0},wc:{pj:0},el:{pj:14},am:{pj:5}},fechaNac:'1998-08-24'},
   'Juan Manuel Sanabria':    {auf:'juan-manuel-sanabria',       pos:'DEF',club:'Real Salt Lake City',           pais:'🇺🇸',foto:'./fotos/juan-manuel-sanabria.jpg',wc26:true,tmId:446106, total:{pj:8,min:null,g:1},  comp:{ca:{pj:0},wc:{pj:2},el:{pj:0},am:{pj:6}},fechaNac:'2000-03-29'},
   'Manuel Ugarte':           {auf:'manuel-ugarte',              pos:'MED',club:'Manchester United',        pais:'🇬🇧',foto:'./fotos/manuel-ugarte.jpg',wc26:true,tmId:476701, total:{pj:38,min:2656,g:1}, comp:{ca:{pj:6},wc:{pj:2},el:{pj:18},am:{pj:12}},fechaNac:'2001-04-11'},
-  'Rodrigo Bentancur':       {auf:'rodrigo-bentancur',          pos:'MED',club:'Tottenham Hotspur',        pais:'🇬🇧',foto:'./fotos/rodrigo-bentancur.jpg',wc26:true,tmId:354362, total:{pj:76,min:5332,g:3}, comp:{ca:{pj:14},wc:{pj:10},el:{pj:27},am:{pj:25}},fechaNac:'1997-06-25'},
-  'Federico Valverde':       {auf:'federico-valverde',          pos:'MED',club:'Real Madrid CF',           pais:'🇪🇸',foto:'./fotos/federico-valverde.jpg',wc26:true,tmId:369081, total:{pj:75,min:5927,g:9}, comp:{ca:{pj:15},wc:{pj:5},el:{pj:32},am:{pj:23}},fechaNac:'1998-07-22'},
+  'Rodrigo Bentancur':       {auf:'rodrigo-bentancur',          pos:'MED',club:'Tottenham Hotspur',        pais:'🇬🇧',foto:'./fotos/rodrigo-bentancur.jpg',wc26:true,tmId:354362, total:{pj:77,min:5332,g:3}, comp:{ca:{pj:14},wc:{pj:10},el:{pj:27},am:{pj:25}},fechaNac:'1997-06-25'},
+  'Federico Valverde':       {auf:'federico-valverde',          pos:'MED',club:'Real Madrid CF',           pais:'🇪🇸',foto:'./fotos/federico-valverde.jpg',wc26:true,tmId:369081, total:{pj:76,min:5927,g:9}, comp:{ca:{pj:15},wc:{pj:5},el:{pj:32},am:{pj:23}},fechaNac:'1998-07-22'},
   'Nicolás De La Cruz':      {auf:'nicolas-de-la-cruz',         pos:'MED',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/nicolas-de-la-cruz.jpg',wc26:true,tmId:397458, total:{pj:36,min:1971,g:5}, comp:{ca:{pj:9},wc:{pj:4},el:{pj:17},am:{pj:6}},fechaNac:'1997-06-01'},
   'Giorgian De Arrascaeta':  {auf:'giorgian-de-arrascaeta',     pos:'MED',club:'CR Flamengo',              pais:'🇧🇷',foto:'./fotos/giorgian-de-arrascaeta.jpg',wc26:true,tmId:248410, total:{pj:60,min:3184,g:13},comp:{ca:{pj:13,g:3},wc:{pj:4,g:0},el:{pj:19,g:4},am:{pj:24,g:6}},fechaNac:'1994-06-01'},
   'Facundo Pellistri':       {auf:'facundo-pellistri-rebollo',  pos:'MED',club:'Panathinaikos',            pais:'🇬🇷',foto:'./fotos/facundo-pellistri.jpg',wc26:true,tmId:676318, total:{pj:39,min:2543,g:2}, comp:{ca:{pj:6},wc:{pj:3},el:{pj:20},am:{pj:10}},fechaNac:'2001-12-20'},
   'Emiliano Martínez':       {auf:'emiliano-martinez-toranza',  pos:'MED',club:'SE Palmeiras',             pais:'🇧🇷',foto:'./fotos/emiliano-martinez.jpg',wc26:true,tmId:707447, total:{pj:10,min:466,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:8}},fechaNac:'1999-08-17'},
-  'Maximiliano Araújo':      {auf:'maximiliano-araujo',         pos:'MED',club:'Sporting de Lisboa',       pais:'🇵🇹',foto:'./fotos/maxi-araujo.jpg',wc26:true,tmId:572675, total:{pj:30,min:2275,g:5}, comp:{ca:{pj:6},wc:{pj:2},el:{pj:15},am:{pj:8}},fechaNac:'2000-02-15'},
-  'Agustín Canobbio':        {auf:'agustin-canobbio',           pos:'MED',club:'Fluminense Football Club',            pais:'🇧🇷',foto:'./fotos/agustin-canobbio.jpg',wc26:true,tmId:457533, total:{pj:17,min:761,g:2},  comp:{ca:{pj:1},wc:{pj:3},el:{pj:5},am:{pj:8}},fechaNac:'1998-10-01'},
-  'Brian Rodríguez':         {auf:'brian-rodriguez',            pos:'MED',club:'CF América',               pais:'🇲🇽',foto:'./fotos/brian-rodriguez.jpg',wc26:true,tmId:465818, total:{pj:35,min:1805,g:4}, comp:{ca:{pj:1},wc:{pj:2},el:{pj:19},am:{pj:13}},fechaNac:'2000-05-20',nombreCompleto:'Paul Brian Rodríguez'},
+  'Maximiliano Araújo':      {auf:'maximiliano-araujo',         pos:'MED',club:'Sporting de Lisboa',       pais:'🇵🇹',foto:'./fotos/maxi-araujo.jpg',wc26:true,tmId:572675, total:{pj:31,min:2275,g:5}, comp:{ca:{pj:6},wc:{pj:2},el:{pj:15},am:{pj:8}},fechaNac:'2000-02-15'},
+  'Agustín Canobbio':        {auf:'agustin-canobbio',           pos:'MED',club:'Fluminense Football Club',            pais:'🇧🇷',foto:'./fotos/agustin-canobbio.jpg',wc26:true,tmId:457533, total:{pj:18,min:761,g:2},  comp:{ca:{pj:1},wc:{pj:3},el:{pj:5},am:{pj:8}},fechaNac:'1998-10-01'},
+  'Brian Rodríguez':         {auf:'brian-rodriguez',            pos:'MED',club:'CF América',               pais:'🇲🇽',foto:'./fotos/brian-rodriguez.jpg',wc26:true,tmId:465818, total:{pj:36,min:1805,g:4}, comp:{ca:{pj:1},wc:{pj:2},el:{pj:19},am:{pj:13}},fechaNac:'2000-05-20',nombreCompleto:'Paul Brian Rodríguez'},
   'Rodrigo Zalazar':         {auf:'rodrigo-zalazar',            pos:'MED',club:'Sporting de Lisboa',                 pais:'🇵🇹',foto:'./fotos/rodrigo-zalazar.jpg',wc26:true,tmId:606752, total:{pj:8,min:417,g:2},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:6}},fechaNac:'1999-08-12'},
   'Darwin Núñez':            {auf:'darwin-nunez',               pos:'DEL',club:'Diriyah Club',              pais:'🇸🇦',foto:'./fotos/darwin-nunez.jpg',wc26:true,tmId:546543, total:{pj:41,min:2552,g:13},comp:{ca:{pj:6},wc:{pj:5},el:{pj:21},am:{pj:8}},fechaNac:'1999-06-24'},
-  'Federico Viñas':          {auf:'federico-vinas',             pos:'DEL',club:'Deportivo Toluca FC',       pais:'🇲🇽',foto:'./fotos/federico-vinas.jpg',wc26:true,tmId:578419, total:{pj:13,min:614,g:2},  comp:{ca:{pj:0},wc:{pj:2},el:{pj:5},am:{pj:6}},fechaNac:'1998-06-30'},
+  'Federico Viñas':          {auf:'federico-vinas',             pos:'DEL',club:'Deportivo Toluca FC',       pais:'🇲🇽',foto:'./fotos/federico-vinas.jpg',wc26:true,tmId:578419, total:{pj:14,min:614,g:2},  comp:{ca:{pj:0},wc:{pj:2},el:{pj:5},am:{pj:6}},fechaNac:'1998-06-30'},
   'Rodrigo Aguirre':         {auf:'rodrigo-aguirre-soto',       pos:'DEL',club:'Tigres UANL',              pais:'🇲🇽',foto:'./fotos/rodrigo-aguirre.jpg',wc26:true,tmId:189410, total:{pj:11,min:627,g:3},  comp:{ca:{pj:0},wc:{pj:1},el:{pj:7},am:{pj:3}},fechaNac:'1994-10-01'},
 
   // ═══════════════════════════════════════════════════════
@@ -13602,7 +13600,7 @@ const JUGADORES={
   'Lucas Torreira':          {auf:'lucas-torreira',             pos:'MED',club:'Galatasaray',              pais:'🇹🇷',foto:'./fotos/lucas-torreira.jpg',wc26:false,tmId:318077,total:{pj:40,min:2067,g:0}, comp:{ca:{pj:6},wc:{pj:5},el:{pj:11},am:{pj:18}},fechaNac:'1996-02-11'},
   'Facundo Torres':          {auf:'facundo-torres',             pos:'DEL',club:'Austin FC',                pais:'🇺🇸',foto:'./fotos/facundo-torres.jpg',wc26:false,tmId:465822,total:{pj:23,min:912,g:2},   comp:{ca:{pj:5},wc:{pj:0},el:{pj:9},am:{pj:9}},fechaNac:'2000-04-13'},
   'Agustín Álvarez Martínez':{auf:'agustin-alvarez',            pos:'DEL',club:'CA Talleres',                 pais:'🇦🇷',foto:'./fotos/agustin-alvarez.jpg',wc26:false,tmId:812625,total:{pj:6,min:331,g:1},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:5},am:{pj:1}},fechaNac:'2001-05-19'},
-  'Diego Rossi':             {auf:'diego-rossi',                pos:'DEL',club:'CF Monterrey',             pais:'🇲🇽',foto:'./fotos/diego-rossi.jpg',wc26:false,tmId:317454,total:{pj:13,min:786,g:2}, comp:{ca:{pj:0},wc:{pj:1},el:{pj:1},am:{pj:6}},fechaNac:'1998-03-05'},
+  'Diego Rossi':             {auf:'diego-rossi',                pos:'DEL',club:'CF Monterrey',             pais:'🇲🇽',foto:'./fotos/diego-rossi.jpg',wc26:false,tmId:317454,total:{pj:7,min:786,g:1}, comp:{ca:{pj:0},wc:{pj:1},el:{pj:1},am:{pj:6}},fechaNac:'1998-03-05'},
   'Cristian Olivera':        {auf:'cristian-olivera',           pos:'MED',club:'Esporte Clube Bahia',                 pais:'🇧🇷',foto:'./fotos/cristian-olivera.jpg',wc26:false,tmId:657746,total:{pj:13,min:627,g:0},   comp:{ca:{pj:4},wc:{pj:0},el:{pj:9},am:{pj:0}},fechaNac:'2002-04-17'},
   'Brian Ocampo':            {auf:'brian-ocampo',               pos:'MED',club:'Coritiba FC',              pais:'🇧🇷',foto:'./fotos/brian-ocampo.jpg',wc26:false,tmId:598765,total:{pj:4,min:null,g:0},   comp:{ca:{pj:3},wc:{pj:0},el:{pj:0},am:{pj:1}},fechaNac:'1999-06-25'},
   'Miguel Merentiel':        {auf:'miguel-merentiel',           pos:'DEL',club:'CA Boca Juniors',             pais:'🇦🇷',foto:'./fotos/miguel-merentiel.jpg',wc26:false,tmId:481367,total:{pj:1,min:45,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:0}},fechaNac:'1996-02-24'},
@@ -13615,12 +13613,12 @@ const JUGADORES={
   'Mateo Ponte':             {auf:'mateo-ponte',                pos:'DEF',club:'Botafogo de Futebol e Regatas',                 pais:'🇧🇷',foto:'./fotos/mateo-ponte.jpg',wc26:false,tmId:856047,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2003-05-24'},
   'Mauricio Lemos':          {auf:'mauricio-lemos',             pos:'DEF',club:'CA Peñarol',         pais:'🇧🇷',foto:'./fotos/mauricio-lemos.jpg',wc26:false,tmId:303140,total:{pj:3,min:140,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:3}},fechaNac:'1995-12-28'},
   'Bruno Méndez':            {auf:'bruno-mendez',               pos:'DEF',club:'Deportivo Toluca FC',         pais:'🇲🇽',foto:'./fotos/bruno-mendez.jpg',wc26:false,tmId:552912,total:{pj:7,min:384,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:5}},fechaNac:'1999-09-10'},
-  'José Luis Rodríguez':     {auf:'jose-luis-rodriguez',        pos:'DEF',club:'Clube de Regatas Vasco da Gama',         pais:'🇧🇷',foto:'./fotos/jose-luis-rodriguez.jpg',wc26:false,tmId:430339,total:{pj:12,min:970,g:2},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:4}},fechaNac:'1997-03-14'},
+  'José Luis Rodríguez':     {auf:'jose-luis-rodriguez',        pos:'DEF',club:'Clube de Regatas Vasco da Gama',         pais:'🇧🇷',foto:'./fotos/jose-luis-rodriguez.jpg',wc26:false,tmId:430339,total:{pj:5,min:970,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:1},am:{pj:4}},fechaNac:'1997-03-14'},
   'Anderson Duarte':         {auf:'anderson-duarte',            pos:'DEF',club:'Atlético de San Luis',        pais:'🇺🇾',foto:'./fotos/anderson-duarte.jpg',wc26:false,tmId:928648,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2004-03-23'},
   'Santiago Mouriño':        {auf:'santiago-mourino',           pos:'DEF',club:'Villarreal CF',            pais:'🇪🇸',foto:'./fotos/santiago-mourino.jpg',wc26:false,tmId:953901,total:{pj:1,min:90,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:1}},fechaNac:'2002-02-13'},
   'Fabricio Díaz':           {auf:'fabricio-diaz',              pos:'MED',club:'Al-Gharafa SC',            pais:'🇶🇦',foto:'./fotos/fabricio-diaz.jpg',wc26:false,tmId:741567,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2003-02-03'},
   'Felipe Carballo':         {auf:'felipe-carballo',            pos:'MED',club:null,                        pais:''  ,foto:'./fotos/felipe-carballo.jpg',wc26:false,tmId:394930,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'1996-10-04'},
-  'Cristopher Fiermarin':    {auf:'cristopher-fiermarin',       pos:'POR',club:'Atlético Bucaramanga',           pais:'🇨🇴',foto:'./fotos/christopher-fiermarin.jpg',wc26:false,tmId:563089,total:{pj:3,min:270,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:2}},fechaNac:'1998-01-01'},
+  'Cristopher Fiermarin':    {auf:'cristopher-fiermarin',       pos:'POR',club:'Atlético Bucaramanga',           pais:'🇨🇴',foto:'./fotos/christopher-fiermarin.jpg',wc26:false,tmId:563089,total:{pj:2,min:270,g:0},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:2}},fechaNac:'1998-01-01'},
   'Ignacio Laquintana':      {auf:'ignacio-laquintana',         pos:'MED',club:'Red Bull Bragantino',                 pais:'🇧🇷',foto:'./fotos/ignacio-laquintana.jpg',wc26:false,tmId:577407,total:{pj:2,min:135,g:1},  comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:2}},fechaNac:'1999-02-01'},
   'Marcos Oroná':            {auf:'marcos-orona',               pos:'MED',club:null,                       pais:'',   foto:'./fotos/marcos-orona.jpg',wc26:false,total:{pj:0,min:0,g:0},    comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:0}},fechaNac:'2005-08-06'},
   'Nicolás Marichal':        {auf:'nicolas-marichal',           pos:'DEF',club:'Dinamo Moscú',          pais:'🇷🇺',foto:'./fotos/nicolas-marichal.jpg',wc26:false,tmId:852980,total:{pj:5,min:356,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:2},am:{pj:3}},fechaNac:'2001-03-17'},
