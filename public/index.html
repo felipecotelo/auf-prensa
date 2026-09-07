@@ -977,6 +977,8 @@ textarea{resize:vertical;min-height:52px}
 .p-stat{background:var(--surface);border-radius:6px;padding:5px 2px;text-align:center}
 .p-stat-n{font-size:14px;font-weight:800;color:var(--cel-dk);line-height:1}
 .p-stat-n.wc{color:var(--gold)}
+.p-stat-n.goal{color:var(--green-dk)}
+.p-stat-n.info{color:var(--muted)}
 .p-stat-l{font-size:7.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
 .p-ms{font-size:9.5px;line-height:1.4;padding:2px 6px;border-radius:0 5px 5px 0;margin:2px 0;border-left:2px solid}
 .p-ms.debut{background:var(--cel-lt);border-color:var(--cel);color:var(--cel-dk)}
@@ -10127,9 +10129,9 @@ function renderFifaSep26(tabId){
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats">
                 <div class="p-stat"><div class="p-stat-n">${pj}</div><div class="p-stat-l">Partidos</div></div>
-                <div class="p-stat"><div class="p-stat-n">${g}</div><div class="p-stat-l">Goles</div></div>
+                <div class="p-stat"><div class="p-stat-n goal">${g}</div><div class="p-stat-l">Goles</div></div>
                 <div class="p-stat"><div class="p-stat-n">${min}</div><div class="p-stat-l">Minutos</div></div>
-                <div class="p-stat"><div class="p-stat-n">${edad!=null?edad:'—'}</div><div class="p-stat-l">Años</div></div>
+                <div class="p-stat"><div class="p-stat-n info">${edad!=null?edad:'—'}</div><div class="p-stat-l">Años</div></div>
               </div>
             </div>
             <div class="p-tab-pane" id="ptab-prensa-${cid}">
@@ -25216,14 +25218,28 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
   // "Joaquin Miguez" y "Joaquín Míguez" son la misma persona aunque en alguna
   // convocatoria se haya tipeado sin tilde — se guarda una sola vez, prefiriendo
   // la grafía CON tilde si aparece en cualquier convocatoria.
+  //
+  // Si el partido pertenece a una competencia oficial (m.compId) que YA tiene
+  // convocatoria final cargada (comp.convocados), el selector se restringe SOLO
+  // a esos jugadores — no a todo el pool de convocatorias del ciclo/año, que
+  // incluye gente que nunca quedó en la lista final de ESE torneo.
   const convMap = new Map(); // clave sin tilde -> nombre canónico (con tilde si existe)
-  const anoData = JUVENILES[cat]?.anos?.[year];
-  if(anoData){
-    (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+  const compFinal = m.compId ? COMP_DATA[m.compId]?.convocados : null;
+  if(compFinal && compFinal.length){
+    compFinal.forEach(j=>{
       const k = _norm(j.nom);
       const prev = convMap.get(k);
       if(!prev || (prev===_norm(prev) && j.nom!==_norm(j.nom))) convMap.set(k, j.nom);
-    }));
+    });
+  } else {
+    const anoData = JUVENILES[cat]?.anos?.[year];
+    if(anoData){
+      (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+        const k = _norm(j.nom);
+        const prev = convMap.get(k);
+        if(!prev || (prev===_norm(prev) && j.nom!==_norm(j.nom))) convMap.set(k, j.nom);
+      }));
+    }
   }
   const juvPosRaw = getJuvPos();
   const juvPosByNorm = {};
