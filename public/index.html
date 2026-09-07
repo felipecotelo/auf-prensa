@@ -19954,8 +19954,8 @@ const JUVENILES = {
         ],
         lista: SUB20_LISTA_LARGA,
         competencias: [
-          {id:'sud20-2027', label:'Sudamericano Sub-20 2027', icon:'🏆', color:'#1D4ED8'},
           {id:'odesur-2026', label:'Juegos ODESUR 2026', icon:'🏅', color:'#7C3AED'},
+          {id:'sud20-2027', label:'Sudamericano Sub-20 2027', icon:'🏆', color:'#1D4ED8'},
         ]
       }
     }
@@ -27736,15 +27736,23 @@ function _buildJuvCompBody(compId, color, catData){
   else if(_juvCompTab==='jugadores'){
     // Pool unificado: convocados formales + preparacion + lista larga
     const formalConv = (comp.convocados||[]).filter(j=>!j.descartado);
-    // Si no hay convocados formales, usar la última convocatoria como "activos"
-    // Si tampoco hay convocatorias, mostrar toda la preparacion en color
+    // Si no hay convocados formales, usar la última convocatoria como "activos".
+    // Prioridad: convocatorias propias de la competencia (comp.convocatorias) >
+    // última convocatoria del CICLO general (microciclos de entrenamiento del
+    // año, ej: "Microciclo 15" de Sub-20) > si no hay ninguna, toda la
+    // preparación queda en color. Sin este fallback, una competencia como
+    // ODESUR (que todavía no tiene convocatorias propias cargadas) mostraba
+    // los 44 reservados como "activos" en bloque, sin distinguir a los que
+    // están entrenando esta semana.
     const convocatorias = comp.convocatorias||[];
-    const lastCallEntry = !formalConv.length && convocatorias.length
-      ? convocatorias[convocatorias.length-1]
+    const cycleConvocatorias = (catData.anos?.[_juvYear]?.convocatorias)||[];
+    const lastCallEntry = formalConv.length ? null
+      : convocatorias.length ? convocatorias[convocatorias.length-1]
+      : cycleConvocatorias.length ? cycleConvocatorias[0]
       : null;
     const lastCall = lastCallEntry?.jugadores||[];
     const fechaConvBanner = formalConv.length ? (comp.convocadosFecha||'') : (lastCallEntry?.fecha||'');
-    const prepAsActive = !formalConv.length && !convocatorias.length && (comp.preparacion||[]).length > 0;
+    const prepAsActive = !formalConv.length && !lastCallEntry && (comp.preparacion||[]).length > 0;
     const allMap = {};
     // 1. convocados activos primero (formal, última convocatoria, o preparacion completa)
     formalConv.forEach(j=>{
