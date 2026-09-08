@@ -10077,6 +10077,29 @@ const DELEGACION_FIFASEP26 = [
   {area:'Dirigentes', people:[]},
   {area:'Invitados', people:[]},
 ];
+// Siembra los 3 partidos de la Fecha FIFA en el motor de amistosos (mismo
+// storage que usa Juveniles) bajo cat='fifamayor'/year='sepoct26', para que
+// la Pizarra tenga formación/cancha/banco/goles/tarjetas igual que el
+// Mundial, sin duplicar ese motor. Idempotente — no reinserta si ya están.
+function _seedFifaSepPizarra(){
+  const key='auf4_amist_juv_fifamayor_sepoct26';
+  let list=[];
+  try{ list=JSON.parse(localStorage.getItem(key)||'[]'); }catch(_){}
+  let changed=false;
+  (FIFASEP26.partidosData||[]).forEach((p,i)=>{
+    if(list.some(m=>m.compId==='fifasep26'&&m.rival===p.rival)) return;
+    list.push({
+      id: Date.now()+i,
+      rival: p.rival, fecha: p.fecha, hora: p.hora, lugar: p.sede,
+      compId: 'fifasep26', oficial: true,
+      gLocal: null, gRival: null,
+      lineup: {formation:'4-3-3', starters:{}},
+      goles: {}, dtPartido: '', subs: [], tarjetas: [],
+    });
+    changed=true;
+  });
+  if(changed) stor.set(key, list);
+}
 function renderFifaSep26(tabId){
   const slug = tabId.replace('fifasep26-','');
   const con = document.getElementById(tabId+'-container');
@@ -10158,9 +10181,8 @@ function renderFifaSep26(tabId){
       (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
       _placeholder('👥','Sin convocatoria oficial aún',`La disponibilidad se cargará cuando ${FIFASEP26.dt||'el DT'} anuncie la lista de convocados${_fifaMatchesFaltan>0?` (todavía faltan ${_fifaMatchesFaltan} rival${_fifaMatchesFaltan>1?'es':''} por confirmar)`:''}.`);
   } else if(slug==='pizarra'){
-    con.innerHTML = _header('⚽','Pizarra táctica','Análisis de los partidos') +
-      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
-      _placeholder('🧩','Pizarra disponible al haber convocatoria','Se habilitará partido por partido cuando haya lista de convocados para armar el análisis.');
+    _seedFifaSepPizarra();
+    con.innerHTML = _buildJuvAmistosos('fifamayor','sepoct26','#1D4ED8',{anos:{sepoct26:{convocatorias:[]}}},'fifasep26');
   } else if(slug==='plantel'){
     const res=FIFASEP26.reservados;
     if(!res){
@@ -10459,7 +10481,18 @@ window.toggleFifaSepAddAct=function(date,btn){
   const open=wrap.style.display!=='none';
   wrap.style.display=open?'none':'flex';
   btn.textContent=open?'＋ Agregar actividad':'✕ Cerrar';
-  if(!open){ delete _fsapType[date]; document.getElementById(`fsap-txt-${date}`)?.focus(); }
+  if(!open){
+    delete _fsapType[date];
+    document.getElementById(`fsap-txt-${date}`)?.focus();
+    // Día de partido: ya sabemos la hora (FIFASEP26.partidosData) — se
+    // precarga para no tener que retipearla, mismo criterio que el Mundial.
+    const day=FIFASEP26_CAL_DAYS.find(d=>d.date===date);
+    if(day?.tipo==='partido'){
+      const p=(FIFASEP26.partidosData||[]).find(x=>x.fecha===date);
+      const hEl=document.getElementById(`fsap-h-${date}`);
+      if(p?.hora && hEl && !hEl.value) hEl.value=p.hora;
+    }
+  }
 };
 
 window.addFifaSepAct=function(date){
@@ -10470,14 +10503,22 @@ window.addFifaSepAct=function(date){
   const type=_fsapType[date]||'team';
   const acts=getDayActs();
   if(!acts[date]) acts[date]=[];
-  const opt={txt, h:(hEl?.value||'').trim()||'TBD'};
+  const hRaw=(hEl?.value||'').trim();
+  const tz=_fsapTzState[date]||FIFASEP_TZ_DEFAULT;
+  // La hora se guarda siempre en Uruguay (mismo criterio que el resto del
+  // calendario) — si se cargó en otro huso, se convierte acá recién al
+  // guardar (antes solo se mostraba la conversión en el preview y se
+  // guardaba el valor tal cual se había tipeado, sin convertir).
+  const h = (tz!=='UY' && hRaw && hRaw!=='TBD') ? (_fsapConvertTz(hRaw,tz,'UY')||hRaw) : (hRaw||'TBD');
+  const opt={txt, h};
   if(type==='viaje') opt.tipo='viaje';
   else if(type==='auf') opt.auf=true;
   acts[date].push(opt);
   stor.set(KDayActs,acts);
   delete _fsapType[date];
+  delete _fsapTzState[date];
   renderFifaSepCal();
-  toast('Actividad agregada');
+  toast('Actividad agregada'+(tz!=='UY'&&h!==hRaw?` (${hRaw} ${tz} → ${h} UY)`:''));
 };
 
 // Los overrides por evento (texto editado, hora, estado, nota, links) se guardan
@@ -25848,6 +25889,7 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
   // una competencia oficial) se ven solo los partidos de ESA competencia.
   const esOficial = !!filterCompId;
   const list = _getAmistosos(cat, year).filter(m=>filterCompId ? m.compId===filterCompId : !m.oficial);
+  const catLabel = cat==='fifamayor' ? 'Selección Mayor' : _juvCat.replace('sub','Sub-');
 
   // Convocados = SOLO la convocatoria más reciente del ciclo (la primera del array —
   // acá se cargan siempre al principio, no al final). Antes se unían TODAS las
@@ -25863,27 +25905,39 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
   const convSet = new Set();
   const convPosMap = {}; // nom → pos from static convocatorias
   const convNumMap = {}; // nom → num oficial del torneo (si hay convocatoria final)
-  const compFinal = filterCompId ? COMP_DATA[filterCompId]?.convocados : null;
-  if(compFinal && compFinal.length){
-    compFinal.forEach(j=>{
+  if(filterCompId==='fifasep26' && typeof FIFASEP26!=='undefined' && FIFASEP26.reservados){
+    Object.entries(FIFASEP26.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
       convSet.add(j.nom);
-      if(j.pos) convPosMap[j.nom]=j.pos;
-      if(j.num!=null) convNumMap[j.nom]=j.num;
-    });
+      convPosMap[j.nom]=pos;
+    }));
   } else {
-    const anoData = JUVENILES[cat]?.anos?.[year];
-    if(anoData){
-      const ultimaConv = (anoData.convocatorias||[])[0];
-      (ultimaConv?.jugadores||[]).forEach(j=>{
+    const compFinal = filterCompId ? COMP_DATA[filterCompId]?.convocados : null;
+    if(compFinal && compFinal.length){
+      compFinal.forEach(j=>{
         convSet.add(j.nom);
         if(j.pos) convPosMap[j.nom]=j.pos;
+        if(j.num!=null) convNumMap[j.nom]=j.num;
       });
+    } else {
+      const anoData = JUVENILES[cat]?.anos?.[year];
+      if(anoData){
+        const ultimaConv = (anoData.convocatorias||[])[0];
+        (ultimaConv?.jugadores||[]).forEach(j=>{
+          convSet.add(j.nom);
+          if(j.pos) convPosMap[j.nom]=j.pos;
+        });
+      }
     }
   }
   const convocados = [...convSet].sort();
 
-  // Detail view — partido abierto
-  const openId = window._amistDetailOpen;
+  // Detail view — partido abierto. Para la Fecha FIFA (3 partidos fijos) se
+  // entra siempre directo al detalle, con pestañas para cambiar de partido
+  // en vez de una lista+"volver" (no tiene sentido "crear/eliminar partido"
+  // acá, son siempre los mismos 3).
+  const openId = (filterCompId==='fifasep26' && !list.some(m=>m.id===window._amistDetailOpen))
+    ? list[0]?.id
+    : window._amistDetailOpen;
   if(openId!=null){
     const m = list.find(m=>m.id===openId);
     if(m){
@@ -25927,7 +25981,7 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
       const rivalCode = _RFLAG[m.rival]||'un';
 
       // CT → DT
-      const ctMembers = _getJuvCT(cat, year);
+      const ctMembers = cat==='fifamayor' ? (typeof CT_MAYOR_FORLAN!=='undefined'?CT_MAYOR_FORLAN:[]) : _getJuvCT(cat, year);
       const dtOptions = ctMembers.map(m2=>{const v=m2.name.replace(/"/g,'&quot;');return`<option value="${v}"${dtVal===m2.name?' selected':''}>${m2.name}${m2.dt?' (DT)':''}</option>`;});
 
       // Score inputs — mismo estilo que la Mayor
@@ -25990,7 +26044,7 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
       // ── Columna izquierda — CSS idéntico a la Mayor ──
       const leftCol = `
         <div class="piz-info-card">
-          <div class="piz-card-banner">${esOficial?'OFICIAL':'AMISTOSO'} · ${_juvCat.replace('sub','Sub-').toUpperCase()}</div>
+          <div class="piz-card-banner">${esOficial?'OFICIAL':'AMISTOSO'} · ${catLabel.toUpperCase()}</div>
           <div class="piz-card-body">
             <div class="piz-card-teams">
               <div class="piz-card-team">
@@ -26072,14 +26126,20 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
           </div>
         </div>`;
 
+      const matchTabsHtml = filterCompId==='fifasep26' ? `
+        <div class="tabs" style="margin-bottom:12px">
+          ${list.map(lm=>`<button onclick="window._amistDetailOpen=${lm.id};window.renderFifaSep26?.('fifasep26-pizarra')" class="tab${lm.id===m.id?' active':''}">vs. ${lm.rival}</button>`).join('')}
+        </div>` : '';
       return `
+        ${matchTabsHtml}
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          ${filterCompId==='fifasep26'?'':`
           <button onclick="_amistCloseDetail()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700;flex-shrink:0">
             <i class="ti ti-arrow-left"></i> Volver
-          </button>
+          </button>`}
           <div style="flex:1;min-width:0">
             <div style="font-weight:900;font-size:.95em">Uruguay vs. ${m.rival}</div>
-            <div style="font-size:.7em;color:var(--muted)">${_juvCat.replace('sub','Sub-')} · ${fechaFmt}</div>
+            <div style="font-size:.7em;color:var(--muted)">${catLabel} · ${fechaFmt}</div>
           </div>
           <div style="font-size:1.3em;font-weight:900;color:${resColor};flex-shrink:0">${resLabel}</div>
         </div>
@@ -26089,10 +26149,11 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
           <div class="piz-col-center">${pitchHtml}</div>
           <div class="piz-col-right" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">${benchHtml}</div>
         </div>
+        ${filterCompId==='fifasep26'?'':`
         <button onclick="_amistDeleteMatch('${cat}','${year}',${m.id})"
           style="width:100%;padding:8px;background:var(--card);border:1.5px solid #fca5a5;color:#dc2626;border-radius:10px;font-size:.78em;font-weight:700;cursor:pointer;margin-top:12px">
           <i class="ti ti-trash"></i> Eliminar partido
-        </button>`;
+        </button>`}`;
     }
   }
 
