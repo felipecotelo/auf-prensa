@@ -5237,6 +5237,42 @@ function renderInicioHoySeleccion(dayOffset){
     const aniversarioRows=aniversarios.map(c=>rowHtml('🏆',c.txt)).join('');
     const actividadRows=actividades.map(c=>rowHtml('⚽',c.txt)).join('');
 
+    // ── Partidos de hoy (Mayor + Juveniles) ─────────────────────────────────
+    // Antes este widget no miraba partidos en absoluto: un día con un partido
+    // real (ej. Sub-15 vs. Argentina por Liga Evolución) mostraba "no hay nada
+    // específico para hoy" igual. Se agrega acá, escaneando el motor de
+    // amistosos/oficiales de Juveniles (misma fuente que usa la Pizarra) y el
+    // fixture vigente de la Mayor.
+    const partidosHoy=[];
+    try{
+      if(typeof JUVENILES!=='undefined' && typeof _getAmistosos==='function'){
+        Object.entries(JUVENILES).forEach(([cat,catData])=>{
+          Object.keys(catData.anos||{}).forEach(yr=>{
+            (_getAmistosos(cat,yr)||[]).forEach(m=>{
+              if((m.fecha||'').slice(0,10)===isoHoy){
+                const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
+                partidosHoy.push({txt:`${catLbl} vs. ${m.rival}${m.hora?' · '+m.hora+'h':''}`, onclick:`showSection('juveniles')`});
+              }
+            });
+          });
+        });
+      }
+    }catch(_){}
+    try{
+      if(typeof FIFASEP26!=='undefined'){
+        (FIFASEP26.partidosData||[]).forEach(p=>{
+          if((p.fecha||'').slice(0,10)===isoHoy){
+            partidosHoy.push({txt:`Mayor vs. ${p.rival}${p.rivalBandera?' '+p.rivalBandera:''}${p.hora?' · '+p.hora+'h (UY)':''}`, onclick:`showSection('mayor')`});
+          }
+        });
+      }
+    }catch(_){}
+    const partidoRows=partidosHoy.map(p=>`
+      <div onclick="${p.onclick||''}" style="display:flex;align-items:center;gap:8px;padding:5px 0;${p.onclick?'cursor:pointer':''}">
+        <span style="font-size:15px;flex-shrink:0">🏟️</span>
+        <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${p.txt}</span>
+      </div>`).join('');
+
     // ── Planificador de hoy ─────────────────────────────────────────────────
     const planHoy=[];
     if(typeof _planGetAll==='function'){
@@ -5259,7 +5295,7 @@ function renderInicioHoySeleccion(dayOffset){
         </div>
       </div>`).join('');
 
-    const vacio=!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !planHoy.length;
+    const vacio=!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !partidosHoy.length && !planHoy.length;
     // "Hoy" siempre se muestra, aunque no haya nada — así el widget da una señal
     // clara de "reviewed, no hay nada" en vez de simplemente desaparecer. Ayer y
     // Mañana, al ser menos críticos de tener siempre a la vista, se ocultan si
@@ -5268,7 +5304,8 @@ function renderInicioHoySeleccion(dayOffset){
     const planLabel=esAyer?'Planificador · ayer':esManana?'Planificador · mañana':'Planificador';
     const body=vacio
       ? `<div style="font-size:${isMob?'12.5px':'12px'};color:${subColor}">No hay nada específico para hoy — revisá las tareas.</div>`
-      : (cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
+      : (partidoRows?subHdr('🏟️ Partidos')+partidoRows:'')
+      +(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
       +(cumpleEstructuraRows?subHdr('🎂 Cumpleaños · Estructura')+cumpleEstructuraRows:'')
       +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
       +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
