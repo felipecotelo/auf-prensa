@@ -10117,8 +10117,12 @@ function renderFifaSepGrafica(){
   const con=document.getElementById('fifasep26-grafica-body');
   if(!con) return;
   const g=getFifaSepGrafica();
-  const pool=[];
+  let pool=[];
   Object.entries(FIFASEP26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
+  // En cuanto se confirmen los 26 finales, todas las pestañas se restringen
+  // a esa lista — salvo Convocados, la única donde los descartados quedan
+  // visibles abajo en gris (mismo criterio que Juveniles).
+  if(FIFASEP26.finales) pool=pool.filter(p=>FIFASEP26.finales.includes(p.nom));
 
   const usage={};
   (FIFASEP26.partidosData||[]).forEach(p=>{
@@ -25602,6 +25606,9 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
   const _fifaSepPosMap = {}; // solo se llena para m.compId==='fifasep26'
   if(m.compId==='fifasep26' && typeof FIFASEP26!=='undefined' && FIFASEP26.reservados){
     Object.entries(FIFASEP26.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
+      // Confirmados los 26 finales, el selector de cancha se restringe a
+      // esos — ya no tiene sentido poner en la pizarra a un descartado.
+      if(FIFASEP26.finales && !FIFASEP26.finales.includes(j.nom)) return;
       const k=_norm(j.nom);
       if(!convMap.has(k)) convMap.set(k, j.nom);
       _fifaSepPosMap[j.nom]=pos;
@@ -26125,6 +26132,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
   const convNumMap = {}; // nom → num oficial del torneo (si hay convocatoria final)
   if(filterCompId==='fifasep26' && typeof FIFASEP26!=='undefined' && FIFASEP26.reservados){
     Object.entries(FIFASEP26.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
+      if(FIFASEP26.finales && !FIFASEP26.finales.includes(j.nom)) return;
       convSet.add(j.nom);
       convPosMap[j.nom]=pos;
     }));
