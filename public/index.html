@@ -10200,6 +10200,87 @@ window.renderFifaSepGrafica=renderFifaSepGrafica;
 // storage que usa Juveniles) bajo cat='fifamayor'/year='sepoct26', para que
 // la Pizarra tenga formación/cancha/banco/goles/tarjetas igual que el
 // Mundial, sin duplicar ese motor. Idempotente — no reinserta si ya están.
+// ── Disponibilidad de la Fecha FIFA — mismo espíritu que renderDisponibilidad
+// del Mundial (hero del DT arriba, tabla de jugadores con conteo de
+// atenciones), pero genérico: acá las actividades NO son obligatorias FIFA
+// (sin el esquema rojo=obligatorio de la Copa Mundial), son 4 tipos fijos de
+// atención de prensa/hotel. Lista de jugadores: el pool de 46 reservados
+// hasta que se confirmen los 26 finales (FIFASEP26.finales).
+const KFifaSepDisp='auf4_fifasep_disp';
+const FIFASEP_DISP_TIPOS=[
+  {id:'md1',   label:'Conferencia MD-1', icon:'🎤'},
+  {id:'md',    label:'Conferencia MD',   icon:'🎙'},
+  {id:'hotel', label:'Atención en hotel',icon:'🏨'},
+  {id:'auftv', label:'Nota para AUFtv',  icon:'📺'},
+];
+function getFifaSepDisp(){ return stor.get(KFifaSepDisp,{}); }
+window._fifaSepDispBump=function(who,tipo,delta){
+  const d=getFifaSepDisp();
+  if(!d[who]) d[who]={};
+  d[who][tipo]=Math.max(0,(d[who][tipo]||0)+delta);
+  stor.set(KFifaSepDisp,d);
+  renderFifaSepDisponibilidad();
+};
+function renderFifaSepDisponibilidad(){
+  const con=document.getElementById('fifasep26-disp-body');
+  if(!con) return;
+  const d=getFifaSepDisp();
+  const dtNom=FIFASEP26.dt||'Diego Forlán';
+
+  const counterRow=(who,compact)=>FIFASEP_DISP_TIPOS.map(t=>{
+    const n=(d[who]||{})[t.id]||0;
+    return `<div style="display:flex;align-items:center;gap:4px;background:${compact?'rgba(255,255,255,.08)':'var(--surface)'};border-radius:8px;padding:3px 6px" title="${t.label}">
+      <button onclick="_fifaSepDispBump('${who.replace(/'/g,"\\'")}','${t.id}',-1)" style="background:none;border:none;cursor:pointer;color:${compact?'#9CA3AF':'var(--muted)'};font-size:11px;padding:0 2px">−</button>
+      <span style="font-size:10.5px;min-width:14px;text-align:center;font-weight:800;color:${compact?'#fff':'var(--text)'}">${t.icon} ${n}</span>
+      <button onclick="_fifaSepDispBump('${who.replace(/'/g,"\\'")}','${t.id}',1)" style="background:none;border:none;cursor:pointer;color:${compact?'#7ABEE6':'var(--cel-dk)'};font-size:11px;padding:0 2px">+</button>
+    </div>`;
+  }).join('');
+
+  const dtTotal=FIFASEP_DISP_TIPOS.reduce((s,t)=>s+((d[dtNom]||{})[t.id]||0),0);
+  const dtSection=`
+    <div style="background:var(--navy);border-radius:12px;overflow:hidden;margin-bottom:1.25rem">
+      <div style="padding:9px 13px;background:#0A0A0F;font-size:10px;font-weight:800;color:#5B8CAA;text-transform:uppercase;letter-spacing:.1em">🎙 Cuerpo Técnico</div>
+      <div style="padding:14px;background:#152539;border-left:4px solid var(--cel);margin:12px;border-radius:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:#fff">${dtNom}</div>
+            <div style="font-size:11px;color:#5B8CAA">Director Técnico</div>
+          </div>
+          <div style="background:${dtTotal===0?'#374151':'var(--cel)'};color:#fff;font-size:14px;font-weight:800;padding:4px 12px;border-radius:8px">${dtTotal}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${counterRow(dtNom,true)}</div>
+      </div>
+    </div>`;
+
+  const pool=[];
+  Object.entries(FIFASEP26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
+  const finales=FIFASEP26.finales;
+  const activos=finales?pool.filter(p=>finales.includes(p.nom)):pool;
+
+  const totalOf=nom=>FIFASEP_DISP_TIPOS.reduce((s,t)=>s+((d[nom]||{})[t.id]||0),0);
+  const sorted=[...activos].sort((a,b)=>totalOf(a.nom)-totalOf(b.nom)||a.nom.localeCompare(b.nom));
+
+  const playerRows=sorted.map(p=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <div style="flex:1;min-width:140px;font-size:.85em;font-weight:700">${p.nom}<span style="font-size:.72em;color:var(--muted);font-weight:500;margin-left:5px">${p.club||''}</span></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${counterRow(p.nom,false)}</div>
+    </div>`).join('');
+
+  const playersSection=!pool.length ? '' : `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div style="padding:9px 13px;background:var(--surface);font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">
+        👥 ${finales?'Convocados':'Reservados'} — ${activos.length} jugadores${finales?'':' (lista larga — se ordena esta sección cuando estén los 26 finales)'}
+      </div>
+      ${playerRows}
+    </div>`;
+
+  con.innerHTML = dtSection +
+    (!pool.length
+      ? _placeholder('👥','Sin reservados cargados todavía','La disponibilidad de jugadores se habilita cuando haya lista de reservados o convocados.')
+      : playersSection);
+}
+window.renderFifaSepDisponibilidad=renderFifaSepDisponibilidad;
+
 function _seedFifaSepPizarra(){
   const key='auf4_amist_juv_fifamayor_sepoct26';
   let list=[];
@@ -10296,9 +10377,9 @@ function renderFifaSep26(tabId){
       `<div id="fifasep26-cal-timeline"></div>`;
     renderFifaSepCal();
   } else if(slug==='disponibilidad'){
-    con.innerHTML = _header('✅','Disponibilidad','Seguimiento de convocados') +
-      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
-      _placeholder('👥','Sin convocatoria oficial aún',`La disponibilidad se cargará cuando ${FIFASEP26.dt||'el DT'} anuncie la lista de convocados${_fifaMatchesFaltan>0?` (todavía faltan ${_fifaMatchesFaltan} rival${_fifaMatchesFaltan>1?'es':''} por confirmar)`:''}.`);
+    con.innerHTML = _header('✅','Disponibilidad','Seguimiento de atenciones por jugador') +
+      `<div id="fifasep26-disp-body"></div>`;
+    renderFifaSepDisponibilidad();
   } else if(slug==='pizarra'){
     _seedFifaSepPizarra();
     con.innerHTML = _buildJuvAmistosos('fifamayor','sepoct26','#1D4ED8',{anos:{sepoct26:{convocatorias:[]}}},'fifasep26');
