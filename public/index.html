@@ -10077,6 +10077,125 @@ const DELEGACION_FIFASEP26 = [
   {area:'Dirigentes', people:[]},
   {area:'Invitados', people:[]},
 ];
+// ── Diseño gráfico de la Fecha FIFA — mismo lenguaje visual que renderGrafica
+// (Mundial), pero por NOMBRE en vez de número de camiseta (los reservados
+// todavía no tienen dorsal) y usando FIFASEP26.reservados (46) como plantel.
+const KFifaSepGrafica='auf4_fifasep_grafica';
+function getFifaSepGrafica(){
+  const v=stor.get(KFifaSepGrafica,null);
+  const def={};
+  (FIFASEP26.partidosData||[]).forEach(p=>{ def[p.rival]={md1:{players:[],link:''},md:{players:[],link:''}}; });
+  if(!v) return def;
+  (FIFASEP26.partidosData||[]).forEach(p=>{
+    if(!v[p.rival]) v[p.rival]=def[p.rival];
+    ['md1','md'].forEach(stage=>{ if(!v[p.rival][stage]) v[p.rival][stage]={players:[],link:''}; });
+  });
+  return v;
+}
+function setFifaSepGrafica(v){ stor.set(KFifaSepGrafica,v); }
+const _fifaSepGraficaExpanded=new Set();
+window._toggleFifaSepGraficaExpand=function(key){
+  if(_fifaSepGraficaExpanded.has(key)) _fifaSepGraficaExpanded.delete(key);
+  else _fifaSepGraficaExpanded.add(key);
+  renderFifaSepGrafica();
+};
+window._toggleFifaSepGraficaPlayer=function(rival,stage,nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const g=getFifaSepGrafica();
+  const list=g[rival][stage].players;
+  const i=list.indexOf(nom);
+  if(i>=0) list.splice(i,1); else list.push(nom);
+  setFifaSepGrafica(g);
+  renderFifaSepGrafica();
+};
+window._saveFifaSepGraficaLink=function(rival,stage,input){
+  const g=getFifaSepGrafica();
+  g[rival][stage].link=input.value.trim();
+  setFifaSepGrafica(g);
+};
+function renderFifaSepGrafica(){
+  const con=document.getElementById('fifasep26-grafica-body');
+  if(!con) return;
+  const g=getFifaSepGrafica();
+  const pool=[];
+  Object.entries(FIFASEP26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
+
+  const usage={};
+  (FIFASEP26.partidosData||[]).forEach(p=>{
+    ['md1','md'].forEach(stage=>{
+      (g[p.rival][stage].players||[]).forEach(nom=>{
+        (usage[nom]=usage[nom]||[]).push(`${p.rival.slice(0,3).toUpperCase()} ${stage==='md1'?'MD-1':'MD'}`);
+      });
+    });
+  });
+
+  function playerGrid(rival,stage){
+    const sel=g[rival][stage].players||[];
+    return `<div class="player-chips">${pool.map(p=>{
+      const isSel=sel.includes(p.nom);
+      const nomEnc=encodeURIComponent(p.nom);
+      return `<span class="gr-chip${isSel?' sel':''}" onclick="_toggleFifaSepGraficaPlayer('${rival}','${stage}','${nomEnc}')">${p.nom}</span>`;
+    }).join('')}</div>`;
+  }
+  function selectedChips(rival,stage){
+    const sel=g[rival][stage].players||[];
+    if(!sel.length) return '<span style="font-size:10.5px;color:var(--hint)">— sin seleccionar —</span>';
+    return `<div class="player-chips" style="pointer-events:none">${sel.map(nom=>`<span class="gr-chip sel" style="cursor:default">${nom}</span>`).join('')}</div>`;
+  }
+  function stageBlock(rival,stage,label){
+    const link=g[rival][stage].link||'';
+    const key=`${rival}_${stage}`;
+    const expanded=_fifaSepGraficaExpanded.has(key);
+    const sel=g[rival][stage].players||[];
+    return `<div style="flex:1;min-width:220px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${label}</div>
+        ${link?`<a href="${link}" target="_blank" rel="noopener" style="font-size:10px;text-decoration:none;color:var(--cel-dk);font-weight:700">🔗 Ver diseño</a>`:''}
+      </div>
+      ${expanded?playerGrid(rival,stage):selectedChips(rival,stage)}
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <button onclick="_toggleFifaSepGraficaExpand('${key}')" style="background:none;border:none;cursor:pointer;font-size:10px;font-weight:700;color:var(--cel-dk);padding:4px 0;text-decoration:underline;flex-shrink:0">${expanded?'✓ Listo':'✏️ Editar'}</button>
+        ${!expanded&&sel.length?`<span style="font-size:10px;color:var(--muted)">${sel.length} jugador${sel.length!==1?'es':''} seleccionado${sel.length!==1?'s':''}</span>`:''}
+      </div>
+      <input type="text" value="${link.replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)"
+        onchange="_saveFifaSepGraficaLink('${rival}','${stage}',this)"
+        style="width:100%;margin-top:6px;font-size:10.5px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted)">
+    </div>`;
+  }
+
+  const matchCards=(FIFASEP26.partidosData||[]).map(p=>`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">
+      <div style="background:linear-gradient(135deg,var(--cel),var(--cel-dk));color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-size:15px;font-weight:900;display:flex;align-items:center;gap:8px">🇺🇾 <span style="opacity:.8;font-weight:600">vs.</span> ${p.rival} ${p.rivalBandera}</div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:.06em;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:6px">${_fmtDateCorta(p.fecha)}</div>
+      </div>
+      <div style="padding:12px 14px;display:flex;gap:18px;flex-wrap:wrap">
+        ${stageBlock(p.rival,'md1','MD-1')}
+        ${stageBlock(p.rival,'md','MD')}
+      </div>
+    </div>`).join('');
+
+  const playerList=pool.map(p=>{
+    const tags=(usage[p.nom]||[]).map(t=>`<span style="font-size:9px;font-weight:700;background:var(--cel-lt);color:var(--cel-dk);padding:1px 5px;border-radius:5px;margin-left:3px;white-space:nowrap">${t}</span>`).join('');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11.5px">
+      <span style="display:flex;align-items:center;font-weight:600;color:${tags?'var(--text)':'var(--hint)'}">${p.nom}</span>
+      <span style="display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:2px">${tags||'<span style="font-size:9px;color:var(--hint)">sin uso</span>'}</span>
+    </div>`;
+  }).join('');
+
+  con.innerHTML=`
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1.6;min-width:320px">
+        ${matchCards}
+      </div>
+      <div style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Reservados — ${pool.length} jugadores</div>
+        ${playerList}
+      </div>
+    </div>`;
+}
+window.renderFifaSepGrafica=renderFifaSepGrafica;
+
 // Siembra los 3 partidos de la Fecha FIFA en el motor de amistosos (mismo
 // storage que usa Juveniles) bajo cat='fifamayor'/year='sepoct26', para que
 // la Pizarra tenga formación/cancha/banco/goles/tarjetas igual que el
@@ -10254,8 +10373,9 @@ function renderFifaSep26(tabId){
       (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
       (_fifaMatchesFaltan>0 ? _placeholder('🏟️',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'Se cargarán cuando FIFA publique el calendario oficial completo.') : '');
   } else if(slug==='grafica'){
-    con.innerHTML = _header('🎨','Diseño','Material gráfico') +
-      _placeholder('🖼️','Sin piezas cargadas aún','El material gráfico se irá cargando a medida que avance la preparación.');
+    con.innerHTML = _header('🎨','Diseño','Control de jugadores usados en piezas gráficas — MD-1 y MD por partido') +
+      `<div id="fifasep26-grafica-body"></div>`;
+    renderFifaSepGrafica();
   } else if(slug==='infogeneral'){
     renderInfoGeneral('fifasep26');
   }
