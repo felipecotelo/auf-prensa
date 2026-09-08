@@ -25763,10 +25763,19 @@ window._amistConvToggleEditor=function(){ window._amistConvEditing=!window._amis
 function _amistKey(cat, year){ return 'auf4_amist_juv_'+cat+'_'+year; }
 function _getAmistosos(cat, year){ try{ return JSON.parse(localStorage.getItem(_amistKey(cat,year))||'[]'); }catch(_){ return []; } }
 function _saveAmistosos(cat, year, list){ stor.set(_amistKey(cat,year), list); }
+// Re-render tras una mutación del motor de amistosos — Juveniles vive en su
+// propia sección (renderJuveniles), pero la Fecha FIFA (cat='fifamayor')
+// reusa el mismo motor desde Selección Mayor: sin este chequeo, cualquier
+// cambio (asignar jugador, gol, tarjeta, DT, formación...) actualizaba el
+// dato pero renderizaba Juveniles en vez de refrescar la Pizarra visible.
+function _amistRerender(cat){
+  if(cat==='fifamayor') window.renderFifaSep26?.('fifasep26-pizarra');
+  else window.renderJuveniles?.();
+}
 function _amistPatch(cat, year, id, fn){
   const list = _getAmistosos(cat, year);
   const m = list.find(m=>m.id===id); if(!m) return;
-  fn(m); _saveAmistosos(cat, year, list); window.renderJuveniles?.();
+  fn(m); _saveAmistosos(cat, year, list); _amistRerender(cat);
 }
 
 // Rivals datalist
