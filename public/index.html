@@ -2115,7 +2115,7 @@ html.auf-gate body { display:none !important }
             </div>
 <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;">
               <div style="min-width:80px;font-size:11px;font-weight:800;color:#6b7280">Sep–Oct</div>
-              <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:#111827">Fecha FIFA</div><div style="font-size:11px;color:#6b7280;margin-top:1px">21/9 al 6/10 · 4 partidos</div></div>
+              <div style="flex:1"><div style="font-size:12.5px;font-weight:700;color:#111827">Fecha FIFA</div><div style="font-size:11px;color:#6b7280;margin-top:1px">21/9 al 6/10 · 3 partidos</div></div>
               <span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;background:#ede9fe;color:#4f46e5;white-space:nowrap">Fecha FIFA</span>
               <span style="font-size:16px;flex-shrink:0">⬜</span>
             </div>
@@ -10101,14 +10101,40 @@ function renderFifaSep26(tabId){
     </div>`;
 
   const _fifaMatches = FIFASEP26.partidosData||[];
+  const _FIFASEP_ISO={'Japón':'jp','Corea del Sur':'kr','India':'in'};
+  // Mismo lenguaje visual que el card de partido del Mundial (renderFixture):
+  // header con degradé + badge URU, cuerpo con escudos/nombres y hora local +
+  // UY al centro (todavía no hay resultado, son amistosos por jugarse), pie
+  // con estadio/ciudad. Antes esto era una fila plana con banderita + texto.
   const _fifaMatchRow = (p) => `
-    <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
-      <div style="font-size:1.7em;flex-shrink:0">${p.rivalBandera}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:.9em;color:var(--text)">Uruguay vs. ${p.rival}</div>
-        <div style="font-size:.75em;color:var(--muted);margin-top:1px">${_fmtDateCorta(p.fecha)}${p.hora?' · '+p.hora+'h (UY)':''} · ${p.sede}${p.local===false?' (visitante)':''}</div>
+    <div style="border-radius:14px;overflow:hidden;border:2px solid var(--cel);box-shadow:0 2px 16px rgba(0,157,216,.12);margin-bottom:14px">
+      <div style="background:linear-gradient(90deg,var(--nero) 0%,var(--navy) 60%,#0D2240 100%);padding:8px 16px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:10px;font-weight:700;color:#7ABEE6">Fecha FIFA sep–oct · ${_fmtDateCorta(p.fecha)}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${p.confirmado===false?`<span style="font-size:9px;font-weight:800;color:#92400E;background:#FFFBEB;padding:2px 8px;border-radius:8px">Por confirmar</span>`:''}
+          <span style="font-size:10px;font-weight:800;background:var(--cel);color:#fff;padding:2px 9px;border-radius:8px;letter-spacing:.06em">URU</span>
+        </div>
       </div>
-      <span style="font-size:.65em;font-weight:800;color:${p.confirmado===false?'#92400E':'#166534'};background:${p.confirmado===false?'#FFFBEB':'#f0fdf4'};border-radius:10px;padding:3px 9px;white-space:nowrap">${p.confirmado===false?'Por confirmar':'Confirmado'}</span>
+      <div style="background:#fff;padding:20px 24px">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px">
+          <div style="display:flex;align-items:center;gap:10px">
+            ${flagImg('uy',28)}
+            <span style="font-size:16px;font-weight:800;color:var(--cel-dk)">Uruguay</span>
+          </div>
+          <div style="text-align:center;min-width:90px">
+            <div style="font-size:30px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-.01em">${p.horaLocal||'—'}</div>
+            <div style="font-size:10px;font-weight:700;color:var(--cel-dk);margin-top:4px">${p.hora||'—'} <span style="opacity:.6">UYT</span></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
+            <span style="font-size:16px;font-weight:600;color:var(--text);text-align:right">${p.rival}</span>
+            ${flagImg(_FIFASEP_ISO[p.rival]||'un',28)}
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid var(--border)">
+        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="ti ti-building-stadium" style="font-size:12px"></i>${p.sede}</span>
+        <span style="font-size:11px;color:var(--muted)">${p.local===false?'Visitante':'Local'}</span>
+      </div>
     </div>`;
   const _fifaMatchesFaltan = (FIFASEP26.partidos||0) - _fifaMatches.length;
 
@@ -10196,7 +10222,7 @@ function renderFifaSep26(tabId){
       (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
       (_fifaMatchesFaltan>0 ? _placeholder('📊',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'El detalle se habilitará al completar cada partido durante la fecha FIFA.') : '');
   } else if(slug==='fixture'){
-    con.innerHTML = _header('🗒️','Fixture','4 partidos · sep–oct 2026') +
+    con.innerHTML = _header('🗒️','Fixture','3 partidos · sep–oct 2026') +
       (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
       (_fifaMatchesFaltan>0 ? _placeholder('🏟️',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'Se cargarán cuando FIFA publique el calendario oficial completo.') : '');
   } else if(slug==='grafica'){
@@ -11480,7 +11506,7 @@ const DT_CATALOG=[
     pj:0,
     activo:true,
     interino:true,
-    nota:'Vínculo con AUF desde el 1° de agosto de 2026 hasta las elecciones de la presidencia (aprox. marzo 2027). Como DT interino de la Mayor dirige las Fechas FIFA de set-oct 2026 (4 partidos, 21/9–6/10), nov 2026 (2 partidos, 9/11–17/11) y mar 2027 (2 partidos). Como DT titular de la Sub-20 dirige hasta el Sudamericano Sub-20 de enero 2027; si Uruguay clasifica al Mundial Sub-20, el vínculo en esa categoría se extiende hasta esa competencia.',
+    nota:'Vínculo con AUF desde el 1° de agosto de 2026 hasta las elecciones de la presidencia (aprox. marzo 2027). Como DT interino de la Mayor dirige las Fechas FIFA de set-oct 2026 (3 partidos, 21/9–6/10), nov 2026 (2 partidos, 9/11–17/11) y mar 2027 (2 partidos). Como DT titular de la Sub-20 dirige hasta el Sudamericano Sub-20 de enero 2027; si Uruguay clasifica al Mundial Sub-20, el vínculo en esa categoría se extiende hasta esa competencia.',
   },
   {
     id:'bielsa',
@@ -15744,7 +15770,7 @@ function buildForlanConvHtml(){
   }
   const dates=stor.get('auf4_forlanconvdates',{});
   const ventanas=[
-    {label:'Fecha FIFA setiembre-octubre 2026',partidos:4,rango:'21/9 – 6/10',reserva:'viernes 4/9',final:'viernes 18/9'},
+    {label:'Fecha FIFA setiembre-octubre 2026',partidos:3,rango:'21/9 – 6/10',reserva:'viernes 4/9',final:'viernes 18/9'},
     {label:'Fecha FIFA noviembre 2026',partidos:2,rango:'9/11 – 17/11',reserva:'viernes 23/10',final:'viernes 6/11'},
     {label:'Fecha FIFA marzo 2027',partidos:2,rango:'por confirmar',reserva:null,final:null},
   ];
