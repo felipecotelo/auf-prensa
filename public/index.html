@@ -27242,10 +27242,20 @@ function _juvOfficialStats(nom){
       (anoData.competencias||[]).forEach(c=>{
         const comp = COMP_DATA[c.id];
         if(!comp || comp.tipo!=='oficial') return;
-        // Si el torneo todavía no arrancó (sin partidos cargados), "convocados" es
-        // apenas la lista de preparación/pool en curso, no la citación real al
-        // Sudamericano/Mundial/Panamericano/ODESUR — no cuenta para el 🌎 todavía.
-        if(!(comp.partidos||[]).length) return;
+        // Partidos del torneo: los estáticos de comp.partidos (torneos viejos,
+        // con tit/sup por número) + los del motor de amistosos filtrados por
+        // compId (torneos en curso como Liga Evolución — sin esto, cualquier
+        // torneo sin comp.partidos cargado a mano quedaba SIEMPRE en 0 conv./
+        // 0 PJ aunque ya se hubiera jugado y cargado la formación).
+        let amistMatches=[];
+        try{ amistMatches = JSON.parse(localStorage.getItem('auf4_amist_juv_'+catKey+'_'+yr)||'[]').filter(m=>m.compId===c.id); }catch(_){}
+        const hasStaticPartidos = (comp.partidos||[]).length>0;
+        // "Ya arrancó" el torneo si hay partidos estáticos o al menos un
+        // partido del motor de amistosos con fecha ya pasada (no hace falta
+        // que tenga resultado cargado — muchos amistosos de microciclo no
+        // llevan marcador, pero la formación sí refleja quién jugó).
+        const hasStartedAmist = amistMatches.some(m=>m.fecha && m.fecha<=TODAY);
+        if(!hasStaticPartidos && !hasStartedAmist) return;
         const jugador = (comp.convocados||[]).find(j=>j.nom===nom && !j.descartado);
         if(!jugador) return;
         conv++;
@@ -27254,6 +27264,12 @@ function _juvOfficialStats(nom){
           const t = (p.tit||[]).some(pl=>pl.n===jugador.num);
           const s = (p.sup||[]).some(pl=>pl.n===jugador.num && pl.in);
           if(t||s) pj++;
+        });
+        amistMatches.forEach(m=>{
+          if(!m.fecha || m.fecha>TODAY) return; // todavía no se jugó
+          const starters=Object.values(m.lineup?.starters||{});
+          const subs=(m.subs||[]).map(s=>s.nom);
+          if(starters.includes(nom) || subs.includes(nom)) pj++;
         });
       });
     });
