@@ -5245,21 +5245,23 @@ function renderInicioHoySeleccion(dayOffset){
     // fixture vigente de la Mayor.
     const partidosHoy=[];
     try{
-      // Se lee localStorage directo (misma clave que arma _amistKey/_getAmistosos)
-      // en vez de llamar a esas funciones: quedan en un closure distinto y no son
-      // visibles desde acá (mismo tipo de bug ya visto con _gnavNorm).
-      if(typeof JUVENILES!=='undefined'){
-        Object.entries(JUVENILES).forEach(([cat,catData])=>{
-          Object.keys(catData.anos||{}).forEach(yr=>{
-            let list=[];
-            try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_'+cat+'_'+yr)||'[]'); }catch(_){}
-            list.forEach(m=>{
-              if((m.fecha||'').slice(0,10)===isoHoy){
-                const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
-                partidosHoy.push({txt:`${catLbl} vs. ${m.rival}${m.hora?' · '+m.hora+'h':''}`, onclick:`showSection('juveniles')`});
-              }
-            });
-          });
+      // No se depende de JUVENILES/_getAmistosos: no son visibles desde este
+      // closure (bug de scoping recurrente en este archivo — mismo patrón que
+      // _gnavNorm). En cambio se recorre localStorage directo buscando las
+      // claves auf4_amist_juv_<cat>_<año>, que sí es accesible desde cualquier
+      // lado sin depender de qué const/function quedó en qué closure.
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(!k || !k.startsWith('auf4_amist_juv_')) continue;
+        const catYear=k.slice('auf4_amist_juv_'.length);
+        const cat=(catYear.match(/^([a-z0-9]+)_/)||[])[1]||'';
+        let list=[];
+        try{ list=JSON.parse(localStorage.getItem(k)||'[]'); }catch(_){}
+        list.forEach(m=>{
+          if((m.fecha||'').slice(0,10)===isoHoy){
+            const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
+            partidosHoy.push({txt:`${catLbl} vs. ${m.rival}${m.hora?' · '+m.hora+'h':''}`, onclick:`showSection('juveniles')`});
+          }
         });
       }
     }catch(_){}
@@ -25808,7 +25810,7 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
       const horaSrc  = leg===2 ? (m.horaVuelta ||m.hora ) : m.hora;
       const lugarSrc = leg===2 ? (m.lugarVuelta||m.lugar) : m.lugar;
       const auftvSrc = leg===2 ? m.auftvVuelta : m.auftv;
-      const fechaFmt = fechaSrc ? new Date(fechaSrc).toLocaleDateString('es-UY',{day:'numeric',month:'short',year:'numeric'}) : '';
+      const fechaFmt = fechaSrc ? new Date(fechaSrc+'T12:00:00').toLocaleDateString('es-UY',{day:'numeric',month:'short',year:'numeric'}) : '';
       const goles = m['goles'+sfx]||{};
       const dtVal = m['dtPartido'+(sfx||'')]||'';
       const inp = 'padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.82em;outline:none;background:var(--surface);box-sizing:border-box';
@@ -26139,7 +26141,7 @@ function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
       const gl2=m.gLocal2, gr2=m.gRival2;
       const hasRes2 = m.esIdaYVuelta && gl2!=null && gr2!=null;
       const _rc=(a,b)=>a>b?'#16a34a':a===b?'#d97706':'#dc2626';
-      const fechaFmt = m.fecha ? new Date(m.fecha).toLocaleDateString('es-UY',{day:'numeric',month:'short'}) : '';
+      const fechaFmt = m.fecha ? new Date(m.fecha+'T12:00:00').toLocaleDateString('es-UY',{day:'numeric',month:'short'}) : '';
       const auftvBadge = m.auftv?`<span style="font-size:.62em;background:#1D4ED8;color:#fff;border-radius:5px;padding:1px 6px;margin-left:3px;font-weight:700">AUFtv</span>`:'';
       const ivBadge = m.esIdaYVuelta?`<span style="font-size:.62em;background:#F0F9FF;border:1px solid #BAE6FD;color:#0284C7;border-radius:5px;padding:1px 6px;margin-left:5px;font-weight:700">I+V</span>`:'';
       const resHtml = m.esIdaYVuelta
