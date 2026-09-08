@@ -5245,10 +5245,15 @@ function renderInicioHoySeleccion(dayOffset){
     // fixture vigente de la Mayor.
     const partidosHoy=[];
     try{
-      if(typeof JUVENILES!=='undefined' && typeof _getAmistosos==='function'){
+      // Se lee localStorage directo (misma clave que arma _amistKey/_getAmistosos)
+      // en vez de llamar a esas funciones: quedan en un closure distinto y no son
+      // visibles desde acá (mismo tipo de bug ya visto con _gnavNorm).
+      if(typeof JUVENILES!=='undefined'){
         Object.entries(JUVENILES).forEach(([cat,catData])=>{
           Object.keys(catData.anos||{}).forEach(yr=>{
-            (_getAmistosos(cat,yr)||[]).forEach(m=>{
+            let list=[];
+            try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_'+cat+'_'+yr)||'[]'); }catch(_){}
+            list.forEach(m=>{
               if((m.fecha||'').slice(0,10)===isoHoy){
                 const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
                 partidosHoy.push({txt:`${catLbl} vs. ${m.rival}${m.hora?' · '+m.hora+'h':''}`, onclick:`showSection('juveniles')`});
