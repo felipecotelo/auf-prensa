@@ -10373,8 +10373,15 @@ function renderFifaSepCal(){
             </div>
             <input class="aap-input" id="fsap-txt-${day.date}" placeholder="Ej: Entrenamiento, viaje al estadio, zona mixta…" autocomplete="off"
               onkeydown="if(event.key==='Enter')document.getElementById('fsap-h-${day.date}').focus()">
-            <input class="aap-input" id="fsap-h-${day.date}" placeholder="Hora en Uruguay (0-24hs) — ej: 11:30 o TBD" autocomplete="off"
-              onkeydown="if(event.key==='Enter')addFifaSepAct('${day.date}')">
+            <div>
+              <input class="aap-input" id="fsap-h-${day.date}" placeholder="Hora — ej: 11:30 o TBD" style="width:160px" autocomplete="off"
+                oninput="_fsapUpdateTzPreview('${day.date}')" onkeydown="if(event.key==='Enter')addFifaSepAct('${day.date}')">
+              <div class="aap-tz-chips" style="margin-top:5px">
+                <span style="font-size:10px;color:var(--muted);line-height:2;margin-right:2px">Huso:</span>
+                ${Object.entries(FIFASEP_TZ_INFO).map(([k,v])=>`<button class="aap-tz-chip${k===FIFASEP_TZ_DEFAULT?' active':''}" data-tz="${k}" onclick="_fsapSetTz('${day.date}','${k}')">${v.short}</button>`).join('')}
+              </div>
+              <div class="aap-tz-preview" id="fsap-tz-prev-${day.date}"></div>
+            </div>
             <div>
               <button class="btn primary sm" onclick="addFifaSepAct('${day.date}')">Agregar</button>
             </div>
@@ -10395,6 +10402,45 @@ function renderFifaSepCal(){
   });
 }
 window.renderFifaSepCal=renderFifaSepCal;
+
+// Botonera de huso horario para "Agregar actividad" de la Fecha FIFA — mismo
+// patrón visual que TZ_INFO/aapSetTz del Mundial (reutiliza las clases
+// aap-tz-chips/aap-tz-chip/aap-tz-preview), pero con los husos de esta gira
+// (Japón/Corea +9, India +5:30) en vez de las ciudades del Mundial, y en
+// minutos (no horas enteras) porque India no es un offset entero.
+const FIFASEP_TZ_INFO={
+  UY: {label:'Uruguay',       short:'UY',  offsetMin:-180},
+  JAP:{label:'Japón',         short:'JAP', offsetMin:540},
+  KOR:{label:'Corea del Sur', short:'KOR', offsetMin:540},
+  IND:{label:'India',         short:'IND', offsetMin:330},
+};
+const FIFASEP_TZ_DEFAULT='UY';
+const _fsapTzState={};
+function _fsapConvertTz(hStr, fromTz, toTz){
+  const m=hStr&&hStr.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if(!m) return null;
+  const fromMin=(FIFASEP_TZ_INFO[fromTz]||FIFASEP_TZ_INFO.UY).offsetMin;
+  const toMin=(FIFASEP_TZ_INFO[toTz]||FIFASEP_TZ_INFO.UY).offsetMin;
+  let total=parseInt(m[1])*60+parseInt(m[2])+(toMin-fromMin);
+  total=((total%1440)+1440)%1440;
+  return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+}
+window._fsapSetTz=function(date, tz){
+  _fsapTzState[date]=tz;
+  document.querySelectorAll(`#fsap-${date} .aap-tz-chip`).forEach(el=>{
+    el.classList.toggle('active', el.dataset.tz===tz);
+  });
+  _fsapUpdateTzPreview(date);
+};
+window._fsapUpdateTzPreview=function(date){
+  const h=document.getElementById(`fsap-h-${date}`)?.value.trim();
+  const tz=_fsapTzState[date]||FIFASEP_TZ_DEFAULT;
+  const prev=document.getElementById(`fsap-tz-prev-${date}`);
+  if(!prev) return;
+  if(tz==='UY'){ prev.textContent=''; return; }
+  const uy=_fsapConvertTz(h,tz,'UY');
+  prev.textContent=uy?`→ ${uy} Uruguay`:'';
+};
 
 const _fsapType={};
 window._fsapSetType=function(date,type,btn){
@@ -25303,24 +25349,33 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
   // a esos jugadores — no a todo el pool de convocatorias del ciclo/año, que
   // incluye gente que nunca quedó en la lista final de ESE torneo.
   const convMap = new Map(); // clave sin tilde -> nombre canónico (con tilde si existe)
-  const compFinal = m.compId ? COMP_DATA[m.compId]?.convocados : null;
-  if(compFinal && compFinal.length){
-    compFinal.forEach(j=>{
-      const k = _norm(j.nom);
-      const prev = convMap.get(k);
-      if(!prev || (prev===_norm(prev) && j.nom!==_norm(j.nom))) convMap.set(k, j.nom);
-    });
+  const _fifaSepPosMap = {}; // solo se llena para m.compId==='fifasep26'
+  if(m.compId==='fifasep26' && typeof FIFASEP26!=='undefined' && FIFASEP26.reservados){
+    Object.entries(FIFASEP26.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
+      const k=_norm(j.nom);
+      if(!convMap.has(k)) convMap.set(k, j.nom);
+      _fifaSepPosMap[j.nom]=pos;
+    }));
   } else {
-    const anoData = JUVENILES[cat]?.anos?.[year];
-    if(anoData){
-      (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+    const compFinal = m.compId ? COMP_DATA[m.compId]?.convocados : null;
+    if(compFinal && compFinal.length){
+      compFinal.forEach(j=>{
         const k = _norm(j.nom);
         const prev = convMap.get(k);
         if(!prev || (prev===_norm(prev) && j.nom!==_norm(j.nom))) convMap.set(k, j.nom);
-      }));
+      });
+    } else {
+      const anoData = JUVENILES[cat]?.anos?.[year];
+      if(anoData){
+        (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+          const k = _norm(j.nom);
+          const prev = convMap.get(k);
+          if(!prev || (prev===_norm(prev) && j.nom!==_norm(j.nom))) convMap.set(k, j.nom);
+        }));
+      }
     }
   }
-  const juvPosRaw = getJuvPos();
+  const juvPosRaw = m.compId==='fifasep26' ? _fifaSepPosMap : getJuvPos();
   const juvPosByNorm = {};
   Object.entries(juvPosRaw).forEach(([k,v])=>{ const nk=_norm(k); if(!(nk in juvPosByNorm)) juvPosByNorm[nk]=v; });
   const juvPos = new Proxy({}, {get:(_,nom)=>juvPosRaw[nom]??juvPosByNorm[_norm(String(nom))]??''});
@@ -28190,6 +28245,7 @@ const ESTRUCTURA_PERSONAS = [
   ]},
   {dept:'Cuerpo técnico Juveniles', personas:[
     {key:'ct-p:diego-forlan', label:'Diego Forlán',    rol:'Director técnico Sub-20 · DT Mayor interino (ago 2026–mar 2027)', foto:'https://auf.org.uy/imagenes/img_contenido/seleccion_jugador/a/diego-forlan.jpg', fechaNac:'1979-05-19'},
+    {key:'ct-p:diego-perez',  label:'Diego Pérez',     rol:'Ayudante técnico Mayor interino (ago 2026–mar 2027)', fechaNac:'1980-01-13'},
     {key:'iguzmán',       label:'Ignacio María González',    rol:'Director técnico Sub-17', fechaNac:'1982-05-14'},
     {key:'gbuenojuv',     label:'Gustavo Bueno',       rol:'Director técnico Sub-15 (jul 2026–mar 2027)', fechaNac:'1963-07-16'},
     {key:'ct-p:alvaro-gonzalez', label:'Álvaro González', rol:'Ayudante técnico Sub-15', fechaNac:'1984-10-29'},
