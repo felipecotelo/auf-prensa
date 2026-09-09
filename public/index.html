@@ -5113,6 +5113,11 @@ function renderInicioHoySeleccion(dayOffset){
     const cumples=[];
     const fallecidoMayorLS=stor.get('auf4_fallecido',{});
     const legends=typeof getLegends==='function'?getLegends():new Set();
+    // Un jugador puede estar cargado a la vez en JUGADORES (Mayor) y en el
+    // historial de convocatorias de Juveniles (típico: juvenil que ya debutó
+    // en la Mayor) — sin este set salía duplicado, una fila por fuente.
+    // Orden de prioridad para el "tipo" que se muestra: Mayor > Juveniles > Local.
+    const cumpleNames=new Set();
     if(typeof JUGADORES!=='undefined'){
       const mayorNacOvr=typeof getMayorNac==='function'?getMayorNac():{};
       Object.entries(JUGADORES).forEach(([nom,d])=>{
@@ -5120,6 +5125,7 @@ function renderInicioHoySeleccion(dayOffset){
         if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
           const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
           cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('mayor','${encodeURIComponent(nom)}')`});
+          cumpleNames.add(nom);
         }
       });
     }
@@ -5150,19 +5156,23 @@ function renderInicioHoySeleccion(dayOffset){
           }catch(catErr){ console.error('cumples: error escaneando categoría',catKey,catErr); }
         });
         juvNames.forEach(({fn,label},nom)=>{
+          if(cumpleNames.has(nom)) return;
           if(fn.length>=10 && fn.slice(5,10)===mmdd){
             const fallecido=!!fallecidoMayorLS[nom];
             cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Juveniles · '+label, fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo?window._gnavGo('juveniles','${encodeURIComponent(nom)}'):showSection('juveniles')`});
+            cumpleNames.add(nom);
           }
         });
       }catch(juvErr){ console.error('cumples: error general en escaneo de Juveniles',juvErr); }
     }
     if(typeof _getLocalStats==='function' && typeof LOCAL_NAC_DATES!=='undefined'){
       Object.keys(_getLocalStats()).forEach(nom=>{
+        if(cumpleNames.has(nom)) return;
         const fn=LOCAL_NAC_DATES[nom];
         if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
           const fallecido=!!fallecidoMayorLS[nom];
           cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Local', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('local','${encodeURIComponent(nom)}')`});
+          cumpleNames.add(nom);
         }
       });
     }
@@ -5272,6 +5282,73 @@ function renderInicioHoySeleccion(dayOffset){
         });
       }
     }catch(_){}
+
+    // ── Entrenamientos de hoy (Juveniles) ───────────────────────────────────
+    // Los microciclos no tienen fecha estructurada, son un label de texto
+    // libre en la convocatoria (ej. "Microciclo 15 · lunes a viernes · 7-11
+    // sep 2026") — se parsea el último tramo "· ..." buscando un rango de
+    // días para saber si hoy cae adentro. Sin esto, "Hoy en Selección" nunca
+    // sabía que una categoría estaba entrenando, aunque la convocatoria
+    // vigente lo dijera clarito.
+    const _MESES3={ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11};
+    function _parseMicrocicloRange(label){
+      const seg=(label||'').split('·').map(s=>s.trim()).pop();
+      if(!seg) return null;
+      let m=seg.match(/^(\d{1,2})-(\d{1,2})\s+(\w{3})\.?\s+(\d{4})$/i); // "7-11 sep 2026"
+      if(m){
+        const mo=_MESES3[m[3].toLowerCase()]; if(mo==null) return null;
+        return {from:new Date(+m[4],mo,+m[1]), to:new Date(+m[4],mo,+m[2])};
+      }
+      m=seg.match(/^(\d{1,2})\s+(\w{3})\.?-(\d{1,2})\s+(\w{3})\.?\s+(\d{4})$/i); // "31 ago-2 sep 2026"
+      if(m){
+        const mo1=_MESES3[m[2].toLowerCase()], mo2=_MESES3[m[4].toLowerCase()];
+        if(mo1==null||mo2==null) return null;
+        return {from:new Date(+m[5],mo1,+m[1]), to:new Date(+m[5],mo2,+m[3])};
+      }
+      m=seg.match(/^(\d{1,2})\s+(\w{3})\.?\s+(\d{4})$/i); // "15 jul 2026" (un solo día)
+      if(m){
+        const mo=_MESES3[m[2].toLowerCase()]; if(mo==null) return null;
+        const d=new Date(+m[3],mo,+m[1]); return {from:d,to:d};
+      }
+      return null;
+    }
+    const entrenoHoy=[];
+    try{
+      if(typeof window.JUVENILES!=='undefined'){
+        const hoyD=new Date(isoHoy+'T12:00:00');
+        Object.entries(window.JUVENILES).forEach(([catKey,catData])=>{
+          const anos=Object.keys(catData.anos||{}).sort((a,b)=>parseInt(b)-parseInt(a));
+          const yr=anos[0]; if(!yr) return;
+          const ultima=(catData.anos[yr].convocatorias||[])[0];
+          if(!ultima) return;
+          const range=_parseMicrocicloRange(ultima.fecha);
+          if(!range) return;
+          if(hoyD>=range.from && hoyD<=range.to){
+            const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[catKey]?.label)||catKey;
+            entrenoHoy.push({icon:'🏃', txt:`${catLbl} entrena hoy · ${ultima.fecha.split('·')[0].trim()}`, onclick:`showSection('juveniles')`});
+          }
+        });
+      }
+    }catch(_){}
+    // ── Cobertura fotográfica pendiente esta semana ─────────────────────────
+    try{
+      if(typeof _covGetAll==='function' && typeof _covWeekKey==='function'){
+        const wk=_covWeekKey(isoHoy);
+        const all=_covGetAll();
+        (typeof COV_CATS!=='undefined'?COV_CATS:[]).forEach(c=>{
+          const rec=(all[wk]&&all[wk][c.key])||{};
+          if(!rec.cubierto){
+            entrenoHoy.push({icon:'📷', txt:`Falta cubrir el shooting semanal de ${c.label}`, onclick:`showSection('inicio')`});
+          }
+        });
+      }
+    }catch(_){}
+    const entrenoRows=entrenoHoy.map(e=>`
+      <div onclick="${e.onclick||''}" style="display:flex;align-items:center;gap:8px;padding:5px 0;${e.onclick?'cursor:pointer':''}">
+        <span style="font-size:15px;flex-shrink:0">${e.icon||'🏃'}</span>
+        <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${e.txt}</span>
+      </div>`).join('');
+
     const partidoRows=partidosHoy.map(p=>`
       <div onclick="${p.onclick||''}" style="display:flex;align-items:center;gap:8px;padding:5px 0;${p.onclick?'cursor:pointer':''}">
         <span style="font-size:15px;flex-shrink:0">🏟️</span>
@@ -5300,7 +5377,7 @@ function renderInicioHoySeleccion(dayOffset){
         </div>
       </div>`).join('');
 
-    const vacio=!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !partidosHoy.length && !planHoy.length;
+    const vacio=!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !partidosHoy.length && !entrenoHoy.length && !planHoy.length;
     // "Hoy" siempre se muestra, aunque no haya nada — así el widget da una señal
     // clara de "reviewed, no hay nada" en vez de simplemente desaparecer. Ayer y
     // Mañana, al ser menos críticos de tener siempre a la vista, se ocultan si
@@ -5310,6 +5387,7 @@ function renderInicioHoySeleccion(dayOffset){
     const body=vacio
       ? `<div style="font-size:${isMob?'12.5px':'12px'};color:${subColor}">No hay nada específico para hoy — revisá las tareas.</div>`
       : (partidoRows?subHdr('🏟️ Partidos')+partidoRows:'')
+      +(entrenoRows?subHdr('🏃 Entrenamientos y cobertura')+entrenoRows:'')
       +(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
       +(cumpleEstructuraRows?subHdr('🎂 Cumpleaños · Estructura')+cumpleEstructuraRows:'')
       +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
