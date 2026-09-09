@@ -18469,7 +18469,31 @@ function lgCopy(i,url){
     renderLineup('uru-ksa');
     await renderPlantel();
     renderLog('all');
-    // La app siempre abre en Inicio — no se restaura la última pestaña visitada.
+    // Reabrir en la pestaña donde estaba la última vez (F5/reingreso), en vez
+    // de forzar siempre Inicio — pedido varias veces. Si no hay pestaña
+    // guardada, o la sección/id ya no existe, se queda en Inicio (ya
+    // renderizado arriba). Cada sección restaura su propio estado interno
+    // sola (categoría/año/competencia de Juveniles, etc. ya se guardan y
+    // leen aparte) — acá solo hace falta reabrir el tab/sección correcto y,
+    // si es un tab de un torneo de Mayor, sincronizar antes el pill y la
+    // barra de tabs de ese torneo (si no, el contenido se restaura bien pero
+    // la navegación de arriba queda mostrando el torneo equivocado).
+    (function _restoreLastTab(){
+      try{
+        const last=stor.get('auf4_lastTab',null);
+        if(!last || last==='inicio') return;
+        if(!document.getElementById(last)) return;
+        const tid = last.startsWith('fifasep26-') ? 'fifasep26'
+          : (TOURNAMENTS['cm2026']?.tabs.some(t=>t.id===last) ? 'cm2026' : null);
+        if(tid){
+          window._activeTournament=tid;
+          document.querySelectorAll('.nav-t-pill').forEach(p=>p.classList.remove('active'));
+          document.querySelector(`.nav-t-pill[data-tournament="${tid}"]`)?.classList.add('active');
+          _rebuildNavL2(tid);
+        }
+        showTab(last);
+      }catch(_){}
+    })();
   }
   // Auto-sync ESPN al abrir — detecta si hay partido en curso o recién terminado
   autoSyncCheck();
