@@ -26905,15 +26905,20 @@ window._getPersonPhoto = function(name){
   // 1. Clave slug unificada (ct-p:...)
   const slug = _nameSlug(name);
   if(est[slug]) return est[slug];
-  // 2. Cache de juveniles por nombre
-  if(juv[name]) return juv[name];
-  // 3. Clave corta de Estructura (iguzmán, dperezjuv, etc.)
+  // 2. Clave corta de Estructura (iguzmán, dperezjuv, etc.) — ANTES que la
+  // caché de Juveniles a propósito: esta función se usa para CT/delegación
+  // (staff), y un nombre común (ej. "Matías Pérez") puede pertenecer a la
+  // vez a un dirigente en Estructura y a un juvenil — sin este orden, la
+  // foto del juvenil homónimo se colaba en la ficha del dirigente (mismo
+  // problema que ya se había resuelto una vez en _estResolvePhoto).
   if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
     for(const dept of ESTRUCTURA_PERSONAS){
       const p=dept.personas.find(p=>p.label===name);
       if(p){ const ph=_estResolvePhoto(p); if(ph) return ph; }
     }
   }
+  // 3. Recién acá, caché de juveniles por nombre (sin match de Estructura)
+  if(juv[name]) return juv[name];
   return null;
 };
 window._clickCtPhoto = function(nomEncoded){
@@ -27058,7 +27063,9 @@ window._juvCTRemove=function(ctKey,idx){
 window._juvCTAdd=function(ctKey,fid){
   const nom=(document.getElementById(fid+'-nom')?.value||'').trim();
   const rol=(document.getElementById(fid+'-rol')?.value||'').trim();
-  if(!nom||!rol) return;
+  if(!nom&&!rol){ toast('⚠️ Cargá nombre y rol'); return; }
+  if(!nom){ toast('⚠️ Falta el nombre'); return; }
+  if(!rol){ toast('⚠️ Falta el rol'); return; }
   const dt=document.getElementById(fid+'-dt')?.checked||false;
   const ov=_getJuvCTOverrides();
   if(!ov[ctKey]) ov[ctKey]=[..._getJuvCT(...ctKey.split('/'))];
@@ -27085,7 +27092,9 @@ window._juvCompCTToggleEdit=function(){ _juvCompCtEdit=!_juvCompCtEdit; window.r
 window._juvCompCTAdd=function(compId,fid){
   const nom=(document.getElementById(fid+'-nom')?.value||'').trim();
   const rol=(document.getElementById(fid+'-rol')?.value||'').trim();
-  if(!nom||!rol) return;
+  if(!nom&&!rol){ toast('⚠️ Cargá nombre y rol'); return; }
+  if(!nom){ toast('⚠️ Falta el nombre'); return; }
+  if(!rol){ toast('⚠️ Falta el rol'); return; }
   const dt=document.getElementById(fid+'-dt')?.checked||false;
   const ov=_getJuvCompCTOverrides();
   if(!ov[compId]) ov[compId]=[...(COMP_DATA[compId]?.ct||[])];
@@ -27115,7 +27124,11 @@ window._juvCompDelToggleEdit=function(){ _juvCompDelEdit=!_juvCompDelEdit; windo
 window._juvCompDelAdd=function(compId,fid){
   const nom=(document.getElementById(fid+'-nom')?.value||'').trim();
   const rol=(document.getElementById(fid+'-rol')?.value||'').trim();
-  if(!nom||!rol) return;
+  // Antes esto fallaba en silencio si faltaba nombre o rol — parecía que el
+  // botón "no dejaba agregar" a nadie, sin ningún aviso de por qué.
+  if(!nom&&!rol){ toast('⚠️ Cargá nombre y rol'); return; }
+  if(!nom){ toast('⚠️ Falta el nombre'); return; }
+  if(!rol){ toast('⚠️ Falta el rol'); return; }
   const ov=_getJuvCompDelOverrides();
   if(!ov[compId]) ov[compId]=[...(COMP_DATA[compId]?.delegacion||[])];
   ov[compId].push({name:nom, rol});
