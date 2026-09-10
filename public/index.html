@@ -25753,12 +25753,16 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
       _fifaSepPosMap[j.nom]=pos;
     }));
   } else {
-    // Los amistosos de "Amistosos prep." son anteriores a la convocatoria final —
-    // hay que poder seguir marcando en ellos a jugadores que jugaron ahí pero no
-    // llegaron a la lista final. Por eso se usa comp.preparacion (pool amplio) en
-    // vez de comp.convocados (lista final) cuando existe.
-    const comp = m.compId ? COMP_DATA[m.compId] : null;
-    const compPool = comp?.preparacion?.length ? comp.preparacion : comp?.convocados;
+    // m.compId: partido oficial de Fixture, ya jugado con la convocatoria final —
+    // pool estricto a comp.convocados. Si no tiene compId propio pero se abrió desde
+    // la pestaña "Amistosos prep." de una competencia (_juvAmistPoolCompId), es
+    // anterior a esa convocatoria final: hay que poder marcar ahí a jugadores que
+    // jugaron pero no llegaron a la lista final, así que se usa comp.preparacion
+    // (pool amplio, con los dorsales de esa etapa) en vez de comp.convocados.
+    const comp = m.compId ? COMP_DATA[m.compId] : (window._juvAmistPoolCompId ? COMP_DATA[window._juvAmistPoolCompId] : null);
+    const compPool = m.compId
+      ? comp?.convocados
+      : (comp?.preparacion?.length ? comp.preparacion : comp?.convocados);
     if(compPool && compPool.length){
       compPool.forEach(j=>{
         const k = _norm(j.nom);
@@ -26251,7 +26255,7 @@ window._amistGol = function(cat, year, id, nom, delta, leg){
 };
 
 
-window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catData, filterCompId){
+window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catData, filterCompId, poolCompId){
   // Mismo motor para amistosos y partidos oficiales: se guardan en la misma lista
   // (_getAmistosos), distinguidos por m.compId/m.oficial. Sin filterCompId (pestaña
   // "Amistosos") se ven los de preparación; con filterCompId (pestaña "Fixture" de
@@ -26259,6 +26263,12 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
   const esOficial = !!filterCompId;
   const list = _getAmistosos(cat, year).filter(m=>filterCompId ? m.compId===filterCompId : !m.oficial);
   const catLabel = cat==='fifamayor' ? 'Selección Mayor' : _juvCat.replace('sub','Sub-');
+  // poolCompId: solo para la pestaña "Amistosos prep." de una competencia puntual
+  // (ODESUR, etc.) — esos amistosos en general NO tienen m.compId cargado (si lo
+  // tuvieran, se colarían en el Fixture también, que filtra únicamente por compId).
+  // _openJuvSP no recibe este contexto directo (solo ve el partido), así que lo
+  // dejamos en una variable de módulo que lee ahí mismo como fallback.
+  window._juvAmistPoolCompId = poolCompId || null;
 
   // Convocados = SOLO la convocatoria más reciente del ciclo (la primera del array —
   // acá se cargan siempre al principio, no al final). Antes se unían TODAS las
@@ -26281,13 +26291,16 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       convPosMap[j.nom]=pos;
     }));
   } else {
-    // Igual que en _openJuvSP: "Amistosos prep." son partidos anteriores a la
-    // convocatoria final, así que el pool y los dorsales tienen que salir de
-    // comp.preparacion (números de esa etapa) cuando existe, no de comp.convocados
-    // (números de la lista final, distintos — ej. un jugador puede haber jugado
-    // esos amistosos con otro dorsal del que le tocó en la convocatoria final).
-    const comp = filterCompId ? COMP_DATA[filterCompId] : null;
-    const compPool = comp?.preparacion?.length ? comp.preparacion : comp?.convocados;
+    // Fixture (filterCompId): partidos oficiales YA jugados con la convocatoria
+    // final — pool estricto a comp.convocados. Amistosos prep. (poolCompId): son
+    // anteriores a esa convocatoria final, así que el pool y los dorsales tienen
+    // que salir de comp.preparacion (números de esa etapa) cuando existe — no de
+    // comp.convocados (números de la lista final, distintos: ej. un jugador puede
+    // haber jugado esos amistosos con otro dorsal del que le tocó en la final).
+    const comp = filterCompId ? COMP_DATA[filterCompId] : (poolCompId ? COMP_DATA[poolCompId] : null);
+    const compPool = filterCompId
+      ? comp?.convocados
+      : (comp?.preparacion?.length ? comp.preparacion : comp?.convocados);
     if(compPool && compPool.length){
       compPool.forEach(j=>{
         convSet.add(j.nom);
@@ -28623,7 +28636,13 @@ function _buildJuvCompBody(compId, color, catData){
   }
 
   else if(_juvCompTab==='amistosos'){
-    content = _buildJuvAmistosos(_juvCat, _juvYear, cc, catData);
+    // No pasamos comp.id como filterCompId: esta pestaña tiene que seguir mostrando
+    // TODOS los amistosos de preparación del ciclo (no solo los ya etiquetados con
+    // compId de esta competencia — la mayoría de estos amistosos previos no lo
+    // tienen). Pasamos comp.id aparte, solo para que el POOL de jugadores/dorsales
+    // salga de la lista de esta competencia (preparación/convocados) en vez de la
+    // última convocatoria general del año, que es de otro proceso.
+    content = _buildJuvAmistosos(_juvCat, _juvYear, cc, catData, null, comp.id);
   }
 
   return content;
