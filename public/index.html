@@ -3530,7 +3530,41 @@ const JUV_NAC_DATES = {
   'Enrique Almeida':'2005-04-26', 'Maximiliano Pinela':'2005-10-24', 'Esteban de Lima':'2005-10-27',
   'Alejandro Severo':'2005-08-27', 'Juan Pablo Vire':'2005-02-18', 'Erik De Los Santos':'1999-01-16',
   'Axell Amaral':'2007-11-15', 'Ahmed Njankouo':'2007-01-17', 'Thomas Sorensen':'2007-06-29',
+  // Generación 2010 — Sub-16, confirmadas por el usuario
+  'Benjamín Silvera':'2010-02-04', 'Joaquín Canale':'2010-02-02', 'Matías Gargano':'2010-05-07',
+  'Ignacio Ramos':'2010-01-25', 'Felipe Botta':'2010-04-17', 'Felipe Pallero':'2010-03-18',
+  'Juan Felipe Lazo':'2010-09-06', 'Tomás Inthamoussu':'2010-02-03', 'Antú Daguer':'2010-04-11',
+  'Alessio Cartagena':'2010-07-31', 'Benjamín Azambuja':'2010-04-24',
 };
+// Relaciones familiares entre jugadores/CT — se cargan solo del lado del hijo/
+// hermano/sobrino (no del lado de la persona más conocida), con link clickeable
+// a la ficha del familiar si existe en la app. Confirmadas por el usuario.
+const FAMILIA_JUGADORES = {
+  'Matías Gargano':    [{rel:'hijo de',    nombre:'Walter Gargano'}],
+  'Facundo Abreu':      [{rel:'hermano de', nombre:'Diego Abreu'}, {rel:'hijo de', nombre:'Sebastián Abreu'}],
+  'Santiago Bueno':    [{rel:'sobrino de', nombre:'Gustavo Bueno'}],
+  'Antú Daguer':       [{rel:'hermano de', nombre:'Julio Daguer'}],
+  'Benjamín Azambuja': [{rel:'hermano de', nombre:'Nicolás Azambuja'}],
+};
+// Navega a la ficha del familiar probando, en orden: jugador Mayor → Estructura → Juveniles.
+window._famGo = function(nomEnc){
+  const nom = decodeURIComponent(nomEnc);
+  if(typeof JUGADORES!=='undefined' && JUGADORES[nom]){ window._gnavGo('mayor', nomEnc); return; }
+  if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
+    for(const d of ESTRUCTURA_PERSONAS){
+      const p = d.personas.find(p=>p.label===nom);
+      if(p){ window._gnavCTGo('estructura', nomEnc, encodeURIComponent(p.key)); return; }
+    }
+  }
+  window._gnavGo('juveniles', nomEnc);
+};
+function _famHtml(nom){
+  const fam = FAMILIA_JUGADORES[nom];
+  if(!fam || !fam.length) return '';
+  return `<div style="font-size:.62em;color:var(--muted);margin-top:2px;display:flex;flex-wrap:wrap;gap:6px">
+    ${fam.map(f=>`<span onclick="event.stopPropagation();_famGo('${encodeURIComponent(f.nombre)}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px">👪 ${f.rel} ${f.nombre}</span>`).join('')}
+  </div>`;
+}
 const setMayorNac = (nom, val) => { const d=getMayorNac(); if(val) d[nom]=val; else delete d[nom]; stor.set(KMayorNac,d); cloudPushDebounced(KMayorNac,d); };
 const _nacAge = (iso) => { if(!iso) return null; const [y,m,d]=iso.split('-').map(Number); const now=new Date(); const age=now.getFullYear()-y-(now.getMonth()+1<m||(now.getMonth()+1===m&&now.getDate()<d)?1:0); return age; };
 const _nacFmt = (iso) => { if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
@@ -12500,6 +12534,7 @@ function renderJugadores(){
           <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}</div>
           <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:4px" title="Tocar para editar club">${pais} ${club}${customClub!==undefined?' ✎':''}</div>
           <div onclick="event.stopPropagation();_editMayorNac('${nomSafe}')" style="font-size:.68em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:3px" title="Editar fecha de nacimiento">${_nacAge2!==null?(isFallecido?`<span style="opacity:.6">${_nacFmt(_nacIso)}</span>`:`<span style="font-weight:600;color:var(--fg)">${_nacAge2} años</span><span style="opacity:.6"> · ${_nacFmt(_nacIso)}</span>`):'<span style="opacity:.45">+ fecha nac.</span>'}</div>
+          ${typeof _famHtml==='function'?_famHtml(nom):''}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
@@ -19219,6 +19254,7 @@ function _renderLocalHome(){
             <button onclick="event.stopPropagation();_localEditClubInline('${nomSafe}','${j.clubPais||'uy'}',this)" title="Editar club" style="border:none;background:none;cursor:pointer;padding:0;color:var(--hint);font-size:10px;flex-shrink:0;line-height:1"><i class="ti ti-pencil"></i></button>
           </div>
           ${_nacAge2!==null?`<div style="font-size:.68em;color:var(--muted);margin-top:2px"><span style="font-weight:600;color:var(--fg)">${_nacAge2} años</span><span style="opacity:.6"> · ${_nacFmtStr}</span></div>`:''}
+          ${typeof _famHtml==='function'?_famHtml(j.nom):''}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
@@ -27411,6 +27447,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
         </div>
         ${juvExClubs.length?`<div style="font-size:.62em;color:var(--muted);margin-top:1px;opacity:.65">${juvExClubs.map(c=>`ex ${c}`).join(' · ')}</div>`:''}
         ${(()=>{const fn=p.fechaNac||(typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES[p.nom]:null)||(typeof MAYOR_NAC_DEFAULT!=='undefined'?MAYOR_NAC_DEFAULT[p.nom]:null)||(typeof getMayorNac==='function'?getMayorNac()[p.nom]:null);if(!fn)return'';const d=new Date(fn);const today=new Date();let age=today.getFullYear()-d.getFullYear();if(today<new Date(today.getFullYear(),d.getMonth(),d.getDate()))age--;const day=d.getDate();const month=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()];return`<div style="font-size:.62em;color:var(--muted);margin-top:1px">${day} ${month} ${d.getFullYear()} · ${age} años</div>`;})()}
+        ${typeof _famHtml==='function'?_famHtml(p.nom):''}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
