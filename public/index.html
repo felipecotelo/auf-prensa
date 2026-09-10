@@ -25892,7 +25892,7 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
     // jugaron pero no llegaron a la lista final, así que se usa comp.preparacion
     // (pool amplio, con los dorsales de esa etapa) en vez de comp.convocados.
     const comp = m.compId ? COMP_DATA[m.compId] : (window._juvAmistPoolCompId ? COMP_DATA[window._juvAmistPoolCompId] : null);
-    const compPool = m.compId ? comp?.convocados : _compPrepPool(comp);
+    const compPool = _matchTorneoPool(m) || (m.compId ? comp?.convocados : _compPrepPool(comp));
     if(compPool && compPool.length){
       compPool.forEach(j=>{
         const k = _norm(j.nom);
@@ -26425,6 +26425,16 @@ function _seedPioneerosAlbion(){
   if(changed) stor.set(key, list);
 }
 
+// Algunos partidos de "Amistosos prep." pertenecen a un torneo puntual (m.torneo)
+// que tiene su PROPIA convocatoria, distinta de la convocatoria general de la
+// competencia (ej. Pioneros de Albion citó 20 jugadores concretos, aparte de los
+// 28 del Microciclo 01 del Sudamericano Sub-17 2027). Si el partido pertenece a
+// uno de esos torneos, ese pool puntual manda sobre el de la competencia.
+function _matchTorneoPool(m){
+  if(!m) return null;
+  if(m.torneo==='Pioneros de Albion' && typeof PIONEROS_ALBION_2026!=='undefined') return PIONEROS_ALBION_2026.convocados;
+  return null;
+}
 // Pool de jugadores para "Amistosos prep." de una competencia (comp): primero la
 // convocatoria puntual de esa ventana de amistosos si está cargada (más precisa —
 // solo los citados a ESE partido/ventana), si no el pool general de preparación,
@@ -26478,7 +26488,12 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
     // comp.convocados (números de la lista final, distintos: ej. un jugador puede
     // haber jugado esos amistosos con otro dorsal del que le tocó en la final).
     const comp = filterCompId ? COMP_DATA[filterCompId] : (poolCompId ? COMP_DATA[poolCompId] : null);
-    const compPool = filterCompId ? comp?.convocados : _compPrepPool(comp);
+    // Si el partido actualmente abierto pertenece a un torneo con convocatoria
+    // propia (ej. Pioneros de Albion), esa lista puntual manda sobre la de la
+    // competencia entera — así el plantel/dorsales del costado no mezclan
+    // convocados de otra ventana que nunca jugaron ESTE partido.
+    const _openMatch = list.find(x=>x.id===window._amistDetailOpen);
+    const compPool = filterCompId ? comp?.convocados : (_matchTorneoPool(_openMatch) || _compPrepPool(comp));
     if(compPool && compPool.length){
       compPool.forEach(j=>{
         convSet.add(j.nom);
