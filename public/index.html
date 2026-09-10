@@ -27092,8 +27092,16 @@ _loadJuvPhotoCache();
 // para no depender de que el tab quede abierto 6hs antes del primer intento.
 setInterval(_autoBackupPhotosToSupabase, 6 * 60 * 60 * 1000);
 setTimeout(_autoBackupPhotosToSupabase, 30 * 1000);
+// Fotos guardadas en Supabase Storage bajo la clave 'juv:<nombre>' que resultaron
+// ser de otra persona (homónimo) — quedaron subidas ahí antes de esta corrección
+// y el cliente anon no tiene permiso de borrar del bucket, así que se excluyen a
+// mano acá para que _juvGetPhoto nunca las devuelva.
+const JUV_FOTO_BLOQUEADA = new Set([
+  'Nicolás López', // Sub-16 (Montevideo Wanderers) — la foto guardada era la de OTRO Nicolás López, de la Mayor
+]);
 window._juvGetPhoto = function(nom){
   if(!nom) return null;
+  if(JUV_FOTO_BLOQUEADA.has(nom)) return null;
   // Antes acá había un cruce automático "si el nombre coincide con alguien de
   // JUGADORES (Mayor), usar su foto" — cruzaba homónimos: un juvenil nuevo con
   // el mismo nombre y apellido que un jugador cualquiera de la Mayor (pasado o
