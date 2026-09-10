@@ -26385,6 +26385,46 @@ window._amistGol = function(cat, year, id, nom, delta, leg){
 };
 
 
+// Siembra (una sola vez, idempotente) los 6 partidos ya jugados del Torneo
+// "Pioneros" de Albion como partidos reales del motor de amistosos de Sub-16 —
+// mismas fichas/UI que cualquier otro amistoso de preparación (ODESUR, etc.),
+// en vez de un bloque estático aparte. No arma la formación/XI en la cancha
+// (PIONEROS_ALBION_2026.convocados no tiene posición cargada por jugador, así
+// que ubicarlos en una grilla POR/DEF/MED/DEL sería inventar el dato) — sí carga
+// resultado y goleadores reales de cada partido, cruzando dorsal → nombre.
+function _seedPioneerosAlbion(){
+  if(typeof PIONEROS_ALBION_2026==='undefined') return;
+  const key = _amistKey('sub16','2026-2027');
+  let list=[];
+  try{ list=JSON.parse(localStorage.getItem(key)||'[]'); }catch(_){}
+  if(list.some(m=>m.torneo==='Pioneros de Albion')) return;
+  const numToNom={};
+  (PIONEROS_ALBION_2026.convocados||[]).forEach(j=>{ numToNom[j.num]=j.nom; });
+  const mesNum={'1':'01','2':'02','3':'03','4':'04','5':'05','6':'06','7':'07','8':'08','9':'09','10':'10','11':'11','12':'12'};
+  let changed=false;
+  (PIONEROS_ALBION_2026.partidos||[]).forEach((p,i)=>{
+    if(!p.res) return; // solo partidos ya jugados
+    const dm = (p.fecha||'').match(/(\d{1,2})\/(\d{1,2})/);
+    const isoFecha = dm ? `2026-${mesNum[dm[2]]}-${dm[1].padStart(2,'0')}` : null;
+    const [gU,gR] = p.res.split('-').map(Number);
+    const goles={};
+    [...(p.tit||[]), ...(p.sup||[])].forEach(pl=>{
+      if(pl.g){ const nom=numToNom[pl.n]; if(nom) goles[nom]=(goles[nom]||0)+pl.g; }
+    });
+    list.push({
+      id: Date.now()+i,
+      rival: p.rival, fecha: isoFecha, hora: p.hora, lugar: p.fase,
+      torneo: 'Pioneros de Albion',
+      compId: null, oficial: false,
+      gLocal: gU, gRival: gR,
+      lineup: {formation:'', starters:{}},
+      goles, dtPartido: '', subs: [], tarjetas: [],
+    });
+    changed=true;
+  });
+  if(changed) stor.set(key, list);
+}
+
 // Pool de jugadores para "Amistosos prep." de una competencia (comp): primero la
 // convocatoria puntual de esa ventana de amistosos si está cargada (más precisa —
 // solo los citados a ESE partido/ventana), si no el pool general de preparación,
@@ -26810,7 +26850,15 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
       <div style="font-weight:700;margin-bottom:3px">Sin partidos${esOficial?' oficiales':' amistosos'} registrados</div>
       <div style="font-size:.78em">Creá un partido con el botón de arriba</div>
-    </div>` : list.map(m=>{
+    </div>` : (()=>{ const seenTorneos=new Set(); return list.map(m=>{
+      // Título de grupo — se muestra una sola vez, arriba del primer partido de
+      // ese torneo (ej. "Torneo Pioneros de Albion" dentro de los amistosos de
+      // preparación de esta competencia).
+      let torneoHdr='';
+      if(m.torneo && !seenTorneos.has(m.torneo)){
+        seenTorneos.add(m.torneo);
+        torneoHdr = `<div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">🏆 Torneo ${m.torneo}</div>`;
+      }
       const gl=m.gLocal, gr=m.gRival;
       const hasRes = gl!=null && gr!=null;
       const gl2=m.gLocal2, gr2=m.gRival2;
@@ -26825,7 +26873,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <div style="font-size:.78em;font-weight:900;color:${hasRes2?_rc(gl2,gr2):'var(--muted)'}">${hasRes2?`${gl2}–${gr2}`:'–'} <span style="font-size:.7em;font-weight:600;color:var(--muted)">vta</span></div>
            </div>`
         : `<div style="font-size:1.1em;font-weight:900;color:${hasRes?_rc(gl,gr):'var(--muted)'}">${hasRes?`${gl}–${gr}`:'–'}</div>`;
-      return `
+      return `${torneoHdr}
         <div onclick="_amistOpenDetail(${m.id})"
           style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:12px">
           <div style="flex:1">
@@ -26839,7 +26887,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.8em"></i>
           </div>
         </div>`;
-    }).join('');
+    }).join(''); })();
 
   return `
     <div style="background:${esOficial?'#ECFDF5':'#EFF6FF'};border:1px solid ${esOficial?'#A7F3D0':'#BFDBFE'};border-radius:10px;padding:9px 13px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
@@ -27286,8 +27334,6 @@ window._juvCompCTReset=function(compId){
 // solo mostraba el cuerpo técnico y nunca la delegación, pese al nombre.
 const K_JUV_COMP_DEL = 'auf4_juv_comp_del';
 let _juvCompDelEdit=false;
-let _juvPioneerosOpen=false;
-window._toggleJuvPioneros=function(){ _juvPioneerosOpen=!_juvPioneerosOpen; window.renderJuveniles?.(); };
 function _getJuvCompDelOverrides(){ return stor.get(K_JUV_COMP_DEL,{}); }
 function _saveJuvCompDelOverrides(o){ stor.set(K_JUV_COMP_DEL, o); }
 window._juvCompDelToggleEdit=function(){ _juvCompDelEdit=!_juvCompDelEdit; window.renderJuveniles?.(); };
@@ -28794,24 +28840,11 @@ function _buildJuvCompBody(compId, color, catData){
     // última convocatoria general del año, que es de otro proceso.
     // Torneo Pioneros de Albion (feb 2026) NO fue un torneo internacional aparte
     // (no es Sudamericano/ODESUR) sino parte de la preparación de este proceso —
-    // se muestra acá adentro, con su propio resumen, en vez de como pestaña propia.
-    let pioneersHtml = '';
-    if(comp.id==='sud17-2027-vis' && typeof PIONEROS_ALBION_2026!=='undefined'){
-      const pMatches = PIONEROS_ALBION_2026.partidos||[];
-      const pGoles = (PIONEROS_ALBION_2026.goleadores||[]).reduce((s,g)=>s+(g.g||0),0);
-      pioneersHtml = `
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">
-        <div onclick="_toggleJuvPioneros()" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;background:${cc}0c">
-          <div style="flex:1">
-            <div style="font-weight:800;font-size:.88em">🏆 Torneo "Pioneros" de Albion <span style="font-weight:400;color:var(--muted);font-size:.85em">· preparación</span></div>
-            <div style="font-size:.7em;color:var(--muted);margin-top:2px">${pMatches.length} partidos · ${pGoles} goles a favor · Febrero 2026</div>
-          </div>
-          <i class="ti ${_juvPioneerosOpen?'ti-chevron-up':'ti-chevron-down'}" style="color:var(--muted)"></i>
-        </div>
-        ${_juvPioneerosOpen?`<div style="padding:0 14px 14px">${_renderCompPartidosEstaticos(pMatches, cc)}</div>`:''}
-      </div>`;
-    }
-    content = pioneersHtml + _buildJuvAmistosos(_juvCat, _juvYear, cc, catData, null, comp.id);
+    // se siembran sus 6 partidos como partidos reales del motor de amistosos
+    // (mismo storage/fichas que ODESUR o cualquier otro amistoso de preparación),
+    // con un título de grupo, en vez de como bloque estático aparte.
+    if(comp.id==='sud17-2027-vis' && typeof _seedPioneerosAlbion==='function') _seedPioneerosAlbion();
+    content = _buildJuvAmistosos(_juvCat, _juvYear, cc, catData, null, comp.id);
   }
 
   return content;
