@@ -3534,7 +3534,8 @@ const JUV_NAC_DATES = {
   'Benjamín Silvera':'2010-02-04', 'Joaquín Canale':'2010-02-02', 'Matías Gargano':'2010-05-07',
   'Ignacio Ramos':'2010-01-25', 'Felipe Botta':'2010-04-17', 'Felipe Pallero':'2010-03-18',
   'Juan Felipe Lazo':'2010-09-06', 'Tomás Inthamoussu':'2010-02-03', 'Antú Daguer':'2010-04-11',
-  'Alessio Cartagena':'2010-07-31', 'Benjamín Azambuja':'2010-04-24',
+  'Alessio Cartagena':'2010-07-31', 'Benjamín Azambuja':'2010-04-24', 'Facundo Quartiani':'2010-02-22',
+  'Nicolás González Souza':'2010-05-06',
 };
 // Relaciones familiares entre jugadores/CT — se cargan solo del lado del hijo/
 // hermano/sobrino (no del lado de la persona más conocida), con link clickeable
@@ -21423,7 +21424,11 @@ const JUVENILES = {
         convocatorias: [],
         competencias: [
           {id:'sud17-2027-vis', label:'Torneo Sudamericano sub-17 2027', icon:'🔭', color:'#B45309'},
-          {id:'pioneros-albion-2026', label:'Torneo "Pioneros" de Albion', icon:'🏆', color:'#B45309'},
+          // "Torneo Pioneros de Albion" ya no es pestaña propia — no fue un torneo
+          // internacional (Sudamericano/ODESUR), fue parte de la preparación de
+          // este proceso. Sus partidos se muestran dentro de "Amistosos prep." de
+          // esta competencia (PIONEROS_ALBION_2026 se mantiene en COMP_DATA solo
+          // como fuente de esos datos).
         ]
       }
     }
@@ -27281,6 +27286,8 @@ window._juvCompCTReset=function(compId){
 // solo mostraba el cuerpo técnico y nunca la delegación, pese al nombre.
 const K_JUV_COMP_DEL = 'auf4_juv_comp_del';
 let _juvCompDelEdit=false;
+let _juvPioneerosOpen=false;
+window._toggleJuvPioneros=function(){ _juvPioneerosOpen=!_juvPioneerosOpen; window.renderJuveniles?.(); };
 function _getJuvCompDelOverrides(){ return stor.get(K_JUV_COMP_DEL,{}); }
 function _saveJuvCompDelOverrides(o){ stor.set(K_JUV_COMP_DEL, o); }
 window._juvCompDelToggleEdit=function(){ _juvCompDelEdit=!_juvCompDelEdit; window.renderJuveniles?.(); };
@@ -28308,6 +28315,73 @@ function _playerEvents(p){
   return s;
 }
 
+// Renderiza una lista de partidos "estáticos" (fase/fecha/rival/res/tit/sup ya
+// cargados a mano, sin el motor interactivo). Se usa tanto en la pestaña Fixture
+// de una competencia como para meter un torneo de otra competencia adentro de
+// "Amistosos prep." (ej. Torneo Pioneros de Albion dentro del Sudamericano
+// Sub-17 2027) sin duplicar el markup.
+function _renderCompPartidosEstaticos(partidos, cc){
+  return (partidos||[]).map((p,i)=>{
+    if(!p.res){
+      // Partido todavía no jugado — sin resultado ni formación, solo la ficha básica.
+      return `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">
+        <div style="background:${cc}12;padding:10px 14px;display:flex;align-items:center;gap:10px">
+          <div style="flex:1">
+            <div style="font-size:.65em;font-weight:700;color:${cc};text-transform:uppercase;letter-spacing:.06em">${p.fase||''}${p.fecha?' · '+_fmtDateCorta(p.fecha):''}</div>
+            <div style="font-size:.95em;font-weight:800;margin-top:2px">Uruguay vs. ${p.rival}</div>
+            ${p.sede?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${p.sede}</div>`:''}
+          </div>
+          <div style="text-align:right">
+            <span style="font-size:.65em;font-weight:800;color:#92400E;background:#FFFBEB;border-radius:10px;padding:3px 9px;white-space:nowrap">Por jugarse</span>
+            ${p.hora?`<div style="font-size:.65em;color:var(--muted);margin-top:3px">${p.hora}h</div>`:''}
+          </div>
+        </div>
+      </div>`;
+    }
+    const [gU,gR]=p.res.split('-').map(Number);
+    const resColor = gU>gR?'#15803d':gU<gR?'#DC2626':'#B45309';
+    const evIcons = p=>_playerEvents(p);
+    const titHtml = (p.tit||[]).map(pl=>`
+      <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:.72em;font-weight:800;color:${cc};min-width:20px;text-align:right">${pl.n}</span>
+        <span style="font-size:.82em;font-weight:700;flex:1">${pl.s}</span>
+        <span style="font-size:.82em">${evIcons(pl)}</span>
+      </div>`).join('');
+    const supHtml = (p.sup||[]).filter(pl=>pl.in||!pl.gk).map(pl=>`
+      <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+        <span style="font-size:.68em;font-weight:700;color:var(--muted);min-width:20px;text-align:right">${pl.n}</span>
+        <span style="font-size:.78em;color:${pl.in?'var(--text)':'var(--muted)'};flex:1;font-weight:${pl.in?700:400}">${pl.s}</span>
+        <span style="font-size:.78em">${evIcons(pl)}</span>
+      </div>`).join('');
+    const noJugaronGK = (p.sup||[]).filter(pl=>pl.gk).map(pl=>`#${pl.n} ${pl.s}`).join(' · ');
+    const sanHtml = p.san?.length?`<div style="font-size:.72em;color:#B45309;margin-top:6px"><strong>🟧 Sancionados:</strong> ${p.san.join(', ')}</div>`:'';
+    const saniHtml = p.sanidad?.length?`<div style="font-size:.72em;color:#DC2626;margin-top:4px"><strong>🚑 Sanidad:</strong> ${p.sanidad.join(', ')}</div>`:'';
+    return `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">
+        <div style="background:${cc}12;padding:10px 14px;display:flex;align-items:center;gap:10px">
+          <div style="flex:1">
+            <div style="font-size:.65em;font-weight:700;color:${cc};text-transform:uppercase;letter-spacing:.06em">${p.fase} · ${p.fecha}</div>
+            <div style="font-size:.95em;font-weight:800;margin-top:2px">Uruguay vs. ${p.rival}</div>
+            ${p.nota?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${p.nota}</div>`:''}
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:1.3em;font-weight:900;color:${resColor}">${p.res}</div>
+            <div style="font-size:.65em;color:var(--muted)">${p.hora}</div>
+          </div>
+        </div>
+        <div style="padding:10px 14px">
+          <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Titulares</div>
+          ${titHtml}
+          <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px">Suplentes</div>
+          ${supHtml}
+          ${noJugaronGK?`<div style="font-size:.68em;color:var(--muted);margin-top:4px">GK reserva: ${noJugaronGK}</div>`:''}
+          ${sanHtml}${saniHtml}
+        </div>
+      </div>`;
+  }).join('');
+}
+
 // Une convocados + preparación de una competencia en una sola lista de jugadores (sin duplicados)
 function _juvCompAllPlayers(compId){
   const comp = COMP_DATA[compId];
@@ -28416,65 +28490,7 @@ function _buildJuvCompBody(compId, color, catData){
     // comp.id): formación con selector de cancha, goles, tarjetas, DT, resultado.
     content = _buildJuvAmistosos(_juvCat, _juvYear, cc, catData, comp.id);
    } else {
-    content = (comp.partidos||[]).map((p,i)=>{
-      if(!p.res){
-        // Partido todavía no jugado — sin resultado ni formación, solo la ficha básica.
-        return `
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">
-          <div style="background:${cc}12;padding:10px 14px;display:flex;align-items:center;gap:10px">
-            <div style="flex:1">
-              <div style="font-size:.65em;font-weight:700;color:${cc};text-transform:uppercase;letter-spacing:.06em">${p.fase||''}${p.fecha?' · '+_fmtDateCorta(p.fecha):''}</div>
-              <div style="font-size:.95em;font-weight:800;margin-top:2px">Uruguay vs. ${p.rival}</div>
-              ${p.sede?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${p.sede}</div>`:''}
-            </div>
-            <div style="text-align:right">
-              <span style="font-size:.65em;font-weight:800;color:#92400E;background:#FFFBEB;border-radius:10px;padding:3px 9px;white-space:nowrap">Por jugarse</span>
-              ${p.hora?`<div style="font-size:.65em;color:var(--muted);margin-top:3px">${p.hora}h</div>`:''}
-            </div>
-          </div>
-        </div>`;
-      }
-      const [gU,gR]=p.res.split('-').map(Number);
-      const resColor = gU>gR?'#15803d':gU<gR?'#DC2626':'#B45309';
-      const evIcons = p=>_playerEvents(p);
-      const titHtml = (p.tit||[]).map(pl=>`
-        <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:.72em;font-weight:800;color:${cc};min-width:20px;text-align:right">${pl.n}</span>
-          <span style="font-size:.82em;font-weight:700;flex:1">${pl.s}</span>
-          <span style="font-size:.82em">${evIcons(pl)}</span>
-        </div>`).join('');
-      const supHtml = (p.sup||[]).filter(pl=>pl.in||!pl.gk).map(pl=>`
-        <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
-          <span style="font-size:.68em;font-weight:700;color:var(--muted);min-width:20px;text-align:right">${pl.n}</span>
-          <span style="font-size:.78em;color:${pl.in?'var(--text)':'var(--muted)'};flex:1;font-weight:${pl.in?700:400}">${pl.s}</span>
-          <span style="font-size:.78em">${evIcons(pl)}</span>
-        </div>`).join('');
-      const noJugaronGK = (p.sup||[]).filter(pl=>pl.gk).map(pl=>`#${pl.n} ${pl.s}`).join(' · ');
-      const sanHtml = p.san?.length?`<div style="font-size:.72em;color:#B45309;margin-top:6px"><strong>🟧 Sancionados:</strong> ${p.san.join(', ')}</div>`:'';
-      const saniHtml = p.sanidad?.length?`<div style="font-size:.72em;color:#DC2626;margin-top:4px"><strong>🚑 Sanidad:</strong> ${p.sanidad.join(', ')}</div>`:'';
-      return `
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden">
-          <div style="background:${cc}12;padding:10px 14px;display:flex;align-items:center;gap:10px">
-            <div style="flex:1">
-              <div style="font-size:.65em;font-weight:700;color:${cc};text-transform:uppercase;letter-spacing:.06em">${p.fase} · ${p.fecha}</div>
-              <div style="font-size:.95em;font-weight:800;margin-top:2px">Uruguay vs. ${p.rival}</div>
-              ${p.nota?`<div style="font-size:.7em;color:var(--muted);margin-top:1px">${p.nota}</div>`:''}
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:1.3em;font-weight:900;color:${resColor}">${p.res}</div>
-              <div style="font-size:.65em;color:var(--muted)">${p.hora}</div>
-            </div>
-          </div>
-          <div style="padding:10px 14px">
-            <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Titulares</div>
-            ${titHtml}
-            <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px">Suplentes</div>
-            ${supHtml}
-            ${noJugaronGK?`<div style="font-size:.68em;color:var(--muted);margin-top:4px">GK reserva: ${noJugaronGK}</div>`:''}
-            ${sanHtml}${saniHtml}
-          </div>
-        </div>`;
-    }).join('');
+    content = _renderCompPartidosEstaticos(comp.partidos, cc);
    }
   }
 
@@ -28776,7 +28792,26 @@ function _buildJuvCompBody(compId, color, catData){
     // tienen). Pasamos comp.id aparte, solo para que el POOL de jugadores/dorsales
     // salga de la lista de esta competencia (preparación/convocados) en vez de la
     // última convocatoria general del año, que es de otro proceso.
-    content = _buildJuvAmistosos(_juvCat, _juvYear, cc, catData, null, comp.id);
+    // Torneo Pioneros de Albion (feb 2026) NO fue un torneo internacional aparte
+    // (no es Sudamericano/ODESUR) sino parte de la preparación de este proceso —
+    // se muestra acá adentro, con su propio resumen, en vez de como pestaña propia.
+    let pioneersHtml = '';
+    if(comp.id==='sud17-2027-vis' && typeof PIONEROS_ALBION_2026!=='undefined'){
+      const pMatches = PIONEROS_ALBION_2026.partidos||[];
+      const pGoles = (PIONEROS_ALBION_2026.goleadores||[]).reduce((s,g)=>s+(g.g||0),0);
+      pioneersHtml = `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden">
+        <div onclick="_toggleJuvPioneros()" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;background:${cc}0c">
+          <div style="flex:1">
+            <div style="font-weight:800;font-size:.88em">🏆 Torneo "Pioneros" de Albion <span style="font-weight:400;color:var(--muted);font-size:.85em">· preparación</span></div>
+            <div style="font-size:.7em;color:var(--muted);margin-top:2px">${pMatches.length} partidos · ${pGoles} goles a favor · Febrero 2026</div>
+          </div>
+          <i class="ti ${_juvPioneerosOpen?'ti-chevron-up':'ti-chevron-down'}" style="color:var(--muted)"></i>
+        </div>
+        ${_juvPioneerosOpen?`<div style="padding:0 14px 14px">${_renderCompPartidosEstaticos(pMatches, cc)}</div>`:''}
+      </div>`;
+    }
+    content = pioneersHtml + _buildJuvAmistosos(_juvCat, _juvYear, cc, catData, null, comp.id);
   }
 
   return content;
