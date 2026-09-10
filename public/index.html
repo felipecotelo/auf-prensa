@@ -3537,23 +3537,34 @@ const JUV_NAC_DATES = {
   'Alessio Cartagena':'2010-07-31', 'Benjamín Azambuja':'2010-04-24', 'Facundo Quartiani':'2010-02-22',
   'Nicolás González Souza':'2010-05-06',
 };
-// Relaciones familiares entre jugadores/CT — se cargan solo del lado del hijo/
-// hermano/sobrino (no del lado de la persona más conocida), con link clickeable
-// a la ficha del familiar si existe en la app. Confirmadas por el usuario.
-const FAMILIA_JUGADORES = {
-  'Matías Gargano':    [{rel:'hijo de',    nombre:'Walter Gargano'}],
-  'Facundo Abreu':      [{rel:'hermano de', nombre:'Diego Abreu'}, {rel:'hijo de', nombre:'Sebastián Abreu'}],
-  'Santiago Bueno':    [{rel:'sobrino de', nombre:'Gustavo Bueno'}],
-  'Antú Daguer':       [{rel:'hermano de', nombre:'Julio Daguer'}],
-  'Benjamín Azambuja': [{rel:'hermano de', nombre:'Nicolás Azambuja'}],
-  'Francisco Sorondo': [{rel:'hijo de',    nombre:'Gonzalo Sorondo'}],
-  'Juan Manuel Sanabria': [{rel:'hermano de', nombre:'Lucas Sanabria'}],
-  'Maximiliano Araújo': [{rel:'hermano de', nombre:'César Araújo'}],
-  'Kevin Amaro':       [{rel:'hermano de', nombre:'Mauricio Amaro'}],
-  'Damián Suárez':     [{rel:'hermano de', nombre:'Mathías Suárez'}],
-  'Nicolás Fonseca':   [{rel:'hermano de', nombre:'Matías Fonseca'}, {rel:'hijo de', nombre:'Daniel Fonseca'}],
-  'Matías Fonseca':    [{rel:'hermano de', nombre:'Nicolás Fonseca'}, {rel:'hijo de', nombre:'Daniel Fonseca'}],
-};
+// Relaciones familiares entre jugadores/CT — cada par se carga UNA vez acá con
+// las dos etiquetas (ida y vuelta) y se muestra en la ficha de AMBAS personas
+// (pedido explícito: no alcanza con mostrarlo solo del lado del hijo/hermano
+// menos conocido, tiene que verse también en la ficha del padre/hermano
+// famoso). Confirmadas por el usuario.
+const FAMILIA_PARES = [
+  {a:'Matías Gargano',        relA:'hijo de',    b:'Walter Gargano',     relB:'padre de'},
+  {a:'Facundo Abreu',         relA:'hermano de', b:'Diego Abreu',        relB:'hermano de'},
+  {a:'Facundo Abreu',         relA:'hijo de',    b:'Sebastián Abreu',    relB:'padre de'},
+  {a:'Diego Abreu',           relA:'hijo de',    b:'Sebastián Abreu',    relB:'padre de'},
+  {a:'Santiago Bueno',        relA:'sobrino de', b:'Gustavo Bueno',      relB:'tío de'},
+  {a:'Antú Daguer',           relA:'hermano de', b:'Julio Daguer',       relB:'hermano de'},
+  {a:'Benjamín Azambuja',     relA:'hermano de', b:'Nicolás Azambuja',   relB:'hermano de'},
+  {a:'Francisco Sorondo',     relA:'hijo de',    b:'Gonzalo Sorondo',    relB:'padre de'},
+  {a:'Juan Manuel Sanabria',  relA:'hermano de', b:'Lucas Sanabria',     relB:'hermano de'},
+  {a:'Maximiliano Araújo',    relA:'hermano de', b:'César Araújo',       relB:'hermano de'},
+  {a:'Kevin Amaro',           relA:'hermano de', b:'Mauricio Amaro',     relB:'hermano de'},
+  {a:'Damián Suárez',         relA:'hermano de', b:'Mathías Suárez',     relB:'hermano de'},
+  {a:'Nicolás Fonseca',       relA:'hermano de', b:'Matías Fonseca',     relB:'hermano de'},
+  {a:'Nicolás Fonseca',       relA:'hijo de',    b:'Daniel Fonseca',     relB:'padre de'},
+  {a:'Matías Fonseca',        relA:'hijo de',    b:'Daniel Fonseca',     relB:'padre de'},
+  {a:'Alfonso Montero',       relA:'hijo de',    b:'Paolo Montero',      relB:'padre de'},
+];
+const FAMILIA_JUGADORES = {};
+FAMILIA_PARES.forEach(({a,relA,b,relB})=>{
+  (FAMILIA_JUGADORES[a]=FAMILIA_JUGADORES[a]||[]).push({rel:relA, nombre:b});
+  (FAMILIA_JUGADORES[b]=FAMILIA_JUGADORES[b]||[]).push({rel:relB, nombre:a});
+});
 // Navega a la ficha del familiar probando, en orden: jugador Mayor → Estructura → Juveniles.
 window._famGo = function(nomEnc){
   const nom = decodeURIComponent(nomEnc);
@@ -24017,7 +24028,7 @@ const MUNDIAL_SUB20_2023 = {
     {nom:'Facundo González',    club:'Racing Club Santander', tmId:1232131, fechaNac:'2005-05-10'},
     {nom:'Alan Matturro',       club:'Shakhtar Donetsk',                 destaque:true, fechaNac:'2004-10-11'},
     {nom:'Álvaro Rodríguez',    club:'AFC Bournemouth',            nota:'No cedido por el club'},
-    {nom:'Diego Abreu',         club:'Botafogo',               destaque:true},
+    {nom:'Diego Abreu',         club:'Club Tijuana',           destaque:true, fechaNac:'2003-08-27'},
     {nom:'Kevin Altéz',         club:'Montevideo City Torque', destaque:true},
     {nom:'Augusto Cambón',      club:'Defensor Sporting',      destaque:true, fechaNac:'2005-01-17'},
     {nom:'Martín Fernández',    club:'Boston River',           destaque:true},
