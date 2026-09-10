@@ -25746,9 +25746,14 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
       _fifaSepPosMap[j.nom]=pos;
     }));
   } else {
-    const compFinal = m.compId ? COMP_DATA[m.compId]?.convocados : null;
-    if(compFinal && compFinal.length){
-      compFinal.forEach(j=>{
+    // Los amistosos de "Amistosos prep." son anteriores a la convocatoria final —
+    // hay que poder seguir marcando en ellos a jugadores que jugaron ahí pero no
+    // llegaron a la lista final. Por eso se usa comp.preparacion (pool amplio) en
+    // vez de comp.convocados (lista final) cuando existe.
+    const comp = m.compId ? COMP_DATA[m.compId] : null;
+    const compPool = comp?.preparacion?.length ? comp.preparacion : comp?.convocados;
+    if(compPool && compPool.length){
+      compPool.forEach(j=>{
         const k = _norm(j.nom);
         const prev = convMap.get(k);
         if(!prev || (prev===_norm(prev) && j.nom!==_norm(j.nom))) convMap.set(k, j.nom);
@@ -26269,9 +26274,15 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       convPosMap[j.nom]=pos;
     }));
   } else {
-    const compFinal = filterCompId ? COMP_DATA[filterCompId]?.convocados : null;
-    if(compFinal && compFinal.length){
-      compFinal.forEach(j=>{
+    // Igual que en _openJuvSP: "Amistosos prep." son partidos anteriores a la
+    // convocatoria final, así que el pool y los dorsales tienen que salir de
+    // comp.preparacion (números de esa etapa) cuando existe, no de comp.convocados
+    // (números de la lista final, distintos — ej. un jugador puede haber jugado
+    // esos amistosos con otro dorsal del que le tocó en la convocatoria final).
+    const comp = filterCompId ? COMP_DATA[filterCompId] : null;
+    const compPool = comp?.preparacion?.length ? comp.preparacion : comp?.convocados;
+    if(compPool && compPool.length){
+      compPool.forEach(j=>{
         convSet.add(j.nom);
         if(j.pos) convPosMap[j.nom]=j.pos;
         if(j.num!=null) convNumMap[j.nom]=j.num;
