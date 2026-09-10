@@ -29058,6 +29058,24 @@ function _pwPersonOptions(){
       });
     });
   }
+  // Jugadores Juveniles — antes el buscador de "Participa" solo tenía CT/Estructura
+  // y jugadores de Mayor, así que un jugador juvenil (ej. para registrar una
+  // atención de zona mixta) no se podía sumar como participante.
+  if(typeof JUVENILES!=='undefined'){
+    Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
+        (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
+          push('juv:'+j.nom, j.nom, j.club||(catData.label||catKey), (catData.label||catKey)+' '+yr);
+        }));
+      });
+    });
+  }
+  // Jugadores de competencias puntuales (ODESUR, Sudamericanos, etc.)
+  if(typeof COMP_DATA!=='undefined'){
+    Object.values(COMP_DATA).forEach(comp=>{
+      (comp.convocados||[]).forEach(j=>push('juv:'+j.nom, j.nom, j.club||'', comp.label||'Competencia'));
+    });
+  }
   // Jugadores Mayor
   (typeof PLAYERS!=='undefined'?PLAYERS:[]).forEach(p=>push('p:'+p.n, p.name, p.pos+' · '+p.club, 'Jugadores Mayor'));
   return opts;
@@ -29598,6 +29616,13 @@ function _redesHistorial(){
 }
 
 
+// Tipos de actividad de prensa distintos de una simple "atención" individual —
+// entrenamientos abiertos, zonas mixtas grupales, etc. Se identifican con
+// pw.actividadTipo y se pintan con su propio color en la lista, en vez del
+// verde genérico de "Registro" (pedido: que se note que es otro tipo de cosa).
+const PW_ACTIVIDAD_TIPOS = {
+  'entreno-abierto-zona-mixta': {label:'Entreno abierto + zona mixta', bg:'#FEF3C7', color:'#92400E'},
+};
 function _renderListaPrensa(){
   const el = document.getElementById('prensa-body');
   if(!el) return;
@@ -29607,13 +29632,16 @@ function _renderListaPrensa(){
 
   const cards = list.length ? list.map(pw=>{
     const isReg = pw.tipo==='registro';
+    const actCfg = pw.actividadTipo && PW_ACTIVIDAD_TIPOS[pw.actividadTipo];
     const solTotal = (pw.solicitudes||[]).length;
     const desdeStr = _pwFmtDate(pw.desde);
     const hastaStr = _pwFmtDate(pw.hasta);
     const periodo = isReg
       ? ((desdeStr||hastaStr) ? `${desdeStr}${hastaStr&&hastaStr!==desdeStr?' → '+hastaStr:''}` : 'Registro libre')
       : (desdeStr||hastaStr) ? `${desdeStr}${hastaStr&&hastaStr!==desdeStr?' → '+hastaStr:''}` : '';
-    const badge = isReg
+    const badge = actCfg
+      ? `<span style="font-size:.72em;font-weight:700;background:${actCfg.bg};color:${actCfg.color};border-radius:20px;padding:2px 9px;border:1px solid ${actCfg.color}33">${actCfg.label}</span>`
+      : isReg
       ? `<span style="font-size:.72em;font-weight:700;background:#F0FDF4;color:#15803D;border-radius:20px;padding:2px 9px;border:1px solid #BBF7D0">Registro</span>`
       : `<span style="font-size:.72em;font-weight:700;background:#EFF6FF;color:#1D4ED8;border-radius:20px;padding:2px 9px">${_pwFmtLabel(pw.formato)}</span>`;
     const countLabel = isReg
