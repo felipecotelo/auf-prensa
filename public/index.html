@@ -18505,7 +18505,6 @@ function lgCopy(i,url){
     const _globalSecs=['prensa','redes','estructura','juveniles','local','planificador'];
     if(_globalSecs.includes(_firstTab)){ showSection(_firstTab); } else { showTab(_firstTab); }
   } else {
-    document.documentElement.classList.remove('auf-gate');
     applyTabOrder();
     // Auto-cierre: si ya pasó el último partido y no hay más juegos, cerrar automáticamente
     const _lastMatchDate='2026-06-26';
@@ -18543,6 +18542,13 @@ function lgCopy(i,url){
         showTab(last);
       }catch(_){}
     })();
+    // El gate (pantalla en blanco) se saca recién ACÁ, después de restaurar la
+    // última pestaña — antes se sacaba arriba, antes de renderInicio(), así que
+    // en cada F5 se veía un flash de Inicio (ya visible, sin el gate) durante el
+    // await renderPlantel() de más arriba, antes de que showTab cambiara a la
+    // pestaña real. Con el gate puesto hasta acá, lo único visible mientras
+    // carga es la pantalla en blanco de siempre, no Inicio a medio cambiar.
+    document.documentElement.classList.remove('auf-gate');
   }
   // Auto-sync ESPN al abrir — detecta si hay partido en curso o recién terminado
   autoSyncCheck();
@@ -27077,17 +27083,22 @@ setInterval(_autoBackupPhotosToSupabase, 6 * 60 * 60 * 1000);
 setTimeout(_autoBackupPhotosToSupabase, 30 * 1000);
 window._juvGetPhoto = function(nom){
   if(!nom) return null;
-  // Mayor tiene prioridad si el jugador tiene ficha identificada
-  const jug = typeof JUGADORES!=='undefined' && JUGADORES[nom];
-  if(jug?.auf){
-    const ph=(window._estPhotoCache||{})['mayor:'+jug.auf]||(window._estPhotoCache||{})['ct-p:'+jug.auf];
-    if(ph) return ph;
-  }
-  // Fallback: foto cargada en Juveniles
+  // Antes acá había un cruce automático "si el nombre coincide con alguien de
+  // JUGADORES (Mayor), usar su foto" — cruzaba homónimos: un juvenil nuevo con
+  // el mismo nombre y apellido que un jugador cualquiera de la Mayor (pasado o
+  // presente, sin ningún vínculo real) terminaba mostrando la foto de esa otra
+  // persona (ej. "Nicolás López" del Sub-16 mostrando la foto de OTRO "Nicolás
+  // López" que jugó en la Mayor). Mismo problema, mismo criterio de arreglo que
+  // ya se aplicó en _estResolvePhoto/_getPersonPhoto: sin fallback por nombre
+  // entre pools distintos — cada uno usa solo su propia foto cargada.
   if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
   const n = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
   if(window._juvPhotoCacheNorm?.[n]) return window._juvPhotoCacheNorm[n];
-  return window._getPhotoByName?.(nom)||null;
+  // NO caer a _getPhotoByName acá — ese fallback busca por nombre en Estructura/
+  // Mayor/IDB histórico, que es exactamente el cruce de homónimos que causaba
+  // este bug. Sin foto propia cargada en Juveniles, mejor mostrar las iniciales
+  // que la foto de otra persona.
+  return null;
 };
 window._clickJuvPhoto = function(nomEncoded){
   const nom = decodeURIComponent(nomEncoded);
