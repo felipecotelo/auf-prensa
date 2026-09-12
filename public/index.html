@@ -26267,6 +26267,13 @@ function _amistPatch(cat, year, id, fn){
   const m = list.find(m=>m.id===id); if(!m) return;
   fn(m); _saveAmistosos(cat, year, list); _amistRerender(cat);
 }
+// Confirmar un partido = "ya se jugó, contá sus stats" — antes _juvOfficialStats
+// adivinaba esto solo por fecha (m.fecha<=TODAY), y eso fallaba seguido (partido
+// sin fecha exacta, cargado antes/después del día real, etc.) — el usuario pidió
+// un botón explícito para no depender de esa adivinanza.
+window._amistToggleConfirmado = function(cat, year, id){
+  _amistPatch(cat, year, id, m=>{ m.confirmado = !m.confirmado; });
+};
 
 // Rivals datalist
 const _AMIST_RIVALS = ['Argentina','Bolivia','Brasil','Chile','Colombia','Ecuador','Paraguay','Perú','Venezuela',
@@ -26893,8 +26900,9 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             </div>
             <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${m.hora?' · '+m.hora:''}${m.lugar?' · '+m.lugar:''}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
             ${resHtml}
+            <button onclick="event.stopPropagation();_amistToggleConfirmado('${cat}','${year}',${m.id})" title="${m.confirmado?'Confirmado — cuenta para las estadísticas (tocá para deshacer)':'Confirmar partido para que cuente en las estadísticas'}" style="width:26px;height:26px;border-radius:50%;border:1.5px solid ${m.confirmado?'#16a34a':'#CBD5E1'};background:${m.confirmado?'#16a34a':'transparent'};color:${m.confirmado?'#fff':'#CBD5E1'};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.85em;flex-shrink:0"><i class="ti ti-check"></i></button>
             <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.8em"></i>
           </div>
         </div>`;
@@ -27647,10 +27655,12 @@ function _juvOfficialStats(nom){
         try{ amistMatches = JSON.parse(localStorage.getItem('auf4_amist_juv_'+catKey+'_'+yr)||'[]').filter(m=>m.compId===c.id); }catch(_){}
         const hasStaticPartidos = (comp.partidos||[]).length>0;
         // "Ya arrancó" el torneo si hay partidos estáticos o al menos un
-        // partido del motor de amistosos con fecha ya pasada (no hace falta
-        // que tenga resultado cargado — muchos amistosos de microciclo no
-        // llevan marcador, pero la formación sí refleja quién jugó).
-        const hasStartedAmist = amistMatches.some(m=>m.fecha && m.fecha<=TODAY);
+        // partido del motor de amistosos CONFIRMADO a mano (botón ✓ de la
+        // lista). Antes esto se adivinaba por fecha (m.fecha<=TODAY), pero
+        // fallaba seguido — partido cargado sin fecha exacta, o antes/después
+        // del día real — así que ahora depende de que el usuario lo confirme
+        // explícitamente, sin adivinar nada.
+        const hasStartedAmist = amistMatches.some(m=>m.confirmado);
         if(!hasStaticPartidos && !hasStartedAmist) return;
         const jugador = (comp.convocados||[]).find(j=>j.nom===nom && !j.descartado);
         if(!jugador) return;
@@ -27662,7 +27672,7 @@ function _juvOfficialStats(nom){
           if(t||s) pj++;
         });
         amistMatches.forEach(m=>{
-          if(!m.fecha || m.fecha>TODAY) return; // todavía no se jugó
+          if(!m.confirmado) return; // todavía no confirmado con el botón ✓
           const starters=Object.values(m.lineup?.starters||{});
           const subs=(m.subs||[]).map(s=>s.nom);
           if(starters.includes(nom) || subs.includes(nom)) pj++;
