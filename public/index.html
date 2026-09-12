@@ -8999,6 +8999,11 @@ async function savePE(){
     _juvPhotoCache[PE.num.slice(4)]=dataUrl;
     window.renderJuveniles?.();
     document.getElementById('sparr-grid') && renderSparrings();
+    // La lista de reservados de Fecha FIFA (Mayor) también usa esta misma caché
+    // (vía _getPhotoByName) pero no es parte de "Juveniles" — sin este re-render
+    // quirúrgico, subir la foto de un reservado quedaba en iniciales hasta salir
+    // y volver a entrar a esa pestaña, dando la impresión de que no se guardó.
+    if(document.getElementById('fifasep26-plantel')?.classList.contains('active') && typeof window.renderFifaSep26Plantel==='function') window.renderFifaSep26Plantel();
     window._savePhotoToServer?.(PE.num, dataUrl);
   } else if(typeof PE.num==='string' && PE.num.startsWith('est:')){
     window._estPhotoCache = window._estPhotoCache||{};
@@ -27045,6 +27050,12 @@ async function _loadJuvPhotoCache(){
   // de Juveniles/Local que cumplen años) — si no se refresca acá, la foto queda pegada
   // en iniciales hasta que el usuario navegue a otra sección y vuelva.
   if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
+  // Mismo problema con la lista de reservados de Fecha FIFA (usa _getPhotoByName,
+  // que lee de esta misma caché) — si esta hidratación de fotos tarda (puede haber
+  // miles de archivos en el bucket) y el usuario ya tenía esa pestaña abierta, las
+  // fotos recién cargadas quedaban en iniciales para siempre hasta salir y volver
+  // a entrar, dando la falsa impresión de que la foto se había borrado.
+  if(document.getElementById('fifasep26-plantel')?.classList.contains('active') && typeof window.renderFifaSep26Plantel==='function') window.renderFifaSep26Plantel();
   // Cargar fotos desde Supabase Storage (cross-device)
   _loadPhotosFromSupabase();
 }
@@ -27090,6 +27101,7 @@ async function _loadPhotosFromSupabase(){
     if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
     if(patchedEst && typeof renderEstructura==='function') renderEstructura();
     if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
+    if(document.getElementById('fifasep26-plantel')?.classList.contains('active') && typeof window.renderFifaSep26Plantel==='function') window.renderFifaSep26Plantel();
   }catch(e){console.warn('Supabase photo load:',e);}
 }
 
