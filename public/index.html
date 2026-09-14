@@ -5387,19 +5387,6 @@ function renderInicioHoySeleccion(dayOffset){
         });
       }
     }catch(_){}
-    // ── Cobertura fotográfica pendiente esta semana ─────────────────────────
-    try{
-      if(typeof _covGetAll==='function' && typeof _covWeekKey==='function'){
-        const wk=_covWeekKey(isoHoy);
-        const all=_covGetAll();
-        (typeof COV_CATS!=='undefined'?COV_CATS:[]).forEach(c=>{
-          const rec=(all[wk]&&all[wk][c.key])||{};
-          if(!rec.cubierto){
-            entrenoHoy.push({icon:'📷', txt:`Falta cubrir el shooting semanal de ${c.label}`, onclick:`showSection('inicio')`});
-          }
-        });
-      }
-    }catch(_){}
     const entrenoRows=entrenoHoy.map(e=>`
       <div onclick="${e.onclick||''}" style="display:flex;align-items:center;gap:8px;padding:5px 0;${e.onclick?'cursor:pointer':''}">
         <span style="font-size:15px;flex-shrink:0">${e.icon||'🏃'}</span>
@@ -6041,10 +6028,16 @@ function renderInicioProximo(){
     // widget nunca miraba Estructura, solo lo hacía "Hoy en Selección".
     if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
       const estEdits=typeof _estGetEdits==='function'?_estGetEdits():{};
+      // Una misma persona (misma key) puede estar en más de un depto (ej. Ignacio
+      // Bordad: CT Mayor + Cuerpo técnico Juveniles) — sin este dedupe salía dos
+      // veces el mismo cumpleaños.
+      const estSeenKeys=new Set();
       ESTRUCTURA_PERSONAS.forEach(d=>{
         (d.personas||[]).forEach(p=>{
+          if(estSeenKeys.has(p.key)) return;
           const fn=estEdits[p.key]?.fechaNac||p.fechaNac;
           if(fn && fn.length>=10){
+            estSeenKeys.add(p.key);
             const fecha=nextOcurrencia(fn.slice(5,10));
             const edad=fecha.getFullYear()-parseInt(fn.slice(0,4));
             const nom=estEdits[p.key]?.label||p.label;
