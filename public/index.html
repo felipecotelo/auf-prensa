@@ -5233,10 +5233,16 @@ function renderInicioHoySeleccion(dayOffset){
     const cumplesEstructura=[];
     if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
       const estEdits=typeof _estGetEdits==='function'?_estGetEdits():{};
+      // Misma persona, misma key, puede estar en más de un depto (ej. Ignacio
+      // Bordad: CT Mayor + Cuerpo técnico Juveniles) — sin este dedupe salía dos
+      // veces acá también (este loop es aparte del de renderInicioProximo).
+      const estSeenKeysHoy=new Set();
       ESTRUCTURA_PERSONAS.forEach(d=>{
         (d.personas||[]).forEach(p=>{
+          if(estSeenKeysHoy.has(p.key)) return;
           const fn=estEdits[p.key]?.fechaNac||p.fechaNac;
           if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
+            estSeenKeysHoy.add(p.key);
             cumplesEstructura.push({nom:estEdits[p.key]?.label||p.label, key:p.key, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), dept:d.dept});
           }
         });
