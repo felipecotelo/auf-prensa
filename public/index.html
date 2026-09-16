@@ -10242,14 +10242,26 @@ function getFifaSepGrafica(){
   const v=stor.get(KFifaSepGrafica,null);
   const def={};
   (FIFASEP26.partidosData||[]).forEach(p=>{ def[p.rival]={md1:{players:[],link:''},md:{players:[],link:''}}; });
-  if(!v) return def;
+  if(!v){ def.flags={}; return def; }
   (FIFASEP26.partidosData||[]).forEach(p=>{
     if(!v[p.rival]) v[p.rival]=def[p.rival];
     ['md1','md'].forEach(stage=>{ if(!v[p.rival][stage]) v[p.rival][stage]={players:[],link:''}; });
   });
+  if(!v.flags) v.flags={};
   return v;
 }
 function setFifaSepGrafica(v){ stor.set(KFifaSepGrafica,v); }
+// Mismo lenguaje que toggleGraficaFlag (Mundial), pero por nombre en vez de
+// número de camiseta — acá los reservados todavía no tienen dorsal.
+window._toggleFifaSepGraficaFlag=function(nomEnc,flagId){
+  const nom=decodeURIComponent(nomEnc);
+  const g=getFifaSepGrafica();
+  const cur=g.flags[nom]||{};
+  cur[flagId]=!cur[flagId];
+  g.flags[nom]=cur;
+  setFifaSepGrafica(g);
+  renderFifaSepGrafica();
+};
 const _fifaSepGraficaExpanded=new Set();
 window._toggleFifaSepGraficaExpand=function(key){
   if(_fifaSepGraficaExpanded.has(key)) _fifaSepGraficaExpanded.delete(key);
@@ -10336,11 +10348,20 @@ function renderFifaSepGrafica(){
       </div>
     </div>`).join('');
 
+  const flags=g.flags||{};
   const playerList=pool.map(p=>{
     const tags=(usage[p.nom]||[]).map(t=>`<span style="font-size:9px;font-weight:700;background:var(--cel-lt);color:var(--cel-dk);padding:1px 5px;border-radius:5px;margin-left:3px;white-space:nowrap">${t}</span>`).join('');
+    const nomEnc=encodeURIComponent(p.nom);
+    const inj=getResInjury(p.nom);
+    const injDot=inj!=='green'?`<span style="width:7px;height:7px;border-radius:50%;background:${inj==='red'?'#C0392B':'#F59E0B'};display:inline-block;flex-shrink:0;margin-left:5px" title="${INJ_LABELS[inj]}"></span>`:'';
+    const pf=flags[p.nom]||{};
+    const flagBtns=GRAFICA_FLAG_DEFS.map(f=>{
+      const on=!!pf[f.id];
+      return `<button onclick="_toggleFifaSepGraficaFlag('${nomEnc}','${f.id}')" title="${f.title}" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 1px;opacity:${on?'1':'.25'};filter:${on?'none':'grayscale(1)'}">${f.icon}</button>`;
+    }).join('');
     return `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11.5px">
-      <span style="display:flex;align-items:center;font-weight:600;color:${tags?'var(--text)':'var(--hint)'}">${p.nom}</span>
-      <span style="display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:2px">${tags||'<span style="font-size:9px;color:var(--hint)">sin uso</span>'}</span>
+      <span style="display:flex;align-items:center;font-weight:600;color:${tags?'var(--text)':'var(--hint)'}">${p.nom}${injDot}</span>
+      <span style="display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:2px">${tags||'<span style="font-size:9px;color:var(--hint)">sin uso</span>'}<span style="display:flex;margin-left:4px">${flagBtns}</span></span>
     </div>`;
   }).join('');
 
@@ -10350,7 +10371,7 @@ function renderFifaSepGrafica(){
         ${matchCards}
       </div>
       <div style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
-        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Reservados — ${pool.length} jugadores</div>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${FIFASEP26.finales?'Plantel':'Reservados'} — ${pool.length} jugadores</div>
         ${playerList}
       </div>
     </div>`;
