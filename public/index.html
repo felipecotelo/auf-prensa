@@ -25942,7 +25942,9 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
 
   function row(nom){
     const pos = juvPos[nom]||'';
-    const ph = window._juvPhotoCache?.[nom]||null;
+    // Selector de la Fecha FIFA (Mayor real, m.compId==='fifasep26'): sin riesgo de
+    // homónimo, así que cae a la foto ya cargada en JUGADORES si no hay una propia.
+    const ph = window._juvPhotoCache?.[nom] || (m.compId==='fifasep26' ? (window._getPhotoByName?.(nom)||JUGADORES?.[nom]?.foto) : null) || null;
     const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
     const inUse = usedNoms.has(nom) && nom!==curNom;
     return `<div class="sp-item${nom===curNom?' sp-sel':''}${inUse?' sp-used':''}"
@@ -26127,7 +26129,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
   // ── Slots de la cancha ──
   const pitchSlots = [...slots].sort((a,b)=>b.y-a.y).map(slot=>{
     const nom = st[slot.id]||null;
-    const ph = window._juvGetPhoto?.(nom)||null;
+    const ph = (nom && window._juvGetPhoto?.(nom)) || (cat==='fifamayor' && nom ? (window._getPhotoByName?.(nom)||JUGADORES?.[nom]?.foto) : null) || null;
     const inits = nom ? nom.split(' ').map(w=>w[0]).join('').slice(0,2) : '';
     const parts = nom ? nom.split(' ') : [];
     const lbl = nom ? (parts.length>1 ? parts[0][0]+'. '+parts.slice(1).join(' ') : parts[0]) : slot.pos;
@@ -26194,7 +26196,11 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
       <div style="font-size:8.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">${POS_LABEL[pos]||'Sin posición'}</div>
       <div style="display:flex;flex-direction:column;gap:3px">
         ${pl.map(nom=>{
-          const ph = window._juvGetPhoto?.(nom)||null;
+          // En Juveniles NO cae a la foto de la Mayor (evita cruzar homónimos, ver
+          // _juvGetPhoto). Pero acá mismo, cuando cat es 'fifamayor', el plantel ES
+          // la Mayor real (Fecha FIFA) — no hay riesgo de homónimo, así que sí usamos
+          // la foto ya cargada en JUGADORES como fallback.
+          const ph = window._juvGetPhoto?.(nom) || (cat==='fifamayor' ? (window._getPhotoByName?.(nom)||JUGADORES?.[nom]?.foto) : null) || null;
           const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
           const isTit = usedNoms.has(nom);
           const sub = subs.find(s=>s.nom===nom);
