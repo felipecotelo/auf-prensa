@@ -10605,10 +10605,19 @@ function renderFifaSep26(tabId){
         </div>`;
       };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
-      const todos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
+      const allPos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
+      // Con finales cargados: primero los convocados en el orden exacto de la lista
+      // oficial (no por posición), después — separados — los reservados que no
+      // quedaron, en gris, agrupados por posición como antes.
+      const convocadosOrdenados = finales ? finales.map(nom=>allPos.find(p=>p.nom===nom)).filter(Boolean) : [];
+      const noConvocados = finales ? allPos.filter(p=>!finales.includes(p.nom)) : [];
+      const todos = finales ? [...convocadosOrdenados, ...noConvocados] : allPos;
       con.innerHTML = _header('👥', finales?'Convocados':'Lista de reservados', finales?'Convocatoria final':`Lista larga · ${totalRes} jugadores`) +
         (finales ? '' : `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.78em;color:#92400E"><strong>Todavía no es la convocatoria final.</strong> De esta lista larga sale el recorte a 23/26 que viaja — cuando se confirme, los elegidos quedan destacados acá arriba y el resto en gris abajo.</div>`) +
-        `<div class="p-grid">${todos.map(tarjeta).join('')}</div>`;
+        (finales
+          ? `<div class="p-grid">${convocadosOrdenados.map(tarjeta).join('')}</div>` +
+            (noConvocados.length ? `<div style="margin:20px 0 10px;font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--border);padding-top:14px">No convocados (${noConvocados.length})</div><div class="p-grid">${noConvocados.map(tarjeta).join('')}</div>` : '')
+          : `<div class="p-grid">${todos.map(tarjeta).join('')}</div>`);
     }
   } else if(slug==='fixture'){
     con.innerHTML = _header('🗒️','Fixture','3 partidos · sep–oct 2026') +
