@@ -10760,8 +10760,14 @@ function renderFifaSepCal(){
     const isToday=day.date===TODAY;
     const note=dn[day.date]||'';
     const rival=day.rival?` · vs. ${day.rival}${day.sede?' ('+day.sede+')':''}`:'';
+    // Se muestran ordenadas por horario (no por orden de carga) — sin hora o TBD
+    // van al final. idx sigue siendo la posición real en el array guardado, así
+    // que estado/nota/links/mover siguen apuntando a la actividad correcta.
+    const _parseH=(h)=>{ if(!h||h==='TBD') return Infinity; const mm=/^(\d{1,2})(?::(\d{2}))?$/.exec(h); return mm ? parseInt(mm[1],10)*60+parseInt(mm[2]||'0',10) : Infinity; };
+    const sortedCustom = custom.map((e,idx)=>({e,idx}))
+      .sort((a,b)=>_parseH(getCalTime(day.date,a.idx,a.e.h||'TBD'))-_parseH(getCalTime(day.date,b.idx,b.e.h||'TBD')));
     const evsHtml=custom.length
-      ? custom.map((e,idx)=>_fifaSepEvRowHtml(day.date,e,idx,custom.length)).join('')
+      ? sortedCustom.map(({e,idx})=>_fifaSepEvRowHtml(day.date,e,idx,custom.length)).join('')
       : `<div style="padding:8px 0;color:var(--muted);font-size:.8em">Sin actividades cargadas todavía.</div>`;
     const isClosed=getDayClosed()[day.date]||false;
     const div=document.createElement('div');
