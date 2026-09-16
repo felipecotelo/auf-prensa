@@ -10574,12 +10574,51 @@ function renderFifaSep26(tabId){
       const finales=FIFASEP26.finales; // null hasta que salga la lista final de 23/26
       const POS_ORDER=['POR','DEF','MED','DEL'];
       const initialsOf=nom=>{const w=nom.split(' ').filter(Boolean);return((w[0]?.[0]||'')+(w[w.length-1]?.[0]||'')).toUpperCase();};
+      // Hitos "dato interesante" — solo para los ya confirmados en la convocatoria
+      // final. Se computan una sola vez acá afuera (no por tarjeta) para no
+      // recorrer todo JUGADORES 26 veces.
+      const _allPjSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,pj:dd.total?.pj||0})).filter(e=>e.pj>0).sort((a,b)=>b.pj-a.pj);
+      const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:dd.total?.g||0})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
+      const _PJM=[10,25,50,75,100,125,150,175,200,250];
+      const _GM=[5,10,15,20,25,30,40,50];
+      const _fifaMilestoneNote=(nom,pj,g)=>{
+        const notes=[];
+        const nextPjM=_PJM.find(m=>m>pj&&m-pj<=5);
+        if(nextPjM) notes.push(`⏱️ A ${nextPjM-pj} de llegar a los ${nextPjM} partidos con la Selección`);
+        else{
+          const idx=_allPjSorted.findIndex(e=>e.n===nom);
+          if(idx>0){
+            const above=_allPjSorted[idx-1];
+            const gap=above.pj-pj;
+            if(gap>0&&gap<=3) notes.push(`⏱️ A ${gap} de igualar a ${above.n} en partidos (${above.pj})`);
+          }
+        }
+        if(g>0){
+          const nextGM=_GM.find(m=>m>g&&m-g<=3);
+          if(nextGM) notes.push(`⚽ A ${nextGM-g} de llegar a los ${nextGM} goles con la Selección`);
+          else{
+            const idx=_allGSorted.findIndex(e=>e.n===nom);
+            if(idx>0){
+              const above=_allGSorted[idx-1];
+              const gap=above.g-g;
+              if(gap>0&&gap<=2) notes.push(`⚽ A ${gap} de igualar a ${above.n} en goles (${above.g})`);
+            }
+          }
+        }
+        return notes;
+      };
       const tarjeta=(p)=>{
         const d=JUGADORES[p.nom];
         const pj=d?.total?.pj||0, g=d?.total?.g||0, min=d?.total?.min||0;
         const edad=d?.fechaNac?_nacAge(d.fechaNac):null;
         const primeraConv = (FIFASEP26.primeraConvocatoria||[]).includes(p.nom);
         const enFinal = finales ? finales.includes(p.nom) : true;
+        // "Debutaría" (pj===0) es un hecho objetivo de las stats — distinto de
+        // "primera convocatoria" (confirmada a mano, no se infiere de 0 PJ: hay
+        // jugadores con 0 PJ ya convocados antes). Solo se muestra si NO es ya
+        // primeraConv, para no duplicar el mismo aviso con otro texto.
+        const debutaria = enFinal && pj===0 && !primeraConv;
+        const milestones = enFinal ? _fifaMilestoneNote(p.nom,pj,g) : [];
         const photoSrc = window._getPhotoByName?.(p.nom) || d?.foto || '';
         const safe=p.nom.replace(/'/g,"\\'");
         const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');
@@ -10610,7 +10649,8 @@ function renderFifaSep26(tabId){
               <button class="p-card-tab" onclick="switchPTab(this,'prensa','${cid}')">Prensa</button>
             </div>
             <div class="p-tab-pane active" id="ptab-stats-${cid}">
-              ${primeraConv?`<div class="p-ms" style="border-color:#EC4899;background:#FCE7F3;color:#BE185D;margin-bottom:4px">🆕 SERÍA SU 1RA CONVOCATORIA</div>`:''}
+              ${primeraConv?`<div class="p-ms" style="border-color:#EC4899;background:#FCE7F3;color:#BE185D;margin-bottom:4px">🆕 ${finales&&enFinal?'ES SU 1RA CONVOCATORIA':'SERÍA SU 1RA CONVOCATORIA'}</div>`:''}
+              ${debutaria?`<div class="p-ms" style="border-color:#7C3AED;background:#F5F3FF;color:#6D28D9;margin-bottom:4px">⭐ DEBUTARÍA CON LA SELECCIÓN</div>`:''}
               <div class="p-club">${p.clubPais||''} ${p.club}</div>
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats" style="grid-template-columns:repeat(3,1fr)">
@@ -10618,6 +10658,7 @@ function renderFifaSep26(tabId){
                 <div class="p-stat"><div class="p-stat-n goal">${g}</div><div class="p-stat-l">Goles</div></div>
                 <div class="p-stat"><div class="p-stat-n">${min}</div><div class="p-stat-l">Minutos</div></div>
               </div>
+              ${milestones.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">${milestones.map(m=>`<div style="font-size:9.5px;font-weight:700;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:3px 6px">${m}</div>`).join('')}</div>`:''}
             </div>
             <div class="p-tab-pane" id="ptab-prensa-${cid}">
               <div style="font-size:11px;color:var(--muted);padding:8px 0">Sin atenciones registradas todavía.</div>
@@ -11017,18 +11058,59 @@ window._fsapToggleDayClosed=function(date){
   toast(dc[date]?'🔒 Cerrado (sin apertura de prensa)':'🟢 Abierto (15 min para prensa)');
   renderFifaSepCal();
 };
+// Guardan/borran origH+origTz en el propio objeto del acto (acts[date][idx]) —
+// _fsapFmtHora los lee de ahí para mostrar "12:30 JAP → 00:30h UY", igual que
+// ya hace addFifaSepAct al cargar una actividad nueva en otro huso.
+function _fsapSetOrig(date,idx,origH,origTz){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  e.origH=origH; e.origTz=origTz;
+  stor.set(KDayActs,acts);
+}
+function _fsapClearOrig(date,idx){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  delete e.origH; delete e.origTz;
+  stor.set(KDayActs,acts);
+}
 window._fsapEditTime=function(date,idx,el){
-  const cur=getCalTime(date,idx,'');
+  const acts=getDayActs();
+  const curE=acts[date]?.[idx]||{};
+  const cur=curE.origTz && curE.origTz!=='UY' ? curE.origH : getCalTime(date,idx,'');
+  const curTz=curE.origTz||'UY';
+  const wrap=document.createElement('div');
+  wrap.style.cssText='display:flex;flex-direction:column;gap:3px;min-width:110px';
   const inp=document.createElement('input');
   inp.type='text'; inp.value=cur==='TBD'?'':cur;
-  inp.placeholder='ej: 17:30 (hora UY)';
+  inp.placeholder='ej: 17:30';
   inp.style.cssText='width:110px;font-size:11px;font-weight:700;border:1.5px solid var(--cel);border-radius:5px;padding:2px 6px;font-family:inherit;background:#fff;outline:none';
-  el.replaceWith(inp); inp.focus(); inp.select();
+  const tzWrap=document.createElement('div');
+  tzWrap.className='aap-tz-chips';
+  let tz=curTz;
+  Object.entries(FIFASEP_TZ_INFO).forEach(([k,v])=>{
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=v.short; b.title=v.label;
+    b.className='aap-tz-chip'+(k===tz?' active':'');
+    // Evita que el click en el chip le saque el foco al input antes de leer tz
+    b.onmousedown=ev=>ev.preventDefault();
+    b.onclick=()=>{ tz=k; tzWrap.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b)); inp.focus(); };
+    tzWrap.appendChild(b);
+  });
+  wrap.appendChild(inp); wrap.appendChild(tzWrap);
+  el.replaceWith(wrap); inp.focus(); inp.select();
   let committed=false;
   function commit(){
     if(committed) return; committed=true;
-    const val=inp.value.trim()||'TBD';
-    saveCalTime(date,idx,val);
+    const raw=inp.value.trim();
+    if(!raw){ saveCalTime(date,idx,'TBD'); _fsapClearOrig(date,idx); renderFifaSepCal(); return; }
+    if(tz==='UY'){
+      saveCalTime(date,idx,raw);
+      _fsapClearOrig(date,idx);
+    } else {
+      const converted=_fsapConvertTz(raw,tz,'UY')||raw;
+      saveCalTime(date,idx,converted);
+      _fsapSetOrig(date,idx,raw,tz);
+    }
     renderFifaSepCal();
   }
   inp.onblur=commit;
@@ -16447,18 +16529,22 @@ function buildAllHistFromJugadores(){
         ?`<span style="font-size:7.5px;font-weight:800;background:#F1F5F9;color:#94A3B8;border-radius:4px;padding:1px 5px;margin-left:5px;letter-spacing:.04em;vertical-align:middle">RET</span>`
         :`<span style="font-size:7.5px;font-weight:800;background:#D1FAE5;color:#065F46;border-radius:4px;padding:1px 5px;margin-left:5px;letter-spacing:.04em;vertical-align:middle">ACTIVO</span>`;
     const nameColor=isRet||isFall?'var(--muted)':'var(--text)';
-    const _initSrc=d.foto||(pp?.photo)||'';
+    const _initSrc=window._getPhotoByName?.(nom)||d.foto||(pp?.photo)||'';
     const _grayscale=isRet||isFall?'grayscale(.8)':'';
+    // Destaca a los convocados a la próxima Fecha FIFA — útil como referencia
+    // rápida al armar piezas/datos con la tabla histórica.
+    const isConvFifaSep=typeof FIFASEP26!=='undefined'&&FIFASEP26.finales&&FIFASEP26.finales.includes(nom);
+    const convBadge=isConvFifaSep?`<span title="Convocado — Fecha FIFA sep-oct 2026" style="font-size:7.5px;font-weight:800;background:#DBEAFE;color:#1D4ED8;border-radius:4px;padding:1px 5px;margin-left:5px;letter-spacing:.04em;vertical-align:middle">📅 FIFA</span>`:'';
     const avatarHtml=`<div style="position:relative;width:24px;height:24px;flex-shrink:0">
       <div style="position:absolute;inset:0;border-radius:50%;background:${pc}22;border:1.5px solid ${pc};display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:800;color:${pc};letter-spacing:-.5px">${initials}</div>
       <img data-hist-nom="${nom.replace(/"/g,'&quot;')}" src="${_initSrc}" style="position:absolute;inset:0;width:24px;height:24px;border-radius:50%;object-fit:cover;object-position:top center;filter:${_grayscale};${_initSrc?'':'display:none'}" onerror="this.style.display='none'">
     </div>`;
-    return`<tr style="${isRet?'background:var(--surface)':''}">
+    return`<tr style="${isConvFifaSep?'background:#EFF6FF':isRet?'background:var(--surface)':''}">
       <td class="st-rank" style="font-size:${i<3?13:11}px;width:28px;text-align:center">${rankCell}</td>
       <td style="padding:5px 8px">
         <div style="display:flex;align-items:center;gap:6px">
           ${avatarHtml}
-          <button onclick="showJugador('${safe}')" style="background:none;border:none;padding:0;cursor:pointer;color:${nameColor};font-weight:700;font-size:11.5px;text-align:left;text-decoration:underline dotted;text-underline-offset:2px;line-height:1.3">${nom}${star}${statusBadge}${aufBtn}</button>
+          <button onclick="showJugador('${safe}')" style="background:none;border:none;padding:0;cursor:pointer;color:${nameColor};font-weight:700;font-size:11.5px;text-align:left;text-decoration:underline dotted;text-underline-offset:2px;line-height:1.3">${nom}${star}${statusBadge}${convBadge}${aufBtn}</button>
         </div>
       </td>
       <td class="st-n${i<3?' top':''}" style="white-space:nowrap;padding-right:8px">
