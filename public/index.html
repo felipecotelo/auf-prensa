@@ -5343,6 +5343,26 @@ function renderInicioHoySeleccion(dayOffset){
       }
     }catch(_){}
 
+    // ── Agenda del día de la gira de la Fecha FIFA (viaje/llegada/entreno/
+    // descanso) — antes solo se mostraban los partidos (partidosHoy de arriba),
+    // así que un día de viaje como el de salida no aparecía en absoluto.
+    const fifaSepHoy=[];
+    try{
+      if(typeof FIFASEP26_CAL_DAYS!=='undefined'){
+        const day=FIFASEP26_CAL_DAYS.find(d=>d.date===isoHoy);
+        if(day && day.tipo!=='partido'){
+          const FSH_ICON={viaje:'✈️',llegada:'🛬',entreno:'🏃',descanso:'😌'};
+          const FSH_LABEL={viaje:'Viaje de la Mayor',llegada:'Llegada de la Mayor',entreno:'Entrenamiento de la Mayor',descanso:'Día libre — Mayor'};
+          fifaSepHoy.push({icon:FSH_ICON[day.tipo]||'📅', txt:`${FSH_LABEL[day.tipo]||'Mayor'}${day.lugar?' · '+day.lugar:''}`, onclick:`showSection('mayor')`});
+        }
+      }
+    }catch(_){}
+    const fifaSepRows=fifaSepHoy.map(e=>`
+      <div onclick="${e.onclick||''}" style="display:flex;align-items:center;gap:8px;padding:5px 0;${e.onclick?'cursor:pointer':''}">
+        <span style="font-size:15px;flex-shrink:0">${e.icon}</span>
+        <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${e.txt}</span>
+      </div>`).join('');
+
     // ── Entrenamientos de hoy (Juveniles) ───────────────────────────────────
     // Los microciclos no tienen fecha estructurada, son un label de texto
     // libre en la convocatoria (ej. "Microciclo 15 · lunes a viernes · 7-11
@@ -5428,7 +5448,7 @@ function renderInicioHoySeleccion(dayOffset){
         </div>
       </div>`).join('');
 
-    const vacio=!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !partidosHoy.length && !entrenoHoy.length && !planHoy.length;
+    const vacio=!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !partidosHoy.length && !fifaSepHoy.length && !entrenoHoy.length && !planHoy.length;
     // "Hoy" siempre se muestra, aunque no haya nada — así el widget da una señal
     // clara de "reviewed, no hay nada" en vez de simplemente desaparecer. Ayer y
     // Mañana, al ser menos críticos de tener siempre a la vista, se ocultan si
@@ -5438,6 +5458,7 @@ function renderInicioHoySeleccion(dayOffset){
     const body=vacio
       ? `<div style="font-size:${isMob?'12.5px':'12px'};color:${subColor}">No hay nada específico para hoy — revisá las tareas.</div>`
       : (partidoRows?subHdr('🏟️ Partidos')+partidoRows:'')
+      +(fifaSepRows?subHdr('🇺🇾 Fecha FIFA — Selección Mayor')+fifaSepRows:'')
       +(entrenoRows?subHdr('🏃 Entrenamientos y cobertura')+entrenoRows:'')
       +(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
       +(cumpleEstructuraRows?subHdr('🎂 Cumpleaños · Estructura')+cumpleEstructuraRows:'')
