@@ -10625,7 +10625,11 @@ function renderFifaSep26(tabId){
         const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');
         const cid='res-'+nomEnc; // id de tarjeta para switchPTab (no hay número de camiseta todavía)
         const inj=getResInjury(p.nom);
-        return `<div class="p-card" id="pcard-${cid}" style="${enFinal?'':'filter:grayscale(1);opacity:.5'}">
+        // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
+        // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
+        const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
+        return `<div class="p-card" id="pcard-${cid}" style="position:relative;${enFinal?'':'filter:grayscale(1);opacity:.5'}">
+          <button onclick="event.stopPropagation();_toggleFifaSepCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
           <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <div class="p-card-num" title="Todavía sin dorsal asignado">#</div>
@@ -11761,6 +11765,17 @@ function _toggleJuvLesionado(nom){ _editLesion(nom); }
 window._copyWaFotos=function(btn,msg){navigator.clipboard.writeText(msg).then(()=>{const orig=btn.textContent;btn.textContent='✓ Copiado';setTimeout(()=>btn.textContent=orig,2000);});};
 function _toggleLocalRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);_refreshAllFichaViews();}
 function _toggleCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
+// Mismo store (auf4_capitan) que _toggleCapitan/_toggleLocalCapitan/_toggleJuvCapitan
+// — acá recibe el nombre encodeURIComponent'd (mismo patrón que el resto de la
+// tarjeta de Convocados de Fecha FIFA) y refresca también esa vista puntual.
+window._toggleFifaSepCapitan=function(nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const s=stor.get('auf4_capitan',{});
+  if(s[nom]) delete s[nom]; else s[nom]=true;
+  stor.set('auf4_capitan',s);
+  _refreshAllFichaViews();
+  window.renderFifaSep26Plantel?.();
+};
 function _toggleJuvCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
 function _toggleLocalCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
 function _toggleLocalFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);_refreshAllFichaViews();}
