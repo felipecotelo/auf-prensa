@@ -1059,6 +1059,7 @@ textarea{resize:vertical;min-height:52px}
 .day-closed-btn{font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:8px;border:1.5px solid;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
 .day-closed-btn.open{border-color:var(--green);background:var(--green-lt);color:var(--green-dk)}
 .day-closed-btn.closed{border-color:#F59E0B;background:#1A2F44;color:#F59E0B}
+.day-closed-btn.na{border-color:var(--border);background:var(--surface);color:var(--muted)}
 .add-act-wrap{margin-top:7px;border-top:0.5px dashed var(--border);padding-top:7px}
 .add-act-btn{font-size:11.5px;font-weight:700;color:var(--cel-dk);background:none;border:1.5px dashed var(--cel);border-radius:8px;padding:5px 12px;cursor:pointer;width:100%;text-align:center;transition:all .15s}
 .add-act-btn:hover{background:var(--cel-lt)}
@@ -10810,7 +10811,10 @@ function renderFifaSepCal(){
     const evsHtml=custom.length
       ? sortedCustom.map(({e,idx})=>_fifaSepEvRowHtml(day.date,e,idx,custom.length)).join('')
       : `<div style="padding:8px 0;color:var(--muted);font-size:.8em">Sin actividades cargadas todavía.</div>`;
-    const isClosed=getDayClosed()[day.date]||false;
+    const isNA=getFifaSepDayNA()[day.date]||false;
+    const isClosed=!isNA&&(getDayClosed()[day.date]||false);
+    const naLabels={open:{icon:'🟢',txt:'Abierto',title:'Abierto — click para cerrar'},closed:{icon:'🔒',txt:'Cerrado',title:'Cerrado — click para marcar "no aplica"'},na:{icon:'⚪',txt:'No aplica',title:'No aplica (sin entrenamiento) — click para volver a abierto'}};
+    const dayState=isNA?'na':isClosed?'closed':'open';
     const div=document.createElement('div');
     div.className='cal-day'+((isToday||openDates.has(day.date))?' today open':'')+(day.tipo==='partido'?' tipo-partido':'');
     div.dataset.date=day.date;
@@ -10820,10 +10824,10 @@ function renderFifaSepCal(){
         <div class="cal-date">${day.label}</div>
         <span class="cal-badge ${FIFASEP_TYPE_BADGE[day.tipo]}">${FIFASEP_TYPE_LABELS[day.tipo]}</span>
         <div class="cal-rival" style="flex:1">${rival}</div>
-        ${day.tipo!=='partido'?`<button class="day-closed-btn ${isClosed?'closed':'open'}"
+        ${day.tipo!=='partido'?`<button class="day-closed-btn ${dayState}"
           onclick="event.stopPropagation();_fsapToggleDayClosed('${day.date}')"
-          title="${isClosed?'Cerrado — click para abrir':'Abierto — click para cerrar'}">
-          ${isClosed?'🔒 Cerrado':'🟢 Abierto'}
+          title="${naLabels[dayState].title}">
+          ${naLabels[dayState].icon} ${naLabels[dayState].txt}
         </button>`:''}
         ${day.lugar?`<div class="cal-lugar" style="margin-left:6px">${day.lugar}</div>`:''}
         ${isToday?'<span class="cal-today-chip" style="margin-left:4px">Hoy</span>':''}
@@ -11051,11 +11055,28 @@ window._fsapCycleEvSt=function(date,idx){
   setEvStatus_store(ev);
   renderFifaSepCal();
 };
+// "No aplica" — tercer estado para días sin entrenamiento (viaje, llegada,
+// descanso) donde "abierto/cerrado a prensa" no tiene sentido. Guardado
+// aparte (KFifaSepDayNA) para no tocar el formato de KDayClosed, que también
+// usa el calendario del Mundial.
+const KFifaSepDayNA='auf4_fifasep_day_na';
+function getFifaSepDayNA(){ return stor.get(KFifaSepDayNA,{}); }
 window._fsapToggleDayClosed=function(date){
   const dc=getDayClosed();
-  dc[date]=!dc[date];
+  const naMap=getFifaSepDayNA();
+  // Ciclo: abierto → cerrado → no aplica → abierto
+  if(naMap[date]){
+    naMap[date]=false; dc[date]=false;
+    toast('🟢 Abierto (15 min para prensa)');
+  } else if(dc[date]){
+    naMap[date]=true;
+    toast('⚪ No aplica (sin entrenamiento)');
+  } else {
+    dc[date]=true;
+    toast('🔒 Cerrado (sin apertura de prensa)');
+  }
   stor.set(KDayClosed,dc);
-  toast(dc[date]?'🔒 Cerrado (sin apertura de prensa)':'🟢 Abierto (15 min para prensa)');
+  stor.set(KFifaSepDayNA,naMap);
   renderFifaSepCal();
 };
 // Guardan/borran origH+origTz en el propio objeto del acto (acts[date][idx]) —
