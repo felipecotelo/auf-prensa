@@ -26264,8 +26264,29 @@ window._amistRemoveCard = function(cat, year, matchId, leg, idx){
   _amistPatch(cat, year, matchId, m=>{ (m['tarjetas'+sfx]||[]).splice(idx,1); });
 };
 
+// Lesiones durante el partido — mismo patrón que tarjetas (select jugador +
+// min opcional), pero un jugador solo puede estar lesionado una vez por
+// partido (no tiene sentido acumular varias entradas de la misma persona).
+window._amistAddLesion = function(cat, year, matchId, leg){
+  const sfx = leg===2?'2':'';
+  const selId = 'juv-les-nom-'+matchId+sfx;
+  const minId = 'juv-les-min-'+matchId+sfx;
+  const nom = (document.getElementById(selId)?.value||'').trim();
+  const min = (document.getElementById(minId)?.value||'').trim();
+  if(!nom) return;
+  _amistPatch(cat, year, matchId, m=>{
+    if(!m['lesiones'+sfx]) m['lesiones'+sfx]=[];
+    if(m['lesiones'+sfx].some(l=>l.nom===nom)) return;
+    m['lesiones'+sfx].push({nom, min});
+  });
+};
+window._amistRemoveLesion = function(cat, year, matchId, leg, idx){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat, year, matchId, m=>{ (m['lesiones'+sfx]||[]).splice(idx,1); });
+};
+
 // Returns {pitchHtml, benchHtml} — assembled into piz-3col layout
-function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, convNumMap, cat, year){
+function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, convNumMap, cat, year, lesiones){
   const sfx = leg===2?'2':'';
   const lu = m['lineup'+sfx]||{formation:'4-3-3',starters:{}};
   const form = lu.formation||'4-3-3';
@@ -26285,6 +26306,8 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
   // map nom → worst card ('r' beats 'a')
   const cardMap = {};
   tarjetas.forEach(t=>{ if(!cardMap[t.nom]||t.col==='r') cardMap[t.nom]=t.col; });
+  lesiones = lesiones||[];
+  const lesionSet = new Set(lesiones.map(l=>l.nom));
 
   // ── Capitán selector (encima del pitch) ──
   const capOpts = `<option value="">Sin capitán</option>`+starterNoms.map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${n===captain?' selected':''}>${n}</option>`).join('');
@@ -26321,6 +26344,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
           ${slotNum||'#'}</div>`:''}
         ${nom&&goles[nom]>0?`<span style="position:absolute;bottom:-6px;right:-6px;font-size:${goles[nom]>1?'8px':'11px'};z-index:13;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))">${'⚽'.repeat(Math.min(goles[nom],3))}${goles[nom]>3?'<span style="font-size:7px;color:#fff;font-weight:900">+'+goles[nom]+'</span>':''}</span>`:''}
         ${nom&&cardMap[nom]?`<span style="position:absolute;top:-6px;left:-4px;font-size:10px;z-index:14;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.8))">${cardMap[nom]==='r'?'🟥':'🟨'}</span>`:''}
+        ${nom&&lesionSet.has(nom)?`<span title="Se lesionó en este partido" style="position:absolute;bottom:-6px;left:-4px;font-size:10px;z-index:14;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.8))">🩹</span>`:''}
         ${nom?`<button onclick="event.stopPropagation();_removeJuvP('${cat}','${year}',${m.id},${leg},'${slot.id}')"
           style="position:absolute;top:-4px;left:-4px;width:16px;height:16px;border-radius:50%;background:#dc2626;border:1.5px solid #fff;color:#fff;font-size:9px;font-weight:900;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center;line-height:1" class="p-slot-remove">×</button>`:''}
       </div>
@@ -26403,6 +26427,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
                   ${isSub?`<span style="font-size:.6em;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 4px;line-height:1.5">▲</span>`:''}
                   ${goles[nom]>0?`<span style="font-size:10px;line-height:1">⚽${ goles[nom]>1?`<span style="font-size:.6em;font-weight:900;vertical-align:middle">${goles[nom]}</span>`:''}</span>`:''}
                   ${cardMap[nom]?`<span style="font-size:10px;line-height:1">${cardMap[nom]==='r'?'🟥':'🟨'}</span>`:''}
+                  ${lesionSet.has(nom)?`<span title="Se lesionó en este partido" style="font-size:10px;line-height:1">🩹</span>`:''}
                 </div>
               </div>
               ${isSub?`<input type="text" inputmode="numeric" maxlength="3" value="${sub.min||''}" placeholder="min"
@@ -26760,6 +26785,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
 
       // Tarjetas
       const tarjetas = m['tarjetas'+sfx]||[];
+      const lesiones = m['lesiones'+sfx]||[];
       const subs = m['subs'+sfx]||[];
 
       // Flag helpers
@@ -26780,8 +26806,9 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         : topGol.flatMap(([nom,g])=>Array(g).fill(null).map(()=>({type:'goal',nom,ec:nom==='__EC__'})));
       const ecEntries = golMinsArr.length ? [] : Array(ecGoles).fill(null).map(()=>({type:'goal',nom:'__EC__',ec:true}));
       const cardEntries = tarjetas.map(t=>({type:'card',nom:t.nom,col:t.col,min:t.min}));
+      const lesionEntries = lesiones.map(l=>({type:'lesion',nom:l.nom,min:l.min}));
       const subEntries = subs.map(s=>({type:'sub',nom:s.nom,min:s.min}));
-      const allEntries = [...goalEntries,...ecEntries,...cardEntries,...subEntries];
+      const allEntries = [...goalEntries,...ecEntries,...cardEntries,...lesionEntries,...subEntries];
 
       const incHtml = allEntries.length ? allEntries.map(e=>{
         if(e.type==='goal'){
@@ -26811,6 +26838,15 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <button onclick="_amistRemoveCard('${cat}','${year}',${m.id},${leg},${idx})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:11px;padding:0;line-height:1">✕</button>
           </div>`;
         }
+        if(e.type==='lesion'){
+          const idx=lesiones.findIndex(l=>l.nom===e.nom);
+          return `<div style="display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:#FEF2F2;margin-bottom:3px">
+            ${e.min?`<span style="font-size:9px;font-weight:800;color:var(--cel-dk);min-width:22px;flex-shrink:0">${e.min}'</span>`:'<span style="min-width:22px;flex-shrink:0"></span>'}
+            <span style="font-size:13px;flex-shrink:0">🩹</span>
+            <div style="flex:1;font-size:10.5px;font-weight:700;color:#B91C1C">${e.nom.split(' ').pop()} — se lesionó</div>
+            <button onclick="_amistRemoveLesion('${cat}','${year}',${m.id},${leg},${idx})" style="border:none;background:none;cursor:pointer;color:#9CA3AF;font-size:11px;padding:0;line-height:1">✕</button>
+          </div>`;
+        }
         if(e.type==='sub'){
           const ns=e.nom.replace(/'/g,"\\'");
           const idx=subs.findIndex(s=>s.nom===e.nom);
@@ -26825,7 +26861,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       }).join('')
       : `<div style="font-size:10.5px;color:var(--hint);padding:4px 0">Sin incidencias registradas</div>`;
 
-      const {pitchHtml, benchHtml} = _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, convNumMap, cat, year);
+      const {pitchHtml, benchHtml} = _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, convNumMap, cat, year, lesiones);
 
       // ── Columna izquierda — CSS idéntico a la Mayor ──
       const leftCol = `
@@ -26900,6 +26936,15 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
               <input id="juv-card-min-${m.id}${sfx}" type="text" inputmode="numeric" maxlength="3" placeholder="min" style="width:38px;padding:5px 4px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
               <button onclick="_amistAddCard('${cat}','${year}',${m.id},${leg})"
                 style="padding:5px 10px;background:#F59E0B;color:#fff;border:none;border-radius:7px;font-size:.8em;font-weight:800;cursor:pointer;flex-shrink:0">+</button>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center">
+              <select id="juv-les-nom-${m.id}${sfx}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
+                <option value="">🩹 Se lesionó…</option>
+                ${jugaron.filter(n=>!lesiones.some(l=>l.nom===n)).map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n.split(' ').pop()}</option>`).join('')}
+              </select>
+              <input id="juv-les-min-${m.id}${sfx}" type="text" inputmode="numeric" maxlength="3" placeholder="min" style="width:38px;padding:5px 4px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
+              <button onclick="_amistAddLesion('${cat}','${year}',${m.id},${leg})"
+                style="padding:5px 10px;background:#DC2626;color:#fff;border:none;border-radius:7px;font-size:.8em;font-weight:800;cursor:pointer;flex-shrink:0">+</button>
             </div>
           </div>`:''}
           <div style="display:flex;gap:4px;align-items:center;margin-top:5px">
