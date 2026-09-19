@@ -10913,12 +10913,27 @@ const FIFASEP_TZ_INFO={
 };
 const FIFASEP_TZ_DEFAULT='UY';
 const _fsapTzState={};
+// Acepta "9", "9h", "09:00", "9:00h", "9.30" — antes exigía "H:MM" exacto y
+// cualquier otra forma (ej. "9h", como se carga naturalmente hablando de
+// horarios) fallaba en silencio: la hora quedaba sin convertir, guardada tal
+// cual en el huso de origen pero etiquetada como si ya fuera hora UY — eso
+// rompía además el orden cronológico del día (una resta de husos entre un
+// horario sí convertido y otro no).
+function _fsapParseHora(raw){
+  if(!raw) return null;
+  const s=raw.trim().toLowerCase().replace(/h$/,'').replace(',','.').trim();
+  let m=/^(\d{1,2})[:.](\d{2})$/.exec(s);
+  if(m) return {h:parseInt(m[1],10), mi:parseInt(m[2],10)};
+  m=/^(\d{1,2})$/.exec(s);
+  if(m) return {h:parseInt(m[1],10), mi:0};
+  return null;
+}
 function _fsapConvertTz(hStr, fromTz, toTz){
-  const m=hStr&&hStr.trim().match(/^(\d{1,2}):(\d{2})$/);
-  if(!m) return null;
+  const p=_fsapParseHora(hStr);
+  if(!p || p.h>23 || p.mi>59) return null;
   const fromMin=(FIFASEP_TZ_INFO[fromTz]||FIFASEP_TZ_INFO.UY).offsetMin;
   const toMin=(FIFASEP_TZ_INFO[toTz]||FIFASEP_TZ_INFO.UY).offsetMin;
-  let total=parseInt(m[1])*60+parseInt(m[2])+(toMin-fromMin);
+  let total=p.h*60+p.mi+(toMin-fromMin);
   total=((total%1440)+1440)%1440;
   return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
 }
