@@ -10603,32 +10603,41 @@ function renderFifaSep26(tabId){
       const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:dd.total?.g||0})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
       const _PJM=[10,25,50,75,100,125,150,175,200,250];
       const _GM=[5,10,15,20,25,30,40,50];
+      // Mismas clases .p-ms (star/cap/hist/goal) que usa computeMilestones() en
+      // el Mundial, para que se vea igual acá.
       const _fifaMilestoneNote=(nom,pj,g)=>{
         const notes=[];
         const nextPjM=_PJM.find(m=>m>pj&&m-pj<=5);
-        if(nextPjM) notes.push(`📌 A ${nextPjM-pj} de llegar a los ${nextPjM} partidos con la Selección`);
+        if(nextPjM) notes.push({cls:nextPjM===100?'star':'cap', txt:`A ${nextPjM-pj} de llegar a ${nextPjM===100?'¡los 100! 🏆':nextPjM+' partidos'}`});
         else{
           const idx=_allPjSorted.findIndex(e=>e.n===nom);
           if(idx>0){
             const above=_allPjSorted[idx-1];
             const gap=above.pj-pj;
-            if(gap>0&&gap<=3) notes.push(`📌 A ${gap} de igualar a ${above.n} en partidos (${above.pj})`);
+            if(gap>0&&gap<=3) notes.push({cls:'hist', txt:`A ${gap} de igualar a ${above.n} en partidos (${above.pj})`});
           }
         }
         if(g>0){
           const nextGM=_GM.find(m=>m>g&&m-g<=3);
-          if(nextGM) notes.push(`⚽ A ${nextGM-g} de llegar a los ${nextGM} goles con la Selección`);
+          if(nextGM) notes.push({cls:'goal', txt:`A ${nextGM-g} de llegar a los ${nextGM} goles`});
           else{
             const idx=_allGSorted.findIndex(e=>e.n===nom);
             if(idx>0){
               const above=_allGSorted[idx-1];
               const gap=above.g-g;
-              if(gap>0&&gap<=2) notes.push(`⚽ A ${gap} de igualar a ${above.n} en goles (${above.g})`);
+              if(gap>0&&gap<=2) notes.push({cls:'goal', txt:`A ${gap} de igualar a ${above.n} en goles (${above.g})`});
             }
           }
         }
         return notes;
       };
+      // Grilla de "jugó / entró / no entró / no participó" por partido de esta
+      // Fecha FIFA — mismo componente (part-grid/part-row/part-sel) y mismas
+      // 5 opciones (PART_OPTIONS) que usa el Mundial, pero guardado aparte
+      // (por nombre, no por dorsal) porque acá los jugadores todavía no
+      // tienen número asignado.
+      const fifaMatchList=(FIFASEP26.partidosData||[]).map(mp=>({id:mp.rival, label:`${mp.rivalBandera||''} vs. ${mp.rival}`}));
+      const getFifaSepPartVal=(nom,matchId)=>{ const p=stor.get('auf4_fifasep_part',{}); return (p[nom]&&p[nom][matchId])||''; };
       const tarjeta=(p)=>{
         const d=JUGADORES[p.nom];
         const pj=d?.total?.pj||0, g=d?.total?.g||0, min=d?.total?.min||0;
@@ -10644,6 +10653,15 @@ function renderFifaSep26(tabId){
         const photoSrc = window._getPhotoByName?.(p.nom) || d?.foto || '';
         const safe=p.nom.replace(/'/g,"\\'");
         const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');
+        const partGridHtml = (enFinal && fifaMatchList.length) ? `<div class="part-grid">${fifaMatchList.map(m=>{
+          const val=getFifaSepPartVal(p.nom,m.id);
+          const opt=PART_OPTIONS.find(o=>o.val===val)||PART_OPTIONS[0];
+          const opts=PART_OPTIONS.map(o=>`<option value="${o.val}"${o.val===val?' selected':''}>${o.label}</option>`).join('');
+          return `<div class="part-row">
+            <span class="part-match-lbl">${m.label}</span>
+            <select class="part-sel ${opt.cls}" onchange="_saveFifaSepPartVal('${nomEnc}','${m.id}',this)">${opts}</select>
+          </div>`;
+        }).join('')}</div>` : '';
         const cid='res-'+nomEnc; // id de tarjeta para switchPTab (no hay número de camiseta todavía)
         const inj=getResInjury(p.nom);
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
@@ -10684,8 +10702,10 @@ function renderFifaSep26(tabId){
               <button class="p-card-tab" onclick="switchPTab(this,'prensa','${cid}')">Prensa</button>
             </div>
             <div class="p-tab-pane active" id="ptab-stats-${cid}">
-              ${primeraConv?`<div class="p-ms" style="border-color:#EC4899;background:#FCE7F3;color:#BE185D;margin-bottom:4px">🆕 ${finales&&enFinal?'ES SU 1RA CONVOCATORIA':'SERÍA SU 1RA CONVOCATORIA'}</div>`:''}
-              ${debutaria?`<div class="p-ms" style="border-color:#7C3AED;background:#F5F3FF;color:#6D28D9;margin-bottom:4px">⭐ DEBUTARÍA CON LA SELECCIÓN</div>`:''}
+              ${primeraConv||debutaria?`<div style="margin-bottom:4px">
+                ${primeraConv?`<span style="font-size:8.5px;font-weight:800;background:#FCE7F3;color:#BE185D;padding:1px 5px;border-radius:5px;border:1px solid #EC4899">🆕 ${finales&&enFinal?'ES SU 1RA CONVOCATORIA':'SERÍA SU 1RA CONVOCATORIA'}</span>`:''}
+                ${debutaria?`<span style="font-size:8.5px;font-weight:800;background:#F5F3FF;color:#6D28D9;padding:1px 5px;border-radius:5px;border:1px solid #A78BFA;margin-left:${primeraConv?'4px':'0'}">⭐ DEBUTARÍA</span>`:''}
+              </div>`:''}
               <div class="p-club">${p.clubPais||''} ${p.club}</div>
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats" style="grid-template-columns:repeat(3,1fr)">
@@ -10693,7 +10713,8 @@ function renderFifaSep26(tabId){
                 <div class="p-stat"><div class="p-stat-n goal">${g}</div><div class="p-stat-l">Goles</div></div>
                 <div class="p-stat"><div class="p-stat-n">${min}</div><div class="p-stat-l">Minutos</div></div>
               </div>
-              ${milestones.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">${milestones.map(m=>`<div style="font-size:9.5px;font-weight:700;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:3px 6px">${m}</div>`).join('')}</div>`:''}
+              ${milestones.map(m=>`<div class="p-ms ${m.cls}">${m.txt}</div>`).join('')}
+              ${partGridHtml}
             </div>
             <div class="p-tab-pane" id="ptab-prensa-${cid}">
               <div style="font-size:11px;color:var(--muted);padding:8px 0">Sin atenciones registradas todavía.</div>
@@ -11871,6 +11892,18 @@ window._toggleFifaSepShooting=function(nomEnc){
   if(s[nom]) delete s[nom]; else s[nom]=true;
   stor.set('auf4_fifasep_shooting',s);
   window.renderFifaSep26Plantel?.();
+};
+// Participación por partido (jugó/entró/no entró/no participó) — mismo
+// componente y mismas PART_OPTIONS que el Mundial, guardado aparte por
+// nombre (auf4_fifasep_part) porque acá los jugadores no tienen dorsal.
+window._saveFifaSepPartVal=function(nomEnc,matchId,sel){
+  const nom=decodeURIComponent(nomEnc);
+  const p=stor.get('auf4_fifasep_part',{});
+  if(!p[nom]) p[nom]={};
+  p[nom][matchId]=sel.value;
+  stor.set('auf4_fifasep_part',p);
+  const opt=PART_OPTIONS.find(o=>o.val===sel.value)||PART_OPTIONS[0];
+  sel.className='part-sel '+opt.cls;
 };
 function _toggleJuvCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
 function _toggleLocalCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
