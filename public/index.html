@@ -10435,6 +10435,11 @@ window._fifaSepToggleAtForm=function(btn){
   const open=body.style.display!=='none';
   body.style.display=open?'none':'block';
   if(btn) btn.textContent=open?'+ Agregar atención':'✕ Cerrar';
+  if(open){ // se cerró — descarta cualquier edición en curso
+    _fifaSepAtEditingId=null;
+    const submitBtn=document.getElementById('fsap-at-submit-btn');
+    if(submitBtn) submitBtn.textContent='+ Agregar';
+  }
 };
 window._fifaSepAtUpdateTzPreview=function(){
   const h=document.getElementById('fsap-at-hora')?.value.trim();
@@ -10447,6 +10452,7 @@ window._fifaSepAtSetTz=function(tz,btn){
   btn.parentElement.querySelectorAll('.aap-tz-chip').forEach(b=>b.classList.toggle('active',b.dataset.tz===tz));
   _fifaSepAtUpdateTzPreview();
 };
+let _fifaSepAtEditingId=null;
 window._fifaSepAddAt=function(){
   const quien=(document.getElementById('fsap-at-quien')?.value||'').trim();
   if(!quien){ toast('⚠️ Elegí a quién'); return; }
@@ -10454,7 +10460,7 @@ window._fifaSepAddAt=function(){
   const tz=_fifaSepAtTz;
   const converted=(tz!=='UY'&&hRaw)?_fsapConvertTz(hRaw,tz,'UY'):null;
   const entry={
-    id: Date.now(),
+    id: _fifaSepAtEditingId || Date.now(),
     tipo: document.getElementById('fsap-at-tipo')?.value||'otro',
     txt: (document.getElementById('fsap-at-txt')?.value||'').trim(),
     fecha: document.getElementById('fsap-at-fecha')?.value||'',
@@ -10463,27 +10469,58 @@ window._fifaSepAddAt=function(){
   };
   if(converted){ entry.origH=hRaw; entry.origTz=tz; }
   const list=getFifaSepAt();
-  list.push(entry);
+  if(_fifaSepAtEditingId){
+    const i=list.findIndex(a=>a.id===_fifaSepAtEditingId);
+    if(i>=0) list[i]=entry; else list.push(entry);
+  } else {
+    list.push(entry);
+  }
   stor.set(KFifaSepAt,list);
   const txtEl=document.getElementById('fsap-at-txt'); if(txtEl) txtEl.value='';
   const hEl=document.getElementById('fsap-at-hora'); if(hEl) hEl.value='';
   _fifaSepAtTz='UY';
+  _fifaSepAtEditingId=null;
   renderFifaSepDisponibilidad();
+};
+window._fifaSepEditAt=function(id){
+  const a=getFifaSepAt().find(x=>x.id===id);
+  if(!a) return;
+  _fifaSepAtEditingId=id;
+  const body=document.getElementById('fsap-at-body');
+  if(body) body.style.display='block';
+  const toggleBtn=document.getElementById('fsap-at-toggle-btn');
+  if(toggleBtn) toggleBtn.textContent='✕ Cerrar';
+  document.getElementById('fsap-at-tipo').value=a.tipo;
+  document.getElementById('fsap-at-quien').value=a.quien;
+  document.getElementById('fsap-at-txt').value=a.txt||'';
+  document.getElementById('fsap-at-fecha').value=a.fecha||'';
+  document.getElementById('fsap-at-hora').value=a.origH||a.hora||'';
+  _fifaSepAtTz=a.origTz||'UY';
+  document.querySelectorAll('#fsap-at-body .aap-tz-chip').forEach(b=>b.classList.toggle('active',b.dataset.tz===_fifaSepAtTz));
+  window._fifaSepAtUpdateTzPreview();
+  const submitBtn=document.getElementById('fsap-at-submit-btn');
+  if(submitBtn) submitBtn.textContent='✓ Guardar cambios';
+  body?.scrollIntoView({behavior:'smooth',block:'center'});
 };
 window._fifaSepRemoveAt=function(id){
   stor.set(KFifaSepAt, getFifaSepAt().filter(a=>a.id!==id));
+  if(_fifaSepAtEditingId===id) _fifaSepAtEditingId=null;
   renderFifaSepDisponibilidad();
 };
 // Reutilizado en Disponibilidad y en el selector "a quién" del Calendario —
 // DT + convocados (o reservados hasta que estén los finales).
-function _fifaSepQuienOptionsHtml(){
+function _fifaSepQuienNames(){
   const dtNom=FIFASEP26.dt||'Diego Forlán';
   const pool=[];
   Object.entries(FIFASEP26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
   const finales=FIFASEP26.finales;
   const activos=finales?pool.filter(p=>finales.includes(p.nom)):pool;
+  return {dtNom, nombres:activos.map(p=>p.nom)};
+}
+function _fifaSepQuienOptionsHtml(){
+  const {dtNom,nombres}=_fifaSepQuienNames();
   return `<option value="">A quién…</option><option value="${dtNom.replace(/"/g,'&quot;')}">${dtNom} (DT)</option>`+
-    activos.map(p=>`<option value="${p.nom.replace(/"/g,'&quot;')}">${p.nom}</option>`).join('');
+    nombres.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('');
 }
 function renderFifaSepDisponibilidad(){
   const con=document.getElementById('fifasep26-disp-body');
@@ -10501,7 +10538,7 @@ function renderFifaSepDisponibilidad(){
   const tzChips=Object.entries(FIFASEP_TZ_INFO).map(([k,v])=>`<button type="button" class="aap-tz-chip${k==='UY'?' active':''}" data-tz="${k}" onclick="_fifaSepAtSetTz('${k}',this)">${v.short}</button>`).join('');
   const addForm=`
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
-      <button onclick="_fifaSepToggleAtForm(this)" style="width:100%;padding:10px;background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;font-size:.82em;font-weight:800;color:var(--cel-dk);cursor:pointer">+ Agregar atención</button>
+      <button id="fsap-at-toggle-btn" onclick="_fifaSepToggleAtForm(this)" style="width:100%;padding:10px;background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;font-size:.82em;font-weight:800;color:var(--cel-dk);cursor:pointer">+ Agregar atención</button>
       <div id="fsap-at-body" style="display:none;margin-top:10px">
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
           <select id="fsap-at-tipo" style="flex:1;min-width:160px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">${tipoOptions}</select>
@@ -10511,7 +10548,7 @@ function renderFifaSepDisponibilidad(){
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <input id="fsap-at-fecha" type="date" style="padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">
           <input id="fsap-at-hora" type="text" placeholder="hora — ej: 11:00" style="width:110px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none" oninput="_fifaSepAtUpdateTzPreview()">
-          <button onclick="_fifaSepAddAt()" style="margin-left:auto;padding:7px 14px;background:var(--cel);color:#fff;border:none;border-radius:8px;font-size:.82em;font-weight:800;cursor:pointer">+ Agregar</button>
+          <button id="fsap-at-submit-btn" onclick="_fifaSepAddAt()" style="margin-left:auto;padding:7px 14px;background:var(--cel);color:#fff;border:none;border-radius:8px;font-size:.82em;font-weight:800;cursor:pointer">+ Agregar</button>
         </div>
         <div class="aap-tz-chips" style="margin-top:6px">
           <span style="font-size:10px;color:var(--muted);line-height:2;margin-right:2px">Huso:</span>
@@ -10533,7 +10570,8 @@ function renderFifaSepDisponibilidad(){
         <div style="font-size:.82em;font-weight:700">${a.quien}${a.txt?' · '+a.txt:''}</div>
         <div style="font-size:.7em;color:var(--muted)">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
       </div>
-      <button onclick="_fifaSepRemoveAt(${a.id})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">🗑</button>
+      <button onclick="_fifaSepEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">✏️</button>
+      <button onclick="_fifaSepRemoveAt(${a.id})" title="Eliminar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">🗑</button>
     </div>`;
   }).join('') : `<div style="padding:10px;color:var(--muted);font-size:.82em">Sin atenciones cargadas todavía.</div>`;
   const listSection=`
@@ -10911,6 +10949,53 @@ function _fsapFmtHora(h,e){
   }
   return `${h}h (UY)`;
 }
+// Mismo concepto que la línea multi-huso del Mundial ("06:15 MX · 07:15 Miami
+// · 08:15 Uruguay"), pero con los husos de esta gira — se calculan todos a
+// partir de la hora ya guardada en UY (fuente única de verdad).
+function _fsapAllTzLine(e,h){
+  if(!h||h==='TBD'||!/^\d{1,2}(:\d{2})?$/.test(h)) return '';
+  const parts=Object.entries(FIFASEP_TZ_INFO).map(([k,v])=>{
+    const conv=k==='UY'?h:_fsapConvertTz(h,'UY',k);
+    return conv?`${conv} ${v.short}`:null;
+  }).filter(Boolean);
+  return `<div style="font-size:10.5px;color:var(--muted);margin-bottom:8px">🕐 ${parts.join(' · ')}</div>`;
+}
+// Personas asignadas a una actividad — array (e.personas). Compatibilidad con
+// el campo viejo e.quien (string, una sola persona) de antes de este cambio.
+function _fsapPersonasOf(e){
+  if(Array.isArray(e.personas)) return e.personas;
+  if(e.quien) return [e.quien];
+  return [];
+}
+window._fsapTogglePersona=function(date,idx,nom){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  let personas=_fsapPersonasOf(e);
+  const i=personas.indexOf(nom);
+  if(i>=0) personas=personas.filter(n=>n!==nom);
+  else personas=[...personas,nom];
+  e.personas=personas;
+  delete e.quien; // migrado al array
+  stor.set(KDayActs,acts);
+  renderFifaSepCal();
+};
+window._fsapToggleAllPersonas=function(date,idx,nombres,allSelected){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  e.personas = allSelected ? [] : nombres.slice();
+  delete e.quien;
+  stor.set(KDayActs,acts);
+  renderFifaSepCal();
+};
+function _fsapPersonaChipsHtml(date,idx,e){
+  const {dtNom,nombres}=_fifaSepQuienNames();
+  const sel=_fsapPersonasOf(e);
+  const allSelected=nombres.length>0&&nombres.every(n=>sel.includes(n));
+  const todosBtn=nombres.length?`<span class="ev-p-chip${allSelected?' sel':''}" style="font-weight:800" onclick='_fsapToggleAllPersonas("${date}",${idx},${JSON.stringify(nombres)},${allSelected})'>👥 ${allSelected?'Quitar todos':'Todos'}</span>`:'';
+  const dtChip=`<span class="ev-p-chip${sel.includes(dtNom)?' sel-bielsa':''}" onclick="_fsapTogglePersona('${date}',${idx},'${dtNom.replace(/'/g,"\\'")}')">${dtNom}</span>`;
+  const playerChips=nombres.map(n=>`<span class="ev-p-chip${sel.includes(n)?' sel':''}" onclick="_fsapTogglePersona('${date}',${idx},'${n.replace(/'/g,"\\'")}')">${n.split(' ').pop()}</span>`).join('');
+  return dtChip+todosBtn+playerChips;
+}
 function _fifaSepEvRowHtml(date,e,idx,total){
   const k=evKey(date,idx);
   const s=(getEvStatus()[k])||'';
@@ -10938,9 +11023,9 @@ function _fifaSepEvRowHtml(date,e,idx,total){
           <div class="ev-main-txt${statusClass?' '+statusClass:''}">
             <span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${date}',${idx},this)">${txt}</span>
             ${tag}
-            ${e.quien?`<span class="tag" style="font-size:9.5px;background:#F1F5F9;color:#334155;font-weight:600">👤 ${e.quien}</span>`:''}
             ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" style="font-size:11px;text-decoration:none;margin-left:2px">🔗${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
           </div>
+          ${_fsapPersonasOf(e).length?`<div class="ev-selected-parts">👤 ${_fsapPersonasOf(e).map(n=>`<span style="color:var(--cel-dk);background:var(--cel-lt);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`).join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
         </div>
         <div class="cal-event-dot ${dotClass}" style="margin-top:5px;flex-shrink:0"></div>
         <button onclick="deleteFifaSepAct('${date}',${idx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>
@@ -10951,6 +11036,9 @@ function _fifaSepEvRowHtml(date,e,idx,total){
         <button class="ev-expand" onclick="toggleEvDetail('${date}',${idx},this)" title="Nota / links">⌄</button>
       </div>
       <div class="cal-ev-detail" id="ced-${date}-${idx}">
+        ${_fsapAllTzLine(e,hora)}
+        <div class="ev-parts-lbl">👤 Quién participa</div>
+        <div class="ev-parts-chips" style="margin-bottom:8px">${_fsapPersonaChipsHtml(date,idx,e)}</div>
         <div class="ev-parts-lbl">📝 Nota</div>
         <textarea class="ev-note-field${note?' has-note':''}" rows="2"
           placeholder="Observación, recordatorio..."
@@ -11187,7 +11275,7 @@ window.addFifaSepAct=function(date){
   else if(type==='partido') opt.tipo='partido';
   else if(type==='auf') opt.auf=true;
   const quien=(quienEl?.value||'').trim();
-  if(quien) opt.quien=quien;
+  if(quien) opt.personas=[quien]; // se puede sumar más gente después, editando la actividad
   acts[date].push(opt);
   stor.set(KDayActs,acts);
   delete _fsapType[date];
