@@ -11869,10 +11869,16 @@ function _toggleCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delet
 // Mismo store (auf4_capitan) que _toggleCapitan/_toggleLocalCapitan/_toggleJuvCapitan
 // — acá recibe el nombre encodeURIComponent'd (mismo patrón que el resto de la
 // tarjeta de Convocados de Fecha FIFA) y refresca también esa vista puntual.
+// IMPORTANTE: nunca hacer "delete s[nom]" acá — cloudPush bloquea cualquier
+// guardado de un objeto al que le "desaparece" una clave que el servidor ya
+// tenía (guarda de seguridad genérica contra pestañas viejas pisando datos).
+// Como desmarcar es una acción real y querida acá, no un accidente, se deja
+// la clave puesta en false en vez de borrarla — el guard nunca se activa y
+// !!valor sigue funcionando igual para leer el estado.
 window._toggleFifaSepCapitan=function(nomEnc){
   const nom=decodeURIComponent(nomEnc);
   const s=stor.get('auf4_capitan',{});
-  if(s[nom]) delete s[nom]; else s[nom]=true;
+  s[nom]=!s[nom];
   stor.set('auf4_capitan',s);
   _refreshAllFichaViews();
   window.renderFifaSep26Plantel?.();
@@ -11882,14 +11888,14 @@ window._toggleFifaSepCapitan=function(nomEnc){
 window._toggleFifaSepLlegado=function(nomEnc){
   const nom=decodeURIComponent(nomEnc);
   const s=stor.get('auf4_fifasep_llegado',{});
-  if(s[nom]) delete s[nom]; else s[nom]=true;
+  s[nom]=!s[nom];
   stor.set('auf4_fifasep_llegado',s);
   window.renderFifaSep26Plantel?.();
 };
 window._toggleFifaSepShooting=function(nomEnc){
   const nom=decodeURIComponent(nomEnc);
   const s=stor.get('auf4_fifasep_shooting',{});
-  if(s[nom]) delete s[nom]; else s[nom]=true;
+  s[nom]=!s[nom];
   stor.set('auf4_fifasep_shooting',s);
   window.renderFifaSep26Plantel?.();
 };
