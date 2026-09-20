@@ -10831,8 +10831,20 @@ function renderFifaSepCal(){
     // van al final. idx sigue siendo la posición real en el array guardado, así
     // que estado/nota/links/mover siguen apuntando a la actividad correcta.
     const _parseH=(h)=>{ if(!h||h==='TBD') return Infinity; const mm=/^(\d{1,2})(?::(\d{2}))?$/.exec(h); return mm ? parseInt(mm[1],10)*60+parseInt(mm[2]||'0',10) : Infinity; };
+    // Si la actividad se cargó en un huso distinto a UY (ej. estando ya en Japón,
+    // con la hora local de destino), se ordena por esa hora local en vez de por
+    // su equivalente en UY — convertir "9h JAP" (desayuno) a UY cruza medianoche
+    // y da "21:00", lo que la mandaba al final del día aunque en la realidad (y
+    // en el huso en el que se vive el día) sea lo primero.
+    const _sortKeyH=(e,idx)=>{
+      if(e.origH && e.origTz && typeof _fsapParseHora==='function'){
+        const p=_fsapParseHora(e.origH);
+        if(p) return p.h*60+p.mi;
+      }
+      return _parseH(getCalTime(day.date,idx,e.h||'TBD'));
+    };
     const sortedCustom = custom.map((e,idx)=>({e,idx}))
-      .sort((a,b)=>_parseH(getCalTime(day.date,a.idx,a.e.h||'TBD'))-_parseH(getCalTime(day.date,b.idx,b.e.h||'TBD')));
+      .sort((a,b)=>_sortKeyH(a.e,a.idx)-_sortKeyH(b.e,b.idx));
     const evsHtml=custom.length
       ? sortedCustom.map(({e,idx})=>_fifaSepEvRowHtml(day.date,e,idx,custom.length)).join('')
       : `<div style="padding:8px 0;color:var(--muted);font-size:.8em">Sin actividades cargadas todavía.</div>`;
