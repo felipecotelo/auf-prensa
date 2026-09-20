@@ -10601,15 +10601,22 @@ function renderFifaSep26(tabId){
       // recorrer todo JUGADORES 26 veces.
       const _allPjSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,pj:dd.total?.pj||0})).filter(e=>e.pj>0).sort((a,b)=>b.pj-a.pj);
       const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:dd.total?.g||0})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
-      const _PJM=[10,25,50,75,100,125,150,175,200,250];
+      // Todos los múltiplos de 10 — los de 50 en adelante son los que importan
+      // más (ahí se entrega la camiseta homenaje), así que se avisan con más
+      // anticipación (8 partidos) y estilo dorado en vez de los 5 normales.
+      const _PJM=Array.from({length:25},(_,i)=>(i+1)*10);
       const _GM=[5,10,15,20,25,30,40,50];
       // Mismas clases .p-ms (star/cap/hist/goal) que usa computeMilestones() en
       // el Mundial, para que se vea igual acá.
       // Los de partidos siempre terminan en 📌, los de goles en ⚽️.
       const _fifaMilestoneNote=(nom,pj,g)=>{
         const notes=[];
-        const nextPjM=_PJM.find(m=>m>pj&&m-pj<=5);
-        if(nextPjM) notes.push({cls:nextPjM===100?'star':'cap', txt:`A ${nextPjM-pj} de llegar a ${nextPjM===100?'¡los 100!':nextPjM+' partidos'} 📌`});
+        const nextPjM=_PJM.find(m=>m>pj&&(m-pj)<=(m%50===0?8:5));
+        if(nextPjM){
+          const isJersey=nextPjM%50===0;
+          const label=nextPjM===100?'¡los 100!':`los ${nextPjM}`;
+          notes.push({cls:isJersey?'star':'cap', txt:`A ${nextPjM-pj} de llegar a ${label}${isJersey?' 🎽 camiseta homenaje':''} 📌`});
+        }
         else{
           const idx=_allPjSorted.findIndex(e=>e.n===nom);
           if(idx>0){
