@@ -10410,37 +10410,101 @@ window.renderFifaSepGrafica=renderFifaSepGrafica;
 // (sin el esquema rojo=obligatorio de la Copa Mundial), son 4 tipos fijos de
 // atención de prensa/hotel. Lista de jugadores: el pool de 46 reservados
 // hasta que se confirmen los 26 finales (FIFASEP26.finales).
-const KFifaSepDisp='auf4_fifasep_disp';
+// Acá NO hay obligatorias FIFA (a diferencia del Mundial) — así que en vez de
+// contadores +/- por categoría fija, se carga cada atención con su propio
+// detalle (texto libre + fecha/hora + a quién), y el conteo de abajo por
+// persona se calcula solo a partir de esa lista, no se toca a mano.
+const KFifaSepAt='auf4_fifasep_atenciones';
 const FIFASEP_DISP_TIPOS=[
-  {id:'md1',   label:'Conferencia MD-1', icon:'🎤'},
-  {id:'md',    label:'Conferencia MD',   icon:'🎙'},
-  {id:'hotel', label:'Atención en hotel',icon:'🏨'},
-  {id:'auftv', label:'Nota para AUFtv',  icon:'📺'},
+  {id:'md1',   label:'Conferencia MD-1',    icon:'🎤'},
+  {id:'md',    label:'Conferencia MD',      icon:'🎙'},
+  {id:'hotel', label:'Atención en hotel',   icon:'🏨'},
+  {id:'auftv', label:'Nota para AUFtv',     icon:'📺'},
+  {id:'zm',    label:'Zona mixta',          icon:'🎥'},
+  {id:'zoom',  label:'Zoom / videollamada', icon:'💻'},
+  {id:'otro',  label:'Otro',                icon:'📋'},
 ];
-function getFifaSepDisp(){ return stor.get(KFifaSepDisp,{}); }
-window._fifaSepDispBump=function(who,tipo,delta){
-  const d=getFifaSepDisp();
-  if(!d[who]) d[who]={};
-  d[who][tipo]=Math.max(0,(d[who][tipo]||0)+delta);
-  stor.set(KFifaSepDisp,d);
+function getFifaSepAt(){ return stor.get(KFifaSepAt,[]); }
+window._fifaSepAddAt=function(){
+  const quien=(document.getElementById('fsap-at-quien')?.value||'').trim();
+  if(!quien){ toast('⚠️ Elegí a quién'); return; }
+  const list=getFifaSepAt();
+  list.push({
+    id: Date.now(),
+    tipo: document.getElementById('fsap-at-tipo')?.value||'otro',
+    txt: (document.getElementById('fsap-at-txt')?.value||'').trim(),
+    fecha: document.getElementById('fsap-at-fecha')?.value||'',
+    hora: (document.getElementById('fsap-at-hora')?.value||'').trim(),
+    quien,
+  });
+  stor.set(KFifaSepAt,list);
+  const txtEl=document.getElementById('fsap-at-txt'); if(txtEl) txtEl.value='';
+  renderFifaSepDisponibilidad();
+};
+window._fifaSepRemoveAt=function(id){
+  stor.set(KFifaSepAt, getFifaSepAt().filter(a=>a.id!==id));
   renderFifaSepDisponibilidad();
 };
 function renderFifaSepDisponibilidad(){
   const con=document.getElementById('fifasep26-disp-body');
   if(!con) return;
-  const d=getFifaSepDisp();
   const dtNom=FIFASEP26.dt||'Diego Forlán';
 
-  const counterRow=(who,compact)=>FIFASEP_DISP_TIPOS.map(t=>{
-    const n=(d[who]||{})[t.id]||0;
-    return `<div style="display:flex;align-items:center;gap:4px;background:${compact?'rgba(255,255,255,.08)':'var(--surface)'};border-radius:8px;padding:3px 6px" title="${t.label}">
-      <button onclick="_fifaSepDispBump('${who.replace(/'/g,"\\'")}','${t.id}',-1)" style="background:none;border:none;cursor:pointer;color:${compact?'#9CA3AF':'var(--muted)'};font-size:11px;padding:0 2px">−</button>
-      <span style="font-size:10.5px;min-width:14px;text-align:center;font-weight:800;color:${compact?'#fff':'var(--text)'}">${t.icon} ${n}</span>
-      <button onclick="_fifaSepDispBump('${who.replace(/'/g,"\\'")}','${t.id}',1)" style="background:none;border:none;cursor:pointer;color:${compact?'#7ABEE6':'var(--cel-dk)'};font-size:11px;padding:0 2px">+</button>
-    </div>`;
-  }).join('');
+  const pool=[];
+  Object.entries(FIFASEP26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
+  const finales=FIFASEP26.finales;
+  const activos=finales?pool.filter(p=>finales.includes(p.nom)):pool;
 
-  const dtTotal=FIFASEP_DISP_TIPOS.reduce((s,t)=>s+((d[dtNom]||{})[t.id]||0),0);
+  // ── Formulario: primero el tipo de actividad, después a quién ──
+  const tipoOptions=FIFASEP_DISP_TIPOS.map(t=>`<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
+  const quienOptions=`<option value="">A quién…</option><option value="${dtNom.replace(/"/g,'&quot;')}">${dtNom} (DT)</option>`+
+    activos.map(p=>`<option value="${p.nom.replace(/"/g,'&quot;')}">${p.nom}</option>`).join('');
+  const addForm=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">+ Agregar atención</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        <select id="fsap-at-tipo" style="flex:1;min-width:160px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">${tipoOptions}</select>
+        <select id="fsap-at-quien" style="flex:1;min-width:160px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">${quienOptions}</select>
+      </div>
+      <input id="fsap-at-txt" type="text" placeholder="Detalle (ej: habla para AUFtv por Zoom)" style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input id="fsap-at-fecha" type="date" style="padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">
+        <input id="fsap-at-hora" type="text" placeholder="hora — ej: 11:00" style="width:110px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">
+        <button onclick="_fifaSepAddAt()" style="margin-left:auto;padding:7px 14px;background:var(--cel);color:#fff;border:none;border-radius:8px;font-size:.82em;font-weight:800;cursor:pointer">+ Agregar</button>
+      </div>
+    </div>`;
+
+  // ── Lista de atenciones cargadas (orden cronológico) ──
+  const atList=getFifaSepAt().slice().sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999')||(a.hora||'').localeCompare(b.hora||''));
+  const atRows=atList.length ? atList.map(a=>{
+    const t=FIFASEP_DISP_TIPOS.find(x=>x.id===a.tipo)||FIFASEP_DISP_TIPOS[FIFASEP_DISP_TIPOS.length-1];
+    const fechaFmt=a.fecha?_fmtDateCorta(a.fecha):'';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:.82em;font-weight:700">${a.quien}${a.txt?' · '+a.txt:''}</div>
+        <div style="font-size:.7em;color:var(--muted)">${t.label}${fechaFmt?' · '+fechaFmt:''}${a.hora?' '+a.hora+'h':''}</div>
+      </div>
+      <button onclick="_fifaSepRemoveAt(${a.id})" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">🗑</button>
+    </div>`;
+  }).join('') : `<div style="padding:10px;color:var(--muted);font-size:.82em">Sin atenciones cargadas todavía.</div>`;
+  const listSection=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1.25rem">
+      <div style="padding:9px 13px;background:var(--surface);font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">📋 Atenciones cargadas — ${atList.length}</div>
+      ${atRows}
+    </div>`;
+
+  // ── Conteo por persona — abajo, derivado de la lista de arriba ──
+  const countsFor=nom=>{ const c={}; atList.forEach(a=>{ if(a.quien===nom) c[a.tipo]=(c[a.tipo]||0)+1; }); return c; };
+  const counterRow=(nom,compact)=>{
+    const c=countsFor(nom);
+    const conDatos=FIFASEP_DISP_TIPOS.filter(t=>c[t.id]);
+    if(!conDatos.length) return `<span style="font-size:10px;color:${compact?'#9CA3AF':'var(--hint)'}">Sin atenciones</span>`;
+    return conDatos.map(t=>`<span title="${t.label}" style="display:inline-flex;align-items:center;gap:3px;background:${compact?'rgba(255,255,255,.08)':'var(--surface)'};border-radius:8px;padding:3px 7px;font-size:10.5px;font-weight:800;color:${compact?'#fff':'var(--text)'}">${t.icon} ${c[t.id]}</span>`).join('');
+  };
+  const totalOf=nom=>Object.values(countsFor(nom)).reduce((a,b)=>a+b,0);
+
+  const dtTotal=totalOf(dtNom);
   const dtSection=`
     <div style="background:var(--navy);border-radius:12px;overflow:hidden;margin-bottom:1.25rem">
       <div style="padding:9px 13px;background:#0A0A0F;font-size:10px;font-weight:800;color:#5B8CAA;text-transform:uppercase;letter-spacing:.1em">🎙 Cuerpo Técnico</div>
@@ -10456,14 +10520,7 @@ function renderFifaSepDisponibilidad(){
       </div>
     </div>`;
 
-  const pool=[];
-  Object.entries(FIFASEP26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
-  const finales=FIFASEP26.finales;
-  const activos=finales?pool.filter(p=>finales.includes(p.nom)):pool;
-
-  const totalOf=nom=>FIFASEP_DISP_TIPOS.reduce((s,t)=>s+((d[nom]||{})[t.id]||0),0);
-  const sorted=[...activos].sort((a,b)=>totalOf(a.nom)-totalOf(b.nom)||a.nom.localeCompare(b.nom));
-
+  const sorted=[...activos].sort((a,b)=>totalOf(b.nom)-totalOf(a.nom)||a.nom.localeCompare(b.nom));
   const playerRows=sorted.map(p=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <div style="flex:1;min-width:140px;font-size:.85em;font-weight:700">${p.nom}<span style="font-size:.72em;color:var(--muted);font-weight:500;margin-left:5px">${p.club||''}</span></div>
@@ -10478,7 +10535,7 @@ function renderFifaSepDisponibilidad(){
       ${playerRows}
     </div>`;
 
-  con.innerHTML = dtSection +
+  con.innerHTML = addForm + listSection + dtSection +
     (!pool.length
       ? _placeholder('👥','Sin reservados cargados todavía','La disponibilidad de jugadores se habilita cuando haya lista de reservados o convocados.')
       : playersSection);
