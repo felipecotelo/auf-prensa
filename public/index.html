@@ -10649,8 +10649,17 @@ function renderFifaSep26(tabId){
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
         // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
         const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
+        // Provisorios de esta gira puntual — no son estado permanente del jugador,
+        // por eso van aparte (auf4_fifasep_llegado / auf4_fifasep_shooting) y no
+        // en los stores compartidos con Jugadores/Local/Juveniles.
+        const isLlegado = !!(stor.get('auf4_fifasep_llegado',{})[p.nom]);
+        const faltaShooting = !!(stor.get('auf4_fifasep_shooting',{})[p.nom]);
         return `<div class="p-card" id="pcard-${cid}" style="position:relative;${enFinal?'':'filter:grayscale(1);opacity:.5'}">
           <button onclick="event.stopPropagation();_toggleFifaSepCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
+          <div style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">
+            <button onclick="event.stopPropagation();_toggleFifaSepLlegado('${nomEnc}')" title="${isLlegado?'Quitar — ya se sumó a la delegación':'Marcar — ya se sumó a la delegación'}" style="background:${isLlegado?'#16A34A':'none'};color:${isLlegado?'#fff':'#CBD5E1'};border:1.5px solid ${isLlegado?'#16A34A':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:900;padding:0;line-height:1">✓</button>
+            <button onclick="event.stopPropagation();_toggleFifaSepShooting('${nomEnc}')" title="${faltaShooting?'Quitar — falta shooting oficial':'Marcar — falta shooting oficial'}" style="background:${faltaShooting?'#DC2626':'none'};color:${faltaShooting?'#fff':'#CBD5E1'};border:1.5px solid ${faltaShooting?'#DC2626':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;padding:0;line-height:1">📷</button>
+          </div>
           <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <div class="p-card-num" title="Todavía sin dorsal asignado">#</div>
@@ -11823,6 +11832,22 @@ window._toggleFifaSepCapitan=function(nomEnc){
   if(s[nom]) delete s[nom]; else s[nom]=true;
   stor.set('auf4_capitan',s);
   _refreshAllFichaViews();
+  window.renderFifaSep26Plantel?.();
+};
+// Provisorios de la gira — se resetean solos cuando termine (no son estado
+// permanente del jugador como capitán/lesión, por eso van en su propio store).
+window._toggleFifaSepLlegado=function(nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const s=stor.get('auf4_fifasep_llegado',{});
+  if(s[nom]) delete s[nom]; else s[nom]=true;
+  stor.set('auf4_fifasep_llegado',s);
+  window.renderFifaSep26Plantel?.();
+};
+window._toggleFifaSepShooting=function(nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const s=stor.get('auf4_fifasep_shooting',{});
+  if(s[nom]) delete s[nom]; else s[nom]=true;
+  stor.set('auf4_fifasep_shooting',s);
   window.renderFifaSep26Plantel?.();
 };
 function _toggleJuvCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
