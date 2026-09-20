@@ -10220,9 +10220,9 @@ const FIFASEP26_CAL_DAYS = [
   {date:'2026-09-18', dow:'Vie', label:'18 sep', tipo:'viaje',   lugar:'En viaje', eventos:[]},
   {date:'2026-09-19', dow:'Sáb', label:'19 sep', tipo:'llegada', lugar:'Llegada a Japón (Miyagi) · hotel The Westin Sendai', eventos:[]},
   {date:'2026-09-20', dow:'Dom', label:'20 sep', tipo:'descanso',lugar:'Japón (Miyagi)', eventos:[]},
-  {date:'2026-09-21', dow:'Lun', label:'21 sep', tipo:'entreno', lugar:'Japón (Miyagi)', eventos:[]},
-  {date:'2026-09-22', dow:'Mar', label:'22 sep', tipo:'entreno', lugar:'Japón (Miyagi)', eventos:[]},
-  {date:'2026-09-23', dow:'Mié', label:'23 sep', tipo:'entreno', lugar:'Japón (Miyagi)', eventos:[]},
+  {date:'2026-09-21', dow:'Lun', label:'21 sep', tipo:'entreno', llegadas:true, lugar:'Japón (Miyagi)', eventos:[]},
+  {date:'2026-09-22', dow:'Mar', label:'22 sep', tipo:'entreno', llegadas:true, lugar:'Japón (Miyagi)', eventos:[]},
+  {date:'2026-09-23', dow:'Mié', label:'23 sep', tipo:'entreno', llegadas:true, lugar:'Japón (Miyagi)', eventos:[]},
   {date:'2026-09-24', dow:'Jue', label:'24 sep', tipo:'partido', rival:'Japón', sede:'Estadio Grandy-21, Miyagi', eventos:[]},
   {date:'2026-09-25', dow:'Vie', label:'25 sep', tipo:'viaje',   lugar:'Miyagi 🇯🇵 → Seúl 🇰🇷 · hotel Mayfield Hotel Seoul', eventos:[]},
   {date:'2026-09-26', dow:'Sáb', label:'26 sep', tipo:'entreno', lugar:'Corea del Sur (Seúl)', eventos:[]},
@@ -10861,6 +10861,11 @@ function renderFifaSepCal(){
     const isClosed=!isNA&&(getDayClosed()[day.date]||false);
     const naLabels={open:{icon:'🟢',txt:'Abierto',title:'Abierto — click para cerrar'},closed:{icon:'🔒',txt:'Cerrado',title:'Cerrado — click para marcar "no aplica"'},na:{icon:'⚪',txt:'No aplica',title:'No aplica (sin entrenamiento) — click para volver a abierto'}};
     const dayState=isNA?'na':isClosed?'closed':'open';
+    // MD-1 = el día calendario anterior a cualquier partido (se calcula solo,
+    // no hay que marcarlo a mano día por día).
+    const _nextDateStr=(iso)=>{ const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); };
+    const isMD1 = day.tipo!=='partido' && FIFASEP26_CAL_DAYS.some(d2=>d2.tipo==='partido' && d2.date===_nextDateStr(day.date));
+    const dayTypeLabel = (day.llegadas && day.tipo==='entreno') ? 'Llegadas + Entrenamiento' : FIFASEP_TYPE_LABELS[day.tipo];
     const div=document.createElement('div');
     div.className='cal-day'+((isToday||openDates.has(day.date))?' today open':'')+(day.tipo==='partido'?' tipo-partido':'');
     div.dataset.date=day.date;
@@ -10868,7 +10873,8 @@ function renderFifaSepCal(){
       <div class="cal-day-hdr" onclick="event.target.closest('.cal-day-hdr')===this&&toggleCalDay(this.parentElement)">
         <div class="cal-dow">${day.dow}</div>
         <div class="cal-date">${day.label}</div>
-        <span class="cal-badge ${FIFASEP_TYPE_BADGE[day.tipo]}">${FIFASEP_TYPE_LABELS[day.tipo]}</span>
+        <span class="cal-badge ${FIFASEP_TYPE_BADGE[day.tipo]}">${dayTypeLabel}</span>
+        ${isMD1?`<span class="cal-badge" style="background:#1E293B;color:#fff;font-weight:900;letter-spacing:.04em">MD-1</span>`:''}
         <div class="cal-rival" style="flex:1">${rival}</div>
         ${day.tipo!=='partido'?`<button class="day-closed-btn ${dayState}"
           onclick="event.stopPropagation();_fsapToggleDayClosed('${day.date}')"
