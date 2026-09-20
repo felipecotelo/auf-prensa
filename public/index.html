@@ -10987,14 +10987,19 @@ window._fsapToggleAllPersonas=function(date,idx,nombres,allSelected){
   stor.set(KDayActs,acts);
   renderFifaSepCal();
 };
+// Mismas dos secciones separadas (DT / Cuerpo Técnico, Jugadores) que usa el
+// Mundial — antes iba todo junto en una sola fila.
 function _fsapPersonaChipsHtml(date,idx,e){
-  const {dtNom,nombres}=_fifaSepQuienNames();
+  const {nombres}=_fifaSepQuienNames();
+  const ct=(typeof CT_MAYOR_FORLAN!=='undefined'?CT_MAYOR_FORLAN:[]).map(m=>m.name);
   const sel=_fsapPersonasOf(e);
+  const ctChips=ct.map(n=>`<span class="ev-p-chip${sel.includes(n)?' sel-bielsa':''}" onclick="_fsapTogglePersona('${date}',${idx},'${n.replace(/'/g,"\\'")}')">${n}</span>`).join('');
   const allSelected=nombres.length>0&&nombres.every(n=>sel.includes(n));
   const todosBtn=nombres.length?`<span class="ev-p-chip${allSelected?' sel':''}" style="font-weight:800" onclick='_fsapToggleAllPersonas("${date}",${idx},${JSON.stringify(nombres)},${allSelected})'>👥 ${allSelected?'Quitar todos':'Todos'}</span>`:'';
-  const dtChip=`<span class="ev-p-chip${sel.includes(dtNom)?' sel-bielsa':''}" onclick="_fsapTogglePersona('${date}',${idx},'${dtNom.replace(/'/g,"\\'")}')">${dtNom}</span>`;
   const playerChips=nombres.map(n=>`<span class="ev-p-chip${sel.includes(n)?' sel':''}" onclick="_fsapTogglePersona('${date}',${idx},'${n.replace(/'/g,"\\'")}')">${n.split(' ').pop()}</span>`).join('');
-  return dtChip+todosBtn+playerChips;
+  return `
+    ${ct.length?`<div class="ev-parts-lbl">DT / Cuerpo técnico</div><div class="ev-parts-chips" style="margin-bottom:8px">${ctChips}</div>`:''}
+    ${nombres.length?`<div class="ev-parts-lbl">Jugadores</div><div class="ev-parts-chips">${todosBtn}${playerChips}</div>`:''}`;
 }
 function _fifaSepEvRowHtml(date,e,idx,total){
   const k=evKey(date,idx);
@@ -11037,9 +11042,8 @@ function _fifaSepEvRowHtml(date,e,idx,total){
       </div>
       <div class="cal-ev-detail" id="ced-${date}-${idx}">
         ${_fsapAllTzLine(e,hora)}
-        <div class="ev-parts-lbl">👤 Quién participa</div>
-        <div class="ev-parts-chips" style="margin-bottom:8px">${_fsapPersonaChipsHtml(date,idx,e)}</div>
-        <div class="ev-parts-lbl">📝 Nota</div>
+        ${_fsapPersonaChipsHtml(date,idx,e)}
+        <div class="ev-parts-lbl" style="margin-top:8px">📝 Nota</div>
         <textarea class="ev-note-field${note?' has-note':''}" rows="2"
           placeholder="Observación, recordatorio..."
           oninput="saveEvNote('${date}',${idx},this)"
