@@ -2957,7 +2957,7 @@ function hideEvent(date,idx,ev){
 const KJugPos='auf4_jugpos';
 const getJugPos=()=>stor.get(KJugPos,{});
 const setJugPos=(nom,pos)=>{const d=getJugPos();d[nom]=pos;stor.set(KJugPos,d);};
-const clearJugPos=(nom)=>{const d=getJugPos();delete d[nom];stor.set(KJugPos,d);};
+const clearJugPos=(nom)=>{const d=getJugPos();delete d[nom];stor.set(KJugPos,d,{allowShrink:true});};
 const KJugClub='auf4_jugclub';
 const KJugExClubs='auf4_jug_exclubs';
 const getJugClub=()=>stor.get(KJugClub,{});
@@ -2970,7 +2970,7 @@ const setJugClub=(nom,club)=>{
   if(prev&&prev!=='—'&&prev!==club&&!exList.includes(prev)){exList.push(prev);ex[nom]=exList;stor.set(KJugExClubs,ex);}
   d[nom]=club;stor.set(KJugClub,d);
 };
-const clearJugClub=(nom)=>{const d=getJugClub();delete d[nom];stor.set(KJugClub,d);};
+const clearJugClub=(nom)=>{const d=getJugClub();delete d[nom];stor.set(KJugClub,d,{allowShrink:true});};
 
 // ── Transfermarkt auto-sync ──────────────────────────────────────────────────
 const KTmSync='auf4_tm_sync';
@@ -3110,12 +3110,12 @@ const setJuvClub=(nom,club,pais)=>{
   d[nom]={actual:club,pais:pais||(d[nom]?.pais||'uy'),exClubs};
   stor.set(KJuvClub,d);
 };
-const clearJuvClub=(nom)=>{const d=getJuvClub();delete d[nom];stor.set(KJuvClub,d);};
+const clearJuvClub=(nom)=>{const d=getJuvClub();delete d[nom];stor.set(KJuvClub,d,{allowShrink:true});};
 
 // ── Sparrings con la Mayor ────────────────────────────────────────────────────
 const KMayorJuvTags = 'auf4_mayor_juv_tags';
 const getMayorJuvTags = () => stor.get(KMayorJuvTags, {});
-const setMayorJuvTags = (nom, tags) => { const d=getMayorJuvTags(); if(tags&&tags.length) d[nom]=tags; else delete d[nom]; stor.set(KMayorJuvTags,d); cloudPushDebounced(KMayorJuvTags,d); };
+const setMayorJuvTags = (nom, tags) => { const d=getMayorJuvTags(); if(tags&&tags.length) d[nom]=tags; else delete d[nom]; stor.set(KMayorJuvTags,d,{allowShrink:true}); cloudPushDebounced(KMayorJuvTags,d,{allowShrink:true}); };
 const JUV_CAT_META = {sub23:{label:'Sub-23',color:'#6D28D9',bg:'#EDE9FE'},sub20:{label:'Sub-20',color:'#1D4ED8',bg:'#EFF6FF'},sub18:{label:'Sub-18',color:'#7C3AED',bg:'#F3E8FF'},sub17:{label:'Sub-17',color:'#15803d',bg:'#F0FDF4'},sub16:{label:'Sub-16',color:'#B45309',bg:'#FFFBEB'},sub15:{label:'Sub-15',color:'#9A3412',bg:'#FFF7ED'},sub13:{label:'Sub-13',color:'#DC2626',bg:'#FFF1F2'}};
 // Partidos oficiales de Juveniles por categoría, tomados de archivoceleste.com (fuente
 // pública, distinta del cálculo automático por alineaciones que hace _juvOfficialStats).
@@ -3585,7 +3585,7 @@ function _famHtml(nom){
     ${fam.map(f=>`<span onclick="event.stopPropagation();_famGo('${encodeURIComponent(f.nombre)}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px">👪 ${f.rel} ${f.nombre}</span>`).join('')}
   </div>`;
 }
-const setMayorNac = (nom, val) => { const d=getMayorNac(); if(val) d[nom]=val; else delete d[nom]; stor.set(KMayorNac,d); cloudPushDebounced(KMayorNac,d); };
+const setMayorNac = (nom, val) => { const d=getMayorNac(); if(val) d[nom]=val; else delete d[nom]; stor.set(KMayorNac,d,{allowShrink:true}); cloudPushDebounced(KMayorNac,d,{allowShrink:true}); };
 const _nacAge = (iso) => { if(!iso) return null; const [y,m,d]=iso.split('-').map(Number); const now=new Date(); const age=now.getFullYear()-y-(now.getMonth()+1<m||(now.getMonth()+1===m&&now.getDate()<d)?1:0); return age; };
 const _nacFmt = (iso) => { if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
 window._editMayorNac = function(nomSafe){
@@ -3613,14 +3613,14 @@ const addJuvHistTag = (nom, tag) => {
 const removeJuvHistTag = (nom, label) => {
   const d = getJuvHist();
   if(d[nom]) { d[nom] = d[nom].filter(t=>t.label!==label); if(!d[nom].length) delete d[nom]; }
-  stor.set(KJuvHist, d);
+  stor.set(KJuvHist, d, {allowShrink:true});
 };
 
 const KJuvSparring = 'auf4_juv_sparring';
 const KLesionLarga = 'auf4_lesion_larga';
 const getLesiones = () => stor.get(KLesionLarga, {});
 function setLesion(nom, datos){ const d=getLesiones(); d[nom]=datos; stor.set(KLesionLarga,d); }
-function clearLesion(nom){ const d=getLesiones(); delete d[nom]; stor.set(KLesionLarga,d); }
+function clearLesion(nom){ const d=getLesiones(); delete d[nom]; stor.set(KLesionLarga,d,{allowShrink:true}); }
 const LESION_TIPOS_BASE = ['Rotura de LCA','Rotura de menisco','Desgarro','Fractura'];
 const LESION_TIEMPOS_BASE = ['1 mes','2 meses','3 meses','4-6 meses','6-8 meses','8-10 meses'];
 const KLesionTiposCustom = 'auf4_lesion_tipos_custom';
@@ -3700,7 +3700,7 @@ const addJuvSparring = (nom, evento) => {
 const removeJuvSparring = (nom, evento) => {
   const d = getJuvSparring();
   if(d[nom]) { d[nom] = d[nom].filter(e=>e!==evento); if(!d[nom].length) delete d[nom]; }
-  stor.set(KJuvSparring, d);
+  stor.set(KJuvSparring, d, {allowShrink:true});
 };
 
 const _JHC = {mayor:{l:'Mayor',c:'#0F766E'},local:{l:'Local',c:'#0EA5E9'},sub23:{l:'Sub-23',c:'#92400e'},sub20:{l:'Sub-20',c:'#1D4ED8'},sub18:{l:'Sub-18',c:'#7C3AED'},sub17:{l:'Sub-17',c:'#15803d'},sub16:{l:'Sub-16',c:'#B45309'},sub15:{l:'Sub-15',c:'#9A3412'},sub13:{l:'Sub-13',c:'#DC2626'}};
@@ -4195,7 +4195,7 @@ function _editConfRow(key){
   } else {
     s[key]={txt:newTxt.trim()||curTxt,lugar:newLugar.trim()||curLugar};
   }
-  stor.set('auf4_confedits',s);
+  stor.set('auf4_confedits',s,{allowShrink:true});
   renderTecnicos();
 }
 function _editConfLink(key){
@@ -4206,7 +4206,7 @@ function _editConfLink(key){
   const url=v.trim();
   const s=stor.get('auf4_conflinks',{});
   if(url) s[key]=url; else delete s[key];
-  stor.set('auf4_conflinks',s);
+  stor.set('auf4_conflinks',s,{allowShrink:true});
   const el=document.getElementById(`conf-row-${key}`);
   if(!el) return;
   const titleHtml=url?`<a href="${url}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt;
@@ -4837,7 +4837,7 @@ const stor = {
 (()=>{try{const d=stor.get(KJuvHist,{});if(!(d['Sebastián Coates']||[]).some(t=>t.label==='Mayor')){if(!d['Sebastián Coates'])d['Sebastián Coates']=[];d['Sebastián Coates'].push({label:'Mayor',color:'#0F766E'});stor.set(KJuvHist,d);}}catch(_){}})();
 (()=>{try{const d=stor.get(KJuvHist,{});if(!(d['Matías Aguirregaray']||[]).some(t=>t.label==='Mayor')){if(!d['Matías Aguirregaray'])d['Matías Aguirregaray']=[];d['Matías Aguirregaray'].push({label:'Mayor',color:'#0F766E'});stor.set(KJuvHist,d);}}catch(_){}})();
 (()=>{try{const d=stor.get(KJuvHist,{});if(!(d['Nicolás Lodeiro']||[]).some(t=>t.label==='Mayor')){if(!d['Nicolás Lodeiro'])d['Nicolás Lodeiro']=[];d['Nicolás Lodeiro'].push({label:'Mayor',color:'#0F766E'});stor.set(KJuvHist,d);}}catch(_){}})();
-(()=>{try{const d=stor.get(KJuvHist,{});const tags=(d['Francisco Tinaglini']||[]).filter(t=>t.label!=='Mayor');if(tags.length){d['Francisco Tinaglini']=tags;}else{delete d['Francisco Tinaglini'];}stor.set(KJuvHist,d);}catch(_){}})();
+(()=>{try{const d=stor.get(KJuvHist,{});const tags=(d['Francisco Tinaglini']||[]).filter(t=>t.label!=='Mayor');if(tags.length){d['Francisco Tinaglini']=tags;}else{delete d['Francisco Tinaglini'];}stor.set(KJuvHist,d,{allowShrink:true});}catch(_){}})();
 const getLog=()=>stor.get(KL,[]);
 const setLog=v=>stor.set(KL,v);
 const getChk=()=>stor.get(KC,{});
@@ -5509,7 +5509,7 @@ function _otrasIdasAdd(label,lugar,cantidad){
   stor.set(KOtrasIdas, v);
 }
 function _otrasIdasRemove(id){
-  stor.set(KOtrasIdas, _getOtrasIdas().filter(x=>x.id!==id));
+  stor.set(KOtrasIdas, _getOtrasIdas().filter(x=>x.id!==id), {allowShrink:true});
 }
 function _misIdasResumenHTML(totalIdas, diasAno, habiles, ty){
   const pctTotal=Math.round(totalIdas/diasAno*100);
@@ -6402,7 +6402,7 @@ window._inicioTareaToggle=function(idx){
 window._inicioTareaDel=function(idx){
   const list=_tareasLog();
   list.splice(idx,1);
-  stor.set(KTareasLog,list);
+  stor.set(KTareasLog,list,{allowShrink:true});
   renderInicio();
 };
 window._inicioTareaEdit=function(idx,value){
@@ -7325,7 +7325,7 @@ function setEvTz(date, idx, tz, rerenderDate){
   const store=getEvTz();
   const key=date+':'+idx;
   if(tz==='UY') delete store[key]; else store[key]=tz;
-  stor.set(KEvTz,store);
+  stor.set(KEvTz,store,{allowShrink:true});
   rerenderDayEvents(rerenderDate||date);
 }
 
@@ -7665,7 +7665,7 @@ function deleteDayAct(date,idx,ev){
   const acts=getDayActs();
   if(!acts[date]||!acts[date][idx])return;
   acts[date].splice(idx,1);
-  stor.set(KDayActs,acts);
+  stor.set(KDayActs,acts,{allowShrink:true});
   rerenderDayEvents(date);
   toast('Actividad eliminada');
 }
@@ -8531,7 +8531,7 @@ function renderLog(f){
 function fixHidden18(){
   const h=getEvHidden();
   Object.keys(h).filter(k=>k.startsWith('2026-06-18')).forEach(k=>delete h[k]);
-  stor.set(KEvHidden,h);
+  stor.set(KEvHidden,h,{allowShrink:true});
   const btn=document.getElementById('btn-fix-hidden');
   if(btn)btn.remove();
   renderCal();
@@ -8624,7 +8624,7 @@ function saveEvResch(origDate,origIdx,toDate,toTime){
   cloudPush(KEvResch,r);
 }
 function clearEvResch(origDate,origIdx){
-  const r=getEvResch(); delete r[evKey(origDate,origIdx)]; stor.set(KEvResch,r);
+  const r=getEvResch(); delete r[evKey(origDate,origIdx)]; stor.set(KEvResch,r,{allowShrink:true});
   cloudPush(KEvResch,r);
 }
 
@@ -8638,7 +8638,7 @@ function toggleEvFifa(date,idx,ev){
     delete f[k];
     const orig=getEvFifaOrig();
     delete orig[k];
-    stor.set(KEvFifaOrig,orig);
+    stor.set(KEvFifaOrig,orig,{allowShrink:true});
   } else {
     f[k]=true;
     const evObj=getDayEventByIdx(date,idx);
@@ -8646,7 +8646,7 @@ function toggleEvFifa(date,idx,ev){
     orig[k]=getCalTime(date,idx,evObj?.h);
     stor.set(KEvFifaOrig,orig);
   }
-  stor.set(KEvFifa,f);
+  stor.set(KEvFifa,f,{allowShrink:true});
   rerenderDayEvents(date);
   toast(f[k]?'⛔️ Marcado como reprogramado por FIFA':'Desmarcado');
 }
@@ -8659,7 +8659,7 @@ function saveEvManualAt(date,idx,partKey,input){
   if(!m[k])m[k]={};
   if(val)m[k][partKey]=parseInt(val)||0; else delete m[k][partKey];
   if(!Object.keys(m[k]).length)delete m[k];
-  stor.set(KEvManualAt,m);
+  stor.set(KEvManualAt,m,{allowShrink:true});
 }
 
 function editEvTxt(date,idx,span){
@@ -12073,15 +12073,15 @@ function _refreshAllFichaViews(){
   if(typeof renderSecLocal==='function') renderSecLocal();
   if(typeof window.renderJuveniles==='function') window.renderJuveniles();
 }
-function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_leyendas',s);_refreshAllFichaViews();}
-function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);_refreshAllFichaViews();}
-function _toggleFallecidoMayor(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);_refreshAllFichaViews();}
-function _toggleJuvRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);_refreshAllFichaViews();}
-function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);_refreshAllFichaViews();}
+function _toggleLeyenda(nom){const s=stor.get('auf4_leyendas',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_leyendas',s,{allowShrink:true});_refreshAllFichaViews();}
+function _toggleRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s,{allowShrink:true});_refreshAllFichaViews();}
+function _toggleFallecidoMayor(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s,{allowShrink:true});_refreshAllFichaViews();}
+function _toggleJuvRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s,{allowShrink:true});_refreshAllFichaViews();}
+function _toggleJuvFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s,{allowShrink:true});_refreshAllFichaViews();}
 function _toggleJuvLesionado(nom){ _editLesion(nom); }
 window._copyWaFotos=function(btn,msg){navigator.clipboard.writeText(msg).then(()=>{const orig=btn.textContent;btn.textContent='✓ Copiado';setTimeout(()=>btn.textContent=orig,2000);});};
-function _toggleLocalRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s);_refreshAllFichaViews();}
-function _toggleCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
+function _toggleLocalRetirado(nom){const s=stor.get('auf4_retirado',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_retirado',s,{allowShrink:true});_refreshAllFichaViews();}
+function _toggleCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s,{allowShrink:true});_refreshAllFichaViews();}
 // Mismo store (auf4_capitan) que _toggleCapitan/_toggleLocalCapitan/_toggleJuvCapitan
 // — acá recibe el nombre encodeURIComponent'd (mismo patrón que el resto de la
 // tarjeta de Convocados de Fecha FIFA) y refresca también esa vista puntual.
@@ -12127,9 +12127,9 @@ window._saveFifaSepPartVal=function(nomEnc,matchId,sel){
   const opt=PART_OPTIONS.find(o=>o.val===sel.value)||PART_OPTIONS[0];
   sel.className='part-sel '+opt.cls;
 };
-function _toggleJuvCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
-function _toggleLocalCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s);_refreshAllFichaViews();}
-function _toggleLocalFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s);_refreshAllFichaViews();}
+function _toggleJuvCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s,{allowShrink:true});_refreshAllFichaViews();}
+function _toggleLocalCapitan(nom){const s=stor.get('auf4_capitan',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_capitan',s,{allowShrink:true});_refreshAllFichaViews();}
+function _toggleLocalFallecido(nom){const s=stor.get('auf4_fallecido',{});if(s[nom])delete s[nom];else s[nom]=true;stor.set('auf4_fallecido',s,{allowShrink:true});_refreshAllFichaViews();}
 function _toggleLocalLesionado(nom){ _editLesion(nom); }
 function _toggleLocalLeyenda(nom){ _toggleLeyenda(nom); }
 function _toggleJuvLeyenda(nom){ _toggleLeyenda(nom); }
@@ -12212,7 +12212,7 @@ window._delSancion=function(idx){
   var nom=modal._nom;
   var all=stor.get('auf4_sanciones',{});
   if(all[nom]){all[nom].splice(idx,1);if(!all[nom].length)delete all[nom];}
-  stor.set('auf4_sanciones',all);
+  stor.set('auf4_sanciones',all,{allowShrink:true});
   _renderSancList(nom);
   renderJugadores?.();
   renderSecLocal?.();
@@ -15630,7 +15630,7 @@ function setBoletin(matchId, data){
 function clearBoletin(matchId){
   const all=stor.get(KBoletin,{});
   delete all[matchId];
-  stor.set(KBoletin,all);
+  stor.set(KBoletin,all,{allowShrink:true});
 }
 
 // Sección boletín para la columna izquierda de Pizarra
@@ -16554,7 +16554,7 @@ function buildBielsaConfsHtml(){
   window._toggleConfNoFui=function(key){
     const s=stor.get('auf4_confnofui',{});
     if(s[key])delete s[key];else s[key]=true;
-    stor.set('auf4_confnofui',s);
+    stor.set('auf4_confnofui',s,{allowShrink:true});
     renderTecnicos();
   };
   window._confMeta=window._confMeta||{};
@@ -16714,7 +16714,7 @@ window._editForlanConvDate=function(vi,tipo){
   if(v===null) return;
   const val=v.trim();
   if(val) dates[key]=val; else delete dates[key];
-  stor.set('auf4_forlanconvdates',dates);
+  stor.set('auf4_forlanconvdates',dates,{allowShrink:true});
   renderTecnicos();
 };
 function buildForlanConvHtml(){
@@ -18758,7 +18758,7 @@ function lgCopy(i,url){
         data[`${date}_${idx+1}`]=data[k];
         delete data[k];
       });
-      stor.set(storeKey,data);
+      stor.set(storeKey,data,{allowShrink:true});
     });
     localStorage.setItem(FLAG,'1');
   })();
@@ -18804,7 +18804,7 @@ function lgCopy(i,url){
         data[`${date}_${idx+1}`]=data[k];
         delete data[k];
       });
-      stor.set(storeKey,data);
+      stor.set(storeKey,data,{allowShrink:true});
     });
     localStorage.setItem(FLAG,'1');
   })();
@@ -18828,7 +18828,7 @@ function lgCopy(i,url){
           data[`${date}_${idx+1}`]=data[k];
           delete data[k];
         });
-        stor.set(storeKey,data);
+        stor.set(storeKey,data,{allowShrink:true});
       });
     });
     localStorage.setItem(FLAG,'1');
@@ -18847,7 +18847,7 @@ function lgCopy(i,url){
       const st=evS[evKey(date,confIdx)]||'';
       if(st!=='done' && chk[mid]?.['md1-conf']){
         delete chk[mid]['md1-conf'];
-        stor.set(KC,chk);
+        stor.set(KC,chk,{allowShrink:true});
       }
     });
     localStorage.setItem(FLAG,'1');
@@ -18936,7 +18936,7 @@ function lgCopy(i,url){
   // Limpieza: borra KEvP de 2026-06-18_13 (slot viejo de s4, ahora es DT — Olivera no debe aparecer ahí)
   (()=>{
     const p=stor.get(KEvP,{});
-    if(p['2026-06-18_13']!==undefined){delete p['2026-06-18_13'];stor.set(KEvP,p);cloudPush(KEvP,p);}
+    if(p['2026-06-18_13']!==undefined){delete p['2026-06-18_13'];stor.set(KEvP,p,{allowShrink:true});cloudPush(KEvP,p,{allowShrink:true});}
   })();
   // Limpieza post-cloudPull: borra cualquier evResch que apunte a Jun 17
   // y el reagendado incorrecto de la conferencia MD-1 ESP (era Jun 24 idx 2, ahora está en Jun 25 estático)
@@ -18956,7 +18956,7 @@ function lgCopy(i,url){
     const hidden=getEvHidden();
     let ch=false;
     ['2026-06-25_0','2026-06-25_1'].forEach(k=>{if(hidden[k]){delete hidden[k];ch=true;}});
-    if(ch){stor.set(KEvHidden,hidden);cloudPush(KEvHidden,hidden);}
+    if(ch){stor.set(KEvHidden,hidden,{allowShrink:true});cloudPush(KEvHidden,hidden,{allowShrink:true});}
   })();
   // Migrar KEvTz: clave 'GDL' (antes = Cancún) → 'CUN' para liberar GDL para Guadalajara
   (()=>{
@@ -18973,7 +18973,7 @@ function lgCopy(i,url){
     if(ep[staleKey]&&ep[staleKey].some(x=>x.startsWith('dt_'))){
       ep[staleKey]=ep[staleKey].filter(x=>!x.startsWith('dt_'));
       if(!ep[staleKey].length) delete ep[staleKey];
-      stor.set(KEvP,ep);
+      stor.set(KEvP,ep,{allowShrink:true});
       cloudPush(KEvP,ep);
     }
   })();
@@ -19465,10 +19465,10 @@ const LOCAL_NAC_DATES = {
 const KLocalClub = 'auf4_local_club';
 const KLocalTmId = 'auf4_local_tmid';
 const getLocalTmId = ()=>stor.get(KLocalTmId,{});
-const setLocalTmId = (nom,id)=>{const d=getLocalTmId();if(id)d[nom]=id;else delete d[nom];stor.set(KLocalTmId,d);};
+const setLocalTmId = (nom,id)=>{const d=getLocalTmId();if(id)d[nom]=id;else delete d[nom];stor.set(KLocalTmId,d,{allowShrink:true});};
 const getLocalPos  = ()=>stor.get(KLocalPos,{});
 const getLocalClub = ()=>stor.get(KLocalClub,{});
-const setLocalPos  = (nom,pos)=>{const d=getLocalPos();if(pos==null)delete d[nom];else d[nom]=pos;stor.set(KLocalPos,d);};
+const setLocalPos  = (nom,pos)=>{const d=getLocalPos();if(pos==null)delete d[nom];else d[nom]=pos;stor.set(KLocalPos,d,{allowShrink:true});};
 const setLocalClubActual = (nom,club,pais)=>{
   const d=getLocalClub();
   const prev=(d[nom]?.actual||'').trim();
@@ -27876,7 +27876,7 @@ function _sortCT(arr){ return [...arr].map(m=>({...m,rol:_normRol(m.rol)})).sort
 // CT dinámico por categoría/año
 const K_JUV_CT = 'auf4_juv_ct';
 function _getJuvCTOverrides(){ try{return JSON.parse(localStorage.getItem(K_JUV_CT)||'{}')}catch(_){return{}} }
-function _saveJuvCTOverrides(o){ stor.set(K_JUV_CT, o); }
+function _saveJuvCTOverrides(o){ stor.set(K_JUV_CT, o, {allowShrink:true}); }
 function _getJuvCT(catKey, year){
   const ov=_getJuvCTOverrides(); const k=catKey+'/'+year;
   if(ov[k]) return ov[k];
@@ -27917,7 +27917,7 @@ window._juvCTReset=function(ctKey){
 const K_JUV_COMP_CT = 'auf4_juv_comp_ct';
 let _juvCompCtEdit=false;
 function _getJuvCompCTOverrides(){ return stor.get(K_JUV_COMP_CT,{}); }
-function _saveJuvCompCTOverrides(o){ stor.set(K_JUV_COMP_CT, o); }
+function _saveJuvCompCTOverrides(o){ stor.set(K_JUV_COMP_CT, o, {allowShrink:true}); }
 window._juvCompCTToggleEdit=function(){ _juvCompCtEdit=!_juvCompCtEdit; window.renderJuveniles?.(); };
 window._juvCompCTAdd=function(compId,fid){
   const nom=(document.getElementById(fid+'-nom')?.value||'').trim();
@@ -27949,7 +27949,7 @@ window._juvCompCTReset=function(compId){
 const K_JUV_COMP_DEL = 'auf4_juv_comp_del';
 let _juvCompDelEdit=false;
 function _getJuvCompDelOverrides(){ return stor.get(K_JUV_COMP_DEL,{}); }
-function _saveJuvCompDelOverrides(o){ stor.set(K_JUV_COMP_DEL, o); }
+function _saveJuvCompDelOverrides(o){ stor.set(K_JUV_COMP_DEL, o, {allowShrink:true}); }
 window._juvCompDelToggleEdit=function(){ _juvCompDelEdit=!_juvCompDelEdit; window.renderJuveniles?.(); };
 window._juvCompDelAdd=function(compId,fid){
   const nom=(document.getElementById(fid+'-nom')?.value||'').trim();
@@ -27998,7 +27998,7 @@ function getJuvPos(){ return stor.get('auf4_juvPos', {}); }
 window._setJuvPos = function(nom,pos){
   const m = getJuvPos();
   if(pos) m[nom]=pos; else delete m[nom];
-  stor.set('auf4_juvPos', m);
+  stor.set('auf4_juvPos', m,{allowShrink:true});
   window.renderJuveniles();
 };
 const JUV_POS_CYCLE = ['','POR','DEF','MED','DEL'];
@@ -28010,7 +28010,7 @@ window._cycleJuvPos = function(nom, badgeEl, ev){
   const el=badgeEl||ev?.currentTarget||ev?.target; if(!el) return;
   const cur=getJuvPos()[nom]||'';
   const next=_POS_CYCLE[(_POS_CYCLE.indexOf(cur)+1)%_POS_CYCLE.length];
-  const m=getJuvPos(); if(next) m[nom]=next; else delete m[nom]; stor.set('auf4_juvPos',m);
+  const m=getJuvPos(); if(next) m[nom]=next; else delete m[nom]; stor.set('auf4_juvPos',m,{allowShrink:true});
   const c=_POS_COLOR[next]||'#64748B';
   el.textContent=next; el.style.background=c+'18'; el.style.color=c; el.style.borderColor=c+'44';
   clearTimeout(window._juvPosTimer);
