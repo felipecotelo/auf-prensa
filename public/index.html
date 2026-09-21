@@ -4657,10 +4657,10 @@ async function cloudPush(key,value,opts){
   }catch(e){_setSyncStatus('error');console.warn('cloudPush error',e);}
 }
 
-function cloudPushDebounced(key,value){
+function cloudPushDebounced(key,value,opts){
   if(_SKIP_SYNC.has(key))return;
   clearTimeout(_syncDebounceTimers[key]);
-  _syncDebounceTimers[key]=setTimeout(()=>cloudPush(key,value),800);
+  _syncDebounceTimers[key]=setTimeout(()=>cloudPush(key,value,opts),800);
 }
 
 // Antes de pisar localStorage con lo que viene del servidor (acá y en _livePollSync),
@@ -4739,11 +4739,16 @@ async function cloudPull(){
 
 const stor = {
   get:(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}},
-  set:(k,v)=>{
+  // opts (opcional): {allowShrink:true} para guardados donde un array/objeto
+  // más chico es intencional (un borrado real del usuario, o reacomodar
+  // índices tras un borrado) — sin esto, cloudPush lo trata como posible
+  // pérdida de datos de una pestaña vieja y bloquea el guardado (mismo guard
+  // que ya rompía los toggles de "llegado"/"shooting").
+  set:(k,v,opts)=>{
     if(IS_RESTRICTED) return;
     const json=JSON.stringify(v);
     _pushUndo(k,localStorage.getItem(k));
-    cloudPushDebounced(k,v);
+    cloudPushDebounced(k,v,opts);
     try{
       localStorage.setItem(k,json);
       _autoSyncDirty=true;
@@ -10503,7 +10508,7 @@ window._fifaSepEditAt=function(id){
   body?.scrollIntoView({behavior:'smooth',block:'center'});
 };
 window._fifaSepRemoveAt=function(id){
-  stor.set(KFifaSepAt, getFifaSepAt().filter(a=>a.id!==id));
+  stor.set(KFifaSepAt, getFifaSepAt().filter(a=>a.id!==id), {allowShrink:true});
   if(_fifaSepAtEditingId===id) _fifaSepAtEditingId=null;
   renderFifaSepDisponibilidad();
 };
@@ -11311,7 +11316,7 @@ function _fsapReindexAfterDelete(date,removedIdx){
       if(obj[fromKey]!==undefined) obj[toKey]=obj[fromKey]; else delete obj[toKey];
     }
     if(maxIdx>=removedIdx) delete obj[evKey(date,maxIdx)];
-    stor.set(storeKey,obj);
+    stor.set(storeKey,obj,{allowShrink:true});
   });
   const ct=stor.get(KCalT,{});
   if(ct[date]){
@@ -11321,7 +11326,7 @@ function _fsapReindexAfterDelete(date,removedIdx){
       if(ct[date][i]!==undefined) ct[date][i-1]=ct[date][i]; else delete ct[date][i-1];
     }
     if(maxIdx>=removedIdx) delete ct[date][maxIdx];
-    stor.set(KCalT,ct);
+    stor.set(KCalT,ct,{allowShrink:true});
   }
 }
 function _fsapSwapOverrides(date,i,j){
@@ -11331,14 +11336,14 @@ function _fsapSwapOverrides(date,i,j){
     const vI=obj[kI], vJ=obj[kJ];
     if(vJ!==undefined) obj[kI]=vJ; else delete obj[kI];
     if(vI!==undefined) obj[kJ]=vI; else delete obj[kJ];
-    stor.set(storeKey,obj);
+    stor.set(storeKey,obj,{allowShrink:true});
   });
   const ct=stor.get(KCalT,{});
   if(ct[date]){
     const vI=ct[date][i], vJ=ct[date][j];
     if(vJ!==undefined) ct[date][i]=vJ; else delete ct[date][i];
     if(vI!==undefined) ct[date][j]=vI; else delete ct[date][j];
-    stor.set(KCalT,ct);
+    stor.set(KCalT,ct,{allowShrink:true});
   }
 }
 window.deleteFifaSepAct=function(date,idx,ev){
@@ -11346,7 +11351,7 @@ window.deleteFifaSepAct=function(date,idx,ev){
   const acts=getDayActs();
   if(!acts[date]||!acts[date][idx]) return;
   acts[date].splice(idx,1);
-  stor.set(KDayActs,acts);
+  stor.set(KDayActs,acts,{allowShrink:true});
   _fsapReindexAfterDelete(date,idx);
   renderFifaSepCal();
   toast('Actividad eliminada');
