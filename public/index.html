@@ -10986,6 +10986,22 @@ const FIFASEP_TAG_HTML={
   entreno: `<span class="tag" style="font-size:9.5px;background:#DCFCE7;color:#15803D;font-weight:600">Entrenamiento</span>`,
   partido: `<span class="tag" style="font-size:9.5px;background:#052e16;color:#86efac;font-weight:700">Partido</span>`,
 };
+// Mismos 5 tipos del picker "+ Agregar actividad" — click en la etiqueta de
+// una actividad ya cargada cicla entre ellos (nombre + color juntos) sin
+// tener que abrir ningún formulario.
+const FIFASEP_EV_TYPE_CYCLE=['team','auf','viaje','entreno','partido'];
+window._fifaSepCycleEvType=function(date,idx){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  const cur=e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':(e.auf||e.auftv)?'auf':'team';
+  const i=FIFASEP_EV_TYPE_CYCLE.indexOf(cur);
+  const next=FIFASEP_EV_TYPE_CYCLE[(i+1)%FIFASEP_EV_TYPE_CYCLE.length];
+  delete e.tipo; delete e.auf; delete e.auftv;
+  if(next==='viaje'||next==='entreno'||next==='partido') e.tipo=next;
+  else if(next==='auf') e.auf=true;
+  stor.set(KDayActs,acts);
+  renderFifaSepCal();
+};
 // Fondo de fila por tipo — mismos colores que las etiquetas, pero bien suaves,
 // para diferenciar de un vistazo sin tener que leer el tag.
 const FIFASEP_ROW_BG={viaje:'#FFFBEB',auf:'#FED7AA',auftv:'#FED7AA',entreno:'#F0FDF4',partido:'#ECFDF5',team:'#F0F9FF'};
@@ -11078,7 +11094,7 @@ function _fifaSepEvRowHtml(date,e,idx,total){
         <div class="ev-txt-wrap">
           <div class="ev-main-txt${statusClass?' '+statusClass:''}">
             <span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${date}',${idx},this)">${txt}</span>
-            ${tag}
+            <span onclick="event.stopPropagation();_fifaSepCycleEvType('${date}',${idx})" style="cursor:pointer" title="Click para cambiar el tipo">${tag}</span>
             ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" style="font-size:11px;text-decoration:none;margin-left:2px">🔗${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
           </div>
           ${_fsapPersonasOf(e).length?`<div class="ev-selected-parts">👤 ${_fsapPersonasOf(e).map(n=>`<span style="color:var(--cel-dk);background:var(--cel-lt);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`).join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
