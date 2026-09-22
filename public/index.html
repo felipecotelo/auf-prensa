@@ -10598,7 +10598,18 @@ function renderFifaSepDisponibilidad(){
     </div>`;
 
   // ── Lista de atenciones cargadas (orden cronológico) ──
-  const atList=getFifaSepAt().slice().sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999')||(a.hora||'').localeCompare(b.hora||''));
+  // Mismo criterio que el Calendario (_sortKeyH): si se cargó en huso distinto a
+  // UY (ej. hora de Japón), se ordena por esa hora LOCAL, no por su equivalente
+  // convertido a UY — convertir puede cruzar medianoche y desordenar el día.
+  const _atMinutes=(a)=>{
+    if(a.origH && a.origTz && typeof _fsapParseHora==='function'){
+      const p=_fsapParseHora(a.origH);
+      if(p) return p.h*60+p.mi;
+    }
+    const mm=/^(\d{1,2})(?::(\d{2}))?$/.exec(a.hora||'');
+    return mm ? parseInt(mm[1],10)*60+parseInt(mm[2]||'0',10) : 9999;
+  };
+  const atList=getFifaSepAt().slice().sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999')||(_atMinutes(a)-_atMinutes(b)));
   const atRows=atList.length ? atList.map(a=>{
     const t=FIFASEP_DISP_TIPOS.find(x=>x.id===a.tipo)||FIFASEP_DISP_TIPOS[FIFASEP_DISP_TIPOS.length-1];
     const fechaFmt=a.fecha?_fmtDateCorta(a.fecha):'';
