@@ -10190,7 +10190,7 @@ const FIFASEP26 = {
       {nom:'Juan Manuel Sanabria', club:'Real Salt Lake City', clubPais:'🇺🇸', num:25},
     ],
     MED: [
-      {nom:'Emiliano Martínez', club:'Palmeiras', clubPais:'🇧🇷', num:15},
+      {nom:'Emiliano Martínez', club:'Palmeiras', clubPais:'🇧🇷', num:15, entrada:true},
       {nom:'Lucas Torreira', club:'Galatasaray', clubPais:'🇹🇷', num:14},
       {nom:'Rodrigo Bentancur', club:'Tottenham Hotspur', clubPais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', num:6},
       {nom:'Facundo Bernal', club:'Real Betis Balompié', clubPais:'🇪🇸', num:5},
@@ -10853,6 +10853,12 @@ function renderFifaSep26(tabId){
         }).join('')}</div>` : '';
         const cid='res-'+nomEnc; // id de tarjeta para switchPTab (no hay número de camiseta todavía)
         const inj=getResInjury(p.nom);
+        // Reborde para que un cambio de convocatoria (entrada/salida por lesión) se
+        // note incluso en gris — el filter:grayscale de la tarjeta desatura cualquier
+        // color de adentro, por eso el reborde va en un wrapper aparte sin el filtro.
+        const nuevoIn = enFinal && !!p.entrada;
+        const lesionOut = !enFinal && inj==='red';
+        const cardBorder = nuevoIn ? '#16A34A' : (lesionOut ? '#DC2626' : null);
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
         // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
         const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
@@ -10861,7 +10867,7 @@ function renderFifaSep26(tabId){
         // en los stores compartidos con Jugadores/Local/Juveniles.
         const isLlegado = !!(stor.get('auf4_fifasep_llegado',{})[p.nom]);
         const faltaShooting = !!(stor.get('auf4_fifasep_shooting',{})[p.nom]);
-        return `<div class="p-card" id="pcard-${cid}" style="position:relative;${enFinal?'':'filter:grayscale(1);opacity:.5'}">
+        const cardHtml = `<div class="p-card" id="pcard-${cid}" style="position:relative;${enFinal?'':'filter:grayscale(1);opacity:.5'}">
           <button onclick="event.stopPropagation();_toggleFifaSepCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
           <div style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">
             <button onclick="event.stopPropagation();_toggleFifaSepLlegado('${nomEnc}')" title="${isLlegado?'Ya se sumó a la delegación — click para desmarcar':'Todavía no llegó — click para marcar que ya se sumó'}" style="background:${isLlegado?'#16A34A':'#DC2626'};border:1.5px solid ${isLlegado?'#16A34A':'#DC2626'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;padding:0;line-height:1">🇯🇵</button>
@@ -10910,6 +10916,7 @@ function renderFifaSep26(tabId){
             </div>
           </div>
         </div>`;
+        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${nuevoIn?'Incorporación reciente a la convocatoria':'Desafectado — lesión'}">${cardHtml}</div>` : cardHtml;
       };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
       const allPos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
