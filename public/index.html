@@ -979,6 +979,8 @@ textarea{resize:vertical;min-height:52px}
 .p-stat-n.wc{color:var(--gold)}
 .p-stat-n.goal{color:var(--green-dk)}
 .p-stat-n.info{color:var(--muted)}
+.p-stat-n.zero{color:#D97706}
+.p-stat-zero-mark{font-size:.65em;vertical-align:super;margin-left:1px}
 .p-stat-l{font-size:7.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
 .p-ms{font-size:9.5px;line-height:1.4;padding:2px 6px;border-radius:0 5px 5px 0;margin:2px 0;border-left:2px solid}
 .p-ms.debut{background:var(--cel-lt);border-color:var(--cel);color:var(--cel-dk)}
@@ -10781,9 +10783,10 @@ function renderFifaSep26(tabId){
       // recorrer todo JUGADORES 26 veces.
       const _allPjSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,pj:dd.total?.pj||0})).filter(e=>e.pj>0).sort((a,b)=>b.pj-a.pj);
       const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:dd.total?.g||0})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
-      // Todos los múltiplos de 10 — los de 50 en adelante son los que importan
-      // más (ahí se entrega la camiseta homenaje), así que se avisan con más
-      // anticipación (8 partidos) y estilo dorado en vez de los 5 normales.
+      // Todos los múltiplos de 10 — los de 50 en adelante llevan estilo dorado
+      // (ahí se entrega la camiseta homenaje) pero la misma ventana de aviso que
+      // el resto: a 8 partidos "no tiene sentido, falta una vida" (feedback del
+      // usuario) — solo avisa a 3 partidos o menos del número cerrado.
       const _PJM=Array.from({length:25},(_,i)=>(i+1)*10);
       const _GM=[5,10,15,20,25,30,40,50];
       // Mismas clases .p-ms (star/cap/hist/goal) que usa computeMilestones() en
@@ -10791,7 +10794,7 @@ function renderFifaSep26(tabId){
       // Los de partidos siempre terminan en 📌, los de goles en ⚽️.
       const _fifaMilestoneNote=(nom,pj,g)=>{
         const notes=[];
-        const nextPjM=_PJM.find(m=>m>pj&&(m-pj)<=(m>=50?8:5));
+        const nextPjM=_PJM.find(m=>m>pj&&(m-pj)<=3);
         if(nextPjM){
           const isJersey=nextPjM>=50;
           const label=nextPjM===100?'¡los 100!':`los ${nextPjM}`;
@@ -10908,9 +10911,9 @@ function renderFifaSep26(tabId){
               <div class="p-club">${p.clubPais||''} ${p.club}</div>
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats" style="grid-template-columns:repeat(3,1fr)">
-                <div class="p-stat"><div class="p-stat-n">${pj}</div><div class="p-stat-l">Partidos</div></div>
-                <div class="p-stat"><div class="p-stat-n goal">${g}</div><div class="p-stat-l">Goles</div></div>
-                <div class="p-stat"><div class="p-stat-n">${min}</div><div class="p-stat-l">Minutos</div></div>
+                <div class="p-stat"><div class="p-stat-n${pj===0?' zero':''}" title="${pj===0?'Sería su debut':''}">${pj}${pj===0?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">Partidos</div></div>
+                <div class="p-stat"><div class="p-stat-n goal${g===0?' zero':''}" title="${g===0?'Sería su primer gol':''}">${g}${g===0?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">Goles</div></div>
+                <div class="p-stat"><div class="p-stat-n${min===0?' zero':''}" title="${min===0?'Serían sus primeros minutos':''}">${min}${min===0?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">Minutos</div></div>
               </div>
               ${milestones.map(m=>`<div class="p-ms ${m.cls}">${m.txt}</div>`).join('')}
               ${partGridHtml}
