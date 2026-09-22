@@ -4659,10 +4659,25 @@ async function cloudPush(key,value,opts){
   }catch(e){_setSyncStatus('error');console.warn('cloudPush error',e);}
 }
 
+// Dos guardados seguidos de la MISMA key (ej: agregar una atención y, segundos
+// después, editar otra) cada uno cancela el timer del anterior — pero si el
+// primero ya arrancó su ciclo async (select servidor → comparar → upsert)
+// cuando el segundo dispara, corrían en paralelo: los dos leían el servidor
+// "viejo" a la vez, los dos pasaban el guard, y el que terminara el upsert
+// último pisaba entero al otro — perdiendo en silencio lo que el primero
+// había guardado, sin ningún cartel de conflicto. Encadenar por key con esta
+// promesa hace que el segundo espere a que el primero termine su ciclo
+// completo (guard + upsert + snapshot) antes de arrancar el suyo, así
+// siempre compara contra el estado real más nuevo del servidor.
+const _cloudPushChain={};
 function cloudPushDebounced(key,value,opts){
   if(_SKIP_SYNC.has(key))return;
   clearTimeout(_syncDebounceTimers[key]);
-  _syncDebounceTimers[key]=setTimeout(()=>cloudPush(key,value,opts),800);
+  _syncDebounceTimers[key]=setTimeout(()=>{
+    _cloudPushChain[key]=(_cloudPushChain[key]||Promise.resolve())
+      .then(()=>cloudPush(key,value,opts))
+      .catch(e=>console.warn('cloudPush encadenado falló',key,e));
+  },800);
 }
 
 // Antes de pisar localStorage con lo que viene del servidor (acá y en _livePollSync),
