@@ -10457,6 +10457,11 @@ const FIFASEP_DISP_TIPOS=[
   {id:'zoom',  label:'Zoom / videollamada', icon:'💻'},
   {id:'otro',  label:'Otro',                icon:'📋'},
 ];
+// Tag que le toca en el Calendario a cada tipo de atención — las conferencias
+// MD-1/MD son obligatorias, parte fija del cronograma del día (van celeste,
+// como "Cronograma"), no una nota de prensa suelta como el resto (van AUF,
+// naranja).
+const FIFASEP_AT_CAL_TYPE={md1:'team', md:'team'}; // el resto cae en 'auf' por default
 function getFifaSepAt(){ return stor.get(KFifaSepAt,[]); }
 // Formulario colapsado por defecto (solo el botón "+ Agregar atención") y
 // mismo selector de huso que el Calendario — un solo estado global porque
@@ -10515,7 +10520,10 @@ function _fsapSyncCalFromAtencion(entry){
   const acts2=getDayActs();
   if(!acts2[entry.fecha]) acts2[entry.fecha]=[];
   const tipoLabel=(FIFASEP_DISP_TIPOS.find(t=>t.id===entry.tipo)||{}).label||'';
-  const newEv={txt:entry.txt||tipoLabel, h:entry.hora, personas:[entry.quien], atencionId:entry.id, auf:true};
+  const calType=FIFASEP_AT_CAL_TYPE[entry.tipo]||'auf';
+  const newEv={txt:entry.txt||tipoLabel, h:entry.hora, personas:[entry.quien], atencionId:entry.id};
+  if(calType==='team'){ /* default: sin tipo/auf → cae en 'team' (Cronograma) */ }
+  else newEv.auf=true;
   if(entry.origH){ newEv.origH=entry.origH; newEv.origTz=entry.origTz; }
   acts2[entry.fecha].push(newEv);
   stor.set(KDayActs,acts2);
