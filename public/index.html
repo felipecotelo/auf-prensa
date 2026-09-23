@@ -10462,6 +10462,9 @@ const FIFASEP_DISP_TIPOS=[
 // como "Cronograma"), no una nota de prensa suelta como el resto (van AUF,
 // naranja).
 const FIFASEP_AT_CAL_TYPE={md1:'team', md:'team'}; // el resto cae en 'auf' por default
+// Mismos tipos — llevan además el badge rojo "Obligatoria" (compromiso
+// contractual/FIFA), no solo el cambio de color de arriba.
+const FIFASEP_AT_OBLIG=['md1','md'];
 function getFifaSepAt(){ return stor.get(KFifaSepAt,[]); }
 // Formulario colapsado por defecto (solo el botón "+ Agregar atención") y
 // mismo selector de huso que el Calendario — un solo estado global porque
@@ -10524,6 +10527,9 @@ function _fsapSyncCalFromAtencion(entry){
   const newEv={txt:entry.txt||tipoLabel, h:entry.hora, personas:[entry.quien], atencionId:entry.id};
   if(calType==='team'){ /* default: sin tipo/auf → cae en 'team' (Cronograma) */ }
   else newEv.auf=true;
+  // Conferencias MD-1/MD: compromiso contractual/obligatorio, no una nota de
+  // prensa suelta — mismo badge rojo "Obligatoria" que ya usa el Mundial.
+  if(FIFASEP_AT_OBLIG.includes(entry.tipo)) newEv.oblig=true;
   if(entry.origH){ newEv.origH=entry.origH; newEv.origTz=entry.origTz; }
   acts2[entry.fecha].push(newEv);
   stor.set(KDayActs,acts2);
@@ -10706,7 +10712,7 @@ function renderFifaSepDisponibilidad(){
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
       <div style="flex:1;min-width:180px">
-        <div style="font-size:.82em;font-weight:700">${_fsapNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}</div>
+        <div style="font-size:.82em;font-weight:700">${_fsapNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}${FIFASEP_AT_OBLIG.includes(a.tipo)?` <span class="tag tag-oblig" style="font-size:8.5px">Obligatoria</span>`:''}</div>
         <div style="font-size:.7em;color:var(--muted)">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
       </div>
       <button onclick="_fifaSepEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">✏️</button>
@@ -11209,6 +11215,7 @@ function _fifaSepEvRowHtml(date,e,idx,total){
           <div class="ev-main-txt${statusClass?' '+statusClass:''}">
             <span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${date}',${idx},this)">${txt}</span>
             <span onclick="event.stopPropagation();_fifaSepCycleEvType('${date}',${idx})" style="cursor:pointer" title="Click para cambiar el tipo">${tag}</span>
+            ${e.oblig?`<span class="tag tag-oblig" style="font-size:9.5px" title="Compromiso contractual/obligatorio">Obligatoria</span>`:''}
             ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" style="font-size:11px;text-decoration:none;margin-left:2px">🔗${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
           </div>
           ${_fsapPersonasOf(e).length?`<div class="ev-selected-parts">👤 ${_fsapPersonasOf(e).map(n=>`<span style="color:var(--cel-dk);background:var(--cel-lt);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`).join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
