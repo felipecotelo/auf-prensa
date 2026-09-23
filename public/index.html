@@ -4026,7 +4026,7 @@ function applyPostMatchUpdates(pizMatchId, evs){
 }
 
 function getEvTxts(){return stor.get(KEvTxt,{})}
-function saveEvTxt(date,idx,val){const t=getEvTxts();t[evKey(date,idx)]=val;stor.set(KEvTxt,t);}
+function saveEvTxt(date,idx,val){const t=getEvTxts();t[evKey(date,idx)]=val;stor.set(KEvTxt,t);if(typeof _fsapSyncAtencionTxt==='function')_fsapSyncAtencionTxt(date,idx,val);}
 function getEvTxt(date,idx,def){return getEvTxts()[evKey(date,idx)]||def}
 
 
@@ -10486,6 +10486,64 @@ window._fifaSepAtSetTz=function(tz,btn){
   _fifaSepAtUpdateTzPreview();
 };
 let _fifaSepAtEditingId=null;
+// ── Vínculo Atención ↔ Actividad de Calendario ──────────────────────────────
+// Cada atención (Disponibilidad) tiene su espejo en el Calendario del día que
+// le corresponde — mismo evento visto desde dos pestañas, no dos cosas
+// separadas. Se linkean por id (e.atencionId en el acto del Calendario) y se
+// mantienen en sync: horario y quién participa se editan desde cualquiera de
+// los dos lados y se reflejan en el otro; borrar de un lado borra el otro.
+function _fsapFindLinkedAct(atencionId){
+  const acts=getDayActs();
+  for(const d of Object.keys(acts)){
+    const idx=(acts[d]||[]).findIndex(e=>e && e.atencionId===atencionId);
+    if(idx>=0) return {date:d, idx};
+  }
+  return null;
+}
+// Atención → Calendario: se regenera el acto vinculado entero (más simple y
+// robusto que actualizar en el lugar, y acá no importa perder la posición
+// manual porque este calendario siempre se muestra ordenado por hora).
+function _fsapSyncCalFromAtencion(entry){
+  const found=_fsapFindLinkedAct(entry.id);
+  if(found){
+    const acts=getDayActs();
+    acts[found.date].splice(found.idx,1);
+    stor.set(KDayActs,acts,{allowShrink:true});
+    _fsapReindexAfterDelete(found.date,found.idx);
+  }
+  if(!entry.fecha || !FIFASEP26_CAL_DAYS.some(d=>d.date===entry.fecha)) return;
+  const acts2=getDayActs();
+  if(!acts2[entry.fecha]) acts2[entry.fecha]=[];
+  const tipoLabel=(FIFASEP_DISP_TIPOS.find(t=>t.id===entry.tipo)||{}).label||'';
+  const newEv={txt:entry.txt||tipoLabel, h:entry.hora, personas:[entry.quien], atencionId:entry.id, auf:true};
+  if(entry.origH){ newEv.origH=entry.origH; newEv.origTz=entry.origTz; }
+  acts2[entry.fecha].push(newEv);
+  stor.set(KDayActs,acts2);
+}
+// Calendario → Atención: horario (llamado desde _fsapEditTime al confirmar).
+function _fsapSyncAtencionTime(date,idx){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx];
+  if(!e || !e.atencionId) return;
+  const list=getFifaSepAt();
+  const i=list.findIndex(a=>a.id===e.atencionId);
+  if(i<0) return;
+  const entry={...list[i], hora:getCalTime(date,idx,e.h||'TBD')};
+  if(e.origH && e.origTz){ entry.origH=e.origH; entry.origTz=e.origTz; } else { delete entry.origH; delete entry.origTz; }
+  list[i]=entry;
+  stor.set(KFifaSepAt,list);
+}
+// Calendario → Atención: título/detalle (llamado desde saveEvTxt).
+function _fsapSyncAtencionTxt(date,idx,val){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx];
+  if(!e || !e.atencionId) return;
+  const list=getFifaSepAt();
+  const i=list.findIndex(a=>a.id===e.atencionId);
+  if(i<0) return;
+  list[i]={...list[i], txt:val};
+  stor.set(KFifaSepAt,list);
+}
 window._fifaSepAddAt=function(){
   const quien=(document.getElementById('fsap-at-quien')?.value||'').trim();
   if(!quien){ toast('⚠️ Elegí a quién'); return; }
@@ -10509,6 +10567,7 @@ window._fifaSepAddAt=function(){
     list.push(entry);
   }
   stor.set(KFifaSepAt,list);
+  _fsapSyncCalFromAtencion(entry);
   const txtEl=document.getElementById('fsap-at-txt'); if(txtEl) txtEl.value='';
   const hEl=document.getElementById('fsap-at-hora'); if(hEl) hEl.value='';
   _fifaSepAtTz='UY';
@@ -10538,6 +10597,13 @@ window._fifaSepEditAt=function(id){
 window._fifaSepRemoveAt=function(id){
   stor.set(KFifaSepAt, getFifaSepAt().filter(a=>a.id!==id), {allowShrink:true});
   if(_fifaSepAtEditingId===id) _fifaSepAtEditingId=null;
+  const found=_fsapFindLinkedAct(id);
+  if(found){
+    const acts=getDayActs();
+    acts[found.date].splice(found.idx,1);
+    stor.set(KDayActs,acts,{allowShrink:true});
+    _fsapReindexAfterDelete(found.date,found.idx);
+  }
   renderFifaSepDisponibilidad();
 };
 // Número de camiseta de esta gira (FIFASEP26.reservados[pos][].num), para
@@ -11060,16 +11126,29 @@ function _fsapPersonasOf(e){
   if(e.quien) return [e.quien];
   return [];
 }
+// Si el acto está vinculado a una atención (Disponibilidad), ese "quien" es
+// una sola persona (no una lista) — el toggle manda: agregar a alguien la
+// convierte en LA persona de la atención; sacar a la única que había cae en
+// la siguiente que quede seleccionada (si no queda ninguna, no se toca).
+function _fsapSyncAtencionQuien(e,nextQuien){
+  if(!e.atencionId || !nextQuien) return;
+  const list=getFifaSepAt();
+  const i=list.findIndex(a=>a.id===e.atencionId);
+  if(i<0) return;
+  list[i]={...list[i], quien:nextQuien};
+  stor.set(KFifaSepAt,list);
+}
 window._fsapTogglePersona=function(date,idx,nom){
   const acts=getDayActs();
   const e=acts[date]?.[idx]; if(!e) return;
   let personas=_fsapPersonasOf(e);
-  const i=personas.indexOf(nom);
-  if(i>=0) personas=personas.filter(n=>n!==nom);
+  const wasSelected=personas.includes(nom);
+  if(wasSelected) personas=personas.filter(n=>n!==nom);
   else personas=[...personas,nom];
   e.personas=personas;
   delete e.quien; // migrado al array
   stor.set(KDayActs,acts);
+  _fsapSyncAtencionQuien(e, wasSelected?personas[0]:nom);
   renderFifaSepCal();
 };
 window._fsapToggleAllPersonas=function(date,idx,nombres,allSelected){
@@ -11078,6 +11157,7 @@ window._fsapToggleAllPersonas=function(date,idx,nombres,allSelected){
   e.personas = allSelected ? [] : nombres.slice();
   delete e.quien;
   stor.set(KDayActs,acts);
+  if(!allSelected) _fsapSyncAtencionQuien(e, nombres[0]);
   renderFifaSepCal();
 };
 // Mismas dos secciones separadas (DT / Cuerpo Técnico, Jugadores) que usa el
@@ -11438,11 +11518,16 @@ window.deleteFifaSepAct=function(date,idx,ev){
   if(ev) ev.stopPropagation();
   const acts=getDayActs();
   if(!acts[date]||!acts[date][idx]) return;
+  const removed=acts[date][idx];
   acts[date].splice(idx,1);
   stor.set(KDayActs,acts,{allowShrink:true});
   _fsapReindexAfterDelete(date,idx);
+  // Vinculada a una atención de Disponibilidad — es un solo evento, se borra junto.
+  if(removed.atencionId){
+    stor.set(KFifaSepAt, getFifaSepAt().filter(a=>a.id!==removed.atencionId), {allowShrink:true});
+  }
   renderFifaSepCal();
-  toast('Actividad eliminada');
+  toast(removed.atencionId?'Actividad y atención eliminadas':'Actividad eliminada');
 };
 
 // Variantes propias de setEvSt/cycleEvSt/toggleDayClosed que refrescan
@@ -11532,7 +11617,7 @@ window._fsapEditTime=function(date,idx,el){
   function commit(){
     if(committed) return; committed=true;
     const raw=inp.value.trim();
-    if(!raw){ saveCalTime(date,idx,'TBD'); _fsapClearOrig(date,idx); renderFifaSepCal(); return; }
+    if(!raw){ saveCalTime(date,idx,'TBD'); _fsapClearOrig(date,idx); _fsapSyncAtencionTime(date,idx); renderFifaSepCal(); return; }
     if(tz==='UY'){
       saveCalTime(date,idx,raw);
       _fsapClearOrig(date,idx);
@@ -11541,6 +11626,7 @@ window._fsapEditTime=function(date,idx,el){
       saveCalTime(date,idx,converted);
       _fsapSetOrig(date,idx,raw,tz);
     }
+    _fsapSyncAtencionTime(date,idx);
     renderFifaSepCal();
   }
   inp.onblur=commit;
