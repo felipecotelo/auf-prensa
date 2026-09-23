@@ -4979,7 +4979,7 @@ const TOURNAMENTS = {
   'fifasep26': {
     tabs: [
       {id:'fifasep26-calendario',    label:'Calendario',    icon:'ti-calendar'},
-      {id:'fifasep26-disponibilidad',label:'Disponibilidad',icon:'ti-list-check'},
+      {id:'fifasep26-disponibilidad',label:'Prensa',icon:'ti-list-check'},
       {id:'fifasep26-fixture',       label:'Fixture',       icon:'ti-tournament'},
       {id:'fifasep26-plantel',       label:'Convocados',    icon:'ti-users',         cls:'d-tab'},
       {id:'fifasep26-pizarra',       label:'Pizarra',       icon:'ti-ball-football'},
@@ -10705,16 +10705,25 @@ function renderFifaSepDisponibilidad(){
     return mm ? parseInt(mm[1],10)*60+parseInt(mm[2]||'0',10) : 9999;
   };
   const atList=getFifaSepAt().slice().sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999')||(_atMinutes(a)-_atMinutes(b)));
+  // Estado (✓ hecho) y link se marcan en el Calendario (es el mismo evento) —
+  // acá se muestran en modo lectura para no duplicar esos controles.
+  const _evStatus=getEvStatus(), _evLinks=getEvLinks();
   const atRows=atList.length ? atList.map(a=>{
     const t=FIFASEP_DISP_TIPOS.find(x=>x.id===a.tipo)||FIFASEP_DISP_TIPOS[FIFASEP_DISP_TIPOS.length-1];
     const fechaFmt=a.fecha?_fmtDateCorta(a.fecha):'';
     const horaFmt=a.origH&&a.origTz&&a.origTz!=='UY' ? `${a.origH} ${a.origTz} → ${a.hora}h UY` : (a.hora?a.hora+'h':'');
+    const linkedAct=_fsapFindLinkedAct(a.id);
+    const linkedKey=linkedAct?evKey(linkedAct.date,linkedAct.idx):null;
+    const isDone=linkedKey && _evStatus[linkedKey]==='done';
+    const linkUrl=linkedKey ? (_evLinks[linkedKey]||'') : '';
+    const firstLink=linkUrl?parseLinks(linkUrl)[0]:'';
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
       <div style="flex:1;min-width:180px">
-        <div style="font-size:.82em;font-weight:700">${_fsapNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}${FIFASEP_AT_OBLIG.includes(a.tipo)?` <span class="tag tag-oblig" style="font-size:8.5px">Obligatoria</span>`:''}</div>
+        <div style="font-size:.82em;font-weight:700">${_fsapNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}${FIFASEP_AT_OBLIG.includes(a.tipo)?` <span class="tag tag-oblig" style="font-size:8.5px">Obligatoria</span>`:''}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓ Hecho</span>`:''}</div>
         <div style="font-size:.7em;color:var(--muted)">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
       </div>
+      ${firstLink?`<a href="${firstLink}" target="_blank" rel="noopener" title="Ver link" style="font-size:13px;text-decoration:none">🔗</a>`:''}
       <button onclick="_fifaSepEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">✏️</button>
       <button onclick="_fifaSepRemoveAt(${a.id})" title="Eliminar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">🗑</button>
     </div>`;
@@ -10869,7 +10878,7 @@ function renderFifaSep26(tabId){
       `<div id="fifasep26-cal-timeline"></div>`;
     renderFifaSepCal();
   } else if(slug==='disponibilidad'){
-    con.innerHTML = _header('✅','Disponibilidad','Seguimiento de atenciones por jugador') +
+    con.innerHTML = _header('✅','Prensa','Seguimiento de atenciones por jugador') +
       `<div id="fifasep26-disp-body"></div>`;
     renderFifaSepDisponibilidad();
   } else if(slug==='pizarra'){
