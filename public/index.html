@@ -11000,6 +11000,11 @@ function renderFifaSep26(tabId){
       const tarjeta=(p)=>{
         const d=JUGADORES[p.nom];
         const pj=d?.total?.pj||0, g=d?.total?.g||0, min=d?.total?.min||0;
+        // Arqueros: importan los goles que le hicieron, casi nunca hacen uno
+        // propio — mismo criterio que ya usa la ficha de Jugadores (total.gc).
+        const isGK=p.pos==='POR';
+        const golesVal=isGK?(d?.total?.gc??null):g;
+        const golesLabel=isGK?'Goles enc.':'Goles';
         const edad=d?.fechaNac?_nacAge(d.fechaNac):null;
         const primeraConv = (FIFASEP26.primeraConvocatoria||[]).includes(p.nom);
         const enFinal = finales ? finales.includes(p.nom) : true;
@@ -11075,7 +11080,7 @@ function renderFifaSep26(tabId){
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats" style="grid-template-columns:repeat(3,1fr)">
                 <div class="p-stat"><div class="p-stat-n${pj===0?' zero':''}" title="${pj===0?'Sería su debut':''}">${pj}${pj===0?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">Partidos</div></div>
-                <div class="p-stat"><div class="p-stat-n goal${g===0?' zero':''}" title="${g===0?'Sería su primer gol':''}">${g}${g===0?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">Goles</div></div>
+                <div class="p-stat"><div class="p-stat-n goal${golesVal===0&&!isGK?' zero':''}" title="${golesVal===0&&!isGK?'Sería su primer gol':''}">${golesVal==null?'—':golesVal}${golesVal===0&&!isGK?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">${golesLabel}</div></div>
                 <div class="p-stat"><div class="p-stat-n${min===0?' zero':''}" title="${min===0?'Serían sus primeros minutos':''}">${min}${min===0?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">Minutos</div></div>
               </div>
               ${milestones.map(m=>`<div class="p-ms ${m.cls}">${m.txt}</div>`).join('')}
