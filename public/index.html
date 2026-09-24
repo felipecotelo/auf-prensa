@@ -27384,7 +27384,11 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       const cardEntries = tarjetas.map(t=>({type:'card',nom:t.nom,col:t.col,min:t.min}));
       const lesionEntries = lesiones.map(l=>({type:'lesion',nom:l.nom,min:l.min}));
       const subEntries = subs.map(s=>({type:'sub',nom:s.nom,min:s.min}));
-      const allEntries = [...goalEntries,...ecEntries,...cardEntries,...lesionEntries,...subEntries];
+      // Ordenadas por minuto (no por tipo de incidencia) — las que no tienen
+      // minuto cargado van al final, no se mezclan al principio.
+      const _incMin=e=>{ const n=parseInt(e.min); return isNaN(n)?Infinity:n; };
+      const allEntries = [...goalEntries,...ecEntries,...cardEntries,...lesionEntries,...subEntries]
+        .sort((a,b)=>_incMin(a)-_incMin(b));
 
       const incHtml = allEntries.length ? allEntries.map(e=>{
         if(e.type==='goal'){
