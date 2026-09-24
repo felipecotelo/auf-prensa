@@ -981,6 +981,7 @@ textarea{resize:vertical;min-height:52px}
 .p-stat-n.info{color:var(--muted)}
 .p-stat-n.zero{color:#D97706}
 .p-stat-zero-mark{font-size:.65em;vertical-align:super;margin-left:1px}
+.p-stat-delta{font-size:.55em;font-weight:800;color:#15803D;background:#DCFCE7;border:1px solid #86EFAC;border-radius:4px;padding:0 3px;margin-left:3px;vertical-align:middle;white-space:nowrap}
 .p-stat-l{font-size:7.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
 .p-ms{font-size:9.5px;line-height:1.4;padding:2px 6px;border-radius:0 5px 5px 0;margin:2px 0;border-left:2px solid}
 .p-ms.debut{background:var(--cel-lt);border-color:var(--cel);color:var(--cel-dk)}
@@ -10246,6 +10247,39 @@ const FIFASEP26 = {
   },
 };
 
+// Foto instantánea de las stats de carrera de cada reservado ANTES de que
+// arrancara esta Fecha FIFA (tomada el 25/09/2026, antes de cargar el
+// resultado vs. Japón) — sirve de base para mostrar "+N" en Convocados
+// cuando se actualiza JUGADORES con el dato oficial (partido/gol/minutos
+// ganados DURANTE esta gira, no en toda la carrera). No se toca más: si se
+// actualiza JUGADORES tras confirmar en auf.org.uy, la diferencia contra
+// esta base es justamente lo que se sumó en esta Fecha FIFA.
+const FIFASEP26_STATS_BASELINE = {
+  'Santiago Mele':{pj:8,g:0,min:675},'Cristopher Fiermarín':{pj:2,g:0,min:270},
+  'Ignacio de Arruabarrena':{pj:0,g:0,min:0},'Sebastián Jaume':{pj:0,g:0,min:0},
+  'Thiago Cardozo':{pj:0,g:0,min:0},'Kevin Amaro':{pj:3,g:0,min:107},
+  'José Luis Rodríguez':{pj:5,g:0,min:970},'Guillermo Varela':{pj:31,g:0,min:2041},
+  'Nahitan Nández':{pj:72,g:0,min:4755},'Santiago Mouriño':{pj:1,g:0,min:90},
+  'Nicolás Marichal':{pj:5,g:0,min:356},'Ronald Araujo':{pj:27,g:1,min:1947},
+  'Alexander Barboza':{pj:0,g:0,min:0},'José María Giménez':{pj:99,g:8,min:8245},
+  'Juan Martín Rodríguez':{pj:0,g:0,min:0},'Sebastián Boselli':{pj:0,g:0,min:0},
+  'Santiago Bueno':{pj:8,g:0,min:630},'Sebastián Cáceres':{pj:27,g:0,min:1780},
+  'Mathías Olivera':{pj:38,g:2,min:2928},'Joaquín Piquerez':{pj:19,g:0,min:1033},
+  'Lucas Olaza':{pj:6,g:0,min:438},'Marcelo Saracchi':{pj:11,g:0,min:526},
+  'Juan Manuel Sanabria':{pj:8,g:1,min:0},'Emiliano Martínez':{pj:10,g:0,min:466},
+  'Lucas Torreira':{pj:40,g:0,min:2067},'Rodrigo Bentancur':{pj:77,g:3,min:5332},
+  'Facundo Bernal':{pj:0,g:0,min:0},'Santiago Homenchenko':{pj:0,g:0,min:0},
+  'Federico Valverde':{pj:76,g:9,min:5927},'Agustín Canobbio':{pj:18,g:2,min:761},
+  'Matías Abaldo':{pj:0,g:0,min:0},'Facundo Pellistri':{pj:39,g:2,min:2543},
+  'Luciano Rodríguez Rosales':{pj:5,g:0,min:187},'Maximiliano Araújo':{pj:31,g:5,min:2275},
+  'Lucas Villalba':{pj:0,g:0,min:0},'Brian Rodríguez':{pj:36,g:4,min:1805},
+  'Rodrigo Zalazar':{pj:8,g:2,min:417},'Diego Rossi':{pj:7,g:1,min:786},
+  'Giorgian De Arrascaeta':{pj:60,g:13,min:3184},'Martín Satriano':{pj:1,g:0,min:30},
+  'Agustín Álvarez Martínez':{pj:0,g:0,min:0},'Rodrigo Aguirre':{pj:11,g:3,min:627},
+  'Federico Viñas':{pj:14,g:2,min:614},'Miguel Merentiel':{pj:1,g:0,min:45},
+  'Darwin Núñez':{pj:41,g:13,min:2552},'Álvaro Rodríguez':{pj:0,g:0,min:0},
+};
+
 // Calendario día a día de la gira (17/9 salida — 8/10 vuelta), mismo esqueleto que
 // CALENDAR_DAYS (Copa Mundial): un día por fila, con lo puramente factual ya cargado
 // (viajes/partidos conocidos) y `eventos:[]` vacío — el resto se arma desde la app con
@@ -11005,6 +11039,14 @@ function renderFifaSep26(tabId){
         const isGK=p.pos==='POR';
         const golesVal=isGK?(d?.total?.gc??null):g;
         const golesLabel=isGK?'Goles enc.':'Goles';
+        // "+N" al lado del número — lo ganado DURANTE esta Fecha FIFA (contra
+        // FIFASEP26_STATS_BASELINE), no toda la carrera. Solo aparece cuando
+        // JUGADORES ya se actualizó con el dato oficial post-partido. Para
+        // arqueros no hay delta de gc (nunca se trackeó una base para eso).
+        const _base=FIFASEP26_STATS_BASELINE[p.nom];
+        const deltaPj=_base?Math.max(0,pj-_base.pj):0;
+        const deltaG=(_base&&!isGK)?Math.max(0,g-_base.g):0;
+        const deltaMin=_base?Math.max(0,min-_base.min):0;
         const edad=d?.fechaNac?_nacAge(d.fechaNac):null;
         const primeraConv = (FIFASEP26.primeraConvocatoria||[]).includes(p.nom);
         const enFinal = finales ? finales.includes(p.nom) : true;
@@ -11079,9 +11121,9 @@ function renderFifaSep26(tabId){
               <div class="p-club">${p.clubPais||''} ${p.club}</div>
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats" style="grid-template-columns:repeat(3,1fr)">
-                <div class="p-stat"><div class="p-stat-n${pj===0?' zero':''}" title="${pj===0?'Sería su debut':''}">${pj}${pj===0?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">Partidos</div></div>
-                <div class="p-stat"><div class="p-stat-n goal${golesVal===0&&!isGK?' zero':''}" title="${golesVal===0&&!isGK?'Sería su primer gol':''}">${golesVal==null?'—':golesVal}${golesVal===0&&!isGK?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">${golesLabel}</div></div>
-                <div class="p-stat"><div class="p-stat-n${min===0?' zero':''}" title="${min===0?'Serían sus primeros minutos':''}">${min}${min===0?'<span class="p-stat-zero-mark">*</span>':''}</div><div class="p-stat-l">Minutos</div></div>
+                <div class="p-stat"><div class="p-stat-n${pj===0?' zero':''}" title="${pj===0?'Sería su debut':''}">${pj}${pj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaPj>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaPj}</span>`:''}</div><div class="p-stat-l">Partidos</div></div>
+                <div class="p-stat"><div class="p-stat-n goal${golesVal===0&&!isGK?' zero':''}" title="${golesVal===0&&!isGK?'Sería su primer gol':''}">${golesVal==null?'—':golesVal}${golesVal===0&&!isGK?'<span class="p-stat-zero-mark">*</span>':''}${deltaG>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaG}</span>`:''}</div><div class="p-stat-l">${golesLabel}</div></div>
+                <div class="p-stat"><div class="p-stat-n${min===0?' zero':''}" title="${min===0?'Serían sus primeros minutos':''}">${min}${min===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaMin>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaMin}</span>`:''}</div><div class="p-stat-l">Minutos</div></div>
               </div>
               ${milestones.map(m=>`<div class="p-ms ${m.cls}">${m.txt}</div>`).join('')}
               ${partGridHtml}
