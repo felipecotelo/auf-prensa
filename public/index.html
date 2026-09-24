@@ -10280,6 +10280,47 @@ const FIFASEP26_STATS_BASELINE = {
   'Darwin Núñez':{pj:41,g:13,min:2552},'Álvaro Rodríguez':{pj:0,g:0,min:0},
 };
 
+// Botón "Confirmar resultado" en la Pizarra de la Fecha FIFA — toma lo
+// cargado ahí (titulares + entraron, goles) y lo suma de inmediato a
+// Convocados como +1 partido / +N goles, sin esperar el chequeo oficial de
+// 48h (auf.org.uy) que solo corrige/confirma después. Guardado por rival
+// (cada uno de los 3 partidos es único) — re-confirmar recalcula desde cero
+// con lo que haya en la pizarra en ese momento, no se acumula ni duplica.
+const KFifaSepStatsDelta='auf4_fifasep_stats_delta';
+function getFifaSepStatsDelta(){ return stor.get(KFifaSepStatsDelta,{}); }
+function _fifaSepConfirmBtnHtml(cat,year,m){
+  const delta=getFifaSepStatsDelta();
+  const confirmed=!!delta[m.rival];
+  const n=confirmed?Object.keys(delta[m.rival]).length:0;
+  return `<button onclick="_fifaSepConfirmStats('${cat}','${year}',${m.id})" style="width:100%;padding:9px;background:${confirmed?'#DCFCE7':'var(--cel)'};color:${confirmed?'#15803D':'#fff'};border:${confirmed?'1.5px solid #86EFAC':'none'};border-radius:10px;font-size:.82em;font-weight:800;cursor:pointer;margin-bottom:12px">
+    ${confirmed?`✅ Confirmado — ${n} jugadores +1 partido (tocar para recalcular)`:'✓ Confirmar resultado — aplicar a estadísticas'}
+  </button>`;
+}
+window._fifaSepConfirmStats=function(cat,year,matchId){
+  const list=_getAmistosos(cat,year);
+  const m=list?.find(x=>x.id===matchId);
+  if(!m) return;
+  const starters=Object.values(m.lineup?.starters||{}).filter(Boolean);
+  const subNoms=(m.subs||[]).map(s=>s.nom);
+  const jugaron=[...new Set([...starters,...subNoms])];
+  if(!jugaron.length){ toast('⚠️ Cargá titulares o suplentes antes de confirmar'); return; }
+  const golMinsArr=m.golMins||[];
+  const goleadores={};
+  if(golMinsArr.length){
+    golMinsArr.forEach(g=>{ if(g.nom!=='__EC__') goleadores[g.nom]=(goleadores[g.nom]||0)+1; });
+  } else {
+    Object.entries(m.goles||{}).forEach(([nom,cant])=>{ if(nom!=='__EC__'&&cant>0) goleadores[nom]=cant; });
+  }
+  const matchDelta={};
+  jugaron.forEach(nom=>{ matchDelta[nom]={pj:1,g:goleadores[nom]||0}; });
+  const store=getFifaSepStatsDelta();
+  store[m.rival]=matchDelta;
+  stor.set(KFifaSepStatsDelta,store);
+  toast(`✅ Confirmado — ${jugaron.length} jugadores +1 partido`);
+  window.renderFifaSep26?.('fifasep26-pizarra');
+  window.renderFifaSep26Plantel?.();
+};
+
 // Calendario día a día de la gira (17/9 salida — 8/10 vuelta), mismo esqueleto que
 // CALENDAR_DAYS (Copa Mundial): un día por fila, con lo puramente factual ya cargado
 // (viajes/partidos conocidos) y `eventos:[]` vacío — el resto se arma desde la app con
@@ -11039,13 +11080,20 @@ function renderFifaSep26(tabId){
         const isGK=p.pos==='POR';
         const golesVal=isGK?(d?.total?.gc??null):g;
         const golesLabel=isGK?'Goles enc.':'Goles';
-        // "+N" al lado del número — lo ganado DURANTE esta Fecha FIFA (contra
-        // FIFASEP26_STATS_BASELINE), no toda la carrera. Solo aparece cuando
-        // JUGADORES ya se actualizó con el dato oficial post-partido. Para
-        // arqueros no hay delta de gc (nunca se trackeó una base para eso).
+        // "+N" al lado del número — lo ganado DURANTE esta Fecha FIFA.
+        // Partidos/goles: suma de lo confirmado con el botón "Confirmar
+        // resultado" de la Pizarra (auf4_fifasep_stats_delta), inmediato, sin
+        // esperar el chequeo oficial de 48h. Minutos: no hay forma confiable
+        // de calcularlos desde la pizarra (no se trackea quién salió, solo
+        // quién entró) — ese sigue viniendo de FIFASEP26_STATS_BASELINE, para
+        // cuando se actualice JUGADORES a mano con el dato oficial.
+        // OJO: si en algún momento se actualiza JUGADORES en código con el
+        // resultado ya confirmado por AUF, hay que borrar la entrada
+        // correspondiente de auf4_fifasep_stats_delta para no duplicar el +N.
+        const _fsDelta=getFifaSepStatsDelta();
+        let deltaPj=0, deltaG=0;
+        Object.values(_fsDelta).forEach(md=>{ const pd=md[p.nom]; if(pd){ deltaPj+=pd.pj||0; if(!isGK) deltaG+=pd.g||0; } });
         const _base=FIFASEP26_STATS_BASELINE[p.nom];
-        const deltaPj=_base?Math.max(0,pj-_base.pj):0;
-        const deltaG=(_base&&!isGK)?Math.max(0,g-_base.g):0;
         const deltaMin=_base?Math.max(0,min-_base.min):0;
         const edad=d?.fechaNac?_nacAge(d.fechaNac):null;
         const primeraConv = (FIFASEP26.primeraConvocatoria||[]).includes(p.nom);
@@ -27601,6 +27649,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
           </div>
           <div style="font-size:1.3em;font-weight:900;color:${resColor};flex-shrink:0">${resLabel}</div>
         </div>
+        ${filterCompId==='fifasep26'?_fifaSepConfirmBtnHtml(cat,year,m):''}
         ${legTabs}
         <div class="piz-3col">
           <div class="piz-col-left">${leftCol}</div>
