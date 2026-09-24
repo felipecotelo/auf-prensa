@@ -10297,7 +10297,11 @@ function _fifaSepConfirmBtnHtml(cat,year,m){
   </button>`;
 }
 window._fifaSepConfirmStats=function(cat,year,matchId){
-  const list=_getAmistosos(cat,year);
+  // _getAmistosos/_amistKey viven en el closure de _buildJuvAmistosos y no
+  // son accesibles desde acá (función global aparte) — se lee localStorage
+  // directo con el mismo formato de key que usan ellas por dentro.
+  let list=[];
+  try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_'+cat+'_'+year)||'[]'); }catch(_){}
   const m=list?.find(x=>x.id===matchId);
   if(!m) return;
   const starters=Object.values(m.lineup?.starters||{}).filter(Boolean);
