@@ -10320,6 +10320,17 @@ window._fifaSepConfirmStats=function(cat,year,matchId){
   const store=getFifaSepStatsDelta();
   store[m.rival]=matchDelta;
   stor.set(KFifaSepStatsDelta,store);
+  // Reglas: titular = arrancó jugando, entró = ingresó, no entró = estuvo en
+  // el banco pero no jugó (default para el resto de los 26 — no hay forma de
+  // saber desde la pizarra quién ni siquiera fue al banco, "no participó" se
+  // marca a mano después si corresponde).
+  const partStore=stor.get('auf4_fifasep_part',{});
+  (FIFASEP26.finales||[]).forEach(nom=>{
+    const val=starters.includes(nom)?'titular':subNoms.includes(nom)?'entró':'no entró';
+    if(!partStore[nom]) partStore[nom]={};
+    partStore[nom][m.rival]=val;
+  });
+  stor.set('auf4_fifasep_part',partStore);
   toast(`✅ Confirmado — ${jugaron.length} jugadores +1 partido`);
   window.renderFifaSep26?.('fifasep26-pizarra');
   window.renderFifaSep26Plantel?.();
@@ -11022,9 +11033,15 @@ function renderFifaSep26(tabId){
       const initialsOf=nom=>{const w=nom.split(' ').filter(Boolean);return((w[0]?.[0]||'')+(w[w.length-1]?.[0]||'')).toUpperCase();};
       // Hitos "dato interesante" — solo para los ya confirmados en la convocatoria
       // final. Se computan una sola vez acá afuera (no por tarjeta) para no
-      // recorrer todo JUGADORES 26 veces.
-      const _allPjSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,pj:dd.total?.pj||0})).filter(e=>e.pj>0).sort((a,b)=>b.pj-a.pj);
-      const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:dd.total?.g||0})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
+      // recorrer todo JUGADORES 26 veces. Usa el total EFECTIVO (JUGADORES +
+      // lo confirmado en esta Fecha FIFA vía auf4_fifasep_stats_delta) — si
+      // no, un jugador que ya llegó a un número gracias a esta gira seguía
+      // apareciendo "a 1 de" algo que ya alcanzó.
+      const _fsDeltaAll=getFifaSepStatsDelta();
+      const _fsDeltaPjOf=nom=>{ let d=0; Object.values(_fsDeltaAll).forEach(md=>{ if(md[nom]) d+=md[nom].pj||0; }); return d; };
+      const _fsDeltaGOf=nom=>{ let d=0; Object.values(_fsDeltaAll).forEach(md=>{ if(md[nom]) d+=md[nom].g||0; }); return d; };
+      const _allPjSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,pj:(dd.total?.pj||0)+_fsDeltaPjOf(n)})).filter(e=>e.pj>0).sort((a,b)=>b.pj-a.pj);
+      const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:(dd.total?.g||0)+_fsDeltaGOf(n)})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
       // Todos los múltiplos de 10 — los de 50 en adelante llevan estilo dorado
       // (ahí se entrega la camiseta homenaje) pero la misma ventana de aviso que
       // el resto: a 8 partidos "no tiene sentido, falta una vida" (feedback del
@@ -11107,7 +11124,11 @@ function renderFifaSep26(tabId){
         // jugadores con 0 PJ ya convocados antes). Solo se muestra si NO es ya
         // primeraConv, para no duplicar el mismo aviso con otro texto.
         const debutaria = enFinal && pj===0 && !primeraConv;
-        const milestones = enFinal ? _fifaMilestoneNote(p.nom,pj,g) : [];
+        // Si ya se confirmó el partido (deltaPj>0) el debut dejó de ser
+        // hipotético — pasa a tiempo pasado, y el "0" de Partidos deja de
+        // marcarse como "sería su debut" (ya lo fue).
+        const yaDebuto = debutaria && deltaPj>0;
+        const milestones = enFinal ? _fifaMilestoneNote(p.nom,pj+deltaPj,g+deltaG) : [];
         const photoSrc = window._getPhotoByName?.(p.nom) || d?.foto || '';
         const safe=p.nom.replace(/'/g,"\\'");
         const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');
@@ -11168,14 +11189,14 @@ function renderFifaSep26(tabId){
             <div class="p-tab-pane active" id="ptab-stats-${cid}">
               ${primeraConv||debutaria?`<div style="margin-bottom:4px">
                 ${primeraConv?`<span style="font-size:8.5px;font-weight:800;background:#FCE7F3;color:#BE185D;padding:1px 5px;border-radius:5px;border:1px solid #EC4899">🆕 ${finales&&enFinal?'ES SU 1RA CONVOCATORIA':'SERÍA SU 1RA CONVOCATORIA'}</span>`:''}
-                ${debutaria?`<span style="font-size:8.5px;font-weight:800;background:#F5F3FF;color:#6D28D9;padding:1px 5px;border-radius:5px;border:1px solid #A78BFA;margin-left:${primeraConv?'4px':'0'}">⭐ DEBUTARÍA</span>`:''}
+                ${debutaria?`<span style="font-size:8.5px;font-weight:800;background:${yaDebuto?'#F0FDF4':'#F5F3FF'};color:${yaDebuto?'#15803D':'#6D28D9'};padding:1px 5px;border-radius:5px;border:1px solid ${yaDebuto?'#86EFAC':'#A78BFA'};margin-left:${primeraConv?'4px':'0'}">⭐ ${yaDebuto?'DEBUTÓ':'DEBUTARÍA'}</span>`:''}
               </div>`:''}
               <div class="p-club">${p.clubPais||''} ${p.club}</div>
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?' · '+edad+' años':''}</div>
               <div class="p-stats" style="grid-template-columns:repeat(3,1fr)">
-                <div class="p-stat"><div class="p-stat-n${pj===0?' zero':''}" title="${pj===0?'Sería su debut':''}">${pj}${pj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaPj>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaPj}</span>`:''}</div><div class="p-stat-l">Partidos</div></div>
-                <div class="p-stat"><div class="p-stat-n goal${golesVal===0&&!isGK?' zero':''}" title="${golesVal===0&&!isGK?'Sería su primer gol':''}">${golesVal==null?'—':golesVal}${golesVal===0&&!isGK?'<span class="p-stat-zero-mark">*</span>':''}${deltaG>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaG}</span>`:''}</div><div class="p-stat-l">${golesLabel}</div></div>
-                <div class="p-stat"><div class="p-stat-n${min===0?' zero':''}" title="${min===0?'Serían sus primeros minutos':''}">${min}${min===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaMin>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaMin}</span>`:''}</div><div class="p-stat-l">Minutos</div></div>
+                <div class="p-stat"><div class="p-stat-n${pj===0&&deltaPj===0?' zero':''}" title="${pj===0&&deltaPj===0?'Sería su debut':''}">${pj}${pj===0&&deltaPj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaPj>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaPj}</span>`:''}</div><div class="p-stat-l">Partidos</div></div>
+                <div class="p-stat"><div class="p-stat-n goal${golesVal===0&&!isGK&&deltaG===0?' zero':''}" title="${golesVal===0&&!isGK&&deltaG===0?'Sería su primer gol':''}">${golesVal==null?'—':golesVal}${golesVal===0&&!isGK&&deltaG===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaG>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaG}</span>`:''}</div><div class="p-stat-l">${golesLabel}</div></div>
+                <div class="p-stat"><div class="p-stat-n${min===0&&deltaPj===0?' zero':''}" title="${min===0&&deltaPj===0?'Serían sus primeros minutos':''}">${min}${min===0&&deltaPj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaMin>0?`<span class="p-stat-delta" title="Ganado en esta Fecha FIFA">+${deltaMin}</span>`:''}</div><div class="p-stat-l">Minutos</div></div>
               </div>
               ${milestones.map(m=>`<div class="p-ms ${m.cls}">${m.txt}</div>`).join('')}
               ${partGridHtml}
