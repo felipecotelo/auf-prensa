@@ -10514,11 +10514,44 @@ function _fsapFindLinkedAct(atencionId){
   }
   return null;
 }
-// Atención → Calendario: se regenera el acto vinculado entero (más simple y
-// robusto que actualizar en el lugar, y acá no importa perder la posición
-// manual porque este calendario siempre se muestra ordenado por hora).
+// Atención → Calendario: si el día no cambió, actualiza EN EL LUGAR (no
+// borra/recrea) — el resto del sistema (KEvTxt/KEvS/KEvLink/KCalT) guarda
+// overrides por POSICIÓN (evKey = date_idx), así que borrar y volver a
+// insertar reordena TODOS los demás actos de ese día y les pisa el estado.
+// Con muchos actos cargados (como en un día real de esta gira) eso disparaba
+// el cartel de conflicto cada vez que se guardaba una atención, aunque fuera
+// solo para cambiarle el link. Solo se borra/recrea cuando el día SÍ cambió
+// (ahí no queda otra, no hay "mover de índice entre arrays distintos").
 function _fsapSyncCalFromAtencion(entry){
   const found=_fsapFindLinkedAct(entry.id);
+  const tipoLabel=(FIFASEP_DISP_TIPOS.find(t=>t.id===entry.tipo)||{}).label||'';
+  const calType=FIFASEP_AT_CAL_TYPE[entry.tipo]||'auf';
+  const isOblig=FIFASEP_AT_OBLIG.includes(entry.tipo);
+
+  if(found && found.date===entry.fecha){
+    const acts=getDayActs();
+    const e=acts[found.date][found.idx];
+    e.txt=entry.txt||tipoLabel;
+    e.h=entry.hora;
+    e.personas=[entry.quien];
+    delete e.auf;
+    if(calType!=='team') e.auf=true;
+    if(isOblig) e.oblig=true; else delete e.oblig;
+    if(entry.origH){ e.origH=entry.origH; e.origTz=entry.origTz; } else { delete e.origH; delete e.origTz; }
+    stor.set(KDayActs,acts);
+    // Si el texto/hora tenían un override puesto a mano desde el Calendario
+    // (editEvTxt/_fsapEditTime), ese override gana en el render por encima
+    // de e.txt/e.h — hay que limpiarlo para que el valor recién guardado acá
+    // se vea (si el usuario lo vuelve a editar desde el Calendario, se
+    // regenera solo, no hace falta tocar nada más).
+    const k=evKey(found.date,found.idx);
+    const evTxtMap=getEvTxts();
+    if(evTxtMap[k]!==undefined){ delete evTxtMap[k]; stor.set(KEvTxt,evTxtMap,{allowShrink:true}); }
+    const calTMap=stor.get(KCalT,{});
+    if(calTMap[found.date] && calTMap[found.date][found.idx]!==undefined){ delete calTMap[found.date][found.idx]; stor.set(KCalT,calTMap,{allowShrink:true}); }
+    return;
+  }
+
   if(found){
     const acts=getDayActs();
     acts[found.date].splice(found.idx,1);
@@ -10528,14 +10561,9 @@ function _fsapSyncCalFromAtencion(entry){
   if(!entry.fecha || !FIFASEP26_CAL_DAYS.some(d=>d.date===entry.fecha)) return;
   const acts2=getDayActs();
   if(!acts2[entry.fecha]) acts2[entry.fecha]=[];
-  const tipoLabel=(FIFASEP_DISP_TIPOS.find(t=>t.id===entry.tipo)||{}).label||'';
-  const calType=FIFASEP_AT_CAL_TYPE[entry.tipo]||'auf';
   const newEv={txt:entry.txt||tipoLabel, h:entry.hora, personas:[entry.quien], atencionId:entry.id};
-  if(calType==='team'){ /* default: sin tipo/auf → cae en 'team' (Cronograma) */ }
-  else newEv.auf=true;
-  // Conferencias MD-1/MD: compromiso contractual/obligatorio, no una nota de
-  // prensa suelta — mismo badge rojo "Obligatoria" que ya usa el Mundial.
-  if(FIFASEP_AT_OBLIG.includes(entry.tipo)) newEv.oblig=true;
+  if(calType!=='team') newEv.auf=true;
+  if(isOblig) newEv.oblig=true;
   if(entry.origH){ newEv.origH=entry.origH; newEv.origTz=entry.origTz; }
   acts2[entry.fecha].push(newEv);
   stor.set(KDayActs,acts2);
