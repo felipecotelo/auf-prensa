@@ -5349,6 +5349,12 @@ function renderInicioHoySeleccion(dayOffset){
         if(!k || !k.startsWith('auf4_amist_juv_')) continue;
         const catYear=k.slice('auf4_amist_juv_'.length);
         const cat=(catYear.match(/^([a-z0-9]+)_/)||[])[1]||'';
+        // La pizarra de la Mayor (Fecha FIFA) usa este mismo motor/storage con
+        // cat='fifamayor' — sin este salto salía duplicado: una vez acá (mal
+        // etiquetado "fifamayor", sin la fuente real de FIFASEP26) y otra vez
+        // abajo, leyendo FIFASEP26.partidosData (la fuente correcta, con
+        // bandera y "(UY)"). Este loop es solo para categorías de Juveniles.
+        if(cat==='fifamayor') continue;
         let list=[];
         try{ list=JSON.parse(localStorage.getItem(k)||'[]'); }catch(_){}
         list.forEach(m=>{
@@ -10582,8 +10588,19 @@ window._fifaSepAddAt=function(){
   }
   stor.set(KFifaSepAt,list);
   _fsapSyncCalFromAtencion(entry);
+  // El link vive en el evento del Calendario (KEvLink, por evKey) — es el
+  // mismo evento, no un campo propio de la atención.
+  const linkVal=(document.getElementById('fsap-at-link')?.value||'').trim();
+  const linkedAct=_fsapFindLinkedAct(entry.id);
+  if(linkedAct){
+    const links=getEvLinks();
+    const k=evKey(linkedAct.date,linkedAct.idx);
+    if(linkVal) links[k]=linkVal; else delete links[k];
+    stor.set(KEvLink,links,{allowShrink:true});
+  }
   const txtEl=document.getElementById('fsap-at-txt'); if(txtEl) txtEl.value='';
   const hEl=document.getElementById('fsap-at-hora'); if(hEl) hEl.value='';
+  const linkEl=document.getElementById('fsap-at-link'); if(linkEl) linkEl.value='';
   _fifaSepAtTz='UY';
   _fifaSepAtEditingId=null;
   renderFifaSepDisponibilidad();
@@ -10601,6 +10618,8 @@ window._fifaSepEditAt=function(id){
   document.getElementById('fsap-at-txt').value=a.txt||'';
   document.getElementById('fsap-at-fecha').value=a.fecha||'';
   document.getElementById('fsap-at-hora').value=a.origH||a.hora||'';
+  const linkedAct=_fsapFindLinkedAct(id);
+  document.getElementById('fsap-at-link').value=linkedAct ? (getEvLinks()[evKey(linkedAct.date,linkedAct.idx)]||'') : '';
   _fifaSepAtTz=a.origTz||'UY';
   document.querySelectorAll('#fsap-at-body .aap-tz-chip').forEach(b=>b.classList.toggle('active',b.dataset.tz===_fifaSepAtTz));
   window._fifaSepAtUpdateTzPreview();
@@ -10679,6 +10698,7 @@ function renderFifaSepDisponibilidad(){
           <select id="fsap-at-quien" style="flex:1;min-width:160px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">${quienOptions}</select>
         </div>
         <input id="fsap-at-txt" type="text" placeholder="Detalle (ej: habla para AUFtv por Zoom)" style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
+        <input id="fsap-at-link" type="text" placeholder="Link (opcional) — nota, video, etc." style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <input id="fsap-at-fecha" type="date" style="padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">
           <input id="fsap-at-hora" type="text" placeholder="hora — ej: 11:00" style="width:110px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none" oninput="_fifaSepAtUpdateTzPreview()">
