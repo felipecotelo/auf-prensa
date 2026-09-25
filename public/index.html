@@ -27491,6 +27491,16 @@ function _seedPioneerosAlbion(){
 function _matchTorneoPool(m){
   if(!m) return null;
   if(m.torneo==='Pioneros de Albion' && typeof PIONEROS_ALBION_2026!=='undefined') return PIONEROS_ALBION_2026.convocados;
+  // Gira a España oct 2026 (Suecia/Bélgica/Polonia) — no es un torneo con
+  // convocatoria propia aparte como Pioneros de Albion, son amistosos dentro
+  // de la MISMA gira cuyos viajeros ya están cargados como convocatoria del
+  // ciclo ("Viajeros a España · ..."). Se busca por prefijo de fecha, no por
+  // posición fija en el array, para no romperse si se agregan microciclos
+  // nuevos adelante.
+  if(m.torneo==='Viaje a España · oct 2026' && typeof JUVENILES!=='undefined'){
+    const conv=(JUVENILES.sub17?.anos?.['2025-2026']?.convocatorias||[]).find(c=>(c.fecha||'').startsWith('Viajeros a España'));
+    if(conv) return conv.jugadores;
+  }
   return null;
 }
 // Pool de jugadores para "Amistosos prep." de una competencia (comp): primero la
@@ -28001,7 +28011,10 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       let torneoHdr='';
       if(m.torneo && !seenTorneos.has(m.torneo)){
         seenTorneos.add(m.torneo);
-        torneoHdr = `<div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">🏆 Torneo ${m.torneo}</div>`;
+        // Sin "Torneo" fijo adelante — no todos son torneos competitivos (ej.
+        // "Viaje a España" es una gira de amistosos, no un torneo con fixture
+        // propio); si el nombre lo es, ya lo dice (ej. "Pioneros de Albion").
+        torneoHdr = `<div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">🏆 ${m.torneo}</div>`;
       }
       const gl=m.gLocal, gr=m.gRival;
       const hasRes = gl!=null && gr!=null;
