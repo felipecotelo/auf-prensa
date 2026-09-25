@@ -12115,7 +12115,10 @@ const PERIPLO_MATCHES=[
   // Copa Mundial 2026
   {yr:2026,fase:'Copa Mundial 2026',tipo:'WC',rival:'Arabia Saudita',res:'1-1',loc:'N',est:'Hard Rock Stadium',ciudad:'Miami Gardens',pais:'Estados Unidos',fui:true,live:true,matchId:'m2'},
   {yr:2026,fase:'Copa Mundial 2026',tipo:'WC',rival:'Cabo Verde',res:'2-2',loc:'N',est:'Hard Rock Stadium',ciudad:'Miami Gardens',pais:'Estados Unidos',fui:true,live:true,matchId:'m4'},
-  {yr:2026,fase:'Copa Mundial 2026',tipo:'WC',rival:'España',res:null,loc:'N',est:'Estadio Akron',ciudad:'Guadalajara',pais:'México',fui:true,live:true,matchId:'m6'},
+  // res fijo en 0-1 (ya confirmado en el resto de la app — AUF_HIST_UPDATED,
+  // banner de eliminación) porque el sync en vivo de ESPN (matchId:'m6') no
+  // lo trajo solo; si algún día sí lo trae, liveScores lo pisa igual.
+  {yr:2026,fase:'Copa Mundial 2026',tipo:'WC',rival:'España',res:'0-1',loc:'N',est:'Estadio Akron',ciudad:'Guadalajara',pais:'México',fui:true,live:true,matchId:'m6'},
 ];
 
 const PERIPLO_PAISES=[
@@ -12224,6 +12227,24 @@ function renderPeriplo(view){
 
   const byYear={};
   PERIPLO_MATCHES.forEach(m=>{if(!byYear[m.yr])byYear[m.yr]=[];byYear[m.yr].push(m);});
+  // Fecha FIFA sep-oct 2026 — NO se cargan a mano acá (eso volvería a
+  // desincronizarse cada vez que se actualice el resultado en la Pizarra).
+  // Se derivan en vivo de FIFASEP26.partidosData + lo que ya esté cargado en
+  // el motor de amistosos (auf4_amist_juv_fifamayor_sepoct26) — la MISMA
+  // fuente que usa la Pizarra y el botón "Confirmar resultado". Apenas se
+  // carga el resultado ahí, se ve acá solo, sin tocar este archivo.
+  if(typeof FIFASEP26!=='undefined' && FIFASEP26.partidosData){
+    let fsList=[];
+    try{ fsList=JSON.parse(localStorage.getItem('auf4_amist_juv_fifamayor_sepoct26')||'[]'); }catch(_){}
+    const FSAP_CIUDAD={'Japón':'Sendai','Corea del Sur':'Seúl','India':'Calcuta'};
+    const fsRows=FIFASEP26.partidosData.map(p=>{
+      const m=fsList.find(x=>x.rival===p.rival);
+      const res=(m && m.gLocal!=null && m.gRival!=null) ? `${m.gLocal}-${m.gRival}` : null;
+      return {yr:2026, fase:'Fecha FIFA sep-oct 2026', tipo:'AM', rival:p.rival, res, loc:'V', est:p.sede, ciudad:FSAP_CIUDAD[p.rival]||p.rival, pais:p.rival, fui:true};
+    });
+    if(!byYear[2026]) byYear[2026]=[];
+    byYear[2026].push(...fsRows);
+  }
 
   function buildPartidosHtml(){
     let h='';
