@@ -27336,6 +27336,52 @@ window._amistSaveResult = function(cat, year, id, leg){
     lbl.style.color = !ok?'transparent':gl>gr?'#86efac':gl===gr?'#fde68a':'#fca5a5';
   }
 };
+// Definición por alargue/penales — solo tiene sentido preguntarla cuando el
+// resultado reglamentario quedó empatado. "Hubo alargue" es solo una nota
+// (si alguien ganó en el alargue, se actualiza el marcador de arriba
+// directo, como en cualquier partido); si sigue empatado ahí es que hay
+// penales, con marcador propio y quién pateó/si convirtió, sin pisar el
+// resultado reglamentario (que queda como quedó, ej. "0-0 (2-4 pen)").
+window._amistSetAlargue = function(cat, year, id, leg, val){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat, year, id, m=>{
+    m['alargue'+sfx]=val;
+    if(!val){ delete m['penales'+sfx]; delete m['penGLocal'+sfx]; delete m['penGRival'+sfx]; m['penTakers'+sfx]=[]; }
+  });
+};
+window._amistSetPenales = function(cat, year, id, leg, val){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat, year, id, m=>{
+    m['penales'+sfx]=val;
+    if(!val){ delete m['penGLocal'+sfx]; delete m['penGRival'+sfx]; m['penTakers'+sfx]=[]; }
+  });
+};
+window._amistSavePenScore = function(cat, year, id, leg){
+  const sfx = leg===2?'2':'';
+  const pl = parseInt(document.getElementById('amist-pen-gl'+sfx+'-'+id)?.value);
+  const pr = parseInt(document.getElementById('amist-pen-gr'+sfx+'-'+id)?.value);
+  _amistPatch(cat, year, id, m=>{
+    m['penGLocal'+sfx]=isNaN(pl)?null:pl;
+    m['penGRival'+sfx]=isNaN(pr)?null:pr;
+  });
+};
+window._amistAddPenTaker = function(cat, year, id, leg){
+  const sfx = leg===2?'2':'';
+  const nom=(document.getElementById('amist-pen-nom'+sfx+'-'+id)?.value||'').trim();
+  if(!nom) return;
+  _amistPatch(cat, year, id, m=>{
+    if(!m['penTakers'+sfx]) m['penTakers'+sfx]=[];
+    m['penTakers'+sfx].push({nom, scored:true});
+  });
+};
+window._amistTogglePenScored = function(cat, year, id, leg, idx){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat, year, id, m=>{ const t=(m['penTakers'+sfx]||[])[idx]; if(t) t.scored=!t.scored; });
+};
+window._amistRemovePenTaker = function(cat, year, id, leg, idx){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat, year, id, m=>{ (m['penTakers'+sfx]||[]).splice(idx,1); });
+};
 // Save DT
 window._amistSaveDT = function(cat, year, id, leg){
   const sfx = leg===2?'2':'';
@@ -27523,8 +27569,15 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       const sfx = leg===2?'2':'';
       const gl = m['gLocal'+sfx], gr = m['gRival'+sfx];
       const hasResult = gl!==null && gr!==null;
-      const resLabel = hasResult ? `${gl}–${gr}` : '–';
-      const resColor = hasResult ? (gl>gr?'#16a34a':gl===gr?'#d97706':'#dc2626') : 'var(--muted)';
+      const alargueVal = m['alargue'+sfx];
+      const penalesVal = m['penales'+sfx];
+      const penGl = m['penGLocal'+sfx], penGr = m['penGRival'+sfx];
+      const penTakers = m['penTakers'+sfx]||[];
+      // Los penales definen VICTORIA/DERROTA (nunca EMPATE) pero NO pisan el
+      // resultado reglamentario — se muestra aparte, "0–0 (2–4 pen)".
+      const penDecides = hasResult && gl===gr && penalesVal && penGl!=null && penGr!=null;
+      const resLabel = hasResult ? (penDecides ? `${gl}–${gr} (${penGl}–${penGr} pen)` : `${gl}–${gr}`) : '–';
+      const resColor = hasResult ? (penDecides ? (penGl>penGr?'#16a34a':'#dc2626') : (gl>gr?'#16a34a':gl===gr?'#d97706':'#dc2626')) : 'var(--muted)';
       const fechaSrc = leg===2 ? (m.fechaVuelta||m.fecha) : m.fecha;
       const horaSrc  = leg===2 ? (m.horaVuelta ||m.hora ) : m.hora;
       const lugarSrc = leg===2 ? (m.lugarVuelta||m.lugar) : m.lugar;
@@ -27644,7 +27697,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
                 ${flagImg('uy',36)}
                 <div class="piz-card-tname uru">URU</div>
               </div>
-              <div class="piz-card-vs">${hasResult ? `${gl}–${gr}` : 'VS'}</div>
+              <div class="piz-card-vs">${hasResult ? `${gl}–${gr}${penDecides?` <span style="font-size:.6em;opacity:.7">(${penGl}–${penGr} pen)</span>`:''}` : 'VS'}</div>
               <div class="piz-card-team">
                 ${flagImg(rivalCode,36)}
                 <div class="piz-card-tname">${m.rival.slice(0,12)}</div>
@@ -27652,8 +27705,8 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             </div>
             ${hasResult?`<div style="text-align:center;margin:6px 0 2px">
               <span style="font-size:9px;font-weight:900;padding:3px 12px;border-radius:20px;letter-spacing:.1em;
-                background:${gl>gr?'rgba(34,197,94,.18)':gl===gr?'rgba(245,158,11,.18)':'rgba(220,38,38,.18)'};
-                color:${gl>gr?'#86efac':gl===gr?'#fde68a':'#fca5a5'}">${gl>gr?'VICTORIA':gl===gr?'EMPATE':'DERROTA'}</span>
+                background:${(penDecides?penGl>penGr:gl>gr)?'rgba(34,197,94,.18)':(!penDecides&&gl===gr)?'rgba(245,158,11,.18)':'rgba(220,38,38,.18)'};
+                color:${(penDecides?penGl>penGr:gl>gr)?'#86efac':(!penDecides&&gl===gr)?'#fde68a':'#fca5a5'}">${penDecides?(penGl>penGr?'VICTORIA':'DERROTA'):(gl>gr?'VICTORIA':gl===gr?'EMPATE':'DERROTA')}</span>
             </div>`:''}
             <div class="piz-card-sep" style="margin-top:8px"></div>
             <div class="piz-card-meta">
@@ -27670,6 +27723,42 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
                 onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" onclick="this.select()"
                 style="flex:1;padding:8px 4px;font-size:1.3em;font-weight:900;text-align:center;color:#fff;background:rgba(255,255,255,.09);border:1.5px solid rgba(255,255,255,.2);border-radius:9px;outline:none">
             </div>
+            ${hasResult&&gl===gr?`
+            <div style="margin-top:10px;padding:10px;background:rgba(255,255,255,.06);border-radius:10px">
+              <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Empate — ¿definición?</div>
+              <div style="display:flex;gap:6px;align-items:center;${alargueVal!=null?'margin-bottom:8px':''}">
+                <span style="font-size:.78em;color:rgba(255,255,255,.75);flex:1">¿Hubo alargue?</span>
+                <button onclick="_amistSetAlargue('${cat}','${year}',${m.id},${leg},true)" style="padding:4px 10px;border-radius:6px;font-size:.75em;font-weight:800;cursor:pointer;border:1.5px solid ${alargueVal===true?'#16A34A':'rgba(255,255,255,.25)'};background:${alargueVal===true?'#16A34A':'transparent'};color:#fff">Sí</button>
+                <button onclick="_amistSetAlargue('${cat}','${year}',${m.id},${leg},false)" style="padding:4px 10px;border-radius:6px;font-size:.75em;font-weight:800;cursor:pointer;border:1.5px solid ${alargueVal===false?'#DC2626':'rgba(255,255,255,.25)'};background:${alargueVal===false?'#DC2626':'transparent'};color:#fff">No</button>
+              </div>
+              ${alargueVal!=null?`
+              <div style="display:flex;gap:6px;align-items:center;${penalesVal!=null?'margin-bottom:8px':''}">
+                <span style="font-size:.78em;color:rgba(255,255,255,.75);flex:1">${alargueVal?'¿Siguió empatado y hubo penales?':'¿Hubo penales?'}</span>
+                <button onclick="_amistSetPenales('${cat}','${year}',${m.id},${leg},true)" style="padding:4px 10px;border-radius:6px;font-size:.75em;font-weight:800;cursor:pointer;border:1.5px solid ${penalesVal===true?'#16A34A':'rgba(255,255,255,.25)'};background:${penalesVal===true?'#16A34A':'transparent'};color:#fff">Sí</button>
+                <button onclick="_amistSetPenales('${cat}','${year}',${m.id},${leg},false)" style="padding:4px 10px;border-radius:6px;font-size:.75em;font-weight:800;cursor:pointer;border:1.5px solid ${penalesVal===false?'#DC2626':'rgba(255,255,255,.25)'};background:${penalesVal===false?'#DC2626':'transparent'};color:#fff">No</button>
+              </div>`:''}
+              ${penalesVal?`
+              <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+                <span style="font-size:.78em;color:rgba(255,255,255,.75);width:64px;flex-shrink:0">Penales:</span>
+                <input id="amist-pen-gl${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${penGl!=null?penGl:''}" placeholder="–" onchange="_amistSavePenScore('${cat}','${year}',${m.id},${leg})" onclick="this.select()" style="width:44px;padding:5px;text-align:center;font-weight:800;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
+                <span style="color:rgba(255,255,255,.35)">–</span>
+                <input id="amist-pen-gr${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${penGr!=null?penGr:''}" placeholder="–" onchange="_amistSavePenScore('${cat}','${year}',${m.id},${leg})" onclick="this.select()" style="width:44px;padding:5px;text-align:center;font-weight:800;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
+              </div>
+              ${jugaron.length?`<div style="display:flex;gap:4px;align-items:center">
+                <select id="amist-pen-nom${sfx}-${m.id}" style="flex:1;padding:5px 6px;border-radius:6px;font-size:.75em;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
+                  <option value="" style="color:#000">Pateador…</option>
+                  ${jugaron.map(n=>`<option value="${n.replace(/"/g,'&quot;')}" style="color:#000">${n.split(' ').pop()}</option>`).join('')}
+                </select>
+                <button onclick="_amistAddPenTaker('${cat}','${year}',${m.id},${leg})" style="padding:5px 10px;background:var(--cel);color:#fff;border:none;border-radius:6px;font-size:.8em;font-weight:800;cursor:pointer">+</button>
+              </div>`:''}
+              ${penTakers.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">${penTakers.map((t,i)=>`
+                <div style="display:flex;align-items:center;gap:6px;font-size:.75em">
+                  <span style="flex:1;color:#fff">${i+1}. ${t.nom.split(' ').pop()}</span>
+                  <button onclick="_amistTogglePenScored('${cat}','${year}',${m.id},${leg},${i})" style="padding:2px 8px;border-radius:10px;font-size:.85em;font-weight:800;cursor:pointer;border:none;background:${t.scored?'#16A34A':'#DC2626'};color:#fff">${t.scored?'✓ Gol':'✗ Erró'}</button>
+                  <button onclick="_amistRemovePenTaker('${cat}','${year}',${m.id},${leg},${i})" style="border:none;background:none;cursor:pointer;color:rgba(255,255,255,.4);font-size:11px">✕</button>
+                </div>`).join('')}</div>`:''}
+              `:''}
+            </div>`:''}
           </div>
         </div>
 
