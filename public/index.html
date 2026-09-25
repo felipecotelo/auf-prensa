@@ -10564,8 +10564,10 @@ const FIFASEP_AT_OBLIG=['md1','md'];
 function getFifaSepAt(){ return stor.get(KFifaSepAt,[]); }
 // Formulario colapsado por defecto (solo el botón "+ Agregar atención") y
 // mismo selector de huso que el Calendario — un solo estado global porque
-// acá hay un único formulario (no uno por día).
-let _fifaSepAtTz='UY';
+// acá hay un único formulario (no uno por día). Arranca en el huso de dónde
+// está la delegación hoy (mismo criterio que _fsapDefaultTzFor del
+// Calendario), no siempre en UY.
+let _fifaSepAtTz=_fsapDefaultTzFor(TODAY);
 window._fifaSepToggleAtForm=function(btn){
   const body=document.getElementById('fsap-at-body');
   if(!body) return;
@@ -10719,7 +10721,7 @@ window._fifaSepAddAt=function(){
   const txtEl=document.getElementById('fsap-at-txt'); if(txtEl) txtEl.value='';
   const hEl=document.getElementById('fsap-at-hora'); if(hEl) hEl.value='';
   const linkEl=document.getElementById('fsap-at-link'); if(linkEl) linkEl.value='';
-  _fifaSepAtTz='UY';
+  _fifaSepAtTz=_fsapDefaultTzFor(TODAY);
   _fifaSepAtEditingId=null;
   renderFifaSepDisponibilidad();
 };
@@ -10806,7 +10808,7 @@ function renderFifaSepDisponibilidad(){
   // ── Formulario: primero el tipo de actividad, después a quién ──
   const tipoOptions=FIFASEP_DISP_TIPOS.map(t=>`<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
   const quienOptions=_fifaSepQuienOptionsHtml();
-  const tzChips=Object.entries(FIFASEP_TZ_INFO).map(([k,v])=>`<button type="button" class="aap-tz-chip${k==='UY'?' active':''}" data-tz="${k}" onclick="_fifaSepAtSetTz('${k}',this)">${v.short}</button>`).join('');
+  const tzChips=Object.entries(FIFASEP_TZ_INFO).map(([k,v])=>`<button type="button" class="aap-tz-chip${k===_fifaSepAtTz?' active':''}" data-tz="${k}" onclick="_fifaSepAtSetTz('${k}',this)">${v.short}</button>`).join('');
   const addForm=`
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
       <button id="fsap-at-toggle-btn" onclick="_fifaSepToggleAtForm(this)" style="width:100%;padding:10px;background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;font-size:.82em;font-weight:800;color:var(--cel-dk);cursor:pointer">+ Agregar atención</button>
@@ -11506,7 +11508,7 @@ function renderFifaSepCal(){
                 oninput="_fsapUpdateTzPreview('${day.date}')" onkeydown="if(event.key==='Enter')addFifaSepAct('${day.date}')">
               <div class="aap-tz-chips" style="margin-top:5px">
                 <span style="font-size:10px;color:var(--muted);line-height:2;margin-right:2px">Huso:</span>
-                ${Object.entries(FIFASEP_TZ_INFO).map(([k,v])=>`<button class="aap-tz-chip${k===FIFASEP_TZ_DEFAULT?' active':''}" data-tz="${k}" onclick="_fsapSetTz('${day.date}','${k}')">${v.short}</button>`).join('')}
+                ${Object.entries(FIFASEP_TZ_INFO).map(([k,v])=>`<button class="aap-tz-chip${k===(_fsapTzState[day.date]||_fsapDefaultTzFor(day.date))?' active':''}" data-tz="${k}" onclick="_fsapSetTz('${day.date}','${k}')">${v.short}</button>`).join('')}
               </div>
               <div class="aap-tz-preview" id="fsap-tz-prev-${day.date}"></div>
             </div>
@@ -11545,6 +11547,19 @@ const FIFASEP_TZ_INFO={
 };
 const FIFASEP_TZ_DEFAULT='UY';
 const _fsapTzState={};
+// Huso por defecto según dónde está la delegación ESE día — antes siempre
+// arrancaba en UY aunque ya estuviéramos en Japón/Corea/India, obligando a
+// cambiarlo a mano cada vez. Se deriva de day.lugar (ya dice el país) en vez
+// de mantener un mapa de fechas aparte que se desincroniza solo. Sigue
+// siendo editable — esto es solo lo que viene pintado al abrir el form.
+function _fsapDefaultTzFor(date){
+  const day=(typeof FIFASEP26_CAL_DAYS!=='undefined')?FIFASEP26_CAL_DAYS.find(d=>d.date===date):null;
+  const lugar=day?.lugar||'';
+  if(lugar.includes('Japón')) return 'JAP';
+  if(lugar.includes('Corea')) return 'KOR';
+  if(lugar.includes('India')) return 'IND';
+  return FIFASEP_TZ_DEFAULT;
+}
 // Acepta "9", "9h", "09:00", "9:00h", "9.30" — antes exigía "H:MM" exacto y
 // cualquier otra forma (ej. "9h", como se carga naturalmente hablando de
 // horarios) fallaba en silencio: la hora quedaba sin convertir, guardada tal
@@ -11578,7 +11593,7 @@ window._fsapSetTz=function(date, tz){
 };
 window._fsapUpdateTzPreview=function(date){
   const h=document.getElementById(`fsap-h-${date}`)?.value.trim();
-  const tz=_fsapTzState[date]||FIFASEP_TZ_DEFAULT;
+  const tz=_fsapTzState[date]||_fsapDefaultTzFor(date);
   const prev=document.getElementById(`fsap-tz-prev-${date}`);
   if(!prev) return;
   if(tz==='UY'){ prev.textContent=''; return; }
@@ -11630,7 +11645,7 @@ window.addFifaSepAct=function(date){
   const acts=getDayActs();
   if(!acts[date]) acts[date]=[];
   const hRaw=(hEl?.value||'').trim();
-  const tz=_fsapTzState[date]||FIFASEP_TZ_DEFAULT;
+  const tz=_fsapTzState[date]||_fsapDefaultTzFor(date);
   // La hora se guarda siempre en Uruguay (mismo criterio que el resto del
   // calendario) — si se cargó en otro huso, se convierte acá recién al
   // guardar (antes solo se mostraba la conversión en el preview y se
