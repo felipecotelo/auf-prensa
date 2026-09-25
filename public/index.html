@@ -27365,6 +27365,17 @@ window._amistSavePenScore = function(cat, year, id, leg){
     m['penGRival'+sfx]=isNaN(pr)?null:pr;
   });
 };
+// Botón "✓ OK" — el marcador ya se guarda solo al tipear (onchange), esto es
+// para cuando NO se cargan pateadores: da una confirmación clara de que
+// quedó cargado igual, sin depender de completar la lista de abajo.
+window._amistConfirmPenScore = function(cat, year, id, leg){
+  window._amistSavePenScore(cat, year, id, leg);
+  const sfx = leg===2?'2':'';
+  const list = _getAmistosos(cat, year);
+  const m = list.find(x=>x.id===id);
+  const pl = m?.['penGLocal'+sfx], pr = m?.['penGRival'+sfx];
+  toast(pl!=null&&pr!=null ? `✓ Penales guardados: ${pl}-${pr}` : '⚠️ Cargá el marcador de penales');
+};
 window._amistAddPenTaker = function(cat, year, id, leg){
   const sfx = leg===2?'2':'';
   const nom=(document.getElementById('amist-pen-nom'+sfx+'-'+id)?.value||'').trim();
@@ -27738,24 +27749,26 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
                 <button onclick="_amistSetPenales('${cat}','${year}',${m.id},${leg},false)" style="padding:4px 10px;border-radius:6px;font-size:.75em;font-weight:800;cursor:pointer;border:1.5px solid ${penalesVal===false?'#DC2626':'rgba(255,255,255,.25)'};background:${penalesVal===false?'#DC2626':'transparent'};color:#fff">No</button>
               </div>`:''}
               ${penalesVal?`
+              <div style="font-size:.7em;color:rgba(255,255,255,.55);margin-bottom:4px">Marcador final de penales</div>
               <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
-                <span style="font-size:.78em;color:rgba(255,255,255,.75);width:64px;flex-shrink:0">Penales:</span>
-                <input id="amist-pen-gl${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${penGl!=null?penGl:''}" placeholder="–" onchange="_amistSavePenScore('${cat}','${year}',${m.id},${leg})" onclick="this.select()" style="width:44px;padding:5px;text-align:center;font-weight:800;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
-                <span style="color:rgba(255,255,255,.35)">–</span>
-                <input id="amist-pen-gr${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${penGr!=null?penGr:''}" placeholder="–" onchange="_amistSavePenScore('${cat}','${year}',${m.id},${leg})" onclick="this.select()" style="width:44px;padding:5px;text-align:center;font-weight:800;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
+                <input id="amist-pen-gl${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${penGl!=null?penGl:''}" placeholder="–" onchange="_amistSavePenScore('${cat}','${year}',${m.id},${leg})" onclick="this.select()" style="flex:1;min-width:0;padding:6px 2px;text-align:center;font-weight:800;font-size:1em;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
+                <span style="color:rgba(255,255,255,.35);flex-shrink:0">–</span>
+                <input id="amist-pen-gr${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${penGr!=null?penGr:''}" placeholder="–" onchange="_amistSavePenScore('${cat}','${year}',${m.id},${leg})" onclick="this.select()" style="flex:1;min-width:0;padding:6px 2px;text-align:center;font-weight:800;font-size:1em;border-radius:6px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
+                <button onclick="_amistConfirmPenScore('${cat}','${year}',${m.id},${leg})" style="flex-shrink:0;padding:6px 10px;background:#16A34A;color:#fff;border:none;border-radius:6px;font-size:.75em;font-weight:800;cursor:pointer;white-space:nowrap">✓ OK</button>
               </div>
+              <div style="font-size:.68em;color:rgba(255,255,255,.4);margin-bottom:6px">Pateadores (opcional — quién pateó y si convirtió)</div>
               ${jugaron.length?`<div style="display:flex;gap:4px;align-items:center">
-                <select id="amist-pen-nom${sfx}-${m.id}" style="flex:1;padding:5px 6px;border-radius:6px;font-size:.75em;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
+                <select id="amist-pen-nom${sfx}-${m.id}" style="flex:1;min-width:0;padding:5px 6px;border-radius:6px;font-size:.75em;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;outline:none">
                   <option value="" style="color:#000">Pateador…</option>
                   ${jugaron.map(n=>`<option value="${n.replace(/"/g,'&quot;')}" style="color:#000">${n.split(' ').pop()}</option>`).join('')}
                 </select>
-                <button onclick="_amistAddPenTaker('${cat}','${year}',${m.id},${leg})" style="padding:5px 10px;background:var(--cel);color:#fff;border:none;border-radius:6px;font-size:.8em;font-weight:800;cursor:pointer">+</button>
+                <button onclick="_amistAddPenTaker('${cat}','${year}',${m.id},${leg})" style="flex-shrink:0;padding:5px 10px;background:var(--cel);color:#fff;border:none;border-radius:6px;font-size:.8em;font-weight:800;cursor:pointer">+</button>
               </div>`:''}
               ${penTakers.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">${penTakers.map((t,i)=>`
                 <div style="display:flex;align-items:center;gap:6px;font-size:.75em">
-                  <span style="flex:1;color:#fff">${i+1}. ${t.nom.split(' ').pop()}</span>
-                  <button onclick="_amistTogglePenScored('${cat}','${year}',${m.id},${leg},${i})" style="padding:2px 8px;border-radius:10px;font-size:.85em;font-weight:800;cursor:pointer;border:none;background:${t.scored?'#16A34A':'#DC2626'};color:#fff">${t.scored?'✓ Gol':'✗ Erró'}</button>
-                  <button onclick="_amistRemovePenTaker('${cat}','${year}',${m.id},${leg},${i})" style="border:none;background:none;cursor:pointer;color:rgba(255,255,255,.4);font-size:11px">✕</button>
+                  <span style="flex:1;min-width:0;color:#fff">${i+1}. ${t.nom.split(' ').pop()}</span>
+                  <button onclick="_amistTogglePenScored('${cat}','${year}',${m.id},${leg},${i})" style="flex-shrink:0;padding:2px 8px;border-radius:10px;font-size:.85em;font-weight:800;cursor:pointer;border:none;background:${t.scored?'#16A34A':'#DC2626'};color:#fff">${t.scored?'✓ Gol':'✗ Erró'}</button>
+                  <button onclick="_amistRemovePenTaker('${cat}','${year}',${m.id},${leg},${i})" style="flex-shrink:0;border:none;background:none;cursor:pointer;color:rgba(255,255,255,.4);font-size:11px">✕</button>
                 </div>`).join('')}</div>`:''}
               `:''}
             </div>`:''}
