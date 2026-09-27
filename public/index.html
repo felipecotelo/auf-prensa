@@ -27605,9 +27605,16 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
   // Detail view — partido abierto. Para la Fecha FIFA (3 partidos fijos) se
   // entra siempre directo al detalle, con pestañas para cambiar de partido
   // en vez de una lista+"volver" (no tiene sentido "crear/eliminar partido"
-  // acá, son siempre los mismos 3).
+  // acá, son siempre los mismos 3). Por defecto entra al próximo partido sin
+  // resultado cargado (el que está en vísperas) — no siempre al primero de
+  // la gira — para que no haga falta cambiar de pestaña a mano partido a
+  // partido a medida que van pasando.
+  const _fifaSepDefaultMatchId = ()=>{
+    const pendiente = list.find(m=>m.gLocal==null || m.gRival==null);
+    return (pendiente || list[list.length-1])?.id;
+  };
   const openId = (filterCompId==='fifasep26' && !list.some(m=>m.id===window._amistDetailOpen))
-    ? list[0]?.id
+    ? _fifaSepDefaultMatchId()
     : window._amistDetailOpen;
   if(openId!=null){
     const m = list.find(m=>m.id===openId);
