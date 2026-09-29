@@ -12265,18 +12265,41 @@ function renderPeriplo(view){
   // el motor de amistosos (auf4_amist_juv_fifamayor_sepoct26) — la MISMA
   // fuente que usa la Pizarra y el botón "Confirmar resultado". Apenas se
   // carga el resultado ahí, se ve acá solo, sin tocar este archivo.
+  // fsapRows queda afuera del if (declarado antes) para poder sumarlo
+  // también a las estadísticas "tipo jugador" de más abajo, no solo a byYear.
+  let fsapRows=[];
   if(typeof FIFASEP26!=='undefined' && FIFASEP26.partidosData){
     let fsList=[];
     try{ fsList=JSON.parse(localStorage.getItem('auf4_amist_juv_fifamayor_sepoct26')||'[]'); }catch(_){}
     const FSAP_CIUDAD={'Japón':'Sendai','Corea del Sur':'Seúl','India':'Calcuta'};
-    const fsRows=FIFASEP26.partidosData.map(p=>{
+    fsapRows=FIFASEP26.partidosData.map(p=>{
       const m=fsList.find(x=>x.rival===p.rival);
       const res=(m && m.gLocal!=null && m.gRival!=null) ? `${m.gLocal}-${m.gRival}` : null;
       return {yr:2026, fase:'Fecha FIFA sep-oct 2026', tipo:'AM', rival:p.rival, res, loc:'V', est:p.sede, ciudad:FSAP_CIUDAD[p.rival]||p.rival, pais:p.rival, fui:true};
     });
     if(!byYear[2026]) byYear[2026]=[];
-    byYear[2026].push(...fsRows);
+    byYear[2026].push(...fsapRows);
   }
+
+  // ── Estadísticas "tipo jugador" (PJ/G/E/P/GF/GC) — Selección Mayor ──────
+  // Cuenta TODOS los partidos con resultado cargado (mayor + Fecha FIFA en
+  // vivo), viajados o no — los "no viajados" (fui:false) también se
+  // trabajaron desde acá, así que suman igual. El desglose entre paréntesis
+  // muestra cuántos de cada stat corresponden a partidos NO presenciados.
+  let pjT=0,gT=0,eT=0,pT=0,gfT=0,gcT=0;
+  let pjN=0,gN=0,eN=0,pN=0,gfN=0,gcN=0;
+  [...mayor, ...fsapRows].forEach(m=>{
+    if(!m.res) return;
+    const score=m.res.replace(/\(.*\)/,'').trim();
+    const [a,b]=score.split('-').map(Number);
+    if(isNaN(a)||isNaN(b)) return;
+    pjT++; gfT+=a; gcT+=b;
+    if(a>b) gT++; else if(a===b) eT++; else pT++;
+    if(!m.fui){
+      pjN++; gfN+=a; gcN+=b;
+      if(a>b) gN++; else if(a===b) eN++; else pN++;
+    }
+  });
 
   function buildPartidosHtml(){
     let h='';
@@ -12392,6 +12415,26 @@ function renderPeriplo(view){
             <div style="font-size:1.55em;font-weight:900;color:${s.nc};line-height:1;letter-spacing:-.5px">${s.n}</div>
             <div style="font-size:.72em;font-weight:800;color:${s.tc};margin-top:4px">${s.label}</div>
             <div style="font-size:.64em;color:${s.sc};margin-top:2px">${s.sub}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Estadísticas tipo jugador (PJ/G/E/P/GF/GC) -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:.72em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">📊 Estadísticas — Selección Mayor</div>
+      <div style="font-size:.7em;color:var(--hint);margin-bottom:12px">Cuenta todos los partidos · entre paréntesis, los que no presencié (los trabajé igual)</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px 6px">
+        ${[
+          {v:pjT,n:pjN,l:'PJ',c:'var(--fg)'},
+          {v:gT,n:gN,l:'Ganados',c:'#16A34A'},
+          {v:eT,n:eN,l:'Empatados',c:'#D97706'},
+          {v:pT,n:pN,l:'Perdidos',c:'#DC2626'},
+          {v:gfT,n:gfN,l:'Goles a favor',c:'var(--cel-dk)'},
+          {v:gcT,n:gcN,l:'Goles en contra',c:'#B91C1C'},
+        ].map(s=>`
+          <div style="text-align:center">
+            <div style="font-size:1.6em;font-weight:900;color:${s.c};line-height:1">${s.v}${s.n>0?`<span style="font-size:.5em;font-weight:700;color:var(--muted);margin-left:2px" title="De estos ${s.v}, ${s.n} sin presenciar">(${s.n})</span>`:''}</div>
+            <div style="font-size:.66em;font-weight:700;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.03em">${s.l}</div>
           </div>`).join('')}
       </div>
     </div>
