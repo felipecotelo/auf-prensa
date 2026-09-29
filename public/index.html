@@ -10173,19 +10173,20 @@ const FIFASEP26 = {
   reservadosFecha: '04/09/2026',
   // Lista final de convocados — 26 jugadores, confirmada por el usuario el 16/09/2026.
   finalesFecha: '16/09/2026',
-  // 21/09/2026: Valverde desafectado por lesión, entra Emiliano Martínez con la 15
-  // (el mismo número que tenía Valverde) — reemplazo cargado directo en la lista,
-  // Valverde queda como reservado (sin número de esta gira) en vez de en finales.
-  // 29/09/2026: De Arrascaeta desafectado por lesión — sin reemplazo confirmado
-  // todavía, así que queda afuera de finales (pasa a "No convocados", con el
-  // reborde rojo automático de la tarjeta) hasta que se cargue quién entra.
+  // 21/09/2026: Valverde desafectado por lesión ANTES de viajar, entra Emiliano
+  // Martínez con la 15 (el mismo número que tenía Valverde) — reemplazo cargado
+  // directo en la lista, Valverde queda como reservado (sin número de esta gira)
+  // en vez de en finales, porque nunca llegó a sumarse a la delegación.
+  // 29/09/2026: De Arrascaeta se lesiona YA EN LA GIRA (a diferencia de Valverde,
+  // sí viajó y estuvo convocado) — sigue en finales, no se mueve de lugar; la
+  // tarjeta lo marca aparte (reborde rojo + más gris) vía inj==='red'.
   finales: [
     'Santiago Mele','Cristopher Fiermarín','Thiago Cardozo',
     'Guillermo Varela','Nahitan Nández','Santiago Mouriño','Sebastián Cáceres','Ronald Araujo',
     'José María Giménez','Juan Martín Rodríguez','Mathías Olivera','Juan Manuel Sanabria',
     'Joaquín Piquerez',
     'Rodrigo Bentancur','Facundo Bernal','Lucas Torreira','Emiliano Martínez','Rodrigo Zalazar',
-    'Brian Rodríguez','Facundo Pellistri','Maximiliano Araújo',
+    'Brian Rodríguez','Facundo Pellistri','Maximiliano Araújo','Giorgian De Arrascaeta',
     'Martín Satriano','Federico Viñas','Rodrigo Aguirre','Darwin Núñez',
   ],
   // Confirmado uno por uno por el usuario — no se infiere de "0 partidos jugados"
@@ -11155,8 +11156,9 @@ function renderFifaSep26(tabId){
         // note incluso en gris — el filter:grayscale de la tarjeta desatura cualquier
         // color de adentro, por eso el reborde va en un wrapper aparte sin el filtro.
         const nuevoIn = enFinal && !!p.entrada;
-        const lesionOut = !enFinal && inj==='red';
-        const cardBorder = nuevoIn ? '#16A34A' : (lesionOut ? '#DC2626' : null);
+        const lesionOut = !enFinal && inj==='red'; // se lesionó antes de viajar y quedó afuera (ej. Valverde)
+        const lesionActivo = enFinal && inj==='red'; // se lesionó en la gira — sigue convocado, no se mueve de lugar
+        const cardBorder = nuevoIn ? '#16A34A' : ((lesionOut||lesionActivo) ? '#DC2626' : null);
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
         // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
         const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
@@ -11165,7 +11167,7 @@ function renderFifaSep26(tabId){
         // en los stores compartidos con Jugadores/Local/Juveniles.
         const isLlegado = !!(stor.get('auf4_fifasep_llegado',{})[p.nom]);
         const faltaShooting = !!(stor.get('auf4_fifasep_shooting',{})[p.nom]);
-        const cardHtml = `<div class="p-card" id="pcard-${cid}" style="position:relative;${enFinal?'':'filter:grayscale(1);opacity:.5'}">
+        const cardHtml = `<div class="p-card" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(lesionActivo?'filter:grayscale(.55);opacity:.8':'')}">
           <button onclick="event.stopPropagation();_toggleFifaSepCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
           <div style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">
             <button onclick="event.stopPropagation();_toggleFifaSepLlegado('${nomEnc}')" title="${isLlegado?'Ya se sumó a la delegación — click para desmarcar':'Todavía no llegó — click para marcar que ya se sumó'}" style="background:${isLlegado?'#16A34A':'#DC2626'};border:1.5px solid ${isLlegado?'#16A34A':'#DC2626'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;padding:0;line-height:1">🇯🇵</button>
@@ -11214,7 +11216,7 @@ function renderFifaSep26(tabId){
             </div>
           </div>
         </div>`;
-        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${nuevoIn?'Incorporación reciente a la convocatoria':'Desafectado — lesión'}">${cardHtml}</div>` : cardHtml;
+        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':'Lesionado — sigue convocado, pendiente de evolución')}">${cardHtml}</div>` : cardHtml;
       };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
       const allPos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
