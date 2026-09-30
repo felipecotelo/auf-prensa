@@ -10982,12 +10982,32 @@ function renderFifaSep26(tabId){
   // header con degradé + badge URU, cuerpo con escudos/nombres y hora local +
   // UY al centro (todavía no hay resultado, son amistosos por jugarse), pie
   // con estadio/ciudad. Antes esto era una fila plana con banderita + texto.
-  const _fifaMatchRow = (p) => `
+  const _fifaMatchRow = (p) => {
+    // Resultado ya cargado en el motor de amistosos (mismo origen que Mi
+    // periplo/Pizarra) — si está, se muestra el marcador final acá en vez
+    // de la hora programada, coloreado según Victoria/Empate/Derrota.
+    let _fsList=[];
+    try{ _fsList=JSON.parse(localStorage.getItem('auf4_amist_juv_fifamayor_sepoct26')||'[]'); }catch(_){}
+    const _fm=_fsList.find(x=>x.rival===p.rival);
+    const _played=!!(_fm && _fm.gLocal!=null && _fm.gRival!=null);
+    const _gU=_played?_fm.gLocal:null, _gR=_played?_fm.gRival:null;
+    const _resCol=_played?(_gU>_gR?'#166534':_gU<_gR?'#B91C1C':'#92400E'):null;
+    const _resLabel=_played?(_gU>_gR?'Victoria':_gU<_gR?'Derrota':'Empate'):null;
+    const _centerHtml=_played
+      ? `<div style="text-align:center;min-width:90px">
+          <div style="font-size:30px;font-weight:900;color:${_resCol};line-height:1;letter-spacing:-.01em">${_gR} - ${_gU}</div>
+          <div style="font-size:10px;font-weight:800;color:${_resCol};margin-top:4px;text-transform:uppercase;letter-spacing:.04em">${_resLabel}</div>
+        </div>`
+      : `<div style="text-align:center;min-width:90px">
+          <div style="font-size:30px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-.01em">${p.horaLocal||'—'}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--cel-dk);margin-top:4px">${p.hora||'—'} <span style="opacity:.6">UYT</span></div>
+        </div>`;
+    return `
     <div style="border-radius:14px;overflow:hidden;border:2px solid var(--cel);box-shadow:0 2px 16px rgba(0,157,216,.12);margin-bottom:14px">
       <div style="background:linear-gradient(90deg,var(--nero) 0%,var(--navy) 60%,#0D2240 100%);padding:8px 16px;display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:10px;font-weight:700;color:#7ABEE6">Fecha FIFA sep–oct · ${_fmtDateCorta(p.fecha)}</span>
         <div style="display:flex;align-items:center;gap:6px">
-          ${p.confirmado===false?`<span style="font-size:9px;font-weight:800;color:#92400E;background:#FFFBEB;padding:2px 8px;border-radius:8px">Por confirmar</span>`:''}
+          ${_played?`<span style="font-size:9px;font-weight:800;color:#fff;background:${_resCol};padding:2px 8px;border-radius:8px">Finalizado</span>`:(p.confirmado===false?`<span style="font-size:9px;font-weight:800;color:#92400E;background:#FFFBEB;padding:2px 8px;border-radius:8px">Por confirmar</span>`:'')}
           <span style="font-size:10px;font-weight:800;background:var(--cel);color:#fff;padding:2px 9px;border-radius:8px;letter-spacing:.06em">URU</span>
         </div>
       </div>
@@ -10998,10 +11018,7 @@ function renderFifaSep26(tabId){
             ${flagImg(_FIFASEP_ISO[p.rival]||'un',28)}
             <span style="font-size:16px;font-weight:600;color:var(--text)">${p.rival}</span>
           </div>
-          <div style="text-align:center;min-width:90px">
-            <div style="font-size:30px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-.01em">${p.horaLocal||'—'}</div>
-            <div style="font-size:10px;font-weight:700;color:var(--cel-dk);margin-top:4px">${p.hora||'—'} <span style="opacity:.6">UYT</span></div>
-          </div>
+          ${_centerHtml}
           <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
             <span style="font-size:16px;font-weight:800;color:var(--cel-dk);text-align:right">Uruguay</span>
             ${flagImg('uy',28)}
@@ -11010,10 +11027,7 @@ function renderFifaSep26(tabId){
             ${flagImg('uy',28)}
             <span style="font-size:16px;font-weight:800;color:var(--cel-dk)">Uruguay</span>
           </div>
-          <div style="text-align:center;min-width:90px">
-            <div style="font-size:30px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-.01em">${p.horaLocal||'—'}</div>
-            <div style="font-size:10px;font-weight:700;color:var(--cel-dk);margin-top:4px">${p.hora||'—'} <span style="opacity:.6">UYT</span></div>
-          </div>
+          ${_centerHtml}
           <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
             <span style="font-size:16px;font-weight:600;color:var(--text);text-align:right">${p.rival}</span>
             ${flagImg(_FIFASEP_ISO[p.rival]||'un',28)}
@@ -11025,6 +11039,7 @@ function renderFifaSep26(tabId){
         <span style="font-size:11px;color:var(--muted)">${p.local===false?'Visitante':'Local'}</span>
       </div>
     </div>`;
+  };
   const _fifaMatchesFaltan = (FIFASEP26.partidos||0) - _fifaMatches.length;
 
   if(slug==='calendario'){
@@ -27255,6 +27270,18 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
   });
   const posOrder = ['POR','DEF','MED','DEL',''];
 
+  // Dados de baja EN LA GIRA (lesión o por otro motivo) que para el partido de
+  // India específicamente ya no están disponibles — igual criterio que en el
+  // selector de jugador (_openJuvSP/bajaSet): se muestran en gris en este
+  // plantel lateral, pero sin poder tocarlos para sumarlos al banco/cancha.
+  const bajaSetBench = new Set();
+  const isIndiaFifaSepBench = cat==='fifamayor' && m.rival==='India';
+  if(isIndiaFifaSepBench && typeof FIFASEP26!=='undefined' && FIFASEP26.reservados){
+    Object.values(FIFASEP26.reservados).forEach(arr=>(arr||[]).forEach(j=>{
+      if(j.lesionEnGira||j.bajaGira) bajaSetBench.add(j.nom);
+    }));
+  }
+
   const allChips = posOrder.map(pos=>{
     const pl = allByPos[pos]||[];
     if(!pl.length) return '';
@@ -27275,18 +27302,21 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
           const shortNom = pts.length>1 ? pts[0][0]+'. '+pts.slice(1).join(' ') : pts[0];
           const nomKey = nom.replace(/[^a-z0-9]/gi,'-');
           const isSub = !!sub;
-          const chipBg = isTit ? color+'0f' : isSub ? '#F0FDF4' : 'var(--card)';
-          const chipBorder = isTit ? color : isSub ? '#16A34A' : 'var(--border)';
+          const isBajaBench = bajaSetBench.has(nom);
+          const chipBg = isBajaBench ? 'var(--surface)' : isTit ? color+'0f' : isSub ? '#F0FDF4' : 'var(--card)';
+          const chipBorder = isBajaBench ? 'var(--border)' : isTit ? color : isSub ? '#16A34A' : 'var(--border)';
           const nomEscQ = nom.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-          return `<div style="display:flex;align-items:center;gap:5px">
+          return `<div style="display:flex;align-items:center;gap:5px${isBajaBench?';opacity:.45;filter:grayscale(1)':''}">
             <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
               value="${pNum||''}" placeholder="#"
               id="pinput-${m.id}${sfx}-${nomKey}"
+              ${isBajaBench?'disabled':''}
               onclick="event.stopPropagation();this.select()"
               onchange="event.stopPropagation();_amistSetNum('${cat}','${year}',${m.id},${leg},'${nomEscQ}',this.value)"
               style="width:28px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:var(--surface);font-size:.75em;font-weight:800;text-align:center;outline:none;flex-shrink:0;padding:0;color:var(--text)">
-            <div onclick="${isTit?'':` event.stopPropagation();_toggleJuvSub('${cat}','${year}',${m.id},${leg},'${nomEscQ}')`}"
-              style="display:flex;align-items:center;gap:5px;flex:1;padding:4px 7px;border-radius:8px;border:1px solid ${chipBorder};background:${chipBg};${isTit?'':'cursor:pointer;'}transition:all .12s">
+            <div onclick="${isBajaBench||isTit?'':` event.stopPropagation();_toggleJuvSub('${cat}','${year}',${m.id},${leg},'${nomEscQ}')`}"
+              title="${isBajaBench?'Dado de baja — no disponible para este partido':''}"
+              style="display:flex;align-items:center;gap:5px;flex:1;padding:4px 7px;border-radius:8px;border:1px solid ${chipBorder};background:${chipBg};${isBajaBench?'cursor:default;':isTit?'':'cursor:pointer;'}transition:all .12s">
               <div style="width:26px;height:26px;border-radius:50%;background:#475569;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center">
                 ${ph?`<img src="${ph}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:
                   `<span style="font-size:7.5px;font-weight:800;color:#fff">${inits}</span>`}
@@ -27294,8 +27324,9 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
               <div style="flex:1;min-width:0">
                 <div style="font-size:.72em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shortNom}</div>
                 <div style="display:flex;align-items:center;gap:3px;margin-top:1px">
-                  ${isTit?`<span style="font-size:.6em;font-weight:800;color:${color};background:${color}18;border-radius:3px;padding:0 4px;line-height:1.5">TIT</span>`:''}
-                  ${isSub?`<span style="font-size:.6em;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 4px;line-height:1.5">▲</span>`:''}
+                  ${isBajaBench?`<span style="font-size:.6em;font-weight:800;color:var(--muted);background:var(--surface2);border-radius:3px;padding:0 4px;line-height:1.5">BAJA</span>`:''}
+                  ${!isBajaBench&&isTit?`<span style="font-size:.6em;font-weight:800;color:${color};background:${color}18;border-radius:3px;padding:0 4px;line-height:1.5">TIT</span>`:''}
+                  ${!isBajaBench&&isSub?`<span style="font-size:.6em;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 4px;line-height:1.5">▲</span>`:''}
                   ${goles[nom]>0?`<span style="font-size:10px;line-height:1">⚽${ goles[nom]>1?`<span style="font-size:.6em;font-weight:900;vertical-align:middle">${goles[nom]}</span>`:''}</span>`:''}
                   ${cardMap[nom]?`<span style="font-size:10px;line-height:1">${cardMap[nom]==='r'?'🟥':'🟨'}</span>`:''}
                   ${lesionSet.has(nom)?`<span title="Se lesionó en este partido" style="font-size:10px;line-height:1">🩹</span>`:''}
