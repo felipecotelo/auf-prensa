@@ -10909,9 +10909,14 @@ function renderFifaSepDisponibilidad(){
   const sorted=[...activos].sort((a,b)=>totalOf(b.nom)-totalOf(a.nom)||a.nom.localeCompare(b.nom));
   const playerRows=sorted.map(p=>{
     const noAt=totalOf(p.nom)===0;
+    // Dados de baja en la gira (lesión o por otro motivo) — ya no se los va a
+    // poder elegir para prensa de acá en más, pero se dejan en la lista (no se
+    // sacan) marcados en naranja para que se note de un vistazo.
+    const isBaja=!!(p.lesionEnGira||p.bajaGira);
+    const nameColor=isBaja?'#EA580C':(noAt?'var(--muted)':'var(--text)');
     return `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap${noAt?';opacity:.55':''}">
-      <div style="flex:1;min-width:140px;font-size:.85em;font-weight:700;color:${noAt?'var(--muted)':'var(--text)'}">${_fsapNumTag(p.nom)}${p.nom}<span style="font-size:.72em;color:var(--muted);font-weight:500;margin-left:5px">${p.club||''}</span></div>
+      <div style="flex:1;min-width:140px;font-size:.85em;font-weight:700;color:${nameColor}" title="${isBaja?'Dado de baja de la gira':''}">${_fsapNumTag(p.nom)}${p.nom}<span style="font-size:.72em;color:var(--muted);font-weight:500;margin-left:5px">${p.club||''}</span></div>
       <div style="display:flex;gap:5px;flex-wrap:wrap">${counterRow(p.nom,false)}</div>
     </div>`;
   }).join('');
