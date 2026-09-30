@@ -10216,7 +10216,7 @@ const FIFASEP26 = {
       {nom:'Juan Martín Rodríguez', club:'Cagliari Calcio', clubPais:'🇮🇹', num:24},
       {nom:'Sebastián Boselli', club:'Getafe CF', clubPais:'🇪🇸'},
       {nom:'Santiago Bueno', club:'Wolverhampton Wanderers', clubPais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},
-      {nom:'Sebastián Cáceres', club:'RC Celta de Vigo', clubPais:'🇪🇸', num:3},
+      {nom:'Sebastián Cáceres', club:'RC Celta de Vigo', clubPais:'🇪🇸', num:3, lesionEnGira:true},
       {nom:'Mathías Olivera', club:'SSC Nápoles', clubPais:'🇮🇹', num:16},
       {nom:'Joaquín Piquerez', club:'SE Palmeiras', clubPais:'🇧🇷', num:22},
       {nom:'Lucas Olaza', club:'FK Krasnodar', clubPais:'🇷🇺'},
@@ -10236,7 +10236,7 @@ const FIFASEP26 = {
       {nom:'Luciano Rodríguez Rosales', club:'Cruzeiro Esporte Clube', clubPais:'🇧🇷'},
       {nom:'Maximiliano Araújo', club:'Sporting de Lisboa', clubPais:'🇵🇹', num:20},
       {nom:'Lucas Villalba', club:'Botafogo', clubPais:'🇧🇷'},
-      {nom:'Brian Rodríguez', club:'CF América', clubPais:'🇲🇽', num:18},
+      {nom:'Brian Rodríguez', club:'CF América', clubPais:'🇲🇽', num:18, bajaGira:true},
       {nom:'Rodrigo Zalazar', club:'Sporting de Lisboa', clubPais:'🇵🇹', num:17},
       {nom:'Diego Rossi', club:'CF Monterrey', clubPais:'🇲🇽'},
       {nom:'Giorgian De Arrascaeta', club:'CR Flamengo', clubPais:'🇧🇷', num:10, lesionEnGira:true},
@@ -11159,12 +11159,14 @@ function renderFifaSep26(tabId){
         // color de adentro, por eso el reborde va en un wrapper aparte sin el filtro.
         const nuevoIn = enFinal && !!p.entrada;
         const lesionOut = !enFinal && inj==='red'; // se lesionó antes de viajar y quedó afuera (ej. Valverde)
-        // Puntual por jugador (p.lesionEnGira en FIFASEP26.reservados) — NO el estado
-        // genérico de lesión (inj), que es compartido con toda la app y marca a
-        // cualquier jugador lesionado por otro motivo (ej. Cáceres) sin que eso
-        // signifique que se cae de ESTA convocatoria.
-        const lesionActivo = enFinal && !!p.lesionEnGira;
-        const cardBorder = nuevoIn ? '#16A34A' : ((lesionOut||lesionActivo) ? '#DC2626' : null);
+        // Puntual por jugador (p.lesionEnGira / p.bajaGira en FIFASEP26.reservados) —
+        // NO el estado genérico de lesión (inj), que es compartido con toda la app y
+        // marca a cualquier jugador lesionado por otro motivo sin que eso signifique
+        // que se cae de ESTA convocatoria. lesionEnGira = baja por lesión durante la
+        // gira (ej. De Arrascaeta, Cáceres); bajaGira = liberado por otro motivo, sin
+        // lesión (ej. Brian Rodríguez) — mismo tratamiento visual, tooltip distinto.
+        const bajaActiva = enFinal && !!(p.lesionEnGira || p.bajaGira);
+        const cardBorder = nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null);
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
         // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
         const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
@@ -11173,7 +11175,7 @@ function renderFifaSep26(tabId){
         // en los stores compartidos con Jugadores/Local/Juveniles.
         const isLlegado = !!(stor.get('auf4_fifasep_llegado',{})[p.nom]);
         const faltaShooting = !!(stor.get('auf4_fifasep_shooting',{})[p.nom]);
-        const cardHtml = `<div class="p-card" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(lesionActivo?'filter:grayscale(.55);opacity:.8':'')}">
+        const cardHtml = `<div class="p-card" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(bajaActiva?'filter:grayscale(.55);opacity:.8':'')}">
           <button onclick="event.stopPropagation();_toggleFifaSepCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
           <div style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">
             <button onclick="event.stopPropagation();_toggleFifaSepLlegado('${nomEnc}')" title="${isLlegado?'Ya se sumó a la delegación — click para desmarcar':'Todavía no llegó — click para marcar que ya se sumó'}" style="background:${isLlegado?'#16A34A':'#DC2626'};border:1.5px solid ${isLlegado?'#16A34A':'#DC2626'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;padding:0;line-height:1">🇯🇵</button>
@@ -11222,7 +11224,7 @@ function renderFifaSep26(tabId){
             </div>
           </div>
         </div>`;
-        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':'Lesionado — regresa a su club')}">${cardHtml}</div>` : cardHtml;
+        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':(p.lesionEnGira?'Lesionado — regresa a su club':'Dado de baja — regresa a su club'))}">${cardHtml}</div>` : cardHtml;
       };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
       const allPos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
@@ -26916,6 +26918,12 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
   // incluye gente que nunca quedó en la lista final de ESE torneo.
   const convMap = new Map(); // clave sin tilde -> nombre canónico (con tilde si existe)
   const _fifaSepPosMap = {}; // solo se llena para m.compId==='fifasep26'
+  // Jugadores dados de baja EN LA GIRA (lesionEnGira/bajaGira) que igual siguen en
+  // finales (no se sacan del pool general, ver _buildJuvAmistosos) — pero para el
+  // partido de India específicamente ya no están disponibles: se muestran en gris,
+  // visibles para que quede claro que existen, pero sin poder seleccionarlos.
+  const bajaSet = new Set();
+  const isIndiaFifaSep = m.compId==='fifasep26' && m.rival==='India';
   if(m.compId==='fifasep26' && typeof FIFASEP26!=='undefined' && FIFASEP26.reservados){
     Object.entries(FIFASEP26.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
       // Confirmados los 26 finales, el selector de cancha se restringe a
@@ -26924,6 +26932,7 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
       const k=_norm(j.nom);
       if(!convMap.has(k)) convMap.set(k, j.nom);
       _fifaSepPosMap[j.nom]=pos;
+      if(j.lesionEnGira||j.bajaGira) bajaSet.add(j.nom);
     }));
   } else {
     // m.compId: partido oficial de Fixture, ya jugado con la convocatoria final —
@@ -26968,9 +26977,12 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
     const ph = window._juvPhotoCache?.[nom] || (m.compId==='fifasep26' ? (window._getPhotoByName?.(nom)||JUGADORES?.[nom]?.foto) : null) || null;
     const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
     const inUse = usedNoms.has(nom) && nom!==curNom;
+    const isBaja = isIndiaFifaSep && bajaSet.has(nom);
     return `<div class="sp-item${nom===curNom?' sp-sel':''}${inUse?' sp-used':''}"
       data-name="${nom.toLowerCase()}"
-      onclick="_assignJuvP('${cat}','${year}',${matchId},${leg},'${(slotId||'').replace(/'/g,"\\'")}','${nom.replace(/'/g,"\\'")}')">
+      title="${isBaja?'Dado de baja — no disponible para este partido':''}"
+      style="${isBaja?'opacity:.45;filter:grayscale(1);cursor:default':''}"
+      onclick="${isBaja?'':`_assignJuvP('${cat}','${year}',${matchId},${leg},'${(slotId||'').replace(/'/g,"\\'")}','${nom.replace(/'/g,"\\'")}')`}">
       <div class="sp-av">
         ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:
           `<span style="font-size:11px;font-weight:900;color:#fff;position:relative;z-index:1">${inits}</span>`}
@@ -26979,8 +26991,8 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
         <div style="font-size:12.5px;font-weight:700">${nom}</div>
         ${pos?`<div style="font-size:10.5px;color:var(--muted)">${POS_LABEL[pos]||pos}</div>`:''}
       </div>
-      ${inUse?'<span style="font-size:9px;color:var(--hint);flex-shrink:0">En cancha</span>':''}
-      ${nom===curNom?'<i class="ti ti-check" style="color:var(--green);font-size:16px;flex-shrink:0"></i>':''}
+      ${isBaja?'<span style="font-size:9px;color:var(--hint);flex-shrink:0">Baja</span>':inUse?'<span style="font-size:9px;color:var(--hint);flex-shrink:0">En cancha</span>':''}
+      ${!isBaja&&nom===curNom?'<i class="ti ti-check" style="color:var(--green);font-size:16px;flex-shrink:0"></i>':''}
     </div>`;
   }
 
