@@ -11159,13 +11159,16 @@ function renderFifaSep26(tabId){
         // color de adentro, por eso el reborde va en un wrapper aparte sin el filtro.
         const nuevoIn = enFinal && !!p.entrada;
         const lesionOut = !enFinal && inj==='red'; // se lesionó antes de viajar y quedó afuera (ej. Valverde)
-        // Puntual por jugador (p.lesionEnGira en FIFASEP26.reservados) — NO el estado
-        // genérico de lesión (inj), que es compartido con toda la app y marca a
-        // cualquier jugador lesionado por otro motivo sin que eso signifique que se
-        // cae de ESTA convocatoria. Solo lesión lleva reborde rojo en la tarjeta (ej.
-        // De Arrascaeta, Cáceres) — p.bajaGira (liberado por otro motivo, ej. Brian
-        // Rodríguez) NO lleva reborde acá; igual queda afuera del selector de la
-        // Pizarra de India (ver _openJuvSP / bajaSet).
+        // Puntual por jugador (p.lesionEnGira / p.bajaGira en FIFASEP26.reservados) —
+        // NO el estado genérico de lesión (inj), que es compartido con toda la app y
+        // marca a cualquier jugador lesionado por otro motivo sin que eso signifique
+        // que se cae de ESTA convocatoria. Ambos casos atenúan la tarjeta (gris) para
+        // que se note que ya no están 100% disponibles, pero SOLO lesión lleva reborde
+        // rojo (ej. De Arrascaeta, Cáceres) — p.bajaGira (liberado por otro motivo,
+        // ej. Brian Rodríguez) queda gris sin reborde, para diferenciar el motivo a
+        // simple vista. Ambos quedan igual afuera del selector de la Pizarra de India
+        // (ver _openJuvSP / bajaSet).
+        const bajaGris = enFinal && !!(p.lesionEnGira || p.bajaGira);
         const bajaActiva = enFinal && !!p.lesionEnGira;
         const cardBorder = nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null);
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
@@ -11176,7 +11179,7 @@ function renderFifaSep26(tabId){
         // en los stores compartidos con Jugadores/Local/Juveniles.
         const isLlegado = !!(stor.get('auf4_fifasep_llegado',{})[p.nom]);
         const faltaShooting = !!(stor.get('auf4_fifasep_shooting',{})[p.nom]);
-        const cardHtml = `<div class="p-card" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(bajaActiva?'filter:grayscale(.55);opacity:.8':'')}">
+        const cardHtml = `<div class="p-card" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(bajaGris?'filter:grayscale(.55);opacity:.8':'')}">
           <button onclick="event.stopPropagation();_toggleFifaSepCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
           <div style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">
             <button onclick="event.stopPropagation();_toggleFifaSepLlegado('${nomEnc}')" title="${isLlegado?'Ya se sumó a la delegación — click para desmarcar':'Todavía no llegó — click para marcar que ya se sumó'}" style="background:${isLlegado?'#16A34A':'#DC2626'};border:1.5px solid ${isLlegado?'#16A34A':'#DC2626'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;padding:0;line-height:1">🇯🇵</button>
