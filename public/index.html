@@ -11594,10 +11594,15 @@ const _fsapTzState={};
 // siendo editable — esto es solo lo que viene pintado al abrir el form.
 function _fsapDefaultTzFor(date){
   const day=(typeof FIFASEP26_CAL_DAYS!=='undefined')?FIFASEP26_CAL_DAYS.find(d=>d.date===date):null;
-  const lugar=day?.lugar||'';
-  if(lugar.includes('Japón')) return 'JAP';
-  if(lugar.includes('Corea')) return 'KOR';
-  if(lugar.includes('India')) return 'IND';
+  // Los días de partido (tipo:'partido') no tienen `lugar` — solo `rival` —
+  // así que hay que mirar ambos campos. También se agregan las ciudades
+  // (Sendai/Miyagi, Seúl, Calcuta) además de los países: los días de viaje
+  // entre sedes describen el trayecto por ciudad ("Seúl 🇰🇷 → Calcuta 🇮🇳"),
+  // sin decir el nombre del país destino — se toma la ciudad de destino.
+  const txt=(day?.lugar||'')+' '+(day?.rival||'');
+  if(txt.includes('Japón')||txt.includes('Miyagi')||txt.includes('Sendai')) return 'JAP';
+  if(txt.includes('Corea')||txt.includes('Seúl')) return 'KOR';
+  if(txt.includes('India')||txt.includes('Calcuta')) return 'IND';
   return 'UY'; // no usar FIFASEP_TZ_DEFAULT acá — esta función se llama al
   // cargar el script, antes de que ese const (declarado más abajo) se
   // inicialice, y referenciarlo tira ReferenceError (temporal dead zone)
