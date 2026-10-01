@@ -11104,7 +11104,11 @@ function renderFifaSepDisponibilidad(){
   const _atGroups=new Map();
   atList.forEach(a=>{ const k=_atGroupKey(a); if(!_atGroups.has(k)) _atGroups.set(k,[]); _atGroups.get(k).push(a); });
   const _atPersonActions=(a)=>{
-    const linkedAct=_fsapFindLinkedAct(a.id);
+    // Un miembro de un batch no tiene su propio evento (el evento de
+    // Calendario es UNO SOLO, compartido por todo el grupo) — hay que buscarlo
+    // por batchId, no por atencionId, o nunca se encontraría nada y el
+    // "✓ Hecho"/link quedarían vacíos para siempre en las atenciones agrupadas.
+    const linkedAct=a.batchId ? _fsapFindLinkedActByBatch(a.batchId) : _fsapFindLinkedAct(a.id);
     const linkedKey=linkedAct?evKey(linkedAct.date,linkedAct.idx):null;
     const isDone=linkedKey && _evStatus[linkedKey]==='done';
     const linkUrl=linkedKey ? (_evLinks[linkedKey]||'') : '';
