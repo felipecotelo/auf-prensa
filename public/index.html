@@ -10783,11 +10783,15 @@ window._fifaSepAddAt=function(){
 
   // batchId: SOLO para que la lista de "Atenciones cargadas" agrupe estas
   // entradas como una sola fila desplegable — se marca nada más cuando se
-  // tildó a más de una persona EN ESTE MISMO envío. Nunca se agrupa por
-  // coincidencia de tipo/fecha/hora (atenciones cargadas por separado, en
-  // momentos distintos, aunque terminen con esos mismos datos, quedan cada
-  // una suelta — ver _atGroupKey).
-  const batchId = (!_fifaSepAtEditingId && quienes.length>1) ? Date.now() : null;
+  // tildó a más de una persona EN ESTE MISMO envío, O cuando se tildó
+  // "Jugadores a definir" (aunque sea sola) — esa marca YA indica que la
+  // actividad es grupal aunque todavía no se sepa quiénes van, para que se
+  // vea como tal desde el principio y se complete después editando el grupo
+  // (ver _fifaSepEditAtBatch). Nunca se agrupa por coincidencia de
+  // tipo/fecha/hora (atenciones cargadas por separado, en momentos
+  // distintos, aunque terminen con esos mismos datos, quedan cada una
+  // suelta — ver _atGroupKey).
+  const batchId = (!_fifaSepAtEditingId && (quienes.length>1 || quienes.includes(FSAP_QUIEN_TBD))) ? Date.now() : null;
   const list=getFifaSepAt();
   const entries=quienes.map((quien,i)=>{
     const entry={ id: _fifaSepAtEditingId || (Date.now()+i), tipo, txt, fecha, hora, quien };
@@ -10928,13 +10932,19 @@ function _fifaSepQuienOptionsHtml(){
 // del <select> de arriba (usado también en el Calendario, donde cada
 // actividad es de una sola persona), acá hace falta poder elegir varios a
 // la vez (ej: un shooting oficial con 4 jugadores juntos).
+// Pseudo-persona para cargar una actividad grupal cuando todavía no se sabe
+// quiénes van a participar exactamente (ej. una clínica/charla a confirmar) —
+// se carga como "quien" normal, y después se reemplaza por la gente real
+// editando el grupo entero (ver _fifaSepEditAtBatch) a medida que se define.
+const FSAP_QUIEN_TBD='Jugadores a definir';
 function _fifaSepQuienCheckboxesHtml(){
   const {dtNom,nombres}=_fifaSepQuienNames();
-  const row=(val,label)=>`<label style="display:flex;align-items:center;gap:7px;padding:6px 9px;cursor:pointer;font-size:.82em" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
+  const row=(val,label,opts)=>`<label style="display:flex;align-items:center;gap:7px;padding:6px 9px;cursor:pointer;font-size:.82em;${opts?.style||''}" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='${opts?.bg||''}'">
     <input type="checkbox" value="${val.replace(/"/g,'&quot;')}" onchange="_fsapUpdateQuienLabel()" style="flex-shrink:0">
-    <span>${label}</span>
+    <span${opts?.spanStyle?` style="${opts.spanStyle}"`:''}>${label}</span>
   </label>`;
-  return row(dtNom, dtNom+' (DT)') + nombres.map(n=>row(n, _fsapNumPlain(n)+n)).join('');
+  const tbdRow = row(FSAP_QUIEN_TBD, '🕓 Jugadores a definir', {style:'background:#FFFBEB;border-bottom:1px solid var(--border)', bg:'#FFFBEB', spanStyle:'font-style:italic;color:#92400E;font-weight:700'});
+  return tbdRow + row(dtNom, dtNom+' (DT)') + nombres.map(n=>row(n, _fsapNumPlain(n)+n)).join('');
 }
 window._fsapToggleQuienPanel=function(){
   const panel=document.getElementById('fsap-at-quien-panel');
@@ -11045,7 +11055,7 @@ function renderFifaSepDisponibilidad(){
     const fechaFmt=a0.fecha?_fmtDateCorta(a0.fecha):'';
     const horaFmt=a0.origH&&a0.origTz&&a0.origTz!=='UY' ? `${a0.origH} ${a0.origTz} → ${a0.hora}h UY` : (a0.hora?a0.hora+'h':'');
     const obligBadge=FIFASEP_AT_OBLIG.includes(a0.tipo)?` <span class="tag tag-oblig" style="font-size:8.5px">Obligatoria</span>`:'';
-    if(group.length===1){
+    if(group.length===1 && !a0.batchId){
       const a=a0;
       const {isDone,firstLink}=_atPersonActions(a);
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
@@ -11060,6 +11070,11 @@ function renderFifaSepDisponibilidad(){
       </div>`;
     }
     const gid='atgrp-'+(_atGroupN++)+'-'+a0.id;
+    const hasTbd=group.some(a=>a.quien===FSAP_QUIEN_TBD);
+    const realCount=group.length-(hasTbd?1:0);
+    const countLabel = (group.length===1 && hasTbd)
+      ? 'Por definir'
+      : `${realCount} definido${realCount===1?'':'s'}${hasTbd?' + por definir':''}`;
     const personRows=group.map(a=>{
       const {isDone,firstLink}=_atPersonActions(a);
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px 6px 37px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--surface)">
@@ -11074,7 +11089,7 @@ function renderFifaSepDisponibilidad(){
         style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;cursor:pointer">
         <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
         <div style="flex:1;min-width:180px">
-          <div style="font-size:.82em;font-weight:700">${t.label}${a0.txt?' · '+a0.txt:''}${obligBadge} <span style="color:var(--cel-dk)">· ${group.length} participantes</span></div>
+          <div style="font-size:.82em;font-weight:700">${t.label}${a0.txt?' · '+a0.txt:''}${obligBadge} <span style="color:var(--cel-dk)">· ${countLabel}</span></div>
           <div style="font-size:.7em;color:var(--muted)">${fechaFmt}${horaFmt?' · '+horaFmt:''}</div>
         </div>
         <button onclick="event.stopPropagation();_fifaSepEditAtBatch(${a0.batchId})" title="Editar el grupo entero" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:14px;flex-shrink:0">✏️</button>
