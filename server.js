@@ -2,6 +2,7 @@
 const express  = require('express');
 const https    = require('https');
 const path     = require('path');
+const crypto   = require('crypto');
 const { loadCalendarDays } = require('./calendar-data');
 
 const app = express();
@@ -857,6 +858,163 @@ async function runSyncDataBackup() {
 }
 setTimeout(runSyncDataBackup, 15000);
 setInterval(runSyncDataBackup, BACKUP_INTERVAL_MS);
+
+// ── Google Calendar (sincronización automática de atenciones) ─────────────
+// Cuenta de servicio de Google Cloud (sin OAuth de usuario) — autenticación
+// por JWT firmado a mano (RS256) en vez de la librería googleapis, para no
+// sumar una dependencia pesada que no se puede probar en este entorno.
+// El calendario ("Selección | Planificación") fue compartido a mano con el
+// email de la cuenta de servicio, con permiso "Realizar cambios en los eventos".
+const GCAL_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || '';
+const GCAL_ATTENDEE    = 'marcos.mendez@auf.org.uy';
+
+function gcalPrivateKey() {
+  // Railway no soporta saltos de línea reales en variables de entorno — la
+  // clave se carga con "\n" literal (dos caracteres) y hay que convertirlos
+  // de vuelta a saltos de línea reales para que crypto.sign la acepte.
+  return (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+}
+function base64url(input) {
+  return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+let _gcalTokenCache = { token: null, exp: 0 };
+async function getGcalAccessToken() {
+  const now = Math.floor(Date.now() / 1000);
+  if (_gcalTokenCache.token && _gcalTokenCache.exp - 60 > now) return _gcalTokenCache.token;
+
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
+  const key = gcalPrivateKey();
+  if (!email || !key) throw new Error('Faltan GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
+
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claims = {
+    iss: email,
+    scope: 'https://www.googleapis.com/auth/calendar',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  };
+  const unsigned = base64url(JSON.stringify(header)) + '.' + base64url(JSON.stringify(claims));
+  const signer = crypto.createSign('RSA-SHA256');
+  signer.update(unsigned);
+  signer.end();
+  const signature = signer.sign(key).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const jwt = unsigned + '.' + signature;
+
+  const body = 'grant_type=' + encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer') + '&assertion=' + encodeURIComponent(jwt);
+  const data = await new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'oauth2.googleapis.com', path: '/token', method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
+    }, res => {
+      let buf = '';
+      res.on('data', d => buf += d);
+      res.on('end', () => { try { resolve(JSON.parse(buf)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+  if (!data.access_token) throw new Error('No se pudo obtener token de Google: ' + JSON.stringify(data));
+  _gcalTokenCache = { token: data.access_token, exp: now + (data.expires_in || 3600) };
+  return data.access_token;
+}
+
+function gcalRequest(method, path, body) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const token = await getGcalAccessToken();
+      const data = body ? JSON.stringify(body) : null;
+      const req = https.request({
+        hostname: 'www.googleapis.com', path, method,
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          ...(data ? { 'Content-Length': Buffer.byteLength(data) } : {})
+        }
+      }, res => {
+        let buf = '';
+        res.on('data', d => buf += d);
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            try { resolve(buf ? JSON.parse(buf) : {}); } catch (e) { resolve({}); }
+          } else {
+            reject(new Error(`Google Calendar API ${res.statusCode}: ${buf}`));
+          }
+        });
+      });
+      req.on('error', reject);
+      if (data) req.write(data);
+      req.end();
+    } catch (e) { reject(e); }
+  });
+}
+
+// Construye el cuerpo del evento a partir de los datos de la atención —
+// con hora: evento puntual de 30min en huso Montevideo; sin hora (o "TBD"):
+// evento de todo el día.
+function buildGcalEventBody({ summary, personas, date, time }) {
+  const description = (personas && personas.length)
+    ? 'Convocados: ' + personas.join(', ') + '\n\nSincronizado automáticamente desde AUF Prensa.'
+    : 'Sincronizado automáticamente desde AUF Prensa.';
+  const ev = { summary: summary || '(sin título)', description };
+  const m = /^(\d{1,2}):(\d{2})$/.exec(time || '');
+  if (m) {
+    const h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+    const endTotal = h * 60 + mi + 30;
+    const eh = Math.floor(endTotal / 60) % 24, emi = endTotal % 60;
+    const pad = n => String(n).padStart(2, '0');
+    ev.start = { dateTime: `${date}T${pad(h)}:${pad(mi)}:00`, timeZone: 'America/Montevideo' };
+    ev.end   = { dateTime: `${date}T${pad(eh)}:${pad(emi)}:00`, timeZone: 'America/Montevideo' };
+  } else {
+    const d = new Date(date + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + 1);
+    ev.start = { date };
+    ev.end = { date: d.toISOString().slice(0, 10) };
+  }
+  if (GCAL_ATTENDEE) ev.attendees = [{ email: GCAL_ATTENDEE }];
+  return ev;
+}
+
+// Atención (Prensa y marketing / Fecha FIFA) → evento en "Selección | Planificación".
+// gcalEventId: si ya existe, se actualiza EN EL LUGAR (incluido mover de fecha);
+// si no, se crea. El cliente guarda el id devuelto junto a la atención.
+app.post('/api/gcal/event', async (req, res) => {
+  try {
+    if (!GCAL_CALENDAR_ID) { res.status(501).json({ error: 'GOOGLE_CALENDAR_ID no configurado' }); return; }
+    const { gcalEventId, summary, personas, date, time } = req.body || {};
+    if (!date) { res.status(400).json({ error: 'falta date' }); return; }
+    const body = buildGcalEventBody({ summary, personas, date, time });
+    const calPath = `/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events`;
+    let result;
+    if (gcalEventId) {
+      try {
+        result = await gcalRequest('PATCH', `${calPath}/${encodeURIComponent(gcalEventId)}?sendUpdates=none`, body);
+      } catch (e) {
+        // Puede haber sido borrado a mano del lado de Google — si ya no existe, se crea de nuevo.
+        result = await gcalRequest('POST', `${calPath}?sendUpdates=none`, body);
+      }
+    } else {
+      result = await gcalRequest('POST', `${calPath}?sendUpdates=none`, body);
+    }
+    res.json({ ok: true, id: result.id });
+  } catch (e) {
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/gcal/event/:id', async (req, res) => {
+  try {
+    if (!GCAL_CALENDAR_ID) { res.status(501).json({ error: 'GOOGLE_CALENDAR_ID no configurado' }); return; }
+    const calPath = `/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events/${encodeURIComponent(req.params.id)}`;
+    await gcalRequest('DELETE', `${calPath}?sendUpdates=none`);
+    res.json({ ok: true });
+  } catch (e) {
+    if (/404/.test(e.message)) { res.json({ ok: true }); return; }
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`AUF Prensa corriendo en puerto ${PORT}`));

@@ -10686,11 +10686,16 @@ function _fsapSyncCalFromAtencion(entry, groupEntries){
     if(evTxtMap[k]!==undefined){ delete evTxtMap[k]; stor.set(KEvTxt,evTxtMap,{allowShrink:true}); }
     const calTMap=stor.get(KCalT,{});
     if(calTMap[found.date] && calTMap[found.date][found.idx]!==undefined){ delete calTMap[found.date][found.idx]; stor.set(KCalT,calTMap,{allowShrink:true}); }
+    _gcalSync(found.date,found.idx);
     return;
   }
 
+  // Si cambió de fecha, el evento de Google Calendar (si ya existía) se
+  // conserva — no se borra y se crea uno nuevo, se mueve de fecha con un PATCH.
+  let carryGcalId=null;
   if(found){
     const acts=getDayActs();
+    carryGcalId=acts[found.date][found.idx].gcalEventId||null;
     acts[found.date].splice(found.idx,1);
     stor.set(KDayActs,acts,{allowShrink:true});
     _fsapReindexAfterDelete(found.date,found.idx);
@@ -10703,8 +10708,43 @@ function _fsapSyncCalFromAtencion(entry, groupEntries){
   if(calType!=='team') newEv.auf=true;
   if(isOblig) newEv.oblig=true;
   if(entry.origH){ newEv.origH=entry.origH; newEv.origTz=entry.origTz; }
+  if(carryGcalId) newEv.gcalEventId=carryGcalId;
   acts2[entry.fecha].push(newEv);
   stor.set(KDayActs,acts2);
+  _gcalSync(entry.fecha,acts2[entry.fecha].length-1);
+}
+// Atención/grupo → Google Calendar ("Selección | Planificación"), vía el
+// backend (server.js tiene la credencial de la cuenta de servicio, nunca el
+// cliente). Fire-and-forget: no bloquea el guardado local ni lo revierte si
+// falla (ej. credenciales todavía no configuradas) — solo deja de reflejarse
+// afuera, los datos locales siguen intactos. Guarda el id devuelto por Google
+// en el propio evento (gcalEventId) para poder actualizar en vez de duplicar.
+async function _gcalSync(date,idx){
+  try{
+    const acts=getDayActs();
+    const e=acts[date] && acts[date][idx];
+    if(!e) return;
+    const r=await fetch('/api/gcal/event',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({gcalEventId:e.gcalEventId||null, summary:e.txt, personas:e.personas||[], date, time:e.h||''})
+    });
+    const j=await r.json();
+    if(j && j.id && j.id!==e.gcalEventId){
+      const acts2=getDayActs();
+      if(acts2[date] && acts2[date][idx]){
+        acts2[date][idx].gcalEventId=j.id;
+        stor.set(KDayActs,acts2);
+      }
+    }
+  }catch(err){ console.warn('[gcal] no se pudo sincronizar:',err); }
+}
+// Borra el evento correspondiente en Google Calendar — se llama ANTES de
+// sacar la atención/actividad localmente, con el gcalEventId ya leído.
+async function _gcalDeleteById(gcalEventId){
+  if(!gcalEventId) return;
+  try{ await fetch('/api/gcal/event/'+encodeURIComponent(gcalEventId),{method:'DELETE'}); }
+  catch(err){ console.warn('[gcal] no se pudo borrar:',err); }
 }
 // Calendario → Atención: horario (llamado desde _fsapEditTime al confirmar).
 function _fsapSyncAtencionTime(date,idx){
@@ -10934,6 +10974,7 @@ window._fifaSepRemoveAt=function(id){
       _fsapSyncCalFromAtencion(remainingGroup[0], remainingGroup);
     } else if(found){
       const acts=getDayActs();
+      _gcalDeleteById(acts[found.date][found.idx].gcalEventId);
       acts[found.date].splice(found.idx,1);
       stor.set(KDayActs,acts,{allowShrink:true});
       _fsapReindexAfterDelete(found.date,found.idx);
@@ -10942,6 +10983,7 @@ window._fifaSepRemoveAt=function(id){
     const found=_fsapFindLinkedAct(id);
     if(found){
       const acts=getDayActs();
+      _gcalDeleteById(acts[found.date][found.idx].gcalEventId);
       acts[found.date].splice(found.idx,1);
       stor.set(KDayActs,acts,{allowShrink:true});
       _fsapReindexAfterDelete(found.date,found.idx);
@@ -12084,6 +12126,7 @@ window.deleteFifaSepAct=function(date,idx,ev){
   const acts=getDayActs();
   if(!acts[date]||!acts[date][idx]) return;
   const removed=acts[date][idx];
+  _gcalDeleteById(removed.gcalEventId);
   acts[date].splice(idx,1);
   stor.set(KDayActs,acts,{allowShrink:true});
   _fsapReindexAfterDelete(date,idx);
