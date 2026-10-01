@@ -10917,24 +10917,64 @@ function renderFifaSepDisponibilidad(){
   // Estado (✓ hecho) y link se marcan en el Calendario (es el mismo evento) —
   // acá se muestran en modo lectura para no duplicar esos controles.
   const _evStatus=getEvStatus(), _evLinks=getEvLinks();
-  const atRows=atList.length ? atList.map(a=>{
-    const t=FIFASEP_DISP_TIPOS.find(x=>x.id===a.tipo)||FIFASEP_DISP_TIPOS[FIFASEP_DISP_TIPOS.length-1];
-    const fechaFmt=a.fecha?_fmtDateCorta(a.fecha):'';
-    const horaFmt=a.origH&&a.origTz&&a.origTz!=='UY' ? `${a.origH} ${a.origTz} → ${a.hora}h UY` : (a.hora?a.hora+'h':'');
+  // Agrupar atenciones que son LA MISMA actividad para varias personas (ej.
+  // un shooting oficial cargado para 8 jugadores con "+ Agregar atención" —
+  // ver _fifaSepAddAt) — se agrupan por tipo+fecha+hora+detalle, puramente
+  // para mostrar, sin tocar los registros (cada uno sigue siendo su propia
+  // atención, editable/borrable individualmente dentro del grupo).
+  const _atGroupKey=a=>[a.tipo,a.fecha||'',a.origH||a.hora||'',a.origTz||'',a.txt||''].join('|');
+  const _atGroups=new Map();
+  atList.forEach(a=>{ const k=_atGroupKey(a); if(!_atGroups.has(k)) _atGroups.set(k,[]); _atGroups.get(k).push(a); });
+  const _atPersonActions=(a)=>{
     const linkedAct=_fsapFindLinkedAct(a.id);
     const linkedKey=linkedAct?evKey(linkedAct.date,linkedAct.idx):null;
     const isDone=linkedKey && _evStatus[linkedKey]==='done';
     const linkUrl=linkedKey ? (_evLinks[linkedKey]||'') : '';
     const firstLink=linkUrl?parseLinks(linkUrl)[0]:'';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-      <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
-      <div style="flex:1;min-width:180px">
-        <div style="font-size:.82em;font-weight:700">${_fsapNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}${FIFASEP_AT_OBLIG.includes(a.tipo)?` <span class="tag tag-oblig" style="font-size:8.5px">Obligatoria</span>`:''}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓ Hecho</span>`:''}</div>
-        <div style="font-size:.7em;color:var(--muted)">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
+    return {isDone, firstLink};
+  };
+  let _atGroupN=0;
+  const atRows=atList.length ? [..._atGroups.values()].map(group=>{
+    const a0=group[0];
+    const t=FIFASEP_DISP_TIPOS.find(x=>x.id===a0.tipo)||FIFASEP_DISP_TIPOS[FIFASEP_DISP_TIPOS.length-1];
+    const fechaFmt=a0.fecha?_fmtDateCorta(a0.fecha):'';
+    const horaFmt=a0.origH&&a0.origTz&&a0.origTz!=='UY' ? `${a0.origH} ${a0.origTz} → ${a0.hora}h UY` : (a0.hora?a0.hora+'h':'');
+    const obligBadge=FIFASEP_AT_OBLIG.includes(a0.tipo)?` <span class="tag tag-oblig" style="font-size:8.5px">Obligatoria</span>`:'';
+    if(group.length===1){
+      const a=a0;
+      const {isDone,firstLink}=_atPersonActions(a);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:.82em;font-weight:700">${_fsapNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}${obligBadge}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓ Hecho</span>`:''}</div>
+          <div style="font-size:.7em;color:var(--muted)">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
+        </div>
+        ${firstLink?`<a href="${firstLink}" target="_blank" rel="noopener" title="Ver link" style="font-size:13px;text-decoration:none">🔗</a>`:''}
+        <button onclick="_fifaSepEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">✏️</button>
+        <button onclick="_fifaSepRemoveAt(${a.id})" title="Eliminar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">🗑</button>
+      </div>`;
+    }
+    const gid='atgrp-'+(_atGroupN++)+'-'+a0.id;
+    const personRows=group.map(a=>{
+      const {isDone,firstLink}=_atPersonActions(a);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px 6px 37px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--surface)">
+        <div style="flex:1;min-width:140px;font-size:.8em;font-weight:600">${_fsapNumTag(a.quien)}${a.quien}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓</span>`:''}</div>
+        ${firstLink?`<a href="${firstLink}" target="_blank" rel="noopener" title="Ver link" style="font-size:12px;text-decoration:none">🔗</a>`:''}
+        <button onclick="_fifaSepEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:11px">✏️</button>
+        <button onclick="_fifaSepRemoveAt(${a.id})" title="Eliminar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:11px">🗑</button>
+      </div>`;
+    }).join('');
+    return `<div>
+      <div onclick="const p=document.getElementById('${gid}');const open=p.style.display!=='none';p.style.display=open?'none':'block';this.querySelector('.atgrp-chev').textContent=open?'▸':'▾'"
+        style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;cursor:pointer">
+        <span class="atgrp-chev" style="font-size:10px;flex-shrink:0;color:var(--muted);width:10px">▸</span>
+        <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:.82em;font-weight:700">${t.label}${a0.txt?' · '+a0.txt:''}${obligBadge} <span style="color:var(--cel-dk)">· ${group.length} participantes</span></div>
+          <div style="font-size:.7em;color:var(--muted)">${fechaFmt}${horaFmt?' · '+horaFmt:''}</div>
+        </div>
       </div>
-      ${firstLink?`<a href="${firstLink}" target="_blank" rel="noopener" title="Ver link" style="font-size:13px;text-decoration:none">🔗</a>`:''}
-      <button onclick="_fifaSepEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">✏️</button>
-      <button onclick="_fifaSepRemoveAt(${a.id})" title="Eliminar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">🗑</button>
+      <div id="${gid}" style="display:none">${personRows}</div>
     </div>`;
   }).join('') : `<div style="padding:10px;color:var(--muted);font-size:.82em">Sin atenciones cargadas todavía.</div>`;
   const listSection=`
