@@ -10591,6 +10591,7 @@ window._fifaSepToggleAtForm=function(btn){
   if(btn) btn.textContent=open?'+ Agregar atención':'✕ Cerrar';
   if(open){ // se cerró — descarta cualquier edición en curso
     _fifaSepAtEditingId=null;
+    _fifaSepAtEditingBatchId=null;
     const submitBtn=document.getElementById('fsap-at-submit-btn');
     if(submitBtn) submitBtn.textContent='+ Agregar';
   }
@@ -10607,6 +10608,9 @@ window._fifaSepAtSetTz=function(tz,btn){
   _fifaSepAtUpdateTzPreview();
 };
 let _fifaSepAtEditingId=null;
+// Editando TODO un grupo (batch) a la vez — ej. corregir el detalle de las 4
+// notas post-partido de un saque — en vez de una atención puntual.
+let _fifaSepAtEditingBatchId=null;
 // ── Vínculo Atención ↔ Actividad de Calendario ──────────────────────────────
 // Cada atención (Disponibilidad) tiene su espejo en el Calendario del día que
 // le corresponde — mismo evento visto desde dos pestañas, no dos cosas
@@ -10705,8 +10709,10 @@ window._fifaSepAddAt=function(){
   // persona (mismo tipo/detalle/hora), no un solo registro con varios
   // nombres adentro, para no tener que tocar todo lo que ya cuenta/filtra
   // atenciones por nombre (contadores, sync con Calendario, etc). Editando
-  // un registro existente sigue siendo de una sola persona — se usa la
-  // primera tildada nomás.
+  // UNA sola atención puntual sigue siendo de una sola persona — se usa la
+  // primera tildada nomás. Editando un GRUPO entero (_fifaSepAtEditingBatchId,
+  // ver _fifaSepEditAtBatch) es aparte: ahí si se puede tildar/destildar
+  // gente, y actualiza/crea/borra atenciones del batch según corresponda.
   const checked=[...document.querySelectorAll('#fsap-at-quien-panel input:checked')].map(c=>c.value).filter(Boolean);
   const quienes = _fifaSepAtEditingId ? checked.slice(0,1) : checked;
   if(!quienes.length){ toast('⚠️ Elegí a quién'); return; }
@@ -10718,6 +10724,62 @@ window._fifaSepAddAt=function(){
   const fecha=document.getElementById('fsap-at-fecha')?.value||'';
   const hora=converted||hRaw;
   const linkVal=(document.getElementById('fsap-at-link')?.value||'').trim();
+
+  if(_fifaSepAtEditingBatchId){
+    const bId=_fifaSepAtEditingBatchId;
+    const selectedSet=new Set(quienes);
+    const list0=getFifaSepAt();
+    const existing=list0.filter(a=>a.batchId===bId);
+    const existingQuienes=new Set(existing.map(a=>a.quien));
+    const toRemoveIds=new Set(existing.filter(a=>!selectedSet.has(a.quien)).map(a=>a.id));
+    const toAddQuienes=[...selectedSet].filter(q=>!existingQuienes.has(q));
+
+    let list=list0
+      .filter(a=>!toRemoveIds.has(a.id))
+      .map(a=>{
+        if(a.batchId!==bId || !selectedSet.has(a.quien)) return a;
+        const updated={...a, tipo, txt, fecha, hora};
+        if(converted){ updated.origH=hRaw; updated.origTz=tz; } else { delete updated.origH; delete updated.origTz; }
+        return updated;
+      });
+    const addedEntries=toAddQuienes.map((quien,i)=>{
+      const entry={ id:Date.now()+i, tipo, txt, fecha, hora, quien, batchId:bId };
+      if(converted){ entry.origH=hRaw; entry.origTz=tz; }
+      return entry;
+    });
+    list=list.concat(addedEntries);
+    stor.set(KFifaSepAt, list, {allowShrink: toRemoveIds.size>0});
+
+    // Calendario: borrar el evento de cada persona sacada del grupo...
+    toRemoveIds.forEach(id=>{
+      const found=_fsapFindLinkedAct(id);
+      if(found){
+        const acts=getDayActs();
+        acts[found.date].splice(found.idx,1);
+        stor.set(KDayActs,acts,{allowShrink:true});
+        _fsapReindexAfterDelete(found.date,found.idx);
+      }
+    });
+    // ...y crear/actualizar el evento de cada persona que sigue (o se sumó).
+    list.filter(a=>a.batchId===bId && selectedSet.has(a.quien)).forEach(entry=>{
+      _fsapSyncCalFromAtencion(entry);
+      const linkedAct=_fsapFindLinkedAct(entry.id);
+      if(linkedAct){
+        const links=getEvLinks();
+        const k=evKey(linkedAct.date,linkedAct.idx);
+        if(linkVal) links[k]=linkVal; else delete links[k];
+        stor.set(KEvLink,links,{allowShrink:true});
+      }
+    });
+
+    const txtEl2=document.getElementById('fsap-at-txt'); if(txtEl2) txtEl2.value='';
+    const hEl2=document.getElementById('fsap-at-hora'); if(hEl2) hEl2.value='';
+    const linkEl2=document.getElementById('fsap-at-link'); if(linkEl2) linkEl2.value='';
+    _fifaSepAtTz=_fsapDefaultTzFor(TODAY);
+    _fifaSepAtEditingBatchId=null;
+    renderFifaSepDisponibilidad();
+    return;
+  }
 
   // batchId: SOLO para que la lista de "Atenciones cargadas" agrupe estas
   // entradas como una sola fila desplegable — se marca nada más cuando se
@@ -10763,6 +10825,7 @@ window._fifaSepEditAt=function(id){
   const a=getFifaSepAt().find(x=>x.id===id);
   if(!a) return;
   _fifaSepAtEditingId=id;
+  _fifaSepAtEditingBatchId=null;
   const body=document.getElementById('fsap-at-body');
   if(body) body.style.display='block';
   const toggleBtn=document.getElementById('fsap-at-toggle-btn');
@@ -10780,6 +10843,37 @@ window._fifaSepEditAt=function(id){
   window._fifaSepAtUpdateTzPreview();
   const submitBtn=document.getElementById('fsap-at-submit-btn');
   if(submitBtn) submitBtn.textContent='✓ Guardar cambios';
+  body?.scrollIntoView({behavior:'smooth',block:'center'});
+};
+// Editar TODO un grupo (batch) de una — ej. corregir el detalle/hora
+// compartidos de un shooting con varios jugadores — en vez de entrar
+// atención por atención. Tildar/destildar gente acá suma o saca a esa
+// persona del grupo (ver manejo de _fifaSepAtEditingBatchId en _fifaSepAddAt).
+window._fifaSepEditAtBatch=function(batchId){
+  const group=getFifaSepAt().filter(a=>a.batchId===batchId);
+  if(!group.length) return;
+  const a0=group[0];
+  _fifaSepAtEditingId=null;
+  _fifaSepAtEditingBatchId=batchId;
+  const body=document.getElementById('fsap-at-body');
+  if(body) body.style.display='block';
+  const toggleBtn=document.getElementById('fsap-at-toggle-btn');
+  if(toggleBtn) toggleBtn.textContent='✕ Cerrar';
+  document.getElementById('fsap-at-tipo').value=a0.tipo;
+  const quienesSet=new Set(group.map(a=>a.quien));
+  document.querySelectorAll('#fsap-at-quien-panel input[type=checkbox]').forEach(c=>{ c.checked = quienesSet.has(c.value); });
+  window._fsapUpdateQuienLabel();
+  document.getElementById('fsap-at-txt').value=a0.txt||'';
+  document.getElementById('fsap-at-fecha').value=a0.fecha||'';
+  document.getElementById('fsap-at-hora').value=a0.origH||a0.hora||'';
+  // No hay un único link de grupo (cada persona tiene su propio evento de
+  // Calendario) — si se completa acá, se aplica igual a los de este grupo.
+  document.getElementById('fsap-at-link').value='';
+  _fifaSepAtTz=a0.origTz||'UY';
+  document.querySelectorAll('#fsap-at-body .aap-tz-chip').forEach(b=>b.classList.toggle('active',b.dataset.tz===_fifaSepAtTz));
+  window._fifaSepAtUpdateTzPreview();
+  const submitBtn=document.getElementById('fsap-at-submit-btn');
+  if(submitBtn) submitBtn.textContent=`✓ Guardar cambios (${group.length})`;
   body?.scrollIntoView({behavior:'smooth',block:'center'});
 };
 window._fifaSepRemoveAt=function(id){
@@ -10983,6 +11077,7 @@ function renderFifaSepDisponibilidad(){
           <div style="font-size:.82em;font-weight:700">${t.label}${a0.txt?' · '+a0.txt:''}${obligBadge} <span style="color:var(--cel-dk)">· ${group.length} participantes</span></div>
           <div style="font-size:.7em;color:var(--muted)">${fechaFmt}${horaFmt?' · '+horaFmt:''}</div>
         </div>
+        <button onclick="event.stopPropagation();_fifaSepEditAtBatch(${a0.batchId})" title="Editar el grupo entero" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:14px;flex-shrink:0">✏️</button>
         <span class="atgrp-chev" style="font-size:20px;font-weight:900;flex-shrink:0;color:var(--cel-dk);line-height:1">▸</span>
       </div>
       <div id="${gid}" style="display:none">${personRows}</div>
