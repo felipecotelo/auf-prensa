@@ -10719,9 +10719,17 @@ window._fifaSepAddAt=function(){
   const hora=converted||hRaw;
   const linkVal=(document.getElementById('fsap-at-link')?.value||'').trim();
 
+  // batchId: SOLO para que la lista de "Atenciones cargadas" agrupe estas
+  // entradas como una sola fila desplegable — se marca nada más cuando se
+  // tildó a más de una persona EN ESTE MISMO envío. Nunca se agrupa por
+  // coincidencia de tipo/fecha/hora (atenciones cargadas por separado, en
+  // momentos distintos, aunque terminen con esos mismos datos, quedan cada
+  // una suelta — ver _atGroupKey).
+  const batchId = (!_fifaSepAtEditingId && quienes.length>1) ? Date.now() : null;
   const list=getFifaSepAt();
   const entries=quienes.map((quien,i)=>{
     const entry={ id: _fifaSepAtEditingId || (Date.now()+i), tipo, txt, fecha, hora, quien };
+    if(batchId) entry.batchId=batchId;
     if(converted){ entry.origH=hRaw; entry.origTz=tz; }
     if(_fifaSepAtEditingId){
       const idx=list.findIndex(a=>a.id===_fifaSepAtEditingId);
@@ -10917,12 +10925,14 @@ function renderFifaSepDisponibilidad(){
   // Estado (✓ hecho) y link se marcan en el Calendario (es el mismo evento) —
   // acá se muestran en modo lectura para no duplicar esos controles.
   const _evStatus=getEvStatus(), _evLinks=getEvLinks();
-  // Agrupar atenciones que son LA MISMA actividad para varias personas (ej.
-  // un shooting oficial cargado para 8 jugadores con "+ Agregar atención" —
-  // ver _fifaSepAddAt) — se agrupan por tipo+fecha+hora+detalle, puramente
-  // para mostrar, sin tocar los registros (cada uno sigue siendo su propia
-  // atención, editable/borrable individualmente dentro del grupo).
-  const _atGroupKey=a=>[a.tipo,a.fecha||'',a.origH||a.hora||'',a.origTz||'',a.txt||''].join('|');
+  // Agrupar SOLO las atenciones cargadas juntas en un mismo envío de "+
+  // Agregar atención" marcando a varias personas (comparten a.batchId — ver
+  // _fifaSepAddAt). Atenciones sueltas que coinciden en tipo/fecha/hora por
+  // casualidad (ej. varias "Nota para AUFtv" cargadas por separado, en
+  // momentos distintos) NO se agrupan — cada una sin batchId queda con su
+  // propia clave única, puramente para mostrar, sin tocar los registros.
+  let _atUngroupedN=0;
+  const _atGroupKey=a=>a.batchId ? ('b'+a.batchId) : ('u'+(_atUngroupedN++));
   const _atGroups=new Map();
   atList.forEach(a=>{ const k=_atGroupKey(a); if(!_atGroups.has(k)) _atGroups.set(k,[]); _atGroups.get(k).push(a); });
   const _atPersonActions=(a)=>{
