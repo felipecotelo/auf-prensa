@@ -10660,11 +10660,14 @@ function _fsapSyncCalFromAtencion(entry, groupEntries){
   const tipoLabel=(FIFASEP_DISP_TIPOS.find(t=>t.id===entry.tipo)||{}).label||'';
   const calType=FIFASEP_AT_CAL_TYPE[entry.tipo]||'auf';
   const isOblig=FIFASEP_AT_OBLIG.includes(entry.tipo);
+  // Si se cargó un título propio, es lo que se ve en el Calendario — si no,
+  // el detalle escrito, y si tampoco hay detalle, el tipo de actividad.
+  const calTxt=entry.titulo||entry.txt||tipoLabel;
 
   if(found && found.date===entry.fecha){
     const acts=getDayActs();
     const e=acts[found.date][found.idx];
-    e.txt=entry.txt||tipoLabel;
+    e.txt=calTxt;
     e.h=entry.hora;
     e.personas=personas;
     if(isBatch) e.batchId=entry.batchId; else e.atencionId=entry.id;
@@ -10695,7 +10698,7 @@ function _fsapSyncCalFromAtencion(entry, groupEntries){
   if(!entry.fecha || !FIFASEP26_CAL_DAYS.some(d=>d.date===entry.fecha)) return;
   const acts2=getDayActs();
   if(!acts2[entry.fecha]) acts2[entry.fecha]=[];
-  const newEv={txt:entry.txt||tipoLabel, h:entry.hora, personas};
+  const newEv={txt:calTxt, h:entry.hora, personas};
   if(isBatch) newEv.batchId=entry.batchId; else newEv.atencionId=entry.id;
   if(calType!=='team') newEv.auf=true;
   if(isOblig) newEv.oblig=true;
@@ -10744,6 +10747,7 @@ window._fifaSepAddAt=function(){
   const tz=_fifaSepAtTz;
   const converted=(tz!=='UY'&&hRaw)?_fsapConvertTz(hRaw,tz,'UY'):null;
   const tipo=document.getElementById('fsap-at-tipo')?.value||'otro';
+  const titulo=(document.getElementById('fsap-at-titulo')?.value||'').trim();
   const txt=(document.getElementById('fsap-at-txt')?.value||'').trim();
   const fecha=document.getElementById('fsap-at-fecha')?.value||'';
   const hora=converted||hRaw;
@@ -10762,12 +10766,12 @@ window._fifaSepAddAt=function(){
       .filter(a=>!toRemoveIds.has(a.id))
       .map(a=>{
         if(a.batchId!==bId || !selectedSet.has(a.quien)) return a;
-        const updated={...a, tipo, txt, fecha, hora};
+        const updated={...a, tipo, titulo, txt, fecha, hora};
         if(converted){ updated.origH=hRaw; updated.origTz=tz; } else { delete updated.origH; delete updated.origTz; }
         return updated;
       });
     const addedEntries=toAddQuienes.map((quien,i)=>{
-      const entry={ id:Date.now()+i, tipo, txt, fecha, hora, quien, batchId:bId };
+      const entry={ id:Date.now()+i, tipo, titulo, txt, fecha, hora, quien, batchId:bId };
       if(converted){ entry.origH=hRaw; entry.origTz=tz; }
       return entry;
     });
@@ -10790,6 +10794,7 @@ window._fifaSepAddAt=function(){
       }
     }
 
+    const tituloEl2=document.getElementById('fsap-at-titulo'); if(tituloEl2) tituloEl2.value='';
     const txtEl2=document.getElementById('fsap-at-txt'); if(txtEl2) txtEl2.value='';
     const hEl2=document.getElementById('fsap-at-hora'); if(hEl2) hEl2.value='';
     const linkEl2=document.getElementById('fsap-at-link'); if(linkEl2) linkEl2.value='';
@@ -10812,7 +10817,7 @@ window._fifaSepAddAt=function(){
   const batchId = (!_fifaSepAtEditingId && (quienes.length>1 || quienes.includes(FSAP_QUIEN_TBD))) ? Date.now() : null;
   const list=getFifaSepAt();
   const entries=quienes.map((quien,i)=>{
-    const entry={ id: _fifaSepAtEditingId || (Date.now()+i), tipo, txt, fecha, hora, quien };
+    const entry={ id: _fifaSepAtEditingId || (Date.now()+i), tipo, titulo, txt, fecha, hora, quien };
     if(batchId) entry.batchId=batchId;
     if(converted){ entry.origH=hRaw; entry.origTz=tz; }
     if(_fifaSepAtEditingId){
@@ -10849,6 +10854,7 @@ window._fifaSepAddAt=function(){
       }
     });
   }
+  const tituloEl=document.getElementById('fsap-at-titulo'); if(tituloEl) tituloEl.value='';
   const txtEl=document.getElementById('fsap-at-txt'); if(txtEl) txtEl.value='';
   const hEl=document.getElementById('fsap-at-hora'); if(hEl) hEl.value='';
   const linkEl=document.getElementById('fsap-at-link'); if(linkEl) linkEl.value='';
@@ -10868,6 +10874,7 @@ window._fifaSepEditAt=function(id){
   document.getElementById('fsap-at-tipo').value=a.tipo;
   document.querySelectorAll('#fsap-at-quien-panel input[type=checkbox]').forEach(c=>{ c.checked = c.value===a.quien; });
   window._fsapUpdateQuienLabel();
+  document.getElementById('fsap-at-titulo').value=a.titulo||'';
   document.getElementById('fsap-at-txt').value=a.txt||'';
   document.getElementById('fsap-at-fecha').value=a.fecha||'';
   document.getElementById('fsap-at-hora').value=a.origH||a.hora||'';
@@ -10898,6 +10905,7 @@ window._fifaSepEditAtBatch=function(batchId){
   const quienesSet=new Set(group.map(a=>a.quien));
   document.querySelectorAll('#fsap-at-quien-panel input[type=checkbox]').forEach(c=>{ c.checked = quienesSet.has(c.value); });
   window._fsapUpdateQuienLabel();
+  document.getElementById('fsap-at-titulo').value=a0.titulo||'';
   document.getElementById('fsap-at-txt').value=a0.txt||'';
   document.getElementById('fsap-at-fecha').value=a0.fecha||'';
   document.getElementById('fsap-at-hora').value=a0.origH||a0.hora||'';
@@ -11062,6 +11070,7 @@ function renderFifaSepDisponibilidad(){
              abajo al abrirse, para que nunca tape el botón Agregar ni la lista
              de atenciones cargadas más abajo. -->
         <div id="fsap-at-quien-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;max-height:220px;overflow-y:auto">${quienCheckboxes}</div>
+        <input id="fsap-at-titulo" type="text" placeholder="Título propio (opcional) — si lo dejás vacío, se arma con el tipo de actividad" style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
         <input id="fsap-at-txt" type="text" placeholder="Detalle (ej: habla para AUFtv por Zoom)" style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
         <input id="fsap-at-link" type="text" placeholder="Link (opcional) — nota, video, etc." style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -11137,10 +11146,11 @@ function renderFifaSepDisponibilidad(){
       </div>`;
     }
     const gid='atgrp-'+(_atGroupN++)+'-'+a0.id;
-    // Título = el tipo de actividad (ej. "Actividad de prensa local") primero;
-    // el detalle que se escribió (ej. "Times of India + Hindu...") es la
-    // descripción, va después junto con fecha/hora como metadato chico abajo.
-    const groupTitle = t.label;
+    // Título = el propio (a0.titulo), si se cargó uno a mano al crear/editar
+    // el grupo; si no, el tipo de actividad (ej. "Actividad de prensa local").
+    // El detalle que se escribió (ej. "Times of India + Hindu...") es siempre
+    // la descripción, va después junto con fecha/hora como metadato chico abajo.
+    const groupTitle = a0.titulo || t.label;
     const groupMeta = [a0.txt, fechaFmt, horaFmt].filter(Boolean).join(' · ');
     // Mismo check "✓ Hecho" que ya tenía cada fila suelta (viene del estado
     // marcado en el Calendario) — acá por persona, al lado del nombre, para
