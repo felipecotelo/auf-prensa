@@ -10700,39 +10700,50 @@ function _fsapSyncAtencionTxt(date,idx,val){
   stor.set(KFifaSepAt,list);
 }
 window._fifaSepAddAt=function(){
-  const quien=(document.getElementById('fsap-at-quien')?.value||'').trim();
-  if(!quien){ toast('⚠️ Elegí a quién'); return; }
+  // Al agregar (no editar) se puede tildar a varios a la vez — ej. un
+  // shooting oficial con 4 jugadores juntos — y eso carga UNA atención por
+  // persona (mismo tipo/detalle/hora), no un solo registro con varios
+  // nombres adentro, para no tener que tocar todo lo que ya cuenta/filtra
+  // atenciones por nombre (contadores, sync con Calendario, etc). Editando
+  // un registro existente sigue siendo de una sola persona — se usa la
+  // primera tildada nomás.
+  const checked=[...document.querySelectorAll('#fsap-at-quien-panel input:checked')].map(c=>c.value).filter(Boolean);
+  const quienes = _fifaSepAtEditingId ? checked.slice(0,1) : checked;
+  if(!quienes.length){ toast('⚠️ Elegí a quién'); return; }
   const hRaw=(document.getElementById('fsap-at-hora')?.value||'').trim();
   const tz=_fifaSepAtTz;
   const converted=(tz!=='UY'&&hRaw)?_fsapConvertTz(hRaw,tz,'UY'):null;
-  const entry={
-    id: _fifaSepAtEditingId || Date.now(),
-    tipo: document.getElementById('fsap-at-tipo')?.value||'otro',
-    txt: (document.getElementById('fsap-at-txt')?.value||'').trim(),
-    fecha: document.getElementById('fsap-at-fecha')?.value||'',
-    hora: converted||hRaw,
-    quien,
-  };
-  if(converted){ entry.origH=hRaw; entry.origTz=tz; }
-  const list=getFifaSepAt();
-  if(_fifaSepAtEditingId){
-    const i=list.findIndex(a=>a.id===_fifaSepAtEditingId);
-    if(i>=0) list[i]=entry; else list.push(entry);
-  } else {
-    list.push(entry);
-  }
-  stor.set(KFifaSepAt,list);
-  _fsapSyncCalFromAtencion(entry);
-  // El link vive en el evento del Calendario (KEvLink, por evKey) — es el
-  // mismo evento, no un campo propio de la atención.
+  const tipo=document.getElementById('fsap-at-tipo')?.value||'otro';
+  const txt=(document.getElementById('fsap-at-txt')?.value||'').trim();
+  const fecha=document.getElementById('fsap-at-fecha')?.value||'';
+  const hora=converted||hRaw;
   const linkVal=(document.getElementById('fsap-at-link')?.value||'').trim();
-  const linkedAct=_fsapFindLinkedAct(entry.id);
-  if(linkedAct){
-    const links=getEvLinks();
-    const k=evKey(linkedAct.date,linkedAct.idx);
-    if(linkVal) links[k]=linkVal; else delete links[k];
-    stor.set(KEvLink,links,{allowShrink:true});
-  }
+
+  const list=getFifaSepAt();
+  const entries=quienes.map((quien,i)=>{
+    const entry={ id: _fifaSepAtEditingId || (Date.now()+i), tipo, txt, fecha, hora, quien };
+    if(converted){ entry.origH=hRaw; entry.origTz=tz; }
+    if(_fifaSepAtEditingId){
+      const idx=list.findIndex(a=>a.id===_fifaSepAtEditingId);
+      if(idx>=0) list[idx]=entry; else list.push(entry);
+    } else {
+      list.push(entry);
+    }
+    return entry;
+  });
+  stor.set(KFifaSepAt,list);
+  entries.forEach(entry=>{
+    _fsapSyncCalFromAtencion(entry);
+    // El link vive en el evento del Calendario (KEvLink, por evKey) — es el
+    // mismo evento, no un campo propio de la atención.
+    const linkedAct=_fsapFindLinkedAct(entry.id);
+    if(linkedAct){
+      const links=getEvLinks();
+      const k=evKey(linkedAct.date,linkedAct.idx);
+      if(linkVal) links[k]=linkVal; else delete links[k];
+      stor.set(KEvLink,links,{allowShrink:true});
+    }
+  });
   const txtEl=document.getElementById('fsap-at-txt'); if(txtEl) txtEl.value='';
   const hEl=document.getElementById('fsap-at-hora'); if(hEl) hEl.value='';
   const linkEl=document.getElementById('fsap-at-link'); if(linkEl) linkEl.value='';
@@ -10749,7 +10760,8 @@ window._fifaSepEditAt=function(id){
   const toggleBtn=document.getElementById('fsap-at-toggle-btn');
   if(toggleBtn) toggleBtn.textContent='✕ Cerrar';
   document.getElementById('fsap-at-tipo').value=a.tipo;
-  document.getElementById('fsap-at-quien').value=a.quien;
+  document.querySelectorAll('#fsap-at-quien-panel input[type=checkbox]').forEach(c=>{ c.checked = c.value===a.quien; });
+  window._fsapUpdateQuienLabel();
   document.getElementById('fsap-at-txt').value=a.txt||'';
   document.getElementById('fsap-at-fecha').value=a.fecha||'';
   document.getElementById('fsap-at-hora').value=a.origH||a.hora||'';
@@ -10810,6 +10822,41 @@ function _fifaSepQuienOptionsHtml(){
   return `<option value="">A quién…</option><option value="${dtNom.replace(/"/g,'&quot;')}">${dtNom} (DT)</option>`+
     nombres.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${_fsapNumPlain(n)}${n}</option>`).join('');
 }
+// Panel de checkboxes para "Agregar atención" (fsap-at-quien) — a diferencia
+// del <select> de arriba (usado también en el Calendario, donde cada
+// actividad es de una sola persona), acá hace falta poder elegir varios a
+// la vez (ej: un shooting oficial con 4 jugadores juntos).
+function _fifaSepQuienCheckboxesHtml(){
+  const {dtNom,nombres}=_fifaSepQuienNames();
+  const row=(val,label)=>`<label style="display:flex;align-items:center;gap:7px;padding:6px 9px;cursor:pointer;font-size:.82em" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
+    <input type="checkbox" value="${val.replace(/"/g,'&quot;')}" onchange="_fsapUpdateQuienLabel()" style="flex-shrink:0">
+    <span>${label}</span>
+  </label>`;
+  return row(dtNom, dtNom+' (DT)') + nombres.map(n=>row(n, _fsapNumPlain(n)+n)).join('');
+}
+window._fsapToggleQuienPanel=function(){
+  const panel=document.getElementById('fsap-at-quien-panel');
+  if(!panel) return;
+  const opening = panel.style.display==='none';
+  panel.style.display = opening ? 'block' : 'none';
+  if(opening){
+    setTimeout(()=>document.addEventListener('click',function h(e){
+      if(!panel.contains(e.target) && e.target.id!=='fsap-at-quien-btn' && !e.target.closest('#fsap-at-quien-btn')){
+        panel.style.display='none';
+        document.removeEventListener('click',h);
+      } else {
+        document.addEventListener('click',h,{once:true});
+      }
+    },{once:true}),10);
+  }
+};
+window._fsapUpdateQuienLabel=function(){
+  const checked=[...document.querySelectorAll('#fsap-at-quien-panel input:checked')].map(c=>c.value);
+  const lbl=document.getElementById('fsap-at-quien-label');
+  if(!lbl) return;
+  lbl.textContent = checked.length===0 ? 'A quién… (podés elegir varios)' : checked.length===1 ? checked[0] : `${checked.length} seleccionados`;
+  lbl.style.color = checked.length ? 'var(--text)' : 'var(--hint)';
+};
 function renderFifaSepDisponibilidad(){
   const con=document.getElementById('fifasep26-disp-body');
   if(!con) return;
@@ -10823,6 +10870,7 @@ function renderFifaSepDisponibilidad(){
   // ── Formulario: primero el tipo de actividad, después a quién ──
   const tipoOptions=FIFASEP_DISP_TIPOS.map(t=>`<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
   const quienOptions=_fifaSepQuienOptionsHtml();
+  const quienCheckboxes=_fifaSepQuienCheckboxesHtml();
   const tzChips=Object.entries(FIFASEP_TZ_INFO).map(([k,v])=>`<button type="button" class="aap-tz-chip${k===_fifaSepAtTz?' active':''}" data-tz="${k}" onclick="_fifaSepAtSetTz('${k}',this)">${v.short}</button>`).join('');
   const addForm=`
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
@@ -10830,7 +10878,13 @@ function renderFifaSepDisponibilidad(){
       <div id="fsap-at-body" style="display:none;margin-top:10px">
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
           <select id="fsap-at-tipo" style="flex:1;min-width:160px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">${tipoOptions}</select>
-          <select id="fsap-at-quien" style="flex:1;min-width:160px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">${quienOptions}</select>
+          <div style="flex:1;min-width:160px;position:relative">
+            <button type="button" id="fsap-at-quien-btn" onclick="event.stopPropagation();_fsapToggleQuienPanel()" style="width:100%;text-align:left;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:var(--text)">
+              <span id="fsap-at-quien-label" style="color:var(--hint)">A quién… (podés elegir varios)</span>
+              <i class="ti ti-chevron-down" style="font-size:12px;flex-shrink:0;color:var(--hint)"></i>
+            </button>
+            <div id="fsap-at-quien-panel" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:220px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.14)">${quienCheckboxes}</div>
+          </div>
         </div>
         <input id="fsap-at-txt" type="text" placeholder="Detalle (ej: habla para AUFtv por Zoom)" style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
         <input id="fsap-at-link" type="text" placeholder="Link (opcional) — nota, video, etc." style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
