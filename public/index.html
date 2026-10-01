@@ -11070,15 +11070,19 @@ function renderFifaSepDisponibilidad(){
       </div>`;
     }
     const gid='atgrp-'+(_atGroupN++)+'-'+a0.id;
-    const hasTbd=group.some(a=>a.quien===FSAP_QUIEN_TBD);
-    const realCount=group.length-(hasTbd?1:0);
-    const countLabel = (group.length===1 && hasTbd)
-      ? 'Por definir'
-      : `${realCount} definido${realCount===1?'':'s'}${hasTbd?' + por definir':''}`;
+    // Título = el nombre/detalle de LA ACTIVIDAD (ej. "Clínica para Academia
+    // local"), no el tipo — y debajo, quiénes participan (confirmados en texto
+    // normal, "Jugadores a definir" distinguido en itálica) a simple vista, sin
+    // tener que desplegar. El tipo+fecha+hora queda como metadato chico abajo.
+    const groupTitle = a0.txt || t.label;
+    const peopleLabel = group.map(a=>a.quien===FSAP_QUIEN_TBD
+      ? `<span style="font-style:italic;color:#92400E">Jugadores a definir</span>`
+      : `${_fsapNumTag(a.quien)}${a.quien}`).join(', ');
     const personRows=group.map(a=>{
       const {isDone,firstLink}=_atPersonActions(a);
+      const isTbd=a.quien===FSAP_QUIEN_TBD;
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px 6px 37px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--surface)">
-        <div style="flex:1;min-width:140px;font-size:.8em;font-weight:600">${_fsapNumTag(a.quien)}${a.quien}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓</span>`:''}</div>
+        <div style="flex:1;min-width:140px;font-size:.8em;font-weight:600;${isTbd?'font-style:italic;color:#92400E':''}">${isTbd?'':_fsapNumTag(a.quien)}${a.quien}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓</span>`:''}</div>
         ${firstLink?`<a href="${firstLink}" target="_blank" rel="noopener" title="Ver link" style="font-size:12px;text-decoration:none">🔗</a>`:''}
         <button onclick="_fifaSepEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:11px">✏️</button>
         <button onclick="_fifaSepRemoveAt(${a.id})" title="Eliminar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:11px">🗑</button>
@@ -11089,8 +11093,9 @@ function renderFifaSepDisponibilidad(){
         style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;cursor:pointer">
         <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
         <div style="flex:1;min-width:180px">
-          <div style="font-size:.82em;font-weight:700">${t.label}${a0.txt?' · '+a0.txt:''}${obligBadge} <span style="color:var(--cel-dk)">· ${countLabel}</span></div>
-          <div style="font-size:.7em;color:var(--muted)">${fechaFmt}${horaFmt?' · '+horaFmt:''}</div>
+          <div style="font-size:.82em;font-weight:700">${groupTitle}${obligBadge}</div>
+          <div style="font-size:.74em;color:var(--text);margin-top:1px">${peopleLabel}</div>
+          <div style="font-size:.68em;color:var(--muted);margin-top:1px">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
         </div>
         <button onclick="event.stopPropagation();_fifaSepEditAtBatch(${a0.batchId})" title="Editar el grupo entero" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:14px;flex-shrink:0">✏️</button>
         <span class="atgrp-chev" style="font-size:20px;font-weight:900;flex-shrink:0;color:var(--cel-dk);line-height:1">▸</span>
