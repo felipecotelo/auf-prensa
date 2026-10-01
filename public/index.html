@@ -10946,8 +10946,22 @@ function _fifaSepQuienCheckboxesHtml(){
     <span${opts?.spanStyle?` style="${opts.spanStyle}"`:''}>${label}</span>
   </label>`;
   const tbdRow = row(FSAP_QUIEN_TBD, '🕓 Jugadores a definir', {style:'background:#FFFBEB;border-bottom:1px solid var(--border)', bg:'#FFFBEB', spanStyle:'color:#DC2626;font-weight:700'});
-  return tbdRow + row(dtNom, dtNom+' (DT)') + nombres.map(n=>row(n, _fsapNumPlain(n)+n)).join('');
+  // Fijo arriba (sticky) para "actividades con todo el plantel" (ej. foto
+  // oficial) — un click tilda a todos los jugadores + DT sin tener que ir
+  // uno por uno. No incluye "Jugadores a definir" (si es TODOS, ya está
+  // definido, no hace falta ese placeholder).
+  const selectAllRow = `<div style="position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 9px;background:var(--card);border-bottom:1px solid var(--border)">
+    <button type="button" onclick="_fsapToggleAllQuienes(true)" style="border:none;background:none;color:var(--cel-dk);font-weight:800;font-size:.78em;cursor:pointer;padding:0">☑️ Todos</button>
+    <button type="button" onclick="_fsapToggleAllQuienes(false)" style="border:none;background:none;color:var(--hint);font-weight:700;font-size:.78em;cursor:pointer;padding:0">Ninguno</button>
+  </div>`;
+  return selectAllRow + tbdRow + row(dtNom, dtNom+' (DT)') + nombres.map(n=>row(n, _fsapNumPlain(n)+n)).join('');
 }
+window._fsapToggleAllQuienes=function(checkAll){
+  document.querySelectorAll('#fsap-at-quien-panel input[type=checkbox]').forEach(c=>{
+    c.checked = checkAll && c.value===FSAP_QUIEN_TBD ? false : checkAll;
+  });
+  window._fsapUpdateQuienLabel();
+};
 window._fsapToggleQuienPanel=function(){
   const panel=document.getElementById('fsap-at-quien-panel');
   if(!panel) return;
