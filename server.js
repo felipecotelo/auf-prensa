@@ -968,8 +968,17 @@ function buildGcalEventBody({ summary, personas, date, time }) {
     const endTotal = h * 60 + mi + 30;
     const eh = Math.floor(endTotal / 60) % 24, emi = endTotal % 60;
     const pad = n => String(n).padStart(2, '0');
+    // Si el +30min cruza medianoche, el fin cae en el día calendario siguiente —
+    // si no, Google rechaza el evento (hora de fin "anterior" al inicio, mismo
+    // día). endTotal>=1440 es el único caso en que esto puede pasar acá.
+    let endDate = date;
+    if (endTotal >= 1440) {
+      const d = new Date(date + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() + 1);
+      endDate = d.toISOString().slice(0, 10);
+    }
     ev.start = { dateTime: `${date}T${pad(h)}:${pad(mi)}:00`, timeZone: 'America/Montevideo' };
-    ev.end   = { dateTime: `${date}T${pad(eh)}:${pad(emi)}:00`, timeZone: 'America/Montevideo' };
+    ev.end   = { dateTime: `${endDate}T${pad(eh)}:${pad(emi)}:00`, timeZone: 'America/Montevideo' };
   } else {
     const d = new Date(date + 'T00:00:00Z');
     d.setUTCDate(d.getUTCDate() + 1);
