@@ -866,7 +866,10 @@ setInterval(runSyncDataBackup, BACKUP_INTERVAL_MS);
 // El calendario ("Selección | Planificación") fue compartido a mano con el
 // email de la cuenta de servicio, con permiso "Realizar cambios en los eventos".
 const GCAL_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || '';
-const GCAL_ATTENDEE    = 'marcos.mendez@auf.org.uy';
+// NOTA: no se agrega a Marcos Méndez como "attendee" — Google rechaza invitar
+// asistentes desde una cuenta de servicio sin Domain-Wide Delegation (requiere
+// admin de Google Workspace, fuera de alcance acá). Como el calendario es
+// compartido, lo ve igual sin necesidad de una invitación individual.
 
 function gcalPrivateKey() {
   // Railway no soporta saltos de línea reales en variables de entorno — la
@@ -973,7 +976,6 @@ function buildGcalEventBody({ summary, personas, date, time }) {
     ev.start = { date };
     ev.end = { date: d.toISOString().slice(0, 10) };
   }
-  if (GCAL_ATTENDEE) ev.attendees = [{ email: GCAL_ATTENDEE }];
   return ev;
 }
 
