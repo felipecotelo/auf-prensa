@@ -10627,6 +10627,18 @@ function _fsapFindLinkedAct(atencionId){
   }
   return null;
 }
+// Mismo vínculo que _fsapFindLinkedAct, pero para un grupo entero (batchId) —
+// un batch de atenciones (ej. "Cena de camaradería" para todo el plantel)
+// sincroniza UN SOLO acto de Calendario compartido, no uno por persona (eso
+// inundaba el día con decenas de filas idénticas).
+function _fsapFindLinkedActByBatch(batchId){
+  const acts=getDayActs();
+  for(const d of Object.keys(acts)){
+    const idx=(acts[d]||[]).findIndex(e=>e && e.batchId===batchId);
+    if(idx>=0) return {date:d, idx};
+  }
+  return null;
+}
 // Atención → Calendario: si el día no cambió, actualiza EN EL LUGAR (no
 // borra/recrea) — el resto del sistema (KEvTxt/KEvS/KEvLink/KCalT) guarda
 // overrides por POSICIÓN (evKey = date_idx), así que borrar y volver a
@@ -10635,8 +10647,16 @@ function _fsapFindLinkedAct(atencionId){
 // el cartel de conflicto cada vez que se guardaba una atención, aunque fuera
 // solo para cambiarle el link. Solo se borra/recrea cuando el día SÍ cambió
 // (ahí no queda otra, no hay "mover de índice entre arrays distintos").
-function _fsapSyncCalFromAtencion(entry){
-  const found=_fsapFindLinkedAct(entry.id);
+// groupEntries (opcional): cuando entry.batchId está seteado, se le puede
+// pasar la lista completa de atenciones del batch — si no se pasa, se
+// recalcula sola desde getFifaSepAt(). Con batchId, sincroniza UN SOLO acto
+// de Calendario para TODO el grupo (personas = todos los del batch), en vez
+// de un acto por persona — ver _fsapFindLinkedActByBatch.
+function _fsapSyncCalFromAtencion(entry, groupEntries){
+  const isBatch=!!entry.batchId;
+  const group=isBatch ? (groupEntries || getFifaSepAt().filter(a=>a.batchId===entry.batchId)) : [entry];
+  const personas=group.map(a=>a.quien);
+  const found=isBatch ? _fsapFindLinkedActByBatch(entry.batchId) : _fsapFindLinkedAct(entry.id);
   const tipoLabel=(FIFASEP_DISP_TIPOS.find(t=>t.id===entry.tipo)||{}).label||'';
   const calType=FIFASEP_AT_CAL_TYPE[entry.tipo]||'auf';
   const isOblig=FIFASEP_AT_OBLIG.includes(entry.tipo);
@@ -10646,7 +10666,8 @@ function _fsapSyncCalFromAtencion(entry){
     const e=acts[found.date][found.idx];
     e.txt=entry.txt||tipoLabel;
     e.h=entry.hora;
-    e.personas=[entry.quien];
+    e.personas=personas;
+    if(isBatch) e.batchId=entry.batchId; else e.atencionId=entry.id;
     delete e.auf;
     if(calType!=='team') e.auf=true;
     if(isOblig) e.oblig=true; else delete e.oblig;
@@ -10674,7 +10695,8 @@ function _fsapSyncCalFromAtencion(entry){
   if(!entry.fecha || !FIFASEP26_CAL_DAYS.some(d=>d.date===entry.fecha)) return;
   const acts2=getDayActs();
   if(!acts2[entry.fecha]) acts2[entry.fecha]=[];
-  const newEv={txt:entry.txt||tipoLabel, h:entry.hora, personas:[entry.quien], atencionId:entry.id};
+  const newEv={txt:entry.txt||tipoLabel, h:entry.hora, personas};
+  if(isBatch) newEv.batchId=entry.batchId; else newEv.atencionId=entry.id;
   if(calType!=='team') newEv.auf=true;
   if(isOblig) newEv.oblig=true;
   if(entry.origH){ newEv.origH=entry.origH; newEv.origTz=entry.origTz; }
@@ -10752,27 +10774,22 @@ window._fifaSepAddAt=function(){
     list=list.concat(addedEntries);
     stor.set(KFifaSepAt, list, {allowShrink: toRemoveIds.size>0});
 
-    // Calendario: borrar el evento de cada persona sacada del grupo...
-    toRemoveIds.forEach(id=>{
-      const found=_fsapFindLinkedAct(id);
-      if(found){
-        const acts=getDayActs();
-        acts[found.date].splice(found.idx,1);
-        stor.set(KDayActs,acts,{allowShrink:true});
-        _fsapReindexAfterDelete(found.date,found.idx);
-      }
-    });
-    // ...y crear/actualizar el evento de cada persona que sigue (o se sumó).
-    list.filter(a=>a.batchId===bId && selectedSet.has(a.quien)).forEach(entry=>{
-      _fsapSyncCalFromAtencion(entry);
-      const linkedAct=_fsapFindLinkedAct(entry.id);
+    // El evento de Calendario es UNO SOLO compartido por todo el grupo (ver
+    // _fsapSyncCalFromAtencion) — a alguien que se saca del grupo no hay que
+    // borrarle "su" evento (nunca tuvo uno propio), alcanza con resincronizar
+    // el compartido con la lista de personas actualizada.
+    const remainingGroup=list.filter(a=>a.batchId===bId && selectedSet.has(a.quien));
+    const remainingGroup=list.filter(a=>a.batchId===bId && selectedSet.has(a.quien));
+    if(remainingGroup.length){
+      _fsapSyncCalFromAtencion(remainingGroup[0], remainingGroup);
+      const linkedAct=_fsapFindLinkedActByBatch(bId);
       if(linkedAct){
         const links=getEvLinks();
         const k=evKey(linkedAct.date,linkedAct.idx);
         if(linkVal) links[k]=linkVal; else delete links[k];
         stor.set(KEvLink,links,{allowShrink:true});
       }
-    });
+    }
 
     const txtEl2=document.getElementById('fsap-at-txt'); if(txtEl2) txtEl2.value='';
     const hEl2=document.getElementById('fsap-at-hora'); if(hEl2) hEl2.value='';
@@ -10808,18 +10825,31 @@ window._fifaSepAddAt=function(){
     return entry;
   });
   stor.set(KFifaSepAt,list);
-  entries.forEach(entry=>{
-    _fsapSyncCalFromAtencion(entry);
-    // El link vive en el evento del Calendario (KEvLink, por evKey) — es el
-    // mismo evento, no un campo propio de la atención.
-    const linkedAct=_fsapFindLinkedAct(entry.id);
+  // Un batch nuevo sincroniza UN SOLO evento compartido (todas las personas
+  // de `entries`); sin batch, cada entry es su propio evento como siempre.
+  if(batchId){
+    _fsapSyncCalFromAtencion(entries[0], entries);
+    const linkedAct=_fsapFindLinkedActByBatch(batchId);
     if(linkedAct){
       const links=getEvLinks();
       const k=evKey(linkedAct.date,linkedAct.idx);
       if(linkVal) links[k]=linkVal; else delete links[k];
       stor.set(KEvLink,links,{allowShrink:true});
     }
-  });
+  } else {
+    entries.forEach(entry=>{
+      _fsapSyncCalFromAtencion(entry);
+      // El link vive en el evento del Calendario (KEvLink, por evKey) — es el
+      // mismo evento, no un campo propio de la atención.
+      const linkedAct=_fsapFindLinkedAct(entry.id);
+      if(linkedAct){
+        const links=getEvLinks();
+        const k=evKey(linkedAct.date,linkedAct.idx);
+        if(linkVal) links[k]=linkVal; else delete links[k];
+        stor.set(KEvLink,links,{allowShrink:true});
+      }
+    });
+  }
   const txtEl=document.getElementById('fsap-at-txt'); if(txtEl) txtEl.value='';
   const hEl=document.getElementById('fsap-at-hora'); if(hEl) hEl.value='';
   const linkEl=document.getElementById('fsap-at-link'); if(linkEl) linkEl.value='';
@@ -10883,14 +10913,32 @@ window._fifaSepEditAtBatch=function(batchId){
   body?.scrollIntoView({behavior:'smooth',block:'center'});
 };
 window._fifaSepRemoveAt=function(id){
-  stor.set(KFifaSepAt, getFifaSepAt().filter(a=>a.id!==id), {allowShrink:true});
+  const before=getFifaSepAt();
+  const removed=before.find(a=>a.id===id);
+  const list=before.filter(a=>a.id!==id);
+  stor.set(KFifaSepAt, list, {allowShrink:true});
   if(_fifaSepAtEditingId===id) _fifaSepAtEditingId=null;
-  const found=_fsapFindLinkedAct(id);
-  if(found){
-    const acts=getDayActs();
-    acts[found.date].splice(found.idx,1);
-    stor.set(KDayActs,acts,{allowShrink:true});
-    _fsapReindexAfterDelete(found.date,found.idx);
+  if(removed && removed.batchId){
+    // Evento compartido del batch: si quedan más personas, resincronizar con
+    // la lista actualizada; si era la última, borrar el evento compartido.
+    const remainingGroup=list.filter(a=>a.batchId===removed.batchId);
+    const found=_fsapFindLinkedActByBatch(removed.batchId);
+    if(remainingGroup.length){
+      _fsapSyncCalFromAtencion(remainingGroup[0], remainingGroup);
+    } else if(found){
+      const acts=getDayActs();
+      acts[found.date].splice(found.idx,1);
+      stor.set(KDayActs,acts,{allowShrink:true});
+      _fsapReindexAfterDelete(found.date,found.idx);
+    }
+  } else {
+    const found=_fsapFindLinkedAct(id);
+    if(found){
+      const acts=getDayActs();
+      acts[found.date].splice(found.idx,1);
+      stor.set(KDayActs,acts,{allowShrink:true});
+      _fsapReindexAfterDelete(found.date,found.idx);
+    }
   }
   renderFifaSepDisponibilidad();
 };
@@ -12027,11 +12075,19 @@ window.deleteFifaSepAct=function(date,idx,ev){
   stor.set(KDayActs,acts,{allowShrink:true});
   _fsapReindexAfterDelete(date,idx);
   // Vinculada a una atención de Disponibilidad — es un solo evento, se borra junto.
-  if(removed.atencionId){
+  // Si es un batch, el evento compartido representa a TODO el grupo: borrarlo
+  // borra las atenciones de todas las personas del grupo, no solo una.
+  let hadAt=false;
+  if(removed.batchId){
+    const list=getFifaSepAt().filter(a=>a.batchId!==removed.batchId);
+    stor.set(KFifaSepAt, list, {allowShrink:true});
+    hadAt=true;
+  } else if(removed.atencionId){
     stor.set(KFifaSepAt, getFifaSepAt().filter(a=>a.id!==removed.atencionId), {allowShrink:true});
+    hadAt=true;
   }
   renderFifaSepCal();
-  toast(removed.atencionId?'Actividad y atención eliminadas':'Actividad eliminada');
+  toast(hadAt?'Actividad y atención eliminadas':'Actividad eliminada');
 };
 
 // Variantes propias de setEvSt/cycleEvSt/toggleDayClosed que refrescan
