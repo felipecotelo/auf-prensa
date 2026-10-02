@@ -11485,16 +11485,14 @@ function renderFifaSep26(tabId){
         const isGK=p.pos==='POR';
         const golesVal=isGK?(d?.total?.gc??null):g;
         const golesLabel=isGK?'Goles enc.':'Goles';
-        // "+N" al lado del número — lo ganado DURANTE esta Fecha FIFA.
-        // Partidos/goles: suma de lo confirmado con el botón "Confirmar
-        // resultado" de la Pizarra (auf4_fifasep_stats_delta), inmediato, sin
-        // esperar el chequeo oficial de 48h. Minutos: no hay forma confiable
-        // de calcularlos desde la pizarra (no se trackea quién salió, solo
-        // quién entró) — ese sigue viniendo de FIFASEP26_STATS_BASELINE, para
-        // cuando se actualice JUGADORES a mano con el dato oficial.
-        // OJO: si en algún momento se actualiza JUGADORES en código con el
-        // resultado ya confirmado por AUF, hay que borrar la entrada
-        // correspondiente de auf4_fifasep_stats_delta para no duplicar el +N.
+        // "+N" al lado del número — puramente informativo ("jugó N partidos
+        // en esta Fecha FIFA"), viene de auf4_fifasep_stats_delta (confirmado
+        // con el botón "Confirmar resultado" de la Pizarra). El número
+        // PRINCIPAL es siempre pj/golesVal/min a secas — el total oficial ya
+        // confirmado en JUGADORES — nunca se le suma el +N, así no se duplica
+        // cuando ese partido además se carga a mano en JUGADORES (como se hizo
+        // con Japón y Corea del Sur). El +N queda de adorno indefinidamente,
+        // no hace falta borrarlo después de confirmar.
         const _fsDelta=getFifaSepStatsDelta();
         let deltaPj=0, deltaG=0;
         Object.values(_fsDelta).forEach(md=>{ const pd=md[p.nom]; if(pd){ deltaPj+=pd.pj||0; if(!isGK) deltaG+=pd.g||0; } });
@@ -11589,9 +11587,9 @@ function renderFifaSep26(tabId){
               <div class="p-club">${p.clubPais||''} ${p.club}</div>
               <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?` · <span style="font-weight:700;color:var(--fg)">${edad} años</span>`:''}</div>
               <div class="p-stats" style="grid-template-columns:repeat(3,1fr)">
-                <div class="p-stat"><div class="p-stat-n${pj===0&&deltaPj===0?' zero':''}" title="${pj===0&&deltaPj===0?'Sería su debut':''}">${pj+deltaPj}${pj===0&&deltaPj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaPj>0?`<span class="p-stat-delta" title="Sumó ${deltaPj} en esta Fecha FIFA">+${deltaPj}</span>`:''}</div><div class="p-stat-l">Partidos</div></div>
-                <div class="p-stat"><div class="p-stat-n goal${golesVal===0&&!isGK&&deltaG===0?' zero':''}" title="${golesVal===0&&!isGK&&deltaG===0?'Sería su primer gol':''}">${golesVal==null?'—':golesVal+deltaG}${golesVal===0&&!isGK&&deltaG===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaG>0?`<span class="p-stat-delta" title="Sumó ${deltaG} en esta Fecha FIFA">+${deltaG}</span>`:''}</div><div class="p-stat-l">${golesLabel}</div></div>
-                <div class="p-stat"><div class="p-stat-n${min===0&&deltaPj===0?' zero':''}" title="${min===0&&deltaPj===0?'Serían sus primeros minutos':''}">${min+deltaMin}${min===0&&deltaPj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaMin>0?`<span class="p-stat-delta" title="Sumó ${deltaMin} en esta Fecha FIFA">+${deltaMin}</span>`:''}</div><div class="p-stat-l">Minutos</div></div>
+                <div class="p-stat"><div class="p-stat-n${pj===0&&deltaPj===0?' zero':''}" title="${pj===0&&deltaPj===0?'Sería su debut':''}">${pj}${pj===0&&deltaPj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaPj>0?`<span class="p-stat-delta" title="Jugó ${deltaPj} partido${deltaPj>1?'s':''} en esta Fecha FIFA">+${deltaPj}</span>`:''}</div><div class="p-stat-l">Partidos</div></div>
+                <div class="p-stat"><div class="p-stat-n goal${golesVal===0&&!isGK&&deltaG===0?' zero':''}" title="${golesVal===0&&!isGK&&deltaG===0?'Sería su primer gol':''}">${golesVal==null?'—':golesVal}${golesVal===0&&!isGK&&deltaG===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaG>0?`<span class="p-stat-delta" title="Marcó ${deltaG} en esta Fecha FIFA">+${deltaG}</span>`:''}</div><div class="p-stat-l">${golesLabel}</div></div>
+                <div class="p-stat"><div class="p-stat-n${min===0&&deltaPj===0?' zero':''}" title="${min===0&&deltaPj===0?'Serían sus primeros minutos':''}">${min}${min===0&&deltaPj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaMin>0?`<span class="p-stat-delta" title="Sumó ${deltaMin} minutos en esta Fecha FIFA">+${deltaMin}</span>`:''}</div><div class="p-stat-l">Minutos</div></div>
               </div>
               ${milestones.map(m=>`<div class="p-ms ${m.cls}">${m.txt}</div>`).join('')}
               ${partGridHtml}
