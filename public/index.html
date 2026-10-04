@@ -10856,9 +10856,14 @@ window._fifaSepAddAt=function(){
   // suelta — ver _atGroupKey).
   const batchId = (!_fifaSepAtEditingId && (quienes.length>1 || quienes.includes(FSAP_QUIEN_TBD))) ? Date.now() : null;
   const list=getFifaSepAt();
+  // Editar a UNA persona de un grupo no la saca del grupo: se conserva su batchId
+  // (si no, el Calendario no la reconoce como parte del evento compartido y
+  // termina creando un segundo evento duplicado).
+  const prevBatchId=_fifaSepAtEditingId ? (list.find(a=>a.id===_fifaSepAtEditingId)?.batchId||null) : null;
   const entries=quienes.map((quien,i)=>{
     const entry={ id: _fifaSepAtEditingId || (Date.now()+i), tipo, titulo, txt, fecha, hora, quien };
     if(batchId) entry.batchId=batchId;
+    else if(prevBatchId) entry.batchId=prevBatchId;
     if(converted){ entry.origH=hRaw; entry.origTz=tz; }
     if(_fifaSepAtEditingId){
       const idx=list.findIndex(a=>a.id===_fifaSepAtEditingId);
@@ -10871,9 +10876,10 @@ window._fifaSepAddAt=function(){
   stor.set(KFifaSepAt,list);
   // Un batch nuevo sincroniza UN SOLO evento compartido (todas las personas
   // de `entries`); sin batch, cada entry es su propio evento como siempre.
-  if(batchId){
-    _fsapSyncCalFromAtencion(entries[0], entries);
-    const linkedAct=_fsapFindLinkedActByBatch(batchId);
+  if(batchId || prevBatchId){
+    const bId=batchId||prevBatchId;
+    _fsapSyncCalFromAtencion(entries[0], batchId ? entries : null);
+    const linkedAct=_fsapFindLinkedActByBatch(bId);
     if(linkedAct){
       const links=getEvLinks();
       const k=evKey(linkedAct.date,linkedAct.idx);
@@ -11179,7 +11185,8 @@ function renderFifaSepDisponibilidad(){
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
         <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
         <div style="flex:1;min-width:180px">
-          <div style="font-size:.82em;font-weight:700">${_fsapNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}${obligBadge}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓ Hecho</span>`:''}</div>
+          <div style="font-size:.82em;font-weight:700">${a.titulo?a.titulo:`${_fsapNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}`}${obligBadge}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓ Hecho</span>`:''}</div>
+          ${a.titulo?`<div style="font-size:.74em;color:var(--text);margin-top:1px">${a.quien===FSAP_QUIEN_TBD?`<span style="color:#DC2626;font-weight:700">${a.quien}</span>`:`${_fsapNumTag(a.quien)}${a.quien}`}${a.txt?' · '+a.txt:''}</div>`:''}
           <div style="font-size:.7em;color:var(--muted)">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
         </div>
         ${firstLink?`<a href="${firstLink}" target="_blank" rel="noopener" title="Ver link" style="font-size:13px;text-decoration:none">🔗</a>`:''}
