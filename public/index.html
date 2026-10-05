@@ -17545,8 +17545,34 @@ window._saveForlanConf=function(){
   modal.style.display='none';
   renderTecnicos();
 };
+// Conferencias de Forlán cargadas en Prensa y marketing (Fecha FIFA): se
+// listan solas acá, sin cargarlas dos veces. Solo conferencias (MD-1 y MD) —
+// "quien" es el DT; el resto de sus atenciones (notas, etc.) no entra.
+function _forlanConfsDesdeAtenciones(){
+  const dt=(typeof FIFASEP26!=='undefined'&&FIFASEP26.dt)||'Diego Forlán';
+  const evS=getEvStatus(), evL=getEvLinks();
+  return getFifaSepAt()
+    .filter(a=>a.quien===dt && (a.tipo==='md1'||a.tipo==='md'))
+    .map(a=>{
+      const linked=a.batchId?_fsapFindLinkedActByBatch(a.batchId):_fsapFindLinkedAct(a.id);
+      const k=linked?evKey(linked.date,linked.idx):null;
+      const lbl=(FIFASEP_DISP_TIPOS.find(t=>t.id===a.tipo)||{}).label||'Conferencia';
+      return {txt:a.titulo||a.txt||lbl, tipoLbl:lbl, fecha:a.fecha||'', hora:a.hora||'',
+              done:!!(k&&evS[k]==='done'), link:(k&&evL[k])?(parseLinks(evL[k])[0]||''):''};
+    })
+    .sort((x,y)=>(x.fecha||'9999').localeCompare(y.fecha||'9999')||(x.hora||'').localeCompare(y.hora||''));
+}
 function buildForlanConfsHtml(){
   const edits=stor.get('auf4_forlanconf',{});
+  const autoConfs=_forlanConfsDesdeAtenciones();
+  const autoHtml=autoConfs.map((c,i)=>`
+        <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--surface);border:0.5px solid var(--border)">
+          <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${FORLAN_CONFS_DEFAULT.length+i+1}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;color:var(--text)">${c.link?`<a href="${c.link}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}${c.done?' <span style="color:#16A34A;font-weight:800;font-size:10px">✓ Hecho</span>':''}</div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${c.tipoLbl}${c.fecha?' · '+_fmtDateCorta(c.fecha):''}${c.hora?' · '+c.hora+'h UY':''}</div>
+          </div>
+        </div>`).join('');
   return `<div class="stats-section">
     <div class="phase">🎙️ Atención de prensa · Diego Forlán</div>
     <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
@@ -17565,7 +17591,9 @@ function buildForlanConfsHtml(){
           </div>
           <button onclick="_openForlanConfModal(${c.n})" title="Editar" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:var(--hint);line-height:1">✏️</button>
         </div>`;}).join('')}
+      ${autoHtml}
     </div>
+    ${autoConfs.length?`<div style="font-size:9.5px;color:var(--hint);margin-top:8px">Las conferencias MD-1/MD se suman solas desde Prensa y marketing (Fecha FIFA).</div>`:''}
   </div>`;
 }
 
