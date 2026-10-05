@@ -11429,15 +11429,13 @@ function renderFifaSep26(tabId){
       const initialsOf=nom=>{const w=nom.split(' ').filter(Boolean);return((w[0]?.[0]||'')+(w[w.length-1]?.[0]||'')).toUpperCase();};
       // Hitos "dato interesante" — solo para los ya confirmados en la convocatoria
       // final. Se computan una sola vez acá afuera (no por tarjeta) para no
-      // recorrer todo JUGADORES 26 veces. Usa el total EFECTIVO (JUGADORES +
-      // lo confirmado en esta Fecha FIFA vía auf4_fifasep_stats_delta) — si
-      // no, un jugador que ya llegó a un número gracias a esta gira seguía
-      // apareciendo "a 1 de" algo que ya alcanzó.
-      const _fsDeltaAll=getFifaSepStatsDelta();
-      const _fsDeltaPjOf=nom=>{ let d=0; Object.values(_fsDeltaAll).forEach(md=>{ if(md[nom]) d+=md[nom].pj||0; }); return d; };
-      const _fsDeltaGOf=nom=>{ let d=0; Object.values(_fsDeltaAll).forEach(md=>{ if(md[nom]) d+=md[nom].g||0; }); return d; };
-      const _allPjSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,pj:(dd.total?.pj||0)+_fsDeltaPjOf(n)})).filter(e=>e.pj>0).sort((a,b)=>b.pj-a.pj);
-      const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:(dd.total?.g||0)+_fsDeltaGOf(n)})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
+      // recorrer todo JUGADORES 26 veces. Usa el total OFICIAL de JUGADORES
+      // a secas (el mismo número principal de la tarjeta): el "+N" de la
+      // Fecha FIFA es solo decorativo y no se suma, porque los partidos ya
+      // confirmados están cargados en JUGADORES — sumarlo duplicaba (ej. Mele,
+      // 9 PJ, figuraba "a 1" de Pacheco con 11 cuando en realidad estaba a 2).
+      const _allPjSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,pj:(dd.total?.pj||0)})).filter(e=>e.pj>0).sort((a,b)=>b.pj-a.pj);
+      const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:(dd.total?.g||0)})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
       // Todos los múltiplos de 10 — los de 50 en adelante llevan estilo dorado
       // (ahí se entrega la camiseta homenaje) pero la misma ventana de aviso que
       // el resto: a 8 partidos "no tiene sentido, falta una vida" (feedback del
@@ -11522,7 +11520,7 @@ function renderFifaSep26(tabId){
         // hipotético — pasa a tiempo pasado, y el "0" de Partidos deja de
         // marcarse como "sería su debut" (ya lo fue).
         const yaDebuto = debutaria && deltaPj>0;
-        const milestones = enFinal ? _fifaMilestoneNote(p.nom,pj+deltaPj,g+deltaG) : [];
+        const milestones = enFinal ? _fifaMilestoneNote(p.nom,pj,g) : [];
         const photoSrc = window._getPhotoByName?.(p.nom) || d?.foto || '';
         const safe=p.nom.replace(/'/g,"\\'");
         const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');
