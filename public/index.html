@@ -10293,7 +10293,55 @@ const FIFASEP26_STATS_BASELINE = {
 // (cada uno de los 3 partidos es único) — re-confirmar recalcula desde cero
 // con lo que haya en la pizarra en ese momento, no se acumula ni duplica.
 const KFifaSepStatsDelta='auf4_fifasep_stats_delta';
-function getFifaSepStatsDelta(){ return stor.get(KFifaSepStatsDelta,{}); }
+// Lo que sumó cada jugador en la Fecha FIFA sale SOLO de los partidos cargados
+// en la Pizarra (titulares + ingresos + goles de cada partido con marcador), sin
+// tener que apretar "Confirmar resultado". Lo que ya estaba guardado con ese
+// botón queda como respaldo para los partidos que ya no tengan datos en la
+// Pizarra; si la Pizarra tiene el partido, manda la Pizarra.
+function _fifaSepDeltaDesdePizarra(){
+  let list=[];
+  try{ list=_getAmistosos('fifamayor','sepoct26')||[]; }catch(_){}
+  const out={};
+  list.forEach(m=>{
+    if(!m||isNaN(parseInt(m.gLocal))||isNaN(parseInt(m.gRival))) return;
+    const starters=Object.values(m.lineup?.starters||{}).filter(Boolean);
+    const subNoms=(m.subs||[]).map(x=>x.nom);
+    const jugaron=[...new Set([...starters,...subNoms])];
+    if(!jugaron.length) return;
+    const gol={};
+    if((m.golMins||[]).length){
+      m.golMins.forEach(g=>{ if(g.nom!=='__EC__') gol[g.nom]=(gol[g.nom]||0)+1; });
+    } else {
+      Object.entries(m.goles||{}).forEach(([nom,c])=>{ if(nom!=='__EC__'&&c>0) gol[nom]=c; });
+    }
+    out[m.rival]={};
+    jugaron.forEach(nom=>{ out[m.rival][nom]={pj:1,g:gol[nom]||0}; });
+  });
+  return out;
+}
+function getFifaSepStatsDelta(){ return {...stor.get(KFifaSepStatsDelta,{}), ..._fifaSepDeltaDesdePizarra()}; }
+// Total de carrera "mínimo" de un jugador: lo que tenía antes de la gira
+// (FIFASEP26_STATS_BASELINE) + lo jugado/convertido en la gira según la
+// Pizarra. Si el dato oficial cargado en JUGADORES todavía no incluye algún
+// partido (AUF tarda ~48h en publicarlo), manda este; cuando AUF lo incluye
+// y es igual o mayor, manda el oficial. No cuenta minutos (no salen de la
+// Pizarra).
+function _fifaSepFloor(nom){
+  const b=(typeof FIFASEP26_STATS_BASELINE!=='undefined')?FIFASEP26_STATS_BASELINE[nom]:null;
+  if(!b) return null;
+  let pj=0,g=0;
+  Object.values(getFifaSepStatsDelta()).forEach(md=>{ const x=md&&md[nom]; if(x){ pj+=x.pj||0; g+=x.g||0; } });
+  return {pj:(b.pj||0)+pj, g:(b.g||0)+g};
+}
+function _fifaSepApplyFloor(){
+  if(typeof FIFASEP26_STATS_BASELINE==='undefined'||typeof JUGADORES==='undefined') return;
+  Object.keys(FIFASEP26_STATS_BASELINE).forEach(nom=>{
+    const t=JUGADORES[nom]?.total; const f=_fifaSepFloor(nom);
+    if(!t||!f) return;
+    if((t.pj||0)<f.pj) t.pj=f.pj;
+    if((t.g||0)<f.g) t.g=f.g;
+  });
+}
 function _fifaSepConfirmBtnHtml(cat,year,m){
   const delta=getFifaSepStatsDelta();
   const confirmed=!!delta[m.rival];
@@ -11513,6 +11561,7 @@ function renderFifaSep26(tabId){
       const _fifaSepNumMap={};
       Object.values(FIFASEP26.reservados||{}).forEach(arr=>(arr||[]).forEach(j=>{ if(j.num!=null) _fifaSepNumMap[j.nom]=j.num; }));
       const tarjeta=(p)=>{
+        _fifaSepApplyFloor();
         const d=JUGADORES[p.nom];
         const pj=d?.total?.pj||0, g=d?.total?.g||0, min=d?.total?.min||0;
         // Arqueros: importan los goles que le hicieron, casi nunca hacen uno
@@ -13795,6 +13844,7 @@ window._mobCardToggle=function(card){
   if(!wasExp){card.classList.add('mob-exp');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
 };
 function renderJugadores(){
+  _fifaSepApplyFloor();
   const con=document.getElementById('jugadores-container');
   if(!con) return;
   const _scrollY=window.scrollY;
@@ -14140,6 +14190,7 @@ function _buildJugadorHTML(nom,closeId){
     </div>`;
 }
 function showJugador(nom){
+  _fifaSepApplyFloor();
   let overlay=document.getElementById('jug-modal-overlay');
   if(!overlay){
     overlay=document.createElement('div');
@@ -15455,6 +15506,20 @@ function renderDisponibilidad(){
 
 // Fecha de última actualización de datos históricos AUF
 const AUF_HIST_UPDATED={date:'26/06/2026', match:'vs. España (Fecha 3 — Fase de Grupos)'};
+// Etiqueta de "Actualizado": si hay partidos de la Fecha FIFA sep-oct 2026 con
+// resultado en la Pizarra, muestra el último (se completa sola); si no, la
+// fecha fija del último corte oficial de AUF.
+function aufHistUpdatedLabel(){
+  let ult=null;
+  try{
+    (_getAmistosos('fifamayor','sepoct26')||[]).forEach(m=>{
+      if(m&&m.fecha&&!isNaN(parseInt(m.gLocal))&&!isNaN(parseInt(m.gRival))&&(!ult||m.fecha>ult.fecha)) ult=m;
+    });
+  }catch(_){}
+  if(!ult) return `${AUF_HIST_UPDATED.date} · ${AUF_HIST_UPDATED.match}`;
+  const f=ult.fecha.split('-').reverse().join('/');
+  return `${f} · vs. ${ult.rival} (Fecha FIFA sep-oct 2026) · incluye partidos de la Pizarra, por contrastar con AUF`;
+}
 
 // Genera slug AUF: "José María Giménez" → "jose-maria-gimenez"
 function aufSlug(name){
@@ -16915,7 +16980,7 @@ function renderEstadisticas(){
       <div class="note" style="flex:1;margin:0;background:#EEF2FF;border-color:#C7D2FE">
         <div class="note-t" style="color:#3730A3">📖 Historia de la Selección Uruguaya</div>
         <div class="note-b" style="color:#4338CA">Datos según <a href="https://www.auf.org.uy/historico-jugadores/1/" target="_blank" style="color:#4338CA">AUF</a> · <span style="background:var(--cel);color:#fff;padding:0 4px;border-radius:3px;font-size:10px">FWC26</span> = convocado · ★ = leyenda. Hacé clic para editar.</div>
-        <div style="margin-top:3px;font-size:10px;color:#6366F1">🕐 Actualizado: ${AUF_HIST_UPDATED.date} · ${AUF_HIST_UPDATED.match}</div>
+        <div style="margin-top:3px;font-size:10px;color:#6366F1">🕐 Actualizado: ${aufHistUpdatedLabel()}</div>
       </div>
       <button onclick="toggleLegendsEdit()" style="flex-shrink:0;padding:6px 12px;border-radius:8px;border:1.5px solid ${_legendsEdit?'var(--cel)':'var(--border)'};background:${_legendsEdit?'var(--cel)':'var(--white)'};color:${_legendsEdit?'#fff':'var(--text)'};font-size:11px;font-weight:700;cursor:pointer">✏️ Editar</button>
     </div>
@@ -17874,6 +17939,7 @@ let _legendsEdit=false;
 function toggleLegendsEdit(){ _legendsEdit=!_legendsEdit; renderEstadisticas(); }
 
 function buildAllHistFromJugadores(){
+  _fifaSepApplyFloor();
   const legs=getLegends();
   const byName=Object.fromEntries(PLAYERS.map(p=>[p.name,p]));
   const PC={POR:'#CA8A04',DEF:'#16a34a',MED:'#2563EB',DEL:'#EA580C'};
@@ -17887,6 +17953,8 @@ function buildAllHistFromJugadores(){
     let pj=d.total?.pj||0, g=d.total?.g||0;
     let wcPj=d.comp?.wc?.pj||0, wcG=d.comp?.wc?.g||0;
     if(pp){const eff=effectiveStats(pp);pj=eff.caps;g=eff.goals;wcPj=eff.wcCaps;wcG=eff.wcGoals;}
+    // Fecha FIFA sep-oct 2026: suma lo cargado en la Pizarra (ver _fifaSepFloor)
+    const _ff=_fifaSepFloor(nom); if(_ff){ pj=Math.max(pj,_ff.pj); g=Math.max(g,_ff.g); }
     return{nom,d,isRet,isLeg,pp,pj,g,wcPj,wcG};
   });
 
