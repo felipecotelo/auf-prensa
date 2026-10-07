@@ -10298,9 +10298,14 @@ const KFifaSepStatsDelta='auf4_fifasep_stats_delta';
 // tener que apretar "Confirmar resultado". Lo que ya estaba guardado con ese
 // botón queda como respaldo para los partidos que ya no tengan datos en la
 // Pizarra; si la Pizarra tiene el partido, manda la Pizarra.
+// Partidos de la Fecha FIFA sep-oct 2026 cargados en la Pizarra. Se lee el
+// storage directo (misma key que usa la Pizarra: _amistKey('fifamayor','sepoct26'))
+// porque _getAmistosos vive dentro de _buildJuvAmistosos y no es global.
+function _fifaSepPizarraMatches(){
+  try{ return JSON.parse(localStorage.getItem('auf4_amist_juv_fifamayor_sepoct26')||'[]')||[]; }catch(_){ return []; }
+}
 function _fifaSepDeltaDesdePizarra(){
-  let list=[];
-  try{ list=_getAmistosos('fifamayor','sepoct26')||[]; }catch(_){}
+  const list=_fifaSepPizarraMatches();
   const out={};
   list.forEach(m=>{
     if(!m||isNaN(parseInt(m.gLocal))||isNaN(parseInt(m.gRival))) return;
@@ -15512,7 +15517,7 @@ const AUF_HIST_UPDATED={date:'26/06/2026', match:'vs. España (Fecha 3 — Fase 
 function aufHistUpdatedLabel(){
   let ult=null;
   try{
-    (_getAmistosos('fifamayor','sepoct26')||[]).forEach(m=>{
+    _fifaSepPizarraMatches().forEach(m=>{
       if(m&&m.fecha&&!isNaN(parseInt(m.gLocal))&&!isNaN(parseInt(m.gRival))&&(!ult||m.fecha>ult.fecha)) ult=m;
     });
   }catch(_){}
@@ -17669,8 +17674,7 @@ function _forlanConfsDesdeAtenciones(){
 // gLocal–gRival + goleadores), así que se actualiza en cuanto se carga cada
 // resultado, sin cargar nada aparte.
 function _forlanMayorRecord(){
-  let list=[];
-  try{ list=(typeof _getAmistosos==='function')?_getAmistosos('fifamayor','sepoct26'):[]; }catch(_){}
+  const list=_fifaSepPizarraMatches();
   const rec={pj:0,g:0,e:0,p:0,gf:0,gc:0,pct:0,matches:[],scorers:[],ec:0};
   const sc={};
   (list||[]).filter(Boolean).forEach(m=>{
