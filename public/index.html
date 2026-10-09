@@ -17570,6 +17570,7 @@ function buildBielsaConfsHtml(){
 
 const FORLAN_CONFS_DEFAULT=[
   {n:1,txt:'Conferencia de prensa de presentación',fecha:'2026-08-03'},
+  {n:2,txt:'Conferencia post-Fecha FIFA',fecha:'2026-10-13',hora:'13:00',lugar:'Complejo Celeste'},
 ];
 window._openForlanConfModal=function(n){
   let modal=document.getElementById('forlan-conf-modal');
@@ -17622,8 +17623,8 @@ window._openForlanConfModal=function(n){
   document.getElementById('fc-yyyy').value=parts.length===3?parts[0]:'';
   document.getElementById('fc-mm').value=parts.length===3?parts[1]:'';
   document.getElementById('fc-dd').value=parts.length===3?parts[2]:'';
-  document.getElementById('fc-hora').value=cur.hora||'';
-  document.getElementById('fc-lugar').value=cur.lugar||'';
+  document.getElementById('fc-hora').value=cur.hora||base.hora||'';
+  document.getElementById('fc-lugar').value=cur.lugar||base.lugar||'';
   document.getElementById('fc-link').value=cur.link||'';
   window._fcSetAufTv(!!cur.aufTv);
   modal.style.display='flex';
@@ -17725,36 +17726,48 @@ function buildForlanStatsHtml(){
 }
 function buildForlanConfsHtml(){
   const edits=stor.get('auf4_forlanconf',{});
-  const autoConfs=_forlanConfsDesdeAtenciones();
-  const autoHtml=autoConfs.map((c,i)=>`
+  // Conferencias cargadas a mano acá (FORLAN_CONFS_DEFAULT + lo editado) y las
+  // que se suman solas desde Prensa y marketing (MD-1/MD), todas en UNA lista
+  // ordenada por fecha y hora, con numeración corrida.
+  const _horaKey=h=>{ h=String(h||'').trim(); if(/^\d{1,2}$/.test(h)) return h.padStart(2,'0')+':00'; const m=h.match(/^(\d{1,2}):(\d{2})/); return m?m[1].padStart(2,'0')+':'+m[2]:''; };
+  const items=[
+    ...FORLAN_CONFS_DEFAULT.map(c=>{
+      const ed=edits[c.n]||{};
+      return {kind:'manual', n:c.n, txt:ed.txt||c.txt, fecha:ed.fecha||c.fecha||'', hora:ed.hora||c.hora||'',
+              lugar:ed.lugar||c.lugar||'', link:ed.link||'', aufTv:!!ed.aufTv};
+    }),
+    ..._forlanConfsDesdeAtenciones().map(c=>({kind:'auto', ...c}))
+  ].sort((x,y)=>(x.fecha||'9999').localeCompare(y.fecha||'9999')||_horaKey(x.hora).localeCompare(_horaKey(y.hora)));
+  const hasAuto=items.some(i=>i.kind==='auto');
+  const rowsHtml=items.map((c,i)=>{
+    const num=i+1;
+    if(c.kind==='manual'){
+      const lugar=c.lugar||'por confirmar';
+      return `
         <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--surface);border:0.5px solid var(--border)">
-          <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${FORLAN_CONFS_DEFAULT.length+i+1}</span>
+          <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${num}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;color:var(--text)">${c.link?`<a href="${c.link}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}${!c.lugar?`<span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">por confirmar</span>`:''}${c.aufTv?`<span style="font-size:8px;font-weight:700;color:#059669;background:rgba(5,150,105,.12);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">AUFtv</span>`:''}</div>
+            <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${c.fecha?_fmtDateCorta(c.fecha):'sin fecha'}${c.hora?' · '+c.hora:''} · ${lugar}</div>
+          </div>
+          <button onclick="_openForlanConfModal(${c.n})" title="Editar" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:var(--hint);line-height:1">✏️</button>
+        </div>`;
+    }
+    return `
+        <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--surface);border:0.5px solid var(--border)">
+          <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${num}</span>
           <div style="flex:1">
             <div style="font-size:12px;font-weight:600;color:var(--text)">${c.link?`<a href="${c.link}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${c.txt} ↗</a>`:c.txt}${c.done?' <span style="color:#16A34A;font-weight:800;font-size:10px">✓ Hecho</span>':''}</div>
             <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${c.tipoLbl}${c.fecha?' · '+_fmtDateCorta(c.fecha):''}${c.hora?' · '+c.hora+'h UY':''}</div>
           </div>
-        </div>`).join('');
+        </div>`;
+  }).join('');
   return `<div class="stats-section">
     <div class="phase">🎙️ Atención de prensa · Diego Forlán</div>
     <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">
-      ${FORLAN_CONFS_DEFAULT.map(c=>{
-        const ed=edits[c.n]||{};
-        const txt=ed.txt||c.txt;
-        const fecha=ed.fecha||c.fecha;
-        const lugar=ed.lugar||'por confirmar';
-        const hora=ed.hora||'';
-        return `
-        <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--surface);border:0.5px solid var(--border)">
-          <span style="font-size:9px;font-weight:800;color:var(--hint);min-width:22px;text-align:right">#${c.n}</span>
-          <div style="flex:1">
-            <div style="font-size:12px;font-weight:600;color:var(--text)">${ed.link?`<a href="${ed.link}" target="_blank" rel="noopener" style="color:var(--cel-dk);text-decoration:none">${txt} ↗</a>`:txt}${!ed.lugar?`<span style="font-size:8px;font-weight:700;color:#b45309;background:rgba(251,191,36,.15);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">por confirmar</span>`:''}${ed.aufTv?`<span style="font-size:8px;font-weight:700;color:#059669;background:rgba(5,150,105,.12);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle">AUFtv</span>`:''}</div>
-            <div style="font-size:10.5px;color:var(--muted);margin-top:2px">${fecha?_fmtDateCorta(fecha):'sin fecha'}${hora?' · '+hora:''} · ${lugar}</div>
-          </div>
-          <button onclick="_openForlanConfModal(${c.n})" title="Editar" style="background:none;border:none;cursor:pointer;font-size:11px;padding:2px 3px;color:var(--hint);line-height:1">✏️</button>
-        </div>`;}).join('')}
-      ${autoHtml}
+      ${rowsHtml}
     </div>
-    ${autoConfs.length?`<div style="font-size:9.5px;color:var(--hint);margin-top:8px">Las conferencias MD-1/MD se suman solas desde Prensa y marketing (Fecha FIFA).</div>`:''}
+    ${hasAuto?`<div style="font-size:9.5px;color:var(--hint);margin-top:8px">Las conferencias MD-1/MD se suman solas desde Prensa y marketing (Fecha FIFA).</div>`:''}
   </div>`;
 }
 
