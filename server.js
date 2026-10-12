@@ -256,7 +256,7 @@ function anthropicMessages(promptText) {
     if (!apiKey) { reject(new Error('ANTHROPIC_API_KEY no configurada')); return; }
     const body = JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 700,
+      max_tokens: 1100,
       messages: [{ role: 'user', content: promptText }],
     });
     const req = https.request({
@@ -292,9 +292,24 @@ app.get('/api/ping', (req, res) => res.json({ ok: true, v: 2, ts: Date.now(), ro
 // ── Conclusiones IA para la sección Redes (dashboard de métricas sociales) ──
 app.post('/api/redes-conclusiones', async (req, res) => {
   try {
-    const { latest, prev, momentos } = req.body || {};
+    const { latest, prev, momentos, modo, otras_ventanas, agosto_sin_partidos, nota_facebook } = req.body || {};
     if (!latest) { res.status(400).json({ error: 'falta "latest" en el body' }); return; }
-    const prompt = `Sos el analista de redes sociales de la Selección Uruguaya de Fútbol (AUF). Con estos datos de relevamiento semanal/periódico de X, TikTok, Instagram, YouTube y Facebook, escribí entre 4 y 6 conclusiones cortas, directas y accionables en español rioplatense, en formato de lista (una por línea, sin numerar, sin viñetas markdown, cada una arrancando directo con el texto). Priorizá: qué red tuvo mejor o peor desempeño relativo, si alguna red "se pinchó" o tuvo un momento de "hype", qué contenido funcionó mejor, y cómo se relaciona con el calendario de partidos de la Mayor si hay coincidencia de fechas. No inventes números que no estén en los datos. Sé concreto, nada de relleno genérico.
+    const prompt = modo === 'fifa' ? `Sos el analista de redes sociales de la Selección Uruguaya de Fútbol (AUF). Analizá la Fecha FIFA más reciente (o la ventana elegida) a partir de los datos de abajo y escribí entre 5 y 7 conclusiones cortas, directas y accionables en español rioplatense, en formato de lista (una por línea, sin numerar, sin viñetas markdown, cada una arrancando directo con el texto). Reglas: (1) las ventanas tienen distinto largo, así que comparalas siempre por ritmo por día; (2) mirá la audiencia de YouTube por país: qué porcentaje es Uruguay, qué países salieron del radar habitual (por ejemplo Asia en la gira de Japón, Corea del Sur e India, e Indonesia) y cuánto se multiplicó su ritmo diario contra agosto (mes sin partidos de la Selección); (3) compará contra la Fecha FIFA anterior y contra las otras ventanas; (4) mencioná qué videos concentraron las vistas; (5) hablá del Mundial solo si ayuda a comparar, el foco es esta ventana; (6) cerrá con al menos una recomendación concreta para Comunicación. No inventes números que no estén en los datos. Respetá esta aclaración sobre Facebook: ${nota_facebook || 'sin aclaraciones'}.
+
+VENTANA ANALIZADA:
+${JSON.stringify(latest)}
+
+FECHA FIFA ANTERIOR (puede no existir):
+${JSON.stringify(prev || null)}
+
+OTRAS VENTANAS (resumen por día):
+${JSON.stringify(otras_ventanas || [])}
+
+AGOSTO 2026, MES SIN PARTIDOS (control):
+${JSON.stringify(agosto_sin_partidos || null)}
+
+MOMENTOS DEL CALENDARIO (partidos/eventos de la Mayor):
+${JSON.stringify(momentos || [])}` : `Sos el analista de redes sociales de la Selección Uruguaya de Fútbol (AUF). Con estos datos de relevamiento semanal/periódico de X, TikTok, Instagram, YouTube y Facebook, escribí entre 4 y 6 conclusiones cortas, directas y accionables en español rioplatense, en formato de lista (una por línea, sin numerar, sin viñetas markdown, cada una arrancando directo con el texto). Priorizá: qué red tuvo mejor o peor desempeño relativo, si alguna red "se pinchó" o tuvo un momento de "hype", qué contenido funcionó mejor, y cómo se relaciona con el calendario de partidos de la Mayor si hay coincidencia de fechas. No inventes números que no estén en los datos. Sé concreto, nada de relleno genérico.
 
 DATOS ACTUALES (última medición):
 ${JSON.stringify(latest)}

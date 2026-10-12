@@ -33677,6 +33677,39 @@ function renderRedes(){
     </div>
   `;
   _redesFetchAIConclusiones(wc,prev);
+  _redesFetchAIFifa();
+}
+
+
+// ── Conclusiones de IA sobre la Fecha FIFA elegida (comparadas con las otras ventanas) ──
+window._redesIAFifa=window._redesIAFifa||{};
+function _redesCompactSnap(x){
+  if(!x) return null;
+  const pick=k=>x[k]?{alcance:x[k].alcance,seguidores:x[k].seguidores,seguidores_nuevos:x[k].seguidores_nuevos,interacciones:x[k].interacciones}:null;
+  return {label:x.label,desde:x.rango_desde,hasta:x.rango_hasta,dias:x.dias,
+    youtube:x.youtube?{alcance:x.youtube.alcance,seguidores_nuevos:x.youtube.seguidores_nuevos,horas_visualizacion:x.youtube.interacciones,paises_top:(x.youtube.paises||[]).slice(0,15),videos_top:x.youtube.videos_top||[]}:null,
+    instagram:pick('instagram'),facebook:pick('facebook'),tiktok:pick('tiktok'),x:pick('x')};
+}
+async function _redesFetchAIFifa(){
+  try{
+    const snaps=_redesFifaConPaises(); if(!snaps.length) return;
+    const sel=snaps.find(x=>x.fecha_snapshot===window._redesFifaSel)||snaps[snaps.length-1];
+    if(window._redesIAFifa[sel.fecha_snapshot]) return;
+    const fifa=snaps.filter(x=>x.fecha_snapshot!=='2026-07-06');
+    const i=fifa.indexOf(sel), ant=i>0?fifa[i-1]:null;
+    const resumen=fifa.filter(x=>x!==sel).map(x=>({ventana:x.corto||x.label,dias:x.dias,youtube_por_dia:Math.round(x.youtube.alcance/x.dias),uruguay_pct_youtube:+(((_redesPaisViews(x,'Uruguay')||0)/x.youtube.alcance)*100).toFixed(1),asia_pct_youtube:+((_redesAsiaViews(x)/x.youtube.alcance)*100).toFixed(1)}));
+    const res=await fetch('/api/redes-conclusiones',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({modo:'fifa',latest:_redesCompactSnap(sel),prev:_redesCompactSnap(ant),otras_ventanas:resumen,
+        agosto_sin_partidos:{dias:REDES_YT_CONTROL.dias,paises_top:REDES_YT_CONTROL.paises.slice(0,15)},
+        nota_facebook:'La página de Facebook se alimentaba con el compartido automático desde Instagram; hoy figura activado pero los posteos no aparecen en Facebook (causa en revisión). Su caída no refleja necesariamente menos interés.',
+        momentos:(typeof MOMENTOS!=='undefined'?MOMENTOS:[])})});
+    const data=await res.json();
+    if(!data.ok||!data.conclusiones||!data.conclusiones.length) return;
+    window._redesIAFifa[sel.fecha_snapshot]=data.conclusiones;
+    const lst=document.getElementById('redes-fifa-list'), tag=document.getElementById('redes-fifa-tag');
+    const vigente=(window._redesFifaSel||snaps[snaps.length-1].fecha_snapshot)===sel.fecha_snapshot;
+    if(lst&&vigente){ lst.innerHTML=data.conclusiones.map(b=>`<li>${b}</li>`).join(''); if(tag) tag.textContent='· generadas por IA'; }
+  }catch(e){ /* sin IA: quedan las conclusiones automáticas */ }
 }
 
 function _redesFmtFecha(iso){
@@ -33809,7 +33842,7 @@ function _redesConclusiones(latest,prev){
   bullets.push('X tuvo la tasa de interacción más floja relativa (2%, -1 punto) pese al salto en impresiones — más ruido que conversación real esa semana.');
   return `
   <div style="margin-bottom:20px">
-    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🧠 Conclusiones <span id="redes-concl-tag">automáticas (reglas)</span></div>
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🧠 Conclusiones del Mundial <span id="redes-concl-tag">· automáticas (reglas)</span></div>
     <div id="redes-conclusiones-box" style="background:var(--gold-lt);border:1px solid #f0dca6;border-radius:14px;padding:14px 16px">
       <ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">
         ${bullets.map(b=>`<li>${b}</li>`).join('')}
@@ -33826,7 +33859,7 @@ async function _redesFetchAIConclusiones(latest,prev){
     const res=await fetch('/api/redes-conclusiones',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({latest,prev,momentos:(typeof MOMENTOS!=='undefined'?MOMENTOS:[])})
+      body:JSON.stringify({modo:'mundial',latest,prev,momentos:(typeof MOMENTOS!=='undefined'?MOMENTOS:[])})
     });
     const data=await res.json();
     if(!data.ok||!data.conclusiones||!data.conclusiones.length) return;
@@ -33834,7 +33867,7 @@ async function _redesFetchAIConclusiones(latest,prev){
     const tag=document.getElementById('redes-concl-tag');
     if(!box) return;
     box.innerHTML=`<ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">${data.conclusiones.map(b=>`<li>${b}</li>`).join('')}</ul>`;
-    if(tag) tag.textContent='generadas por IA';
+    if(tag) tag.textContent='· generadas por IA';
   }catch(e){
     // sin conexión / endpoint no disponible — se queda con las heurísticas, sin romper nada
   }
@@ -34043,8 +34076,8 @@ function _redesFifaTabla(){
       <tbody>${filasRitmo}</tbody>
     </table></div>
     <div style="background:var(--gold-lt);border:1px solid #f0dca6;border-radius:14px;padding:14px 16px;margin-bottom:10px">
-      <div style="font-size:9.5px;font-weight:800;color:#8a5a00;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🧠 Lectura — ${(sel.corto||sel.label).split(' · ')[0]}</div>
-      <ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">${bullets.map(b=>`<li>${b}</li>`).join('')}</ul>
+      <div style="font-size:9.5px;font-weight:800;color:#8a5a00;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🧠 Conclusiones — ${(sel.corto||sel.label).split(' · ')[0]} <span id="redes-fifa-tag">· ${(window._redesIAFifa||{})[sel.fecha_snapshot]?'generadas por IA':'automáticas (reglas)'}</span></div>
+      <ul id="redes-fifa-list" style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">${((window._redesIAFifa||{})[sel.fecha_snapshot]||bullets).map(b=>`<li>${b}</li>`).join('')}</ul>
     </div>
     <div style="font-size:.68em;color:var(--muted);line-height:1.6;background:var(--surface);border-radius:12px;padding:10px 12px">
       <b>Qué falta / cómo leerlo.</b> X y TikTok todavía no están: sus estadísticas requieren sesión iniciada con la cuenta de la Selección (cuando esté, se suman solas). IG y Facebook se miden desde Meta Business Suite; antes de jul 2025 Meta medía "visualizaciones" distinto y IG no tiene visualizaciones ni interacciones confiables, por eso esas celdas quedan vacías. Audiencia por país solo hay de YouTube: Meta muestra el país de los <i>seguidores</i> (IG: Uruguay 39%, Brasil 10%, Argentina 4,5%, EE.UU. 3%, México 3%; FB: Uruguay 51%, México 5%, Perú 5%, Argentina 5%), no de las visualizaciones.
@@ -34112,7 +34145,7 @@ async function _redesDescargarInformePdf(){
     y+=29;
     // ── conclusiones ──
     h2('Conclusiones');
-    _redesFifaConclusiones(sel).forEach(b=>bullet(b));
+    ((window._redesIAFifa||{})[sel.fecha_snapshot]||_redesFifaConclusiones(sel)).forEach(b=>bullet(b));
     y+=2;
     // ── rendimiento por red ──
     h2('Rendimiento por red en el período');
