@@ -33664,6 +33664,7 @@ function renderRedes(){
       </div>
       ${_redesFifaPaises()}
       ${_redesFifaTabla()}
+      ${_redesSemanal()}
 
       <!-- Análisis -->
       <div style="display:flex;align-items:center;gap:10px;margin:24px 0 14px">
@@ -33902,7 +33903,7 @@ const REDES_FIFA_FOCO=['Japón','Corea del Sur','India','Indonesia','Bangladés'
 const REDES_ASIA=['Indonesia','Japón','Corea del Sur','India','Bangladés','Malasia','Vietnam','Tailandia','Hong Kong','Singapur','Myanmar (Birmania)','Nepal','Arabia Saudí','Emiratos Árabes Unidos','Uzbekistán','Kirguistán','Kazajistán','Camboya','Filipinas','Pakistán','China','Taiwán','Sri Lanka','Irak','Jordania'];
 window._redesFifaSel=window._redesFifaSel||null;
 window._redesFifaSelSet=function(f){ window._redesFifaSel=f; renderRedes(); };
-function _redesFifaConPaises(){ return _redesSnaps().filter(s=>s.youtube && s.youtube.paises && s.youtube.paises.length); }
+function _redesFifaConPaises(){ return _redesSnaps().filter(s=>s.tipo!=='semana' && s.youtube && s.youtube.paises && s.youtube.paises.length); }
 function _redesPaisViews(snap,pais){ const r=(snap.youtube.paises||[]).find(p=>p[0]===pais); return r?r[1]:null; }
 function _redesAsiaViews(snap){ return (snap.youtube.paises||[]).filter(p=>REDES_ASIA.includes(p[0])).reduce((a,p)=>a+p[1],0); }
 function _redesFifaPaises(){
@@ -33965,7 +33966,7 @@ function _redesFifaTabla(){
   const filaPais=(n,est)=>`<tr style="${est?'background:var(--surface);font-weight:800':''}"><td style="padding:7px;font-weight:700;white-space:nowrap">${n}</td>${snaps.map(s=>{ const v=n==='Uruguay'?_redesPaisViews(s,'Uruguay'):n==='Asia (mín.)'?_redesAsiaViews(s):_redesPaisViews(s,n); const t=s.youtube.alcance; return celda(v,v!=null&&t?v/t*100:null); }).join('')}</tr>`;
   const filas=['Uruguay',...REDES_FIFA_FOCO,'Asia (mín.)'].map(n=>filaPais(n,n==='Asia (mín.)'||n==='Uruguay')).join('');
   // ritmo diario por red (ventanas de distinto largo → todo por día)
-  const todas=_redesSnaps().filter(s=>s.dias);
+  const todas=_redesSnaps().filter(s=>s.dias && s.tipo!=='semana');
   const pd=(v,d)=>v!=null&&d?_redesFmt(Math.round(v/d)):'—';
   const filasRitmo=todas.map(s=>{
     const nuevos=['instagram','facebook','youtube'].map(k=>s[k]?.seguidores_nuevos);
@@ -34019,6 +34020,31 @@ function _redesFifaTabla(){
   </div>`;
 }
 
+// ── Últimas semanas (relevamiento semanal automático, lunes a domingo) ─────────
+function _redesSemanal(){
+  const sem=_redesSnaps().filter(s=>s.tipo==='semana').slice(-8);
+  if(!sem.length) return '';
+  const flecha=(a,b)=>(a!=null&&b)?` <span style="font-size:.8em;font-weight:800;color:${a>=b?'var(--green)':'var(--red)'}">${a>=b?'▲':'▼'}${Math.abs(Math.round((a/b-1)*100))}%</span>`:'';
+  const filas=sem.map((s,i)=>{
+    const p=sem[i-1];
+    const nuevos=['instagram','facebook','youtube'].map(k=>s[k]?.seguidores_nuevos);
+    const nv=nuevos.every(v=>v!=null)?nuevos.reduce((a,b)=>a+b,0):null;
+    return `<tr><td style="padding:7px;font-weight:700;white-space:nowrap">${_redesFmtFecha(s.rango_desde)} → ${_redesFmtFecha(s.rango_hasta)}</td>
+      <td style="padding:7px;text-align:right">${_redesFmt(s.youtube?.alcance)}${flecha(s.youtube?.alcance,p?.youtube?.alcance)}</td>
+      <td style="padding:7px;text-align:right">${_redesFmt(s.instagram?.alcance)}${flecha(s.instagram?.alcance,p?.instagram?.alcance)}</td>
+      <td style="padding:7px;text-align:right">${_redesFmt(s.facebook?.alcance)}${flecha(s.facebook?.alcance,p?.facebook?.alcance)}</td>
+      <td style="padding:7px;text-align:right">${nv!=null?'+'+_redesFmt(nv):'—'}</td></tr>`;
+  }).join('');
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">📆 Últimas semanas (relevamiento automático, lunes a domingo)</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:14px;font-size:.76em;min-width:520px">
+      <thead><tr style="background:var(--surface)"><th style="padding:7px;text-align:left">Semana</th><th style="padding:7px;text-align:right">▶ YouTube vistas</th><th style="padding:7px;text-align:right">◎ IG visualiz.</th><th style="padding:7px;text-align:right">📘 FB visualiz.</th><th style="padding:7px;text-align:right">Seguidores nuevos</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table></div>
+  </div>`;
+}
+
 // ── Momentos — cruce con el calendario de la Mayor (MOMENTOS ya definido) ──
 function _redesMomentos(){
   const items=(typeof MOMENTOS!=='undefined'?MOMENTOS:[]).map(m=>{
@@ -34044,7 +34070,7 @@ function _redesMomentos(){
 function _redesComparativaMensual(){
   const snaps=_redesSnaps();
   const byMonth={};
-  snaps.forEach(s=>{
+  snaps.filter(s=>s.tipo!=='semana').forEach(s=>{
     const mes=(s.fecha_snapshot||'').slice(0,7);
     if(!mes) return;
     if(!byMonth[mes]) byMonth[mes]={alcance:0,interacciones:0,nuevos:0,dias:0};
