@@ -33949,7 +33949,10 @@ function _redesFifaPaises(){
   <div style="margin-bottom:20px">
     <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">▶ YouTube (AUFTV) · visualizaciones por país</div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px">
-      <div style="margin-bottom:6px">${pills}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <div>${pills}</div>
+        <button id="redes-pdf-btn" onclick="_redesDescargarInformePdf()" title="Descarga un PDF con las conclusiones de la ventana elegida" style="padding:8px 14px;border-radius:10px;border:none;background:var(--cel);color:#fff;font-size:.78em;font-weight:800;cursor:pointer;white-space:nowrap">📄 Descargar informe PDF</button>
+      </div>
       <div style="font-size:.82em;font-weight:800;margin-bottom:8px">${sel.label} · ${_redesFmtFecha(sel.rango_desde)} → ${_redesFmtFecha(sel.rango_hasta)}</div>
       ${chips}${videos}
       <div style="display:flex;gap:8px;font-size:.6em;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;padding:0 0 4px;border-bottom:1px solid var(--border)"><div style="width:18px"></div><div style="width:132px">País</div><div style="flex:1"></div><div style="width:92px;text-align:right">Vistas · %</div><div style="width:64px;text-align:right" title="Veces el ritmo diario de agosto 2026 (mes sin partidos de la Selección)">vs. agosto</div></div>
@@ -33958,6 +33961,51 @@ function _redesFifaPaises(){
     </div>
   </div>`;
 }
+
+// ── Conclusiones automáticas de una Fecha FIFA (las usa la pantalla y el PDF) ──
+function _redesFifaConclusiones(sel){
+  const snaps=_redesFifaConPaises();
+  const bullets=[];
+  const nm=x=>(x.corto||x.label).split(' · ')[0];
+  const fifa=snaps.filter(x=>x.fecha_snapshot!=='2026-07-06'); // sin el Mundial (ventana de otro tipo)
+  const idx=fifa.indexOf(sel);
+  const ant=idx>0?fifa[idx-1]:null;          // Fecha FIFA anterior
+  const otras=fifa.filter(x=>x!==sel);
+  const tot=sel.youtube.alcance;
+  const prom=(fn)=>otras.length?otras.reduce((a,x)=>a+fn(x),0)/otras.length:null;
+  const uyShare=x=>(_redesPaisViews(x,'Uruguay')||0)/x.youtube.alcance*100;
+  const asiaShare=x=>_redesAsiaViews(x)/x.youtube.alcance*100;
+  const uyS=uyShare(sel), uyO=prom(uyShare);
+  if(uyO!=null) bullets.push(`En <b>${nm(sel)}</b> el <b>${uyS.toFixed(1)}%</b> de las vistas de YouTube vino de Uruguay (promedio de las otras Fechas FIFA: ~${uyO.toFixed(0)}%)${uyS<uyO-8?': la audiencia de la Selección se internacionalizó':''}.`);
+  const ext=sel.youtube.paises.filter(p=>p[0]!=='Uruguay').slice(0,3);
+  if(ext.length) bullets.push(`Fuera de Uruguay, los países con más vistas fueron ${ext.map(p=>`<b>${p[0]}</b> (${_redesFmt(p[1])}, ${(p[1]/tot*100).toFixed(1)}%)`).join(', ')}.`);
+  const aS=asiaShare(sel), aO=prom(asiaShare);
+  if(aO!=null) bullets.push(`Los países de Asia (mínimo contado) sumaron el <b>${aS.toFixed(1)}%</b> de las vistas${aS>aO*1.5?` — contra ~${aO.toFixed(1)}% en las otras Fechas FIFA`:` (otras Fechas FIFA: ~${aO.toFixed(1)}%)`}.`);
+  // contra agosto 2026 (mes sin partidos): solo para ventanas posteriores
+  const ctrl=REDES_YT_CONTROL;
+  if(sel.fecha_snapshot>'2026-08-31'){
+    const colaC=ctrl.paises[ctrl.paises.length-1][1];
+    const cambios=REDES_FIFA_FOCO.map(f=>{ const v=_redesPaisViews(sel,f); if(!v) return null; const b=(ctrl.paises.find(p=>p[0]===f)||[null,null])[1]; return {f,v,cota:!b,x:(v/sel.dias)/((b||colaC)/ctrl.dias)}; }).filter(Boolean).sort((a,b)=>b.x-a.x);
+    if(cambios.length) bullets.push('Contra agosto (mes sin Selección), el ritmo diario de vistas se multiplicó: '+cambios.map(c=>`<b>${c.f}</b> ${c.cota?'≥':''}×${c.x>=10?Math.round(c.x):c.x.toFixed(1)} (${_redesFmt(c.v)})`).join(', ')+'. (≥ = mínimo: el país ni figuraba entre los principales de agosto.)');
+  }
+  const posInd=sel.youtube.paises.findIndex(p=>p[0]==='Indonesia')+1;
+  if(posInd>0&&posInd<=6){ const ind=sel.youtube.paises[posInd-1][1]; const prevI=ant?_redesPaisViews(ant,'Indonesia'):null; bullets.push(`<b>Indonesia</b> quedó ${posInd}.º en el ranking de países (${_redesFmt(ind)} vistas, ${(ind/tot*100).toFixed(1)}%)${prevI?`; en ${nm(ant)} había tenido ${_redesFmt(prevI)}`:''}.`); }
+  // ritmo por día de cada red contra la Fecha FIFA anterior
+  if(ant){
+    const rate=(x,k)=>x[k]?.alcance!=null?x[k].alcance/((x[k].dias)||x.dias):null;
+    [['YouTube','youtube'],['Instagram','instagram'],['Facebook','facebook']].forEach(([n,k])=>{
+      const a=rate(sel,k), b=rate(ant,k); if(a==null||b==null||!b) return;
+      const ch=(a/b-1)*100;
+      bullets.push(`<b>${n}</b>: ${_redesFmt(Math.round(a))} visualizaciones por día, ${ch<0?'un '+Math.abs(Math.round(ch))+'% menos':'un '+Math.round(ch)+'% más'} que en ${nm(ant)} (${_redesFmt(Math.round(b))})${(k==='facebook'&&ch<=-50)?' — ojo: el contenido de Instagram no se está replicando en la página de Facebook (el compartido automático figura activado pero los posteos no aparecen; causa en revisión). Hay menos publicaciones, no necesariamente menos interés':''}.`);
+    });
+    const nv=x=>{ const v=['instagram','facebook','youtube'].map(k=>x[k]?.seguidores_nuevos); return v.every(t=>t!=null)?v.reduce((p,q)=>p+q,0)/x.dias:null; };
+    const a=nv(sel), b=nv(ant);
+    if(a!=null&&b) bullets.push(`Seguidores nuevos (Instagram + Facebook + YouTube): +${_redesFmt(Math.round(a))} por día vs. +${_redesFmt(Math.round(b))} en ${nm(ant)}.`);
+  }
+  if((sel.youtube.videos_top||[]).length) bullets.push(`Los videos más vistos fueron ${sel.youtube.videos_top.map(v=>`<b>${v[0]}</b> (${_redesFmt(v[1])})`).join(', ')}: juntos suman el ${((sel.youtube.videos_top.reduce((a,v)=>a+v[1],0))/tot*100).toFixed(0)}% de las vistas del período.`);
+  return bullets;
+}
+
 function _redesFifaTabla(){
   const snaps=_redesFifaConPaises();
   if(!snaps.length) return '';
@@ -33978,24 +34026,8 @@ function _redesFifaTabla(){
       <td style="padding:7px;text-align:right">${pd(s.facebook?.alcance,s.dias)}</td>
       <td style="padding:7px;text-align:right">${nv!=null?'+'+pd(nv,s.dias):'—'}</td></tr>`;
   }).join('');
-  // conclusiones automáticas (ventana más reciente con países vs. agosto y vs. Fechas FIFA anteriores)
-  const last=snaps[snaps.length-1];
-  const prevF=snaps.filter(s=>s!==last&&s.fecha_snapshot!=='2026-07-06');
-  const bullets=[];
-  const uyL=(_redesPaisViews(last,'Uruguay')||0)/last.youtube.alcance*100;
-  const uyP=prevF.length?prevF.reduce((a,s)=>a+(_redesPaisViews(s,'Uruguay')||0)/s.youtube.alcance*100,0)/prevF.length:null;
-  if(uyP!=null) bullets.push(`En <b>${last.corto}</b> solo el <b>${uyL.toFixed(1)}%</b> de las vistas de YouTube vino de Uruguay (en las Fechas FIFA anteriores fue ~${uyP.toFixed(0)}%): la audiencia de la Selección se internacionalizó.`);
-  const ctrl=REDES_YT_CONTROL;
-  const colaC=ctrl.paises[ctrl.paises.length-1][1];
-  const cambios=REDES_FIFA_FOCO.map(f=>{ const v=_redesPaisViews(last,f); if(!v) return null; const b=(ctrl.paises.find(p=>p[0]===f)||[null,null])[1]; return {f,v,cota:!b,x:(v/last.dias)/((b||colaC)/ctrl.dias)}; }).filter(Boolean).sort((a,b)=>b.x-a.x);
-  if(cambios.length) bullets.push('Contra agosto (mes sin Selección), el ritmo diario de vistas se multiplicó: '+cambios.map(c=>`<b>${c.f}</b> ${c.cota?'≥':''}×${c.x>=10?Math.round(c.x):c.x.toFixed(1)} (${_redesFmt(c.v)})`).join(', ')+'. (≥ = mínimo: el país ni figuraba entre los principales de agosto.)');
-  const ind=_redesPaisViews(last,'Indonesia'); const posInd=last.youtube.paises.findIndex(p=>p[0]==='Indonesia')+1;
-  const mar=snaps.find(s=>s.fecha_snapshot==='2026-03-31');
-  if(ind) bullets.push(`<b>Indonesia</b> quedó ${posInd}.º en el ranking de países (${_redesFmt(ind)} vistas, ${(ind/last.youtube.alcance*100).toFixed(1)}%)${mar?`: ya venía creciendo (marzo 2026: ${_redesFmt(_redesPaisViews(mar,'Indonesia'))}) pero se disparó con la gira`:''}.`);
-  const fbL=last.facebook?.alcance, fbD=last.dias, fbM=(snaps.find(s=>s.fecha_snapshot==='2026-03-31')||{}).facebook;
-  if(fbL!=null&&mar&&mar.facebook?.alcance) bullets.push(`<b>Facebook</b> muestra una caída fuerte: ${_redesFmt(Math.round(fbL/fbD))} visualizaciones por día en la gira vs. ${_redesFmt(Math.round(mar.facebook.alcance/mar.dias))} en marzo (${((fbL/fbD)/(mar.facebook.alcance/mar.dias)*100-100).toFixed(0)}%) — conviene revisar si cambió la estrategia de publicación o es un tema de la página.`);
-  const igL=last.instagram?.alcance_unico, igM=mar&&mar.instagram?.alcance_unico;
-  if(igL&&igM){ const a=last.instagram.seguidores_nuevos/last.dias, b=mar.instagram.seguidores_nuevos/mar.dias; const va=last.instagram.alcance/last.dias, vb=mar.instagram.alcance/mar.dias; const ch=(va/vb-1)*100; bullets.push(`<b>Instagram</b>: ${ch<0?'bajó':'subió'} ${Math.abs(Math.round(ch))}% en visualizaciones por día vs. marzo (${_redesFmt(Math.round(va))} vs. ${_redesFmt(Math.round(vb))}) y suma ${Math.round((1-a/b)*100)}% menos seguidores nuevos por día (+${_redesFmt(Math.round(a))} vs. +${_redesFmt(Math.round(b))}). Los seguidores de IG y Facebook siguen concentrados en Uruguay y Latinoamérica: el crecimiento de la gira está en YouTube, no en las redes sociales.`); }
+  const sel=snaps.find(x=>x.fecha_snapshot===window._redesFifaSel)||snaps[snaps.length-1];
+  const bullets=_redesFifaConclusiones(sel);
   return `
   <div style="margin-bottom:20px">
     <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Países foco por Fecha FIFA (YouTube) — vistas y % del total</div>
@@ -34011,7 +34043,7 @@ function _redesFifaTabla(){
       <tbody>${filasRitmo}</tbody>
     </table></div>
     <div style="background:var(--gold-lt);border:1px solid #f0dca6;border-radius:14px;padding:14px 16px;margin-bottom:10px">
-      <div style="font-size:9.5px;font-weight:800;color:#8a5a00;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🧠 Lectura de la última Fecha FIFA</div>
+      <div style="font-size:9.5px;font-weight:800;color:#8a5a00;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🧠 Lectura — ${(sel.corto||sel.label).split(' · ')[0]}</div>
       <ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">${bullets.map(b=>`<li>${b}</li>`).join('')}</ul>
     </div>
     <div style="font-size:.68em;color:var(--muted);line-height:1.6;background:var(--surface);border-radius:12px;padding:10px 12px">
@@ -34019,6 +34051,163 @@ function _redesFifaTabla(){
     </div>
   </div>`;
 }
+
+
+// ── Informe PDF de una Fecha FIFA (se genera en el navegador con jsPDF, cargado al tocar el botón) ──
+function _redesPdfSan(t){
+  return String(t==null?'':t).replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ')
+    .replace(/≥\s*/g,'mín. ').replace(/→/g,' a ').replace(/[▲▼◎▶📘📆🌏🧠📄]/g,'').replace(/\s+/g,' ').trim();
+}
+function _redesLoadJsPdf(){
+  return new Promise((res,rej)=>{
+    if(window.jspdf) return res(window.jspdf);
+    const el=document.createElement('script');
+    el.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    el.onload=()=>window.jspdf?res(window.jspdf):rej(new Error('la librería de PDF no cargó'));
+    el.onerror=()=>rej(new Error('no hay conexión para cargar la librería de PDF'));
+    document.head.appendChild(el);
+  });
+}
+async function _redesDescargarInformePdf(){
+  const btn=document.getElementById('redes-pdf-btn');
+  const setBtn=(t,d)=>{ if(btn){ btn.textContent=t; btn.disabled=!!d; } };
+  try{
+    setBtn('Generando PDF…',true);
+    const {jsPDF}=await _redesLoadJsPdf();
+    const snaps=_redesFifaConPaises();
+    if(!snaps.length) throw new Error('todavía no hay datos para el informe');
+    const sel=snaps.find(x=>x.fecha_snapshot===window._redesFifaSel)||snaps[snaps.length-1];
+    const fifa=snaps.filter(x=>x.fecha_snapshot!=='2026-07-06');
+    const doc=new jsPDF({unit:'mm',format:'a4'});
+    const W=210, H=297, M=16, CW=W-2*M;
+    const C={cel:[0,157,216],navy:[10,22,46],gris:[100,110,125],claro:[241,245,249],borde:[214,220,229],naranja:[234,88,12],verde:[22,163,74],rojo:[220,38,38],oro:[254,243,199],oroTxt:[120,80,0]};
+    const san=_redesPdfSan, nf=n=>n==null?'-':Math.round(n).toLocaleString('es-UY');
+    let y=0;
+    const txt=(t,x,yy,o={})=>{ doc.setFont('helvetica',o.bold?'bold':'normal'); doc.setFontSize(o.size||9); doc.setTextColor(...(o.color||C.navy)); doc.text(san(t),x,yy,o.align?{align:o.align}:undefined); };
+    const need=h=>{ if(y+h>H-M-6){ doc.addPage(); y=M; } };
+    const h2=t=>{ need(14); doc.setFillColor(...C.cel); doc.rect(M,y,2,6,'F'); txt(t,M+5,y+4.6,{bold:true,size:12}); y+=11; };
+    const para=(t,o={})=>{ doc.setFont('helvetica',o.bold?'bold':'normal'); doc.setFontSize(o.size||9); const lines=doc.splitTextToSize(san(t),o.w||CW); lines.forEach(l=>{ need(5); txt(l,o.x||M,y,{size:o.size||9,color:o.color,bold:o.bold}); y+=o.lh||4.6; }); };
+    const bullet=t=>{ doc.setFont('helvetica','normal'); doc.setFontSize(9); const lines=doc.splitTextToSize(san(t),CW-6); need(lines.length*4.6+1.5); doc.setFillColor(...C.cel); doc.circle(M+1.2,y-1.2,0.8,'F'); lines.forEach(l=>{ txt(l,M+5,y,{size:9}); y+=4.6; }); y+=1.6; };
+    const total=sel.youtube.alcance, dias=sel.dias||1;
+    const uy=_redesPaisViews(sel,'Uruguay')||0, asia=_redesAsiaViews(sel);
+    const ant=(()=>{ const i=fifa.indexOf(sel); return i>0?fifa[i-1]:null; })();
+    // ── portada ──
+    doc.setFillColor(...C.navy); doc.rect(0,0,W,46,'F');
+    doc.setFillColor(...C.cel); doc.rect(0,46,W,2.2,'F');
+    txt('INFORME DE REDES SOCIALES',M,17,{bold:true,size:9,color:[125,190,230]});
+    txt(sel.label,M,27,{bold:true,size:16,color:[255,255,255]});
+    txt(`${_redesFmtFecha(sel.rango_desde)} - ${_redesFmtFecha(sel.rango_hasta)} ${String(sel.rango_hasta||'').slice(0,4)}  ·  ${dias} días`,M,35,{size:10,color:[200,215,235]});
+    txt('Selección Uruguaya de Fútbol · AUF Comunicación',M,41.5,{size:8.5,color:[150,170,200]});
+    y=58;
+    // ── cifras clave ──
+    h2('Resumen en cifras');
+    const kpis=[
+      ['Vistas en YouTube',nf(total),`${nf(total/dias)} por día`,C.navy],
+      ['Desde Uruguay',(uy/total*100).toFixed(1)+'%',nf(uy)+' vistas',C.cel],
+      ['Desde Asia (mínimo)',(asia/total*100).toFixed(1)+'%',nf(asia)+' vistas',C.naranja],
+      ['Suscriptores nuevos YT',sel.youtube.seguidores_nuevos!=null?'+'+nf(sel.youtube.seguidores_nuevos):'-',sel.youtube.interacciones?nf(sel.youtube.interacciones)+' h de reproducción':'',C.verde],
+    ];
+    const kw=(CW-9)/4;
+    kpis.forEach((k,i)=>{ const x=M+i*(kw+3); doc.setFillColor(...C.claro); doc.roundedRect(x,y,kw,22,2,2,'F'); txt(k[0],x+3,y+5.5,{size:7,color:C.gris,bold:true}); txt(k[1],x+3,y+13.5,{size:15,bold:true,color:k[3]}); txt(k[2],x+3,y+19,{size:7.5,color:C.gris}); });
+    y+=29;
+    // ── conclusiones ──
+    h2('Conclusiones');
+    _redesFifaConclusiones(sel).forEach(b=>bullet(b));
+    y+=2;
+    // ── rendimiento por red ──
+    h2('Rendimiento por red en el período');
+    const cols=[['Red',M+2,'left'],['Visualizaciones',M+52,'right'],['Por día',M+82,'right'],['vs. '+(ant?(ant.corto||'anterior'):'anterior'),M+116,'right'],['Seg. nuevos',M+146,'right']];
+    doc.setFillColor(...C.claro); doc.rect(M,y,CW,6.5,'F'); cols.forEach(c=>txt(c[0],c[2]==='right'?c[1]+4:c[1],y+4.4,{size:7.5,bold:true,color:C.gris,align:c[2]==='right'?'right':undefined}));
+    y+=6.5;
+    const redes=[['YouTube','youtube'],['Instagram','instagram'],['Facebook','facebook'],['TikTok','tiktok'],['X (Twitter)','x']];
+    redes.forEach(([n,k])=>{
+      const d=sel[k]||{}; const dd=(d.dias||sel.dias);
+      const a=d.alcance; const b=ant&&ant[k]?ant[k].alcance:null; const bd=ant&&ant[k]?((ant[k].dias)||ant.dias):1;
+      const ch=(a!=null&&b)?((a/dias)/(b/bd)-1)*100:null;
+      need(7);
+      txt(n,M+2,y+4.6,{bold:true,size:9});
+      txt(a!=null?nf(a):'sin dato',M+56,y+4.6,{size:9,align:'right',color:a!=null?C.navy:C.gris});
+      txt(a!=null?nf(a/dd):'-',M+86,y+4.6,{size:9,align:'right',color:a!=null?C.navy:C.gris});
+      txt(ch!=null?((ch>=0?'+':'-')+Math.abs(Math.round(ch))+'%'):'-',M+120,y+4.6,{size:9,align:'right',bold:true,color:ch==null?C.gris:(ch>=0?C.verde:C.rojo)});
+      txt(d.seguidores_nuevos!=null?'+'+nf(d.seguidores_nuevos):'-',M+150,y+4.6,{size:9,align:'right',color:d.seguidores_nuevos!=null?C.navy:C.gris});
+      doc.setDrawColor(...C.borde); doc.line(M,y+7,M+CW,y+7); y+=7;
+    });
+    y+=2;
+    para('Visualizaciones: YouTube = vistas del canal AUFTV; Instagram y Facebook = visualizaciones de Meta; TikTok y X = vistas/impresiones. "Por día" divide por el largo de la ventana. "vs." compara el ritmo por día con la Fecha FIFA anterior. "sin dato" = esa red todavía no se mide en este período.',{size:7.5,color:C.gris,lh:3.8});
+    y+=4;
+    // ── audiencia por país ──
+    h2('Audiencia de YouTube por país');
+    const lista=sel.youtube.paises;
+    const top=lista.slice(0,12).map((p,i)=>({n:p[0],v:p[1],pos:i+1}));
+    REDES_FIFA_FOCO.forEach(f=>{ if(!top.some(t=>t.n===f)){ const i=lista.findIndex(p=>p[0]===f); if(i>=0) top.push({n:f,v:lista[i][1],pos:i+1}); } });
+    const max=Math.max(...top.map(t=>t.v),1);
+    const ctrl=REDES_YT_CONTROL, colaC=ctrl.paises[ctrl.paises.length-1][1], post=sel.fecha_snapshot>'2026-08-31';
+    top.forEach(t=>{
+      need(6.5);
+      const asiaF=REDES_ASIA.includes(t.n), foco=REDES_FIFA_FOCO.includes(t.n);
+      txt(String(t.pos),M+4,y+3.6,{size:7,color:C.gris,align:'right'});
+      txt(t.n,M+7,y+3.6,{size:8.5,bold:foco});
+      const bx=M+52, bw=70;
+      doc.setFillColor(...C.claro); doc.rect(bx,y+0.6,bw,4,'F');
+      doc.setFillColor(...(t.n==='Uruguay'?C.cel:asiaF?C.naranja:[148,163,184])); doc.rect(bx,y+0.6,Math.max(0.6,bw*t.v/max),4,'F');
+      txt(`${nf(t.v)}  ${(t.v/total*100).toFixed(1)}%`,M+CW-22,y+3.6,{size:8,align:'right',bold:true});
+      if(post){ const base=(ctrl.paises.find(p=>p[0]===t.n)||[null,null])[1]; const x=(t.v/dias)/((base||colaC)/ctrl.dias); txt(`${base?'':'mín. '}x${x>=10?Math.round(x):x.toFixed(1)}`,M+CW,y+3.6,{size:7.5,align:'right',color:x>=3?C.naranja:C.gris,bold:true}); }
+      y+=6;
+    });
+    y+=2;
+    para(post?'Barra naranja = países de Asia. La última columna compara el ritmo diario de cada país con agosto 2026 (mes sin partidos de la Selección); "mín." indica un mínimo (el país no figuraba entre los principales de agosto).':'Barra naranja = países de Asia.',{size:7.5,color:C.gris,lh:3.8});
+    y+=4;
+    // ── comparación con otras Fechas FIFA ──
+    h2('Comparación con otras Fechas FIFA');
+    const cw=[40,25,25,25,28,28];
+    const heads=['Ventana','YouTube/día','IG visualiz./día','FB visualiz./día','Uruguay (YT)','Asia (YT, mín.)'];
+    let cx=M; doc.setFillColor(...C.claro); doc.rect(M,y,CW,6.5,'F');
+    heads.forEach((h,i)=>{ txt(h,i?cx+cw[i]-1.5:cx+2,y+4.4,{size:7,bold:true,color:C.gris,align:i?'right':undefined}); cx+=cw[i]; });
+    y+=6.5;
+    fifa.forEach(w=>{
+      need(7); const esSel=w===sel; if(esSel){ doc.setFillColor(...C.oro); doc.rect(M,y,CW,7,'F'); }
+      const igd=(w.instagram&&w.instagram.alcance!=null)?w.instagram.alcance/((w.instagram.dias)||w.dias):null;
+      const fbd=(w.facebook&&w.facebook.alcance!=null)?w.facebook.alcance/w.dias:null;
+      const vals=[w.corto||w.label,nf(w.youtube.alcance/w.dias),igd!=null?nf(igd):'-',fbd!=null?nf(fbd):'-',((_redesPaisViews(w,'Uruguay')||0)/w.youtube.alcance*100).toFixed(1)+'%',(_redesAsiaViews(w)/w.youtube.alcance*100).toFixed(1)+'%'];
+      cx=M; vals.forEach((v,i)=>{ txt(v,i?cx+cw[i]-1.5:cx+2,y+4.6,{size:8,bold:esSel||i===0,align:i?'right':undefined}); cx+=cw[i]; });
+      doc.setDrawColor(...C.borde); doc.line(M,y+7,M+CW,y+7); y+=7;
+    });
+    y+=3;
+    // ── países foco por ventana ──
+    h2('Países foco por Fecha FIFA (vistas en YouTube)');
+    const fw=[34]; fifa.forEach(()=>fw.push((CW-34)/fifa.length));
+    cx=M; doc.setFillColor(...C.claro); doc.rect(M,y,CW,6.5,'F');
+    txt('País',M+2,y+4.4,{size:7,bold:true,color:C.gris}); cx=M+fw[0];
+    fifa.forEach((w,i)=>{ txt((w.corto||w.label).replace(' · Asia','').replace(' · México/EE.UU.','').replace(' · Malasia',''),cx+fw[i+1]-1.5,y+4.4,{size:6.5,bold:true,color:C.gris,align:'right'}); cx+=fw[i+1]; });
+    y+=6.5;
+    ['Uruguay',...REDES_FIFA_FOCO].forEach(p=>{
+      need(7); txt(p,M+2,y+4.6,{size:8,bold:true}); cx=M+fw[0];
+      fifa.forEach((w,i)=>{ const v=_redesPaisViews(w,p); txt(v!=null?nf(v):'-',cx+fw[i+1]-1.5,y+4.6,{size:8,align:'right',bold:w===sel,color:v!=null?C.navy:C.gris}); cx+=fw[i+1]; });
+      doc.setDrawColor(...C.borde); doc.line(M,y+7,M+CW,y+7); y+=7;
+    });
+    y+=4;
+    // ── notas ──
+    h2('Notas y límites de los datos');
+    ['Fuentes: Meta Business Suite (Facebook e Instagram de "AUF - Selección Uruguaya de Fútbol") y YouTube Studio (canal AUFTV), relevados automáticamente. TikTok y X se suman cuando estén conectados.',
+     'Las ventanas tienen distinto largo: comparar siempre por día. El canal AUFTV incluye también la Liga AUF, no solo la Selección.',
+     'La audiencia por país solo está disponible para YouTube. En Instagram y Facebook, Meta informa el país de los seguidores (no de las visualizaciones).',
+     'Facebook: la página se alimentaba con el compartido automático desde Instagram. Hoy el compartido figura activado en Instagram pero los posteos no aparecen en Facebook (causa en revisión), por lo que sus cifras recientes no son comparables con ventanas anteriores hasta que se resuelva.',
+     'En Instagram no hay visualizaciones ni interacciones confiables antes de julio 2025: esas celdas quedan vacías.'
+    ].forEach(t=>bullet(t));
+    // ── pie de página ──
+    const pages=doc.getNumberOfPages(); const hoy=new Date().toLocaleDateString('es-UY');
+    for(let i=1;i<=pages;i++){ doc.setPage(i); doc.setDrawColor(...C.borde); doc.line(M,H-12,W-M,H-12); txt(`AUF Prensa · Informe de redes · generado el ${hoy}`,M,H-7.5,{size:7,color:C.gris}); txt(`${i} / ${pages}`,W-M,H-7.5,{size:7,color:C.gris,align:'right'}); }
+    const nombre='Informe_redes_'+san(sel.corto||sel.label).replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'')+'.pdf';
+    doc.save(nombre);
+    setBtn('📄 Descargar informe PDF',false);
+    if(typeof toast==='function') toast('✅ Informe descargado: '+nombre);
+  }catch(e){
+    console.error('[informe PDF]',e);
+    setBtn('📄 Descargar informe PDF',false);
+    if(typeof toast==='function') toast('⚠️ No se pudo generar el PDF: '+e.message);
+  }
+}
+window._redesDescargarInformePdf=_redesDescargarInformePdf;
 
 // ── Últimas semanas (relevamiento semanal automático, lunes a domingo) ─────────
 function _redesSemanal(){
