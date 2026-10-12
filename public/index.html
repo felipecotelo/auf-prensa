@@ -28961,7 +28961,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
       <div style="font-weight:700;margin-bottom:3px">Sin partidos${esOficial?' oficiales':' amistosos'} registrados</div>
       <div style="font-size:.78em">Creá un partido con el botón de arriba</div>
-    </div>` : (()=>{ const seenTorneos=new Set(); return list.map(m=>{
+    </div>` : (()=>{ const seenTorneos=new Set(); const _mundialList=list.filter(x=>x.compId==='mundial-sub15-2026'); return list.map(m=>{
       // Título de grupo — se muestra una sola vez, arriba del primer partido de
       // ese torneo (ej. "Torneo Pioneros de Albion" dentro de los amistosos de
       // preparación de esta competencia).
@@ -28990,17 +28990,28 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <div style="font-size:.78em;font-weight:900;color:${hasRes2?_rc(gl2,gr2):'var(--muted)'}">${hasRes2?`${gl2}–${gr2}`:'–'} <span style="font-size:.7em;font-weight:600;color:var(--muted)">vta</span></div>
            </div>`
         : `<div style="font-size:1.1em;font-weight:900;white-space:nowrap;color:${hasRes?_rc(gl,gr):'var(--muted)'}">${hasRes?`${penDecides?`<span style="font-size:.55em;opacity:.7">(${m.penGLocal})</span> `:''}${gl}–${gr}${penDecides?` <span style="font-size:.55em;opacity:.7">(${m.penGRival})</span>`:''}`:'–'}</div>`;
+      // Mundial Sub-15: una sola línea "N. vs. Rival (res) | día d/m, hora" — el
+      // resultado va en el título (ya no aparece aparte a la derecha).
+      const _isMundial = m.compId==='mundial-sub15-2026';
+      let _mundialLine='';
+      if(_isMundial){
+        const _n=_mundialList.indexOf(m)+1;
+        const _d=m.fecha?new Date(m.fecha+'T12:00:00'):null;
+        const _dia=_d?_d.toLocaleDateString('es-UY',{weekday:'long'}):'';
+        const _dm=_d?`${_d.getDate()}/${_d.getMonth()+1}`:'';
+        _mundialLine=`<div style="font-weight:800;font-size:.9em;line-height:1.4">${_n}. vs. <span style="color:${color}">${m.rival}</span> <span style="color:${hasRes?_rc(gl,gr):'var(--muted)'}">(${hasRes?`${gl}–${gr}`:'–'})</span> <span style="font-weight:600;color:var(--muted)">| ${_dia} ${_dm}${m.hora?', '+m.hora:''}</span></div>`;
+      }
       return `${torneoHdr}
         <div onclick="_amistOpenDetail(${m.id})"
           style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:12px">
           <div style="flex:1">
-            <div style="font-weight:800;font-size:.9em;margin-bottom:2px">
+            ${_isMundial ? _mundialLine : `<div style="font-weight:800;font-size:.9em;margin-bottom:2px">
               Uruguay vs. <span style="color:${color}">${m.rival}</span>${ivBadge}${auftvBadge}
             </div>
-            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${m.hora?' · '+m.hora:''}${m.lugar?' · '+m.lugar:''}</div>
+            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${m.hora?' · '+m.hora:''}${m.lugar?' · '+m.lugar:''}</div>`}
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
-            ${resHtml}
+            ${_isMundial?'':resHtml}
             <button onclick="event.stopPropagation();_amistToggleConfirmado('${cat}','${year}',${m.id})" title="${m.confirmado?'Confirmado — cuenta para las estadísticas (tocá para deshacer)':'Confirmar partido para que cuente en las estadísticas'}" style="width:26px;height:26px;border-radius:50%;border:1.5px solid ${m.confirmado?'#16a34a':'#CBD5E1'};background:${m.confirmado?'#16a34a':'transparent'};color:${m.confirmado?'#fff':'#CBD5E1'};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.85em;flex-shrink:0"><i class="ti ti-check"></i></button>
             <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.8em"></i>
           </div>
