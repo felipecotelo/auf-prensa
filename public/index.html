@@ -1679,6 +1679,7 @@ html.auf-gate body { display:none !important }
     <button class="nav-t-pill dim" title="Próximamente">📋 Eliminatorias 2023–2026</button>
     <button class="nav-t-pill active" data-tournament="cm2026" onclick="showTournament('cm2026')">🏆 Copa Mundial 2026</button>
     <button class="nav-t-pill" data-tournament="fifasep26" onclick="showTournament('fifasep26')">📅 Fecha FIFA sep–oct 2026</button>
+     <button class="nav-t-pill" data-tournament="fifanov26" onclick="showTournament('fifanov26')">📅 Fecha FIFA nov 2026</button>
     <div class="nav-l0-sep"></div>
     <button class="nav-l1-btn" data-tab="jugadores" onclick="showTab('jugadores')"><i class="ti ti-users"></i>Jugadores</button>
     <button class="nav-l1-btn" data-tab="tecnicos" onclick="showTab('tecnicos')"><i class="ti ti-clipboard-list"></i>Técnicos</button>
@@ -1981,6 +1982,13 @@ html.auf-gate body { display:none !important }
 <div id="fifasep26-pizarra" class="section"><div id="fifasep26-pizarra-container"></div></div>
 <div id="fifasep26-grafica" class="section"><div id="fifasep26-grafica-container"></div></div>
 <div id="fifasep26-infogeneral" class="section"><div id="fifasep26-infogeneral-container"></div></div>
+<div id="fifanov26-calendario" class="section"><div id="fifanov26-calendario-container"></div></div>
+<div id="fifanov26-disponibilidad" class="section"><div id="fifanov26-disponibilidad-container"></div></div>
+<div id="fifanov26-fixture" class="section"><div id="fifanov26-fixture-container"></div></div>
+<div id="fifanov26-plantel" class="section"><div id="fifanov26-plantel-container"></div></div>
+<div id="fifanov26-pizarra" class="section"><div id="fifanov26-pizarra-container"></div></div>
+<div id="fifanov26-grafica" class="section"><div id="fifanov26-grafica-container"></div></div>
+<div id="fifanov26-infogeneral" class="section"><div id="fifanov26-infogeneral-container"></div></div>
 
 <!-- ═══════════ LINKS ═══════════ -->
 <div id="calendariomayor" class="section">
@@ -4029,7 +4037,7 @@ function applyPostMatchUpdates(pizMatchId, evs){
 }
 
 function getEvTxts(){return stor.get(KEvTxt,{})}
-function saveEvTxt(date,idx,val){const t=getEvTxts();t[evKey(date,idx)]=val;stor.set(KEvTxt,t);if(typeof _fsapSyncAtencionTxt==='function')_fsapSyncAtencionTxt(date,idx,val);}
+function saveEvTxt(date,idx,val){const t=getEvTxts();t[evKey(date,idx)]=val;stor.set(KEvTxt,t);if(typeof _fsapSyncAtencionTxt==='function')_fsapSyncAtencionTxt(date,idx,val);if(typeof _fnovSyncAtencionTxt==='function')_fnovSyncAtencionTxt(date,idx,val);}
 function getEvTxt(date,idx,def){return getEvTxts()[evKey(date,idx)]||def}
 
 
@@ -4902,7 +4910,7 @@ function toast(msg){
 // TABS
 // ═══════════════════════════════════════════════════════════════════════════
 // Tabs contextuales al torneo activo (L2)
-const TOURNAMENT_TABS=['calendario','disponibilidad','fixture','partidos','plantel','pizarra','grafica','infogeneral','registro','fifasep26-calendario','fifasep26-disponibilidad','fifasep26-fixture','fifasep26-plantel','fifasep26-pizarra','fifasep26-grafica','fifasep26-infogeneral'];
+const TOURNAMENT_TABS=['calendario','disponibilidad','fixture','partidos','plantel','pizarra','grafica','infogeneral','registro','fifasep26-calendario','fifasep26-disponibilidad','fifasep26-fixture','fifasep26-plantel','fifasep26-pizarra','fifasep26-grafica','fifasep26-infogeneral','fifanov26-calendario','fifanov26-disponibilidad','fifanov26-fixture','fifanov26-plantel','fifanov26-pizarra','fifanov26-grafica','fifanov26-infogeneral'];
 // Tabs de Selección Mayor pero sin torneo (en L1 como botones)
 const MAYOR_GLOBAL_TABS=['jugadores','estadisticas','calendariomayor','tecnicos'];
 // Tabs verdaderamente globales (L0 derecha)
@@ -4990,6 +4998,17 @@ const TOURNAMENTS = {
       {id:'fifasep26-infogeneral',   label:'Info general',  icon:'ti-info-circle'},
     ]
   },
+  'fifanov26': {
+    tabs: [
+      {id:'fifanov26-calendario',    label:'Calendario',    icon:'ti-calendar'},
+      {id:'fifanov26-disponibilidad',label:'Prensa y marketing',icon:'ti-list-check'},
+      {id:'fifanov26-fixture',       label:'Fixture',       icon:'ti-tournament'},
+      {id:'fifanov26-plantel',       label:'Convocados',    icon:'ti-users',         cls:'d-tab'},
+      {id:'fifanov26-pizarra',       label:'Pizarra',       icon:'ti-ball-football'},
+      {id:'fifanov26-grafica',       label:'Diseño',        icon:'ti-photo',         cls:'d-tab'},
+      {id:'fifanov26-infogeneral',   label:'Info general',  icon:'ti-info-circle'},
+    ]
+  },
 };
 
 function _rebuildNavL2(tournamentId){
@@ -5045,6 +5064,7 @@ function showTab(id){
   if(id==='grafica'){renderGrafica()}
   if(id==='periplo'){renderPeriplo()}
   if(id.startsWith('fifasep26-')){renderFifaSep26(id)}
+  if(id.startsWith('fifanov26-')){renderFifaNov26(id)}
   if(id==='jugadores'){renderJugadores()}
   if(id==='tecnicos'){renderTecnicos()}
 }
@@ -5073,6 +5093,7 @@ function _rerenderTab(id){
   else if(id==='grafica'){renderGrafica()}
   else if(id==='periplo'){renderPeriplo()}
   else if(id.startsWith('fifasep26-')){renderFifaSep26(id)}
+  else if(id.startsWith('fifanov26-')){renderFifaNov26(id)}
   else if(id==='jugadores'){renderJugadores()}
   else if(id==='tecnicos'){renderTecnicos()}
 }
@@ -5369,13 +5390,13 @@ function renderInicioHoySeleccion(dayOffset){
       }
     }catch(_){}
     try{
-      if(typeof FIFASEP26!=='undefined'){
-        (FIFASEP26.partidosData||[]).forEach(p=>{
+      [typeof FIFASEP26!=='undefined'?FIFASEP26:null, typeof FIFANOV26!=='undefined'?FIFANOV26:null].filter(Boolean).forEach(EV=>{
+        (EV.partidosData||[]).forEach(p=>{
           if((p.fecha||'').slice(0,10)===isoHoy){
             partidosHoy.push({txt:`Mayor vs. ${p.rival}${p.rivalBandera?' '+p.rivalBandera:''}${p.hora?' · '+p.hora+'h (UY)':''}`, onclick:`showSection('mayor')`});
           }
         });
-      }
+      });
     }catch(_){}
 
     // ── Agenda del día de la gira de la Fecha FIFA (viaje/llegada/entreno/
@@ -5384,8 +5405,9 @@ function renderInicioHoySeleccion(dayOffset){
     const fifaSepHoy=[];
     try{
       if(typeof FIFASEP26_CAL_DAYS!=='undefined'){
-        const day=FIFASEP26_CAL_DAYS.find(d=>d.date===isoHoy);
-        if(day && day.tipo!=='partido'){
+        const day=[...FIFASEP26_CAL_DAYS, ...(typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[])].find(d=>d.date===isoHoy);
+        // tipo 'tbd' (día por definir de una Fecha FIFA sin confirmar) no se muestra
+        if(day && day.tipo!=='partido' && day.tipo!=='tbd'){
           const FSH_ICON={viaje:'✈️',llegada:'🛬',entreno:'🏃',descanso:'😌'};
           const FSH_LABEL={viaje:'Viaje de la Mayor',llegada:'Llegada de la Mayor',entreno:'Entrenamiento de la Mayor',descanso:'Día libre — Mayor'};
           fifaSepHoy.push({icon:FSH_ICON[day.tipo]||'📅', txt:`${FSH_LABEL[day.tipo]||'Mayor'}${day.lugar?' · '+day.lugar:''}`, onclick:`showSection('mayor')`});
@@ -6016,8 +6038,8 @@ function renderInicioProximo(){
       [
         {label:'Lista de reserva · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_reserva')), tab:'fifasep26'},
         {label:'Convocatoria final · Fecha FIFA set-oct 2026', fecha:parseFecha(D('0_final')), tab:'fifasep26'},
-        {label:'Lista de reserva · Fecha FIFA nov 2026', fecha:parseFecha(D('1_reserva')), tab:'fifasep26'},
-        {label:'Convocatoria final · Fecha FIFA nov 2026', fecha:parseFecha(D('1_final')), tab:'fifasep26'},
+        {label:'Lista de reserva · Fecha FIFA nov 2026', fecha:parseFecha(D('1_reserva')), tab:'fifanov26'},
+        {label:'Convocatoria final · Fecha FIFA nov 2026', fecha:parseFecha(D('1_final')), tab:'fifanov26'},
       ].forEach(c=>{ if(c.fecha) candidatos.push({label:c.label, fecha:c.fecha, cats:['mayor'], onclick:`showSection('mayor');showTournament('${c.tab}')`}); });
     }
     // Aniversarios fijos del calendario real (NO las actividades/entrenamientos de ese mismo calendario — se descartan a propósito)
@@ -9061,6 +9083,7 @@ async function savePE(){
     // quirúrgico, subir la foto de un reservado quedaba en iniciales hasta salir
     // y volver a entrar a esa pestaña, dando la impresión de que no se guardó.
     if(document.getElementById('fifasep26-plantel')?.classList.contains('active') && typeof window.renderFifaSep26Plantel==='function') window.renderFifaSep26Plantel();
+    if(document.getElementById('fifanov26-plantel')?.classList.contains('active') && typeof window.renderFifaNov26Plantel==='function') window.renderFifaNov26Plantel();
     window._savePhotoToServer?.(PE.num, dataUrl);
   } else if(typeof PE.num==='string' && PE.num.startsWith('est:')){
     window._estPhotoCache = window._estPhotoCache||{};
@@ -10028,7 +10051,7 @@ const DELEGACION = [
 
 const KDelegacion='auf4_delegacion', KInfoTexts='auf4_infotexts';
 let infoEditMode={}; // por torneo: {'':bool, fifasep26:bool, ...}
-const _infoDefaultDeleg=tKey=>tKey==='fifasep26'?DELEGACION_FIFASEP26:DELEGACION;
+const _infoDefaultDeleg=tKey=>tKey==='fifasep26'?DELEGACION_FIFASEP26:tKey==='fifanov26'?DELEGACION_FIFANOV26:DELEGACION;
 
 function getDelegacion(tKey=''){
   const key=tKey?KDelegacion+'_'+tKey:KDelegacion;
@@ -12348,24 +12371,2106 @@ window._fifaSepMoveAct=function(date,idx,dir,ev){
   renderFifaSepCal();
 };
 
+
+// ═══════════════ FECHA FIFA NOV 2026 (réplica de la de set-oct) ═══════════════
+// País (nombre en español) → código de bandera (flagcdn), compartido por las
+// Fechas FIFA (el Fixture de cada una lo usa para la bandera del rival).
+const _FIFA_EV_ISO={
+  'Japón':'jp','Corea del Sur':'kr','India':'in','Argentina':'ar','Bolivia':'bo','Brasil':'br','Chile':'cl',
+  'Colombia':'co','Ecuador':'ec','México':'mx','Paraguay':'py','Perú':'pe','Venezuela':'ve','Estados Unidos':'us',
+  'Canadá':'ca','Costa Rica':'cr','Panamá':'pa','Honduras':'hn','Jamaica':'jm','Haití':'ht','Cuba':'cu',
+  'España':'es','Francia':'fr','Inglaterra':'gb-eng','Escocia':'gb-sct','Gales':'gb-wls','Italia':'it','Portugal':'pt',
+  'Alemania':'de','Países Bajos':'nl','Bélgica':'be','Suiza':'ch','Austria':'at','Croacia':'hr','Serbia':'rs',
+  'Polonia':'pl','Suecia':'se','Noruega':'no','Dinamarca':'dk','Turquía':'tr','Grecia':'gr','Rumanía':'ro','Hungría':'hu',
+  'República Checa':'cz','Ucrania':'ua','Marruecos':'ma','Túnez':'tn','Argelia':'dz','Egipto':'eg','Senegal':'sn',
+  'Nigeria':'ng','Ghana':'gh','Camerún':'cm','Costa de Marfil':'ci','Sudáfrica':'za','Cabo Verde':'cv','Mali':'ml',
+  'Arabia Saudita':'sa','Catar':'qa','Irán':'ir','Irak':'iq','Jordania':'jo','Emiratos Árabes Unidos':'ae','Uzbekistán':'uz',
+  'Australia':'au','Nueva Zelanda':'nz','China':'cn','Tailandia':'th','Vietnam':'vn','Indonesia':'id',
+};
+// Dado el compId de un partido de la Pizarra de la Mayor, devuelve el objeto de
+// la Fecha FIFA a la que pertenece (o null si no es de una Fecha FIFA). Lo usa el
+// motor de partidos para cargar plantel/convocados de la Fecha FIFA correcta.
+function _fifaEvOf(id){ return id==='fifasep26' ? FIFASEP26 : id==='fifanov26' ? FIFANOV26 : null; }
+// Llamada de re-render de la Pizarra de esa Fecha FIFA (para onclick inline).
+function _fifaRenderCall(id){ return id==='fifanov26' ? "window.renderFifaNov26?.('fifanov26-pizarra')" : "window.renderFifaSep26?.('fifasep26-pizarra')"; }
+
+const FIFANOV26 = {
+  label: 'Fecha FIFA nov 2026',
+  desde: '2026-11-09',
+  hasta: '2026-11-17',
+  partidos: 2,
+  desc: 'Fecha FIFA de noviembre 2026 (9 al 17/11), hasta 2 partidos. Sede (Uruguay u otro país) y rivales por confirmar.',
+  dt: 'Diego Forlán',
+  periodoFifa: {desde:'2026-11-09', hasta:'2026-11-17'},
+  deadlines: [
+    {fecha:'2026-10-23', txt:'Fecha límite para la lista de reservados'},
+    {fecha:'2026-11-06', txt:'Fecha límite para la lista de convocados'},
+  ],
+  reglasLista: [
+    'En la lista de cada partido figurarán máximo 23 jugadores: once titulares y doce suplentes',
+    'En el banco podrán sentarse máximo 23 personas: once del cuerpo técnico y doce suplentes',
+  ],
+  // Rivales y sede todavía no se saben (máximo 2 partidos). Cuando se confirmen,
+  // se cargan acá como en set-oct: {fecha, rival, rivalBandera, sede, hora (UY),
+  // horaLocal, local:true|false, confirmado:true}. La Pizarra y el Fixture se
+  // arman solos a partir de esta lista.
+  partidosData: [],
+  itinerario: [],
+  // Listas: se cargan cuando se publiquen. `reservados` null = "lista por
+  // confirmar" (placeholder); `finales` null = todavía no hay convocatoria final.
+  reservadosFecha: '',
+  finalesFecha: '',
+  finales: null,
+  primeraConvocatoria: [],
+  reservados: null,
+};
+
+// Foto instantánea de las stats de carrera de cada reservado ANTES de que
+// arranque esta Fecha FIFA (se toma cuando salga la lista de reservados, con los
+// valores que muestra la app en ese momento — incluyendo lo ya sumado de
+// set-oct). Sirve de base para el "+N" y para sumar solo lo que se juegue
+// ACÁ (ver _fifaNovFloor). Vacío hasta entonces.
+const FIFANOV26_STATS_BASELINE = {};
+
+// Botón "Confirmar resultado" en la Pizarra de la Fecha FIFA — toma lo
+// cargado ahí (titulares + entraron, goles) y lo suma de inmediato a
+// Convocados como +1 partido / +N goles, sin esperar el chequeo oficial de
+// 48h (auf.org.uy) que solo corrige/confirma después. Guardado por rival
+// (cada uno de los 3 partidos es único) — re-confirmar recalcula desde cero
+// con lo que haya en la pizarra en ese momento, no se acumula ni duplica.
+const KFifaNovStatsDelta='auf4_fifanov_stats_delta';
+// Lo que sumó cada jugador en la Fecha FIFA sale SOLO de los partidos cargados
+// en la Pizarra (titulares + ingresos + goles de cada partido con marcador), sin
+// tener que apretar "Confirmar resultado". Lo que ya estaba guardado con ese
+// botón queda como respaldo para los partidos que ya no tengan datos en la
+// Pizarra; si la Pizarra tiene el partido, manda la Pizarra.
+// Partidos de la Fecha FIFA sep-oct 2026 cargados en la Pizarra. Se lee el
+// storage directo (misma key que usa la Pizarra: _amistKey('fifamayor','nov26'))
+// porque _getAmistosos vive dentro de _buildJuvAmistosos y no es global.
+function _fifaNovPizarraMatches(){
+  try{ return JSON.parse(localStorage.getItem('auf4_amist_juv_fifamayor_nov26')||'[]')||[]; }catch(_){ return []; }
+}
+function _fifaNovDeltaDesdePizarra(){
+  const list=_fifaNovPizarraMatches();
+  const out={};
+  list.forEach(m=>{
+    if(!m||isNaN(parseInt(m.gLocal))||isNaN(parseInt(m.gRival))) return;
+    const starters=Object.values(m.lineup?.starters||{}).filter(Boolean);
+    const subNoms=(m.subs||[]).map(x=>x.nom);
+    const jugaron=[...new Set([...starters,...subNoms])];
+    if(!jugaron.length) return;
+    const gol={};
+    if((m.golMins||[]).length){
+      m.golMins.forEach(g=>{ if(g.nom!=='__EC__') gol[g.nom]=(gol[g.nom]||0)+1; });
+    } else {
+      Object.entries(m.goles||{}).forEach(([nom,c])=>{ if(nom!=='__EC__'&&c>0) gol[nom]=c; });
+    }
+    out[m.rival]={};
+    jugaron.forEach(nom=>{ out[m.rival][nom]={pj:1,g:gol[nom]||0}; });
+  });
+  return out;
+}
+function getFifaNovStatsDelta(){ return {...stor.get(KFifaNovStatsDelta,{}), ..._fifaNovDeltaDesdePizarra()}; }
+// Total de carrera "mínimo" de un jugador: lo que tenía antes de la gira
+// (FIFANOV26_STATS_BASELINE) + lo jugado/convertido en la gira según la
+// Pizarra. Si el dato oficial cargado en JUGADORES todavía no incluye algún
+// partido (AUF tarda ~48h en publicarlo), manda este; cuando AUF lo incluye
+// y es igual o mayor, manda el oficial. No cuenta minutos (no salen de la
+// Pizarra).
+function _fifaNovFloor(nom){
+  const b=(typeof FIFANOV26_STATS_BASELINE!=='undefined')?FIFANOV26_STATS_BASELINE[nom]:null;
+  if(!b) return null;
+  let pj=0,g=0;
+  Object.values(getFifaNovStatsDelta()).forEach(md=>{ const x=md&&md[nom]; if(x){ pj+=x.pj||0; g+=x.g||0; } });
+  return {pj:(b.pj||0)+pj, g:(b.g||0)+g};
+}
+function _fifaNovApplyFloor(){
+  if(typeof FIFANOV26_STATS_BASELINE==='undefined'||typeof JUGADORES==='undefined') return;
+  Object.keys(FIFANOV26_STATS_BASELINE).forEach(nom=>{
+    const t=JUGADORES[nom]?.total; const f=_fifaNovFloor(nom);
+    if(!t||!f) return;
+    if((t.pj||0)<f.pj) t.pj=f.pj;
+    if((t.g||0)<f.g) t.g=f.g;
+  });
+}
+function _fifaNovConfirmBtnHtml(cat,year,m){
+  const delta=getFifaNovStatsDelta();
+  const confirmed=!!delta[m.rival];
+  const n=confirmed?Object.keys(delta[m.rival]).length:0;
+  return `<button onclick="_fifaNovConfirmStats('${cat}','${year}',${m.id})" style="width:100%;padding:9px;background:${confirmed?'#DCFCE7':'var(--cel)'};color:${confirmed?'#15803D':'#fff'};border:${confirmed?'1.5px solid #86EFAC':'none'};border-radius:10px;font-size:.82em;font-weight:800;cursor:pointer;margin-bottom:12px">
+    ${confirmed?`✅ Confirmado — ${n} jugadores +1 partido (tocar para recalcular)`:'✓ Confirmar resultado — aplicar a estadísticas'}
+  </button>`;
+}
+window._fifaNovConfirmStats=function(cat,year,matchId){
+  // _getAmistosos/_amistKey viven en el closure de _buildJuvAmistosos y no
+  // son accesibles desde acá (función global aparte) — se lee localStorage
+  // directo con el mismo formato de key que usan ellas por dentro.
+  let list=[];
+  try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_'+cat+'_'+year)||'[]'); }catch(_){}
+  const m=list?.find(x=>x.id===matchId);
+  if(!m) return;
+  const starters=Object.values(m.lineup?.starters||{}).filter(Boolean);
+  const subNoms=(m.subs||[]).map(s=>s.nom);
+  const jugaron=[...new Set([...starters,...subNoms])];
+  if(!jugaron.length){ toast('⚠️ Cargá titulares o suplentes antes de confirmar'); return; }
+  const golMinsArr=m.golMins||[];
+  const goleadores={};
+  if(golMinsArr.length){
+    golMinsArr.forEach(g=>{ if(g.nom!=='__EC__') goleadores[g.nom]=(goleadores[g.nom]||0)+1; });
+  } else {
+    Object.entries(m.goles||{}).forEach(([nom,cant])=>{ if(nom!=='__EC__'&&cant>0) goleadores[nom]=cant; });
+  }
+  const matchDelta={};
+  jugaron.forEach(nom=>{ matchDelta[nom]={pj:1,g:goleadores[nom]||0}; });
+  const store=getFifaNovStatsDelta();
+  store[m.rival]=matchDelta;
+  stor.set(KFifaNovStatsDelta,store);
+  // Reglas: titular = arrancó jugando, entró = ingresó, no entró = estuvo en
+  // el banco pero no jugó (default para el resto de los 26 — no hay forma de
+  // saber desde la pizarra quién ni siquiera fue al banco, "no participó" se
+  // marca a mano después si corresponde).
+  const partStore=stor.get('auf4_fifanov_part',{});
+  (FIFANOV26.finales||[]).forEach(nom=>{
+    const val=starters.includes(nom)?'titular':subNoms.includes(nom)?'entró':'no entró';
+    if(!partStore[nom]) partStore[nom]={};
+    partStore[nom][m.rival]=val;
+  });
+  stor.set('auf4_fifanov_part',partStore);
+  toast(`✅ Confirmado — ${jugaron.length} jugadores +1 partido`);
+  window.renderFifaNov26?.('fifanov26-pizarra');
+  window.renderFifaNov26Plantel?.();
+};
+
+// Calendario día a día de la Fecha FIFA de noviembre (9 al 17/11), mismo
+// esqueleto que el de set-oct: un día por fila y `eventos:[]` vacío; las
+// actividades se arman desde la app con "+ Agregar actividad". Todos los días
+// arrancan como 'tbd' (por definir) porque todavía no se sabe sede, viaje ni
+// fechas de los partidos; cuando se confirmen se les pone tipo/lugar/rival.
+const FIFANOV26_CAL_DAYS = [
+  {date:'2026-11-09', dow:'Lun', label:'9 nov',  tipo:'tbd', lugar:'Por definir', eventos:[]},
+  {date:'2026-11-10', dow:'Mar', label:'10 nov', tipo:'tbd', lugar:'Por definir', eventos:[]},
+  {date:'2026-11-11', dow:'Mié', label:'11 nov', tipo:'tbd', lugar:'Por definir', eventos:[]},
+  {date:'2026-11-12', dow:'Jue', label:'12 nov', tipo:'tbd', lugar:'Por definir', eventos:[]},
+  {date:'2026-11-13', dow:'Vie', label:'13 nov', tipo:'tbd', lugar:'Por definir', eventos:[]},
+  {date:'2026-11-14', dow:'Sáb', label:'14 nov', tipo:'tbd', lugar:'Por definir', eventos:[]},
+  {date:'2026-11-15', dow:'Dom', label:'15 nov', tipo:'tbd', lugar:'Por definir', eventos:[]},
+  {date:'2026-11-16', dow:'Lun', label:'16 nov', tipo:'tbd', lugar:'Por definir', eventos:[]},
+  {date:'2026-11-17', dow:'Mar', label:'17 nov', tipo:'tbd', lugar:'Por definir', eventos:[]},
+];
+
+// Delegación de Fecha FIFA sep-oct 2026, misma estructura que la del Mundial
+// (áreas con gente adentro), para que "Info general" sea igual en todos los eventos.
+const DELEGACION_FIFANOV26 = [
+  {area:'Cuerpo técnico', people:[
+    {name:'Diego Forlán', iso:'uy', role:'Director técnico'},
+  ]},
+  {area:'Gerencia deportiva', people:[]},
+  {area:'Sanidad', people:[]},
+  {area:'Utilería', people:[]},
+  {area:'Comunicación', people:[]},
+  {area:'Cocina', people:[]},
+  {area:'Seguridad', people:[]},
+  {area:'Otros', people:[]},
+  {area:'Dirigentes', people:[]},
+  {area:'Invitados', people:[]},
+];
+// ── Diseño gráfico de la Fecha FIFA — mismo lenguaje visual que renderGrafica
+// (Mundial), pero por NOMBRE en vez de número de camiseta (los reservados
+// todavía no tienen dorsal) y usando FIFANOV26.reservados (46) como plantel.
+const KFifaNovGrafica='auf4_fifanov_grafica';
+function getFifaNovGrafica(){
+  const v=stor.get(KFifaNovGrafica,null);
+  const def={};
+  (FIFANOV26.partidosData||[]).forEach(p=>{ def[p.rival]={md1:{players:[],link:''},md:{players:[],link:''}}; });
+  if(!v){ def.flags={}; return def; }
+  (FIFANOV26.partidosData||[]).forEach(p=>{
+    if(!v[p.rival]) v[p.rival]=def[p.rival];
+    ['md1','md'].forEach(stage=>{ if(!v[p.rival][stage]) v[p.rival][stage]={players:[],link:''}; });
+  });
+  if(!v.flags) v.flags={};
+  return v;
+}
+function setFifaNovGrafica(v){ stor.set(KFifaNovGrafica,v); }
+// Mismo lenguaje que toggleGraficaFlag (Mundial), pero por nombre en vez de
+// número de camiseta — acá los reservados todavía no tienen dorsal.
+window._toggleFifaNovGraficaFlag=function(nomEnc,flagId){
+  const nom=decodeURIComponent(nomEnc);
+  const g=getFifaNovGrafica();
+  const cur=g.flags[nom]||{};
+  cur[flagId]=!cur[flagId];
+  g.flags[nom]=cur;
+  setFifaNovGrafica(g);
+  renderFifaNovGrafica();
+};
+const _fifaNovGraficaExpanded=new Set();
+window._toggleFifaNovGraficaExpand=function(key){
+  if(_fifaNovGraficaExpanded.has(key)) _fifaNovGraficaExpanded.delete(key);
+  else _fifaNovGraficaExpanded.add(key);
+  renderFifaNovGrafica();
+};
+window._toggleFifaNovGraficaPlayer=function(rival,stage,nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const g=getFifaNovGrafica();
+  const list=g[rival][stage].players;
+  const i=list.indexOf(nom);
+  if(i>=0) list.splice(i,1); else list.push(nom);
+  setFifaNovGrafica(g);
+  renderFifaNovGrafica();
+};
+window._saveFifaNovGraficaLink=function(rival,stage,input){
+  const g=getFifaNovGrafica();
+  g[rival][stage].link=input.value.trim();
+  setFifaNovGrafica(g);
+};
+function renderFifaNovGrafica(){
+  const con=document.getElementById('fifanov26-grafica-body');
+  if(!con) return;
+  const g=getFifaNovGrafica();
+  let pool=[];
+  Object.entries(FIFANOV26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
+  // En cuanto se confirmen los 26 finales, todas las pestañas se restringen
+  // a esa lista — salvo Convocados, la única donde los descartados quedan
+  // visibles abajo en gris (mismo criterio que Juveniles).
+  if(FIFANOV26.finales) pool=pool.filter(p=>FIFANOV26.finales.includes(p.nom));
+
+  const usage={};
+  (FIFANOV26.partidosData||[]).forEach(p=>{
+    ['md1','md'].forEach(stage=>{
+      (g[p.rival][stage].players||[]).forEach(nom=>{
+        (usage[nom]=usage[nom]||[]).push(`${p.rival.slice(0,3).toUpperCase()} ${stage==='md1'?'MD-1':'MD'}`);
+      });
+    });
+  });
+
+  const _numByNom={}; pool.forEach(p=>{ if(p.num!=null) _numByNom[p.nom]=p.num; });
+  // margin-right en vez de un espacio de texto: dentro de un contenedor flex
+  // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
+  const _numTag=n=>n!=null?`<span style="opacity:.65;font-weight:700;margin-right:4px">#${n}</span>`:'';
+  function playerGrid(rival,stage){
+    const sel=g[rival][stage].players||[];
+    return `<div class="player-chips">${pool.map(p=>{
+      const isSel=sel.includes(p.nom);
+      const nomEnc=encodeURIComponent(p.nom);
+      return `<span class="gr-chip${isSel?' sel':''}" onclick="_toggleFifaNovGraficaPlayer('${rival}','${stage}','${nomEnc}')">${_numTag(p.num)}${p.nom}</span>`;
+    }).join('')}</div>`;
+  }
+  function selectedChips(rival,stage){
+    const sel=g[rival][stage].players||[];
+    if(!sel.length) return '<span style="font-size:10.5px;color:var(--hint)">— sin seleccionar —</span>';
+    return `<div class="player-chips" style="pointer-events:none">${sel.map(nom=>`<span class="gr-chip sel" style="cursor:default">${_numTag(_numByNom[nom])}${nom}</span>`).join('')}</div>`;
+  }
+  function stageBlock(rival,stage,label){
+    const link=g[rival][stage].link||'';
+    const key=`${rival}_${stage}`;
+    const expanded=_fifaNovGraficaExpanded.has(key);
+    const sel=g[rival][stage].players||[];
+    return `<div style="flex:1;min-width:220px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${label}</div>
+        ${link?`<a href="${link}" target="_blank" rel="noopener" style="font-size:10px;text-decoration:none;color:var(--cel-dk);font-weight:700">🔗 Ver diseño</a>`:''}
+      </div>
+      ${expanded?playerGrid(rival,stage):selectedChips(rival,stage)}
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <button onclick="_toggleFifaNovGraficaExpand('${key}')" style="background:none;border:none;cursor:pointer;font-size:10px;font-weight:700;color:var(--cel-dk);padding:4px 0;text-decoration:underline;flex-shrink:0">${expanded?'✓ Listo':'✏️ Editar'}</button>
+        ${!expanded&&sel.length?`<span style="font-size:10px;color:var(--muted)">${sel.length} jugador${sel.length!==1?'es':''} seleccionado${sel.length!==1?'s':''}</span>`:''}
+      </div>
+      <input type="text" value="${link.replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)"
+        onchange="_saveFifaNovGraficaLink('${rival}','${stage}',this)"
+        style="width:100%;margin-top:6px;font-size:10.5px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted)">
+    </div>`;
+  }
+
+  const matchCards=(FIFANOV26.partidosData||[]).map(p=>`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">
+      <div style="background:linear-gradient(135deg,var(--cel),var(--cel-dk));color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-size:15px;font-weight:900;display:flex;align-items:center;gap:8px">🇺🇾 <span style="opacity:.8;font-weight:600">vs.</span> ${p.rival} ${p.rivalBandera}</div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:.06em;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:6px">${_fmtDateCorta(p.fecha)}</div>
+      </div>
+      <div style="padding:12px 14px;display:flex;gap:18px;flex-wrap:wrap">
+        ${stageBlock(p.rival,'md1','MD-1')}
+        ${stageBlock(p.rival,'md','MD')}
+      </div>
+    </div>`).join('');
+
+  const flags=g.flags||{};
+  const playerList=pool.map(p=>{
+    const tags=(usage[p.nom]||[]).map(t=>`<span style="font-size:9px;font-weight:700;background:var(--cel-lt);color:var(--cel-dk);padding:1px 5px;border-radius:5px;margin-left:3px;white-space:nowrap">${t}</span>`).join('');
+    const nomEnc=encodeURIComponent(p.nom);
+    const inj=getResInjury(p.nom);
+    const injDot=inj!=='green'?`<span style="width:7px;height:7px;border-radius:50%;background:${inj==='red'?'#C0392B':'#F59E0B'};display:inline-block;flex-shrink:0;margin-left:5px" title="${INJ_LABELS[inj]}"></span>`:'';
+    const pf=flags[p.nom]||{};
+    const flagBtns=GRAFICA_FLAG_DEFS.map(f=>{
+      const on=!!pf[f.id];
+      return `<button onclick="_toggleFifaNovGraficaFlag('${nomEnc}','${f.id}')" title="${f.title}" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 1px;opacity:${on?'1':'.25'};filter:${on?'none':'grayscale(1)'}">${f.icon}</button>`;
+    }).join('');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:11.5px">
+      <span style="display:flex;align-items:center;font-weight:600;color:${tags?'var(--text)':'var(--hint)'}">${_numTag(p.num)}${p.nom}${injDot}</span>
+      <span style="display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:2px">${tags||'<span style="font-size:9px;color:var(--hint)">sin uso</span>'}<span style="display:flex;margin-left:4px">${flagBtns}</span></span>
+    </div>`;
+  }).join('');
+
+  con.innerHTML=`
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1.6;min-width:320px">
+        ${matchCards}
+      </div>
+      <div style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${FIFANOV26.finales?'Plantel':'Reservados'} — ${pool.length} jugadores</div>
+        ${playerList}
+      </div>
+    </div>`;
+}
+window.renderFifaNovGrafica=renderFifaNovGrafica;
+
+// Siembra los 3 partidos de la Fecha FIFA en el motor de amistosos (mismo
+// storage que usa Juveniles) bajo cat='fifamayor'/year='nov26', para que
+// la Pizarra tenga formación/cancha/banco/goles/tarjetas igual que el
+// Mundial, sin duplicar ese motor. Idempotente — no reinserta si ya están.
+// ── Disponibilidad de la Fecha FIFA — mismo espíritu que renderDisponibilidad
+// del Mundial (hero del DT arriba, tabla de jugadores con conteo de
+// atenciones), pero genérico: acá las actividades NO son obligatorias FIFA
+// (sin el esquema rojo=obligatorio de la Copa Mundial), son 4 tipos fijos de
+// atención de prensa/hotel. Lista de jugadores: el pool de 46 reservados
+// hasta que se confirmen los 26 finales (FIFANOV26.finales).
+// Acá NO hay obligatorias FIFA (a diferencia del Mundial) — así que en vez de
+// contadores +/- por categoría fija, se carga cada atención con su propio
+// detalle (texto libre + fecha/hora + a quién), y el conteo de abajo por
+// persona se calcula solo a partir de esa lista, no se toca a mano.
+const KFifaNovAt='auf4_fifanov_atenciones';
+const FIFANOV_DISP_TIPOS=[
+  {id:'md1',       label:'Conferencia MD-1',       icon:'🎤'},
+  {id:'md',        label:'Conferencia MD',         icon:'🎙'},
+  {id:'hotel',     label:'Atención en hotel',      icon:'🏨'},
+  {id:'auftv',     label:'Nota para AUFtv',        icon:'📺'},
+  {id:'zm',        label:'Zona mixta',             icon:'🎥'},
+  // Producción de TV/streaming del día de partido (llegadas al estadio y
+  // entrevista rápida post-partido).
+  {id:'coach-arrival',   label:'Coach arrival',   icon:'🚐'},
+  {id:'player-arrival',  label:'Player arrival',  icon:'🚌'},
+  {id:'flash-interview', label:'Flash interview', icon:'⚡'},
+  {id:'zoom',      label:'Zoom / videollamada',    icon:'💻'},
+  {id:'apertura',  label:'Apertura de entrenamiento para prensa', icon:'🏃'},
+  {id:'prensa-local', label:'Actividad de prensa local', icon:'📰'},
+  // Prensa y Comunicación — actividades de contenido/marketing, no
+  // entrevistas: shootings de fotos (oficial = plantel/nuevas incorporaciones
+  // sin foto con la camiseta actual; especial = una pieza puntual), rodajes
+  // (videos) y compromisos de marketing (firma de camisetas, autógrafos, etc).
+  {id:'shoot-of',  label:'Shooting oficial',       icon:'📸'},
+  {id:'shoot-esp', label:'Shooting especial',      icon:'📷'},
+  {id:'rodaje',    label:'Rodaje',                 icon:'🎬'},
+  {id:'marketing', label:'Obligación de marketing',icon:'🥅'},
+  {id:'otro',      label:'Otro',                   icon:'📋'},
+];
+// Tag que le toca en el Calendario a cada tipo de atención — las conferencias
+// MD-1/MD son obligatorias, parte fija del cronograma del día (van celeste,
+// como "Cronograma"), no una nota de prensa suelta como el resto (van AUF,
+// naranja).
+const FIFANOV_AT_CAL_TYPE={md1:'team', md:'team'}; // el resto cae en 'auf' por default
+// Mismos tipos — llevan además el badge rojo "Obligatoria" (compromiso
+// contractual/FIFA), no solo el cambio de color de arriba. Marketing entra
+// acá también — es, por definición, un compromiso, no una nota optativa.
+const FIFANOV_AT_OBLIG=['md1','md','marketing'];
+function getFifaNovAt(){ return stor.get(KFifaNovAt,[]); }
+// Formulario colapsado por defecto (solo el botón "+ Agregar atención") y
+// mismo selector de huso que el Calendario — un solo estado global porque
+// acá hay un único formulario (no uno por día). Arranca en el huso de dónde
+// está la delegación hoy (mismo criterio que _fnovDefaultTzFor del
+// Calendario), no siempre en UY.
+let _fifaNovAtTz=_fnovDefaultTzFor(TODAY);
+window._fifaNovToggleAtForm=function(btn){
+  const body=document.getElementById('fnov-at-body');
+  if(!body) return;
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  if(btn) btn.textContent=open?'+ Agregar atención':'✕ Cerrar';
+  if(open){ // se cerró — descarta cualquier edición en curso
+    _fifaNovAtEditingId=null;
+    _fifaNovAtEditingBatchId=null;
+    const submitBtn=document.getElementById('fnov-at-submit-btn');
+    if(submitBtn) submitBtn.textContent='+ Agregar';
+  }
+};
+window._fifaNovAtUpdateTzPreview=function(){
+  const h=document.getElementById('fnov-at-hora')?.value.trim();
+  const prev=document.getElementById('fnov-at-tz-prev');
+  if(!prev) return;
+  prev.textContent = (_fifaNovAtTz!=='UY'&&h) ? `→ ${_fnovConvertTz(h,_fifaNovAtTz,'UY')||'?'} UY` : '';
+};
+window._fifaNovAtSetTz=function(tz,btn){
+  _fifaNovAtTz=tz;
+  btn.parentElement.querySelectorAll('.aap-tz-chip').forEach(b=>b.classList.toggle('active',b.dataset.tz===tz));
+  _fifaNovAtUpdateTzPreview();
+};
+let _fifaNovAtEditingId=null;
+// Editando TODO un grupo (batch) a la vez — ej. corregir el detalle de las 4
+// notas post-partido de un saque — en vez de una atención puntual.
+let _fifaNovAtEditingBatchId=null;
+// ── Vínculo Atención ↔ Actividad de Calendario ──────────────────────────────
+// Cada atención (Disponibilidad) tiene su espejo en el Calendario del día que
+// le corresponde — mismo evento visto desde dos pestañas, no dos cosas
+// separadas. Se linkean por id (e.atencionId en el acto del Calendario) y se
+// mantienen en sync: horario y quién participa se editan desde cualquiera de
+// los dos lados y se reflejan en el otro; borrar de un lado borra el otro.
+function _fnovFindLinkedAct(atencionId){
+  const acts=getDayActs();
+  for(const d of Object.keys(acts)){
+    const idx=(acts[d]||[]).findIndex(e=>e && e.atencionId===atencionId);
+    if(idx>=0) return {date:d, idx};
+  }
+  return null;
+}
+// Mismo vínculo que _fnovFindLinkedAct, pero para un grupo entero (batchId) —
+// un batch de atenciones (ej. "Cena de camaradería" para todo el plantel)
+// sincroniza UN SOLO acto de Calendario compartido, no uno por persona (eso
+// inundaba el día con decenas de filas idénticas).
+function _fnovFindLinkedActByBatch(batchId){
+  const acts=getDayActs();
+  for(const d of Object.keys(acts)){
+    const idx=(acts[d]||[]).findIndex(e=>e && e.batchId===batchId);
+    if(idx>=0) return {date:d, idx};
+  }
+  return null;
+}
+// Atención → Calendario: si el día no cambió, actualiza EN EL LUGAR (no
+// borra/recrea) — el resto del sistema (KEvTxt/KEvS/KEvLink/KCalT) guarda
+// overrides por POSICIÓN (evKey = date_idx), así que borrar y volver a
+// insertar reordena TODOS los demás actos de ese día y les pisa el estado.
+// Con muchos actos cargados (como en un día real de esta gira) eso disparaba
+// el cartel de conflicto cada vez que se guardaba una atención, aunque fuera
+// solo para cambiarle el link. Solo se borra/recrea cuando el día SÍ cambió
+// (ahí no queda otra, no hay "mover de índice entre arrays distintos").
+// groupEntries (opcional): cuando entry.batchId está seteado, se le puede
+// pasar la lista completa de atenciones del batch — si no se pasa, se
+// recalcula sola desde getFifaNovAt(). Con batchId, sincroniza UN SOLO acto
+// de Calendario para TODO el grupo (personas = todos los del batch), en vez
+// de un acto por persona — ver _fnovFindLinkedActByBatch.
+function _fnovSyncCalFromAtencion(entry, groupEntries){
+  const isBatch=!!entry.batchId;
+  const group=isBatch ? (groupEntries || getFifaNovAt().filter(a=>a.batchId===entry.batchId)) : [entry];
+  const personas=group.map(a=>a.quien);
+  const found=isBatch ? _fnovFindLinkedActByBatch(entry.batchId) : _fnovFindLinkedAct(entry.id);
+  const tipoLabel=(FIFANOV_DISP_TIPOS.find(t=>t.id===entry.tipo)||{}).label||'';
+  const calType=FIFANOV_AT_CAL_TYPE[entry.tipo]||'auf';
+  const isOblig=FIFANOV_AT_OBLIG.includes(entry.tipo);
+  // Si se cargó un título propio, es lo que se ve en el Calendario — si no,
+  // el detalle escrito, y si tampoco hay detalle, el tipo de actividad.
+  const calTxt=entry.titulo||entry.txt||tipoLabel;
+
+  if(found && found.date===entry.fecha){
+    const acts=getDayActs();
+    const e=acts[found.date][found.idx];
+    e.txt=calTxt;
+    e.h=entry.hora;
+    e.personas=personas;
+    if(isBatch) e.batchId=entry.batchId; else e.atencionId=entry.id;
+    delete e.auf;
+    if(calType!=='team') e.auf=true;
+    if(isOblig) e.oblig=true; else delete e.oblig;
+    if(entry.origH){ e.origH=entry.origH; e.origTz=entry.origTz; } else { delete e.origH; delete e.origTz; }
+    stor.set(KDayActs,acts);
+    // Si el texto/hora tenían un override puesto a mano desde el Calendario
+    // (editEvTxt/_fnovEditTime), ese override gana en el render por encima
+    // de e.txt/e.h — hay que limpiarlo para que el valor recién guardado acá
+    // se vea (si el usuario lo vuelve a editar desde el Calendario, se
+    // regenera solo, no hace falta tocar nada más).
+    const k=evKey(found.date,found.idx);
+    const evTxtMap=getEvTxts();
+    if(evTxtMap[k]!==undefined){ delete evTxtMap[k]; stor.set(KEvTxt,evTxtMap,{allowShrink:true}); }
+    const calTMap=stor.get(KCalT,{});
+    if(calTMap[found.date] && calTMap[found.date][found.idx]!==undefined){ delete calTMap[found.date][found.idx]; stor.set(KCalT,calTMap,{allowShrink:true}); }
+    _gcalSync(found.date,found.idx);
+    return;
+  }
+
+  // Si cambió de fecha, el evento de Google Calendar (si ya existía) se
+  // conserva — no se borra y se crea uno nuevo, se mueve de fecha con un PATCH.
+  let carryGcalId=null;
+  if(found){
+    const acts=getDayActs();
+    carryGcalId=acts[found.date][found.idx].gcalEventId||null;
+    acts[found.date].splice(found.idx,1);
+    stor.set(KDayActs,acts,{allowShrink:true});
+    _fnovReindexAfterDelete(found.date,found.idx);
+  }
+  if(!entry.fecha || !FIFANOV26_CAL_DAYS.some(d=>d.date===entry.fecha)) return;
+  const acts2=getDayActs();
+  if(!acts2[entry.fecha]) acts2[entry.fecha]=[];
+  const newEv={txt:calTxt, h:entry.hora, personas};
+  if(isBatch) newEv.batchId=entry.batchId; else newEv.atencionId=entry.id;
+  if(calType!=='team') newEv.auf=true;
+  if(isOblig) newEv.oblig=true;
+  if(entry.origH){ newEv.origH=entry.origH; newEv.origTz=entry.origTz; }
+  if(carryGcalId) newEv.gcalEventId=carryGcalId;
+  acts2[entry.fecha].push(newEv);
+  stor.set(KDayActs,acts2);
+  _gcalSync(entry.fecha,acts2[entry.fecha].length-1);
+}
+// Calendario → Atención: horario (llamado desde _fnovEditTime al confirmar).
+function _fnovSyncAtencionTime(date,idx){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx];
+  if(!e || !e.atencionId) return;
+  const list=getFifaNovAt();
+  const i=list.findIndex(a=>a.id===e.atencionId);
+  if(i<0) return;
+  const entry={...list[i], hora:getCalTime(date,idx,e.h||'TBD')};
+  if(e.origH && e.origTz){ entry.origH=e.origH; entry.origTz=e.origTz; } else { delete entry.origH; delete entry.origTz; }
+  list[i]=entry;
+  stor.set(KFifaNovAt,list);
+}
+// Calendario → Atención: título/detalle (llamado desde saveEvTxt).
+function _fnovSyncAtencionTxt(date,idx,val){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx];
+  if(!e || !e.atencionId) return;
+  const list=getFifaNovAt();
+  const i=list.findIndex(a=>a.id===e.atencionId);
+  if(i<0) return;
+  list[i]={...list[i], txt:val};
+  stor.set(KFifaNovAt,list);
+}
+window._fifaNovAddAt=function(){
+  // Al agregar (no editar) se puede tildar a varios a la vez — ej. un
+  // shooting oficial con 4 jugadores juntos — y eso carga UNA atención por
+  // persona (mismo tipo/detalle/hora), no un solo registro con varios
+  // nombres adentro, para no tener que tocar todo lo que ya cuenta/filtra
+  // atenciones por nombre (contadores, sync con Calendario, etc). Editando
+  // UNA sola atención puntual sigue siendo de una sola persona — se usa la
+  // primera tildada nomás. Editando un GRUPO entero (_fifaNovAtEditingBatchId,
+  // ver _fifaNovEditAtBatch) es aparte: ahí si se puede tildar/destildar
+  // gente, y actualiza/crea/borra atenciones del batch según corresponda.
+  const checked=[...document.querySelectorAll('#fnov-at-quien-panel input:checked')].map(c=>c.value).filter(Boolean);
+  // Editando UNA atención: la persona de esa atención queda como principal (si
+  // se la destildó, pasa a ser la primera tildada) y las demás tildadas se
+  // SUMAN como atenciones nuevas de la misma actividad (ver batchId más abajo)
+  // — antes se descartaban sin avisar.
+  let quienes = checked;
+  if(_fifaNovAtEditingId){
+    const origQuien=getFifaNovAt().find(a=>a.id===_fifaNovAtEditingId)?.quien;
+    const primary=checked.includes(origQuien) ? origQuien : checked[0];
+    quienes = primary ? [primary, ...checked.filter(q=>q!==primary)] : [];
+  }
+  if(!quienes.length){ toast('⚠️ Elegí a quién'); return; }
+  const hRaw=(document.getElementById('fnov-at-hora')?.value||'').trim();
+  const tz=_fifaNovAtTz;
+  const converted=(tz!=='UY'&&hRaw)?_fnovConvertTz(hRaw,tz,'UY'):null;
+  const tipo=document.getElementById('fnov-at-tipo')?.value||'otro';
+  const titulo=(document.getElementById('fnov-at-titulo')?.value||'').trim();
+  const txt=(document.getElementById('fnov-at-txt')?.value||'').trim();
+  const fecha=document.getElementById('fnov-at-fecha')?.value||'';
+  const hora=converted||hRaw;
+  const linkVal=(document.getElementById('fnov-at-link')?.value||'').trim();
+
+  if(_fifaNovAtEditingBatchId){
+    const bId=_fifaNovAtEditingBatchId;
+    const selectedSet=new Set(quienes);
+    const list0=getFifaNovAt();
+    const existing=list0.filter(a=>a.batchId===bId);
+    const existingQuienes=new Set(existing.map(a=>a.quien));
+    const toRemoveIds=new Set(existing.filter(a=>!selectedSet.has(a.quien)).map(a=>a.id));
+    const toAddQuienes=[...selectedSet].filter(q=>!existingQuienes.has(q));
+
+    let list=list0
+      .filter(a=>!toRemoveIds.has(a.id))
+      .map(a=>{
+        if(a.batchId!==bId || !selectedSet.has(a.quien)) return a;
+        const updated={...a, tipo, titulo, txt, fecha, hora};
+        if(converted){ updated.origH=hRaw; updated.origTz=tz; } else { delete updated.origH; delete updated.origTz; }
+        return updated;
+      });
+    const addedEntries=toAddQuienes.map((quien,i)=>{
+      const entry={ id:Date.now()+i, tipo, titulo, txt, fecha, hora, quien, batchId:bId };
+      if(converted){ entry.origH=hRaw; entry.origTz=tz; }
+      return entry;
+    });
+    list=list.concat(addedEntries);
+    stor.set(KFifaNovAt, list, {allowShrink: toRemoveIds.size>0});
+
+    // El evento de Calendario es UNO SOLO compartido por todo el grupo (ver
+    // _fnovSyncCalFromAtencion) — a alguien que se saca del grupo no hay que
+    // borrarle "su" evento (nunca tuvo uno propio), alcanza con resincronizar
+    // el compartido con la lista de personas actualizada.
+    const remainingGroup=list.filter(a=>a.batchId===bId && selectedSet.has(a.quien));
+    if(remainingGroup.length){
+      _fnovSyncCalFromAtencion(remainingGroup[0], remainingGroup);
+      const linkedAct=_fnovFindLinkedActByBatch(bId);
+      if(linkedAct){
+        const links=getEvLinks();
+        const k=evKey(linkedAct.date,linkedAct.idx);
+        if(linkVal) links[k]=linkVal; else delete links[k];
+        stor.set(KEvLink,links,{allowShrink:true});
+      }
+    }
+
+    const tituloEl2=document.getElementById('fnov-at-titulo'); if(tituloEl2) tituloEl2.value='';
+    const txtEl2=document.getElementById('fnov-at-txt'); if(txtEl2) txtEl2.value='';
+    const hEl2=document.getElementById('fnov-at-hora'); if(hEl2) hEl2.value='';
+    const linkEl2=document.getElementById('fnov-at-link'); if(linkEl2) linkEl2.value='';
+    _fifaNovAtTz=_fnovDefaultTzFor(TODAY);
+    _fifaNovAtEditingBatchId=null;
+    renderFifaNovDisponibilidad();
+    return;
+  }
+
+  // batchId: SOLO para que la lista de "Atenciones cargadas" agrupe estas
+  // entradas como una sola fila desplegable — se marca nada más cuando se
+  // tildó a más de una persona EN ESTE MISMO envío, O cuando se tildó
+  // "Jugadores a definir" (aunque sea sola) — esa marca YA indica que la
+  // actividad es grupal aunque todavía no se sepa quiénes van, para que se
+  // vea como tal desde el principio y se complete después editando el grupo
+  // (ver _fifaNovEditAtBatch). Nunca se agrupa por coincidencia de
+  // tipo/fecha/hora (atenciones cargadas por separado, en momentos
+  // distintos, aunque terminen con esos mismos datos, quedan cada una
+  // suelta — ver _atGroupKey).
+  const list=getFifaNovAt();
+  // Editar a UNA persona de un grupo no la saca del grupo: se conserva su batchId
+  // (si no, el Calendario no la reconoce como parte del evento compartido y
+  // termina creando un segundo evento duplicado).
+  const prevBatchId=_fifaNovAtEditingId ? (list.find(a=>a.id===_fifaNovAtEditingId)?.batchId||null) : null;
+  // Si al editar una atención suelta se tildó a alguien más, pasa a ser una
+  // actividad grupal: la atención editada y las nuevas comparten un batchId.
+  const batchId = (!_fifaNovAtEditingId && (quienes.length>1 || quienes.includes(FNOV_QUIEN_TBD)))
+    || (_fifaNovAtEditingId && !prevBatchId && quienes.length>1) ? Date.now() : null;
+  const entries=quienes.map((quien,i)=>{
+    const isEditedOne=!!_fifaNovAtEditingId && i===0;
+    const entry={ id: isEditedOne ? _fifaNovAtEditingId : (Date.now()+i), tipo, titulo, txt, fecha, hora, quien };
+    if(batchId) entry.batchId=batchId;
+    else if(prevBatchId) entry.batchId=prevBatchId;
+    if(converted){ entry.origH=hRaw; entry.origTz=tz; }
+    if(isEditedOne){
+      const idx=list.findIndex(a=>a.id===_fifaNovAtEditingId);
+      if(idx>=0) list[idx]=entry; else list.push(entry);
+    } else {
+      list.push(entry);
+    }
+    return entry;
+  });
+  stor.set(KFifaNovAt,list);
+  // Atención suelta que pasa a grupo: su acto de Calendario estaba vinculado por
+  // atencionId; se lo re-vincula por batchId para que el sync lo actualice en
+  // el lugar y no cree un segundo evento (ni en el Calendario ni en Google).
+  if(batchId && _fifaNovAtEditingId){
+    const oldLinked=_fnovFindLinkedAct(_fifaNovAtEditingId);
+    if(oldLinked){
+      const actsOld=getDayActs();
+      const eOld=actsOld[oldLinked.date][oldLinked.idx];
+      eOld.batchId=batchId; delete eOld.atencionId;
+      stor.set(KDayActs,actsOld);
+    }
+  }
+  // Un batch nuevo sincroniza UN SOLO evento compartido (todas las personas
+  // de `entries`); sin batch, cada entry es su propio evento como siempre.
+  if(batchId || prevBatchId){
+    const bId=batchId||prevBatchId;
+    _fnovSyncCalFromAtencion(entries[0], batchId ? entries : null);
+    const linkedAct=_fnovFindLinkedActByBatch(bId);
+    if(linkedAct){
+      const links=getEvLinks();
+      const k=evKey(linkedAct.date,linkedAct.idx);
+      if(linkVal) links[k]=linkVal; else delete links[k];
+      stor.set(KEvLink,links,{allowShrink:true});
+    }
+  } else {
+    entries.forEach(entry=>{
+      _fnovSyncCalFromAtencion(entry);
+      // El link vive en el evento del Calendario (KEvLink, por evKey) — es el
+      // mismo evento, no un campo propio de la atención.
+      const linkedAct=_fnovFindLinkedAct(entry.id);
+      if(linkedAct){
+        const links=getEvLinks();
+        const k=evKey(linkedAct.date,linkedAct.idx);
+        if(linkVal) links[k]=linkVal; else delete links[k];
+        stor.set(KEvLink,links,{allowShrink:true});
+      }
+    });
+  }
+  const tituloEl=document.getElementById('fnov-at-titulo'); if(tituloEl) tituloEl.value='';
+  const txtEl=document.getElementById('fnov-at-txt'); if(txtEl) txtEl.value='';
+  const hEl=document.getElementById('fnov-at-hora'); if(hEl) hEl.value='';
+  const linkEl=document.getElementById('fnov-at-link'); if(linkEl) linkEl.value='';
+  _fifaNovAtTz=_fnovDefaultTzFor(TODAY);
+  _fifaNovAtEditingId=null;
+  renderFifaNovDisponibilidad();
+};
+window._fifaNovEditAt=function(id){
+  const a=getFifaNovAt().find(x=>x.id===id);
+  if(!a) return;
+  _fifaNovAtEditingId=id;
+  _fifaNovAtEditingBatchId=null;
+  const body=document.getElementById('fnov-at-body');
+  if(body) body.style.display='block';
+  const toggleBtn=document.getElementById('fnov-at-toggle-btn');
+  if(toggleBtn) toggleBtn.textContent='✕ Cerrar';
+  document.getElementById('fnov-at-tipo').value=a.tipo;
+  document.querySelectorAll('#fnov-at-quien-panel input[type=checkbox]').forEach(c=>{ c.checked = c.value===a.quien; });
+  window._fnovUpdateQuienLabel();
+  document.getElementById('fnov-at-titulo').value=a.titulo||'';
+  document.getElementById('fnov-at-txt').value=a.txt||'';
+  document.getElementById('fnov-at-fecha').value=a.fecha||'';
+  document.getElementById('fnov-at-hora').value=a.origH||a.hora||'';
+  const linkedAct=_fnovFindLinkedAct(id);
+  document.getElementById('fnov-at-link').value=linkedAct ? (getEvLinks()[evKey(linkedAct.date,linkedAct.idx)]||'') : '';
+  _fifaNovAtTz=a.origTz||'UY';
+  document.querySelectorAll('#fnov-at-body .aap-tz-chip').forEach(b=>b.classList.toggle('active',b.dataset.tz===_fifaNovAtTz));
+  window._fifaNovAtUpdateTzPreview();
+  const submitBtn=document.getElementById('fnov-at-submit-btn');
+  if(submitBtn) submitBtn.textContent='✓ Guardar cambios';
+  body?.scrollIntoView({behavior:'smooth',block:'center'});
+};
+// Editar TODO un grupo (batch) de una — ej. corregir el detalle/hora
+// compartidos de un shooting con varios jugadores — en vez de entrar
+// atención por atención. Tildar/destildar gente acá suma o saca a esa
+// persona del grupo (ver manejo de _fifaNovAtEditingBatchId en _fifaNovAddAt).
+window._fifaNovEditAtBatch=function(batchId){
+  const group=getFifaNovAt().filter(a=>a.batchId===batchId);
+  if(!group.length) return;
+  const a0=group[0];
+  _fifaNovAtEditingId=null;
+  _fifaNovAtEditingBatchId=batchId;
+  const body=document.getElementById('fnov-at-body');
+  if(body) body.style.display='block';
+  const toggleBtn=document.getElementById('fnov-at-toggle-btn');
+  if(toggleBtn) toggleBtn.textContent='✕ Cerrar';
+  document.getElementById('fnov-at-tipo').value=a0.tipo;
+  const quienesSet=new Set(group.map(a=>a.quien));
+  document.querySelectorAll('#fnov-at-quien-panel input[type=checkbox]').forEach(c=>{ c.checked = quienesSet.has(c.value); });
+  window._fnovUpdateQuienLabel();
+  document.getElementById('fnov-at-titulo').value=a0.titulo||'';
+  document.getElementById('fnov-at-txt').value=a0.txt||'';
+  document.getElementById('fnov-at-fecha').value=a0.fecha||'';
+  document.getElementById('fnov-at-hora').value=a0.origH||a0.hora||'';
+  // No hay un único link de grupo (cada persona tiene su propio evento de
+  // Calendario) — si se completa acá, se aplica igual a los de este grupo.
+  document.getElementById('fnov-at-link').value='';
+  _fifaNovAtTz=a0.origTz||'UY';
+  document.querySelectorAll('#fnov-at-body .aap-tz-chip').forEach(b=>b.classList.toggle('active',b.dataset.tz===_fifaNovAtTz));
+  window._fifaNovAtUpdateTzPreview();
+  const submitBtn=document.getElementById('fnov-at-submit-btn');
+  if(submitBtn) submitBtn.textContent=`✓ Guardar cambios (${group.length})`;
+  body?.scrollIntoView({behavior:'smooth',block:'center'});
+};
+window._fifaNovRemoveAt=function(id){
+  const before=getFifaNovAt();
+  const removed=before.find(a=>a.id===id);
+  const list=before.filter(a=>a.id!==id);
+  stor.set(KFifaNovAt, list, {allowShrink:true});
+  if(_fifaNovAtEditingId===id) _fifaNovAtEditingId=null;
+  if(removed && removed.batchId){
+    // Evento compartido del batch: si quedan más personas, resincronizar con
+    // la lista actualizada; si era la última, borrar el evento compartido.
+    const remainingGroup=list.filter(a=>a.batchId===removed.batchId);
+    const found=_fnovFindLinkedActByBatch(removed.batchId);
+    if(remainingGroup.length){
+      _fnovSyncCalFromAtencion(remainingGroup[0], remainingGroup);
+    } else if(found){
+      const acts=getDayActs();
+      _gcalDeleteById(acts[found.date][found.idx].gcalEventId);
+      acts[found.date].splice(found.idx,1);
+      stor.set(KDayActs,acts,{allowShrink:true});
+      _fnovReindexAfterDelete(found.date,found.idx);
+    }
+  } else {
+    const found=_fnovFindLinkedAct(id);
+    if(found){
+      const acts=getDayActs();
+      _gcalDeleteById(acts[found.date][found.idx].gcalEventId);
+      acts[found.date].splice(found.idx,1);
+      stor.set(KDayActs,acts,{allowShrink:true});
+      _fnovReindexAfterDelete(found.date,found.idx);
+    }
+  }
+  renderFifaNovDisponibilidad();
+};
+// Número de camiseta de esta gira (FIFANOV26.reservados[pos][].num), para
+// mostrarlo junto al nombre en Diseño/Disponibilidad igual que en Convocados.
+function _fnovNumOf(nom){
+  for(const arr of Object.values(FIFANOV26.reservados||{})){
+    const j=(arr||[]).find(x=>x.nom===nom);
+    if(j && j.num!=null) return j.num;
+  }
+  return null;
+}
+function _fnovNumTag(nom){
+  const n=_fnovNumOf(nom);
+  // margin-right en vez de un espacio de texto: dentro de un contenedor flex
+  // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
+  return n!=null?`<span style="opacity:.65;font-weight:700;margin-right:4px">#${n}</span>`:'';
+}
+// Versión texto plano — para <option> de un <select>, donde el HTML de arriba
+// se mostraría literal en vez de renderizarse.
+function _fnovNumPlain(nom){
+  const n=_fnovNumOf(nom);
+  return n!=null?`#${n} `:'';
+}
+// Reutilizado en Disponibilidad y en el selector "a quién" del Calendario —
+// DT + convocados (o reservados hasta que estén los finales).
+function _fifaNovQuienNames(){
+  const dtNom=FIFANOV26.dt||'Diego Forlán';
+  const pool=[];
+  Object.entries(FIFANOV26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
+  const finales=FIFANOV26.finales;
+  const activos=finales?pool.filter(p=>finales.includes(p.nom)):pool;
+  return {dtNom, nombres:activos.map(p=>p.nom)};
+}
+function _fifaNovQuienOptionsHtml(){
+  const {dtNom,nombres}=_fifaNovQuienNames();
+  return `<option value="">A quién…</option><option value="${dtNom.replace(/"/g,'&quot;')}">${dtNom} (DT)</option>`+
+    nombres.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${_fnovNumPlain(n)}${n}</option>`).join('');
+}
+// Panel de checkboxes para "Agregar atención" (fnov-at-quien) — a diferencia
+// del <select> de arriba (usado también en el Calendario, donde cada
+// actividad es de una sola persona), acá hace falta poder elegir varios a
+// la vez (ej: un shooting oficial con 4 jugadores juntos).
+// Pseudo-persona para cargar una actividad grupal cuando todavía no se sabe
+// quiénes van a participar exactamente (ej. una clínica/charla a confirmar) —
+// se carga como "quien" normal, y después se reemplaza por la gente real
+// editando el grupo entero (ver _fifaNovEditAtBatch) a medida que se define.
+const FNOV_QUIEN_TBD='Jugadores a definir';
+function _fifaNovQuienCheckboxesHtml(){
+  const {dtNom,nombres}=_fifaNovQuienNames();
+  const row=(val,label,opts)=>`<label style="display:flex;align-items:center;gap:7px;padding:6px 9px;cursor:pointer;font-size:.82em;${opts?.style||''}" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background='${opts?.bg||''}'">
+    <input type="checkbox" value="${val.replace(/"/g,'&quot;')}" onchange="_fnovUpdateQuienLabel()" style="flex-shrink:0">
+    <span${opts?.spanStyle?` style="${opts.spanStyle}"`:''}>${label}</span>
+  </label>`;
+  const tbdRow = row(FNOV_QUIEN_TBD, '🕓 Jugadores a definir', {style:'background:#FFFBEB;border-bottom:1px solid var(--border)', bg:'#FFFBEB', spanStyle:'color:#DC2626;font-weight:700'});
+  // Fijo arriba (sticky) para "actividades con todo el plantel" (ej. foto
+  // oficial) — un click tilda a todos los jugadores + DT sin tener que ir
+  // uno por uno. No incluye "Jugadores a definir" (si es TODOS, ya está
+  // definido, no hace falta ese placeholder).
+  const selectAllRow = `<div style="position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 9px;background:var(--card);border-bottom:1px solid var(--border)">
+    <button type="button" onclick="_fnovToggleAllQuienes(true)" style="border:none;background:none;color:var(--cel-dk);font-weight:800;font-size:.78em;cursor:pointer;padding:0">☑️ Todos</button>
+    <button type="button" onclick="_fnovToggleAllQuienes(false)" style="border:none;background:none;color:var(--hint);font-weight:700;font-size:.78em;cursor:pointer;padding:0">Ninguno</button>
+  </div>`;
+  return selectAllRow + tbdRow + row(dtNom, dtNom+' (DT)') + nombres.map(n=>row(n, _fnovNumPlain(n)+n)).join('');
+}
+window._fnovToggleAllQuienes=function(checkAll){
+  document.querySelectorAll('#fnov-at-quien-panel input[type=checkbox]').forEach(c=>{
+    c.checked = checkAll && c.value===FNOV_QUIEN_TBD ? false : checkAll;
+  });
+  window._fnovUpdateQuienLabel();
+};
+window._fnovToggleQuienPanel=function(){
+  const panel=document.getElementById('fnov-at-quien-panel');
+  if(!panel) return;
+  const opening = panel.style.display==='none';
+  panel.style.display = opening ? 'block' : 'none';
+  if(opening){
+    setTimeout(()=>document.addEventListener('click',function h(e){
+      if(!panel.contains(e.target) && e.target.id!=='fnov-at-quien-btn' && !e.target.closest('#fnov-at-quien-btn')){
+        panel.style.display='none';
+        document.removeEventListener('click',h);
+      } else {
+        document.addEventListener('click',h,{once:true});
+      }
+    },{once:true}),10);
+  }
+};
+window._fnovUpdateQuienLabel=function(){
+  const checked=[...document.querySelectorAll('#fnov-at-quien-panel input:checked')].map(c=>c.value);
+  const lbl=document.getElementById('fnov-at-quien-label');
+  if(!lbl) return;
+  lbl.textContent = checked.length===0 ? 'A quién… (podés elegir varios)' : checked.length===1 ? checked[0] : `${checked.length} seleccionados`;
+  lbl.style.color = checked.length ? 'var(--text)' : 'var(--hint)';
+};
+function renderFifaNovDisponibilidad(){
+  const _placeholder = (icon, titulo, subtitulo='') => `
+    <div style="padding:32px 20px;text-align:center;color:var(--muted)">
+      <div style="font-size:2.4em;margin-bottom:12px">${icon}</div>
+      <div style="font-weight:800;font-size:1em;color:var(--text);margin-bottom:6px">${titulo}</div>
+      ${subtitulo?`<div style="font-size:.82em;max-width:340px;margin:0 auto;line-height:1.5">${subtitulo}</div>`:''}
+    </div>`;
+  const con=document.getElementById('fifanov26-disp-body');
+  if(!con) return;
+  const dtNom=FIFANOV26.dt||'Diego Forlán';
+
+  const pool=[];
+  Object.entries(FIFANOV26.reservados||{}).forEach(([pos,arr])=>(arr||[]).forEach(j=>pool.push({...j,pos})));
+  const finales=FIFANOV26.finales;
+  const activos=finales?pool.filter(p=>finales.includes(p.nom)):pool;
+
+  // ── Formulario: primero el tipo de actividad, después a quién ──
+  const tipoOptions=FIFANOV_DISP_TIPOS.map(t=>`<option value="${t.id}">${t.icon} ${t.label}</option>`).join('');
+  const quienOptions=_fifaNovQuienOptionsHtml();
+  const quienCheckboxes=_fifaNovQuienCheckboxesHtml();
+  const tzChips=Object.entries(FIFANOV_TZ_INFO).map(([k,v])=>`<button type="button" class="aap-tz-chip${k===_fifaNovAtTz?' active':''}" data-tz="${k}" onclick="_fifaNovAtSetTz('${k}',this)">${v.short}</button>`).join('');
+  const addForm=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px">
+      <button id="fnov-at-toggle-btn" onclick="_fifaNovToggleAtForm(this)" style="width:100%;padding:10px;background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;font-size:.82em;font-weight:800;color:var(--cel-dk);cursor:pointer">+ Agregar atención</button>
+      <div id="fnov-at-body" style="display:none;margin-top:10px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:flex-start">
+          <select id="fnov-at-tipo" style="flex:1;min-width:160px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">${tipoOptions}</select>
+          <button type="button" id="fnov-at-quien-btn" onclick="event.stopPropagation();_fnovToggleQuienPanel()" style="flex:1;min-width:160px;text-align:left;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:var(--text)">
+            <span id="fnov-at-quien-label" style="color:var(--hint)">A quién… (podés elegir varios)</span>
+            <i class="ti ti-chevron-down" style="font-size:12px;flex-shrink:0;color:var(--hint)"></i>
+          </button>
+        </div>
+        <!-- Panel en flujo normal (no flotante) — empuja el resto del form hacia
+             abajo al abrirse, para que nunca tape el botón Agregar ni la lista
+             de atenciones cargadas más abajo. -->
+        <div id="fnov-at-quien-panel" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;max-height:220px;overflow-y:auto">${quienCheckboxes}</div>
+        <input id="fnov-at-titulo" type="text" placeholder="Título propio (opcional) — si lo dejás vacío, se arma con el tipo de actividad" style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
+        <input id="fnov-at-txt" type="text" placeholder="Detalle (ej: habla para AUFtv por Zoom)" style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
+        <input id="fnov-at-link" type="text" placeholder="Link (opcional) — nota, video, etc." style="width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none;box-sizing:border-box;margin-bottom:6px">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <input id="fnov-at-fecha" type="date" style="padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none">
+          <input id="fnov-at-hora" type="text" placeholder="hora — ej: 11:00" style="width:110px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:.82em;background:var(--surface);outline:none" oninput="_fifaNovAtUpdateTzPreview()">
+          <button id="fnov-at-submit-btn" onclick="_fifaNovAddAt()" style="margin-left:auto;padding:7px 14px;background:var(--cel);color:#fff;border:none;border-radius:8px;font-size:.82em;font-weight:800;cursor:pointer">+ Agregar</button>
+        </div>
+        <div class="aap-tz-chips" style="margin-top:6px">
+          <span style="font-size:10px;color:var(--muted);line-height:2;margin-right:2px">Huso:</span>
+          ${tzChips}
+        </div>
+        <div class="aap-tz-preview" id="fnov-at-tz-prev"></div>
+      </div>
+    </div>`;
+
+  // ── Lista de atenciones cargadas (orden cronológico) ──
+  // Mismo criterio que el Calendario (_sortKeyH): si se cargó en huso distinto a
+  // UY (ej. hora de Japón), se ordena por esa hora LOCAL, no por su equivalente
+  // convertido a UY — convertir puede cruzar medianoche y desordenar el día.
+  const _atMinutes=(a)=>{
+    if(a.origH && a.origTz && typeof _fnovParseHora==='function'){
+      const p=_fnovParseHora(a.origH);
+      if(p) return p.h*60+p.mi;
+    }
+    const mm=/^(\d{1,2})(?::(\d{2}))?$/.exec(a.hora||'');
+    return mm ? parseInt(mm[1],10)*60+parseInt(mm[2]||'0',10) : 9999;
+  };
+  const atList=getFifaNovAt().slice().sort((a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999')||(_atMinutes(a)-_atMinutes(b)));
+  // Estado (✓ hecho) y link se marcan en el Calendario (es el mismo evento) —
+  // acá se muestran en modo lectura para no duplicar esos controles.
+  const _evStatus=getEvStatus(), _evLinks=getEvLinks();
+  // Agrupar SOLO las atenciones cargadas juntas en un mismo envío de "+
+  // Agregar atención" marcando a varias personas (comparten a.batchId — ver
+  // _fifaNovAddAt). Atenciones sueltas que coinciden en tipo/fecha/hora por
+  // casualidad (ej. varias "Nota para AUFtv" cargadas por separado, en
+  // momentos distintos) NO se agrupan — cada una sin batchId queda con su
+  // propia clave única, puramente para mostrar, sin tocar los registros.
+  let _atUngroupedN=0;
+  const _atGroupKey=a=>a.batchId ? ('b'+a.batchId) : ('u'+(_atUngroupedN++));
+  const _atGroups=new Map();
+  atList.forEach(a=>{ const k=_atGroupKey(a); if(!_atGroups.has(k)) _atGroups.set(k,[]); _atGroups.get(k).push(a); });
+  const _atPersonActions=(a)=>{
+    // Un miembro de un batch no tiene su propio evento (el evento de
+    // Calendario es UNO SOLO, compartido por todo el grupo) — hay que buscarlo
+    // por batchId, no por atencionId, o nunca se encontraría nada y el
+    // "✓ Hecho"/link quedarían vacíos para siempre en las atenciones agrupadas.
+    const linkedAct=a.batchId ? _fnovFindLinkedActByBatch(a.batchId) : _fnovFindLinkedAct(a.id);
+    const linkedKey=linkedAct?evKey(linkedAct.date,linkedAct.idx):null;
+    const isDone=linkedKey && _evStatus[linkedKey]==='done';
+    const linkUrl=linkedKey ? (_evLinks[linkedKey]||'') : '';
+    const firstLink=linkUrl?parseLinks(linkUrl)[0]:'';
+    return {isDone, firstLink};
+  };
+  let _atGroupN=0;
+  const atRows=atList.length ? [..._atGroups.values()].map(group=>{
+    const a0=group[0];
+    const t=FIFANOV_DISP_TIPOS.find(x=>x.id===a0.tipo)||FIFANOV_DISP_TIPOS[FIFANOV_DISP_TIPOS.length-1];
+    const fechaFmt=a0.fecha?_fmtDateCorta(a0.fecha):'';
+    const horaFmt=a0.origH&&a0.origTz&&a0.origTz!=='UY' ? `${a0.origH} ${a0.origTz} → ${a0.hora}h UY` : (a0.hora?a0.hora+'h':'');
+    const obligBadge=FIFANOV_AT_OBLIG.includes(a0.tipo)?` <span class="tag tag-oblig" style="font-size:8.5px">Obligatoria</span>`:'';
+    if(group.length===1 && !a0.batchId){
+      const a=a0;
+      const {isDone,firstLink}=_atPersonActions(a);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:.82em;font-weight:700">${a.titulo?a.titulo:`${_fnovNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}`}${obligBadge}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓ Hecho</span>`:''}</div>
+          ${a.titulo?`<div style="font-size:.74em;color:var(--text);margin-top:1px">${a.quien===FNOV_QUIEN_TBD?`<span style="color:#DC2626;font-weight:700">${a.quien}</span>`:`${_fnovNumTag(a.quien)}${a.quien}`}${a.txt?' · '+a.txt:''}</div>`:''}
+          <div style="font-size:.7em;color:var(--muted)">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
+        </div>
+        ${firstLink?`<a href="${firstLink}" target="_blank" rel="noopener" title="Ver link" style="font-size:13px;text-decoration:none">🔗</a>`:''}
+        <button onclick="_fifaNovEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">✏️</button>
+        <button onclick="_fifaNovRemoveAt(${a.id})" title="Eliminar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:12px">🗑</button>
+      </div>`;
+    }
+    const gid='atgrp-'+(_atGroupN++)+'-'+a0.id;
+    // Título = el propio (a0.titulo), si se cargó uno a mano al crear/editar
+    // el grupo; si no, el tipo de actividad (ej. "Actividad de prensa local").
+    // El detalle que se escribió (ej. "Times of India + Hindu...") es siempre
+    // la descripción, va después junto con fecha/hora como metadato chico abajo.
+    const groupTitle = a0.titulo || t.label;
+    const groupMeta = [a0.txt, fechaFmt, horaFmt].filter(Boolean).join(' · ');
+    // Mismo check "✓ Hecho" que ya tenía cada fila suelta (viene del estado
+    // marcado en el Calendario) — acá por persona, al lado del nombre, para
+    // verlo sin desplegar el grupo.
+    const peopleLabel = group.map(a=>{
+      if(a.quien===FNOV_QUIEN_TBD) return `<span style="color:#DC2626;font-weight:700">Jugadores a definir</span>`;
+      const {isDone}=_atPersonActions(a);
+      return `${_fnovNumTag(a.quien)}${a.quien}${isDone?' <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓</span>':''}`;
+    }).join(', ');
+    const personRows=group.map(a=>{
+      const {isDone,firstLink}=_atPersonActions(a);
+      const isTbd=a.quien===FNOV_QUIEN_TBD;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px 6px 37px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--surface)">
+        <div style="flex:1;min-width:140px;font-size:.8em;font-weight:600;${isTbd?'color:#DC2626':''}">${isTbd?'':_fnovNumTag(a.quien)}${a.quien}${isDone?` <span title="Marcada como hecha en el Calendario" style="color:#16A34A;font-weight:800">✓</span>`:''}</div>
+        ${firstLink?`<a href="${firstLink}" target="_blank" rel="noopener" title="Ver link" style="font-size:12px;text-decoration:none">🔗</a>`:''}
+        <button onclick="_fifaNovEditAt(${a.id})" title="Editar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:11px">✏️</button>
+        <button onclick="_fifaNovRemoveAt(${a.id})" title="Eliminar" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:11px">🗑</button>
+      </div>`;
+    }).join('');
+    return `<div>
+      <div onclick="const p=document.getElementById('${gid}');const open=p.style.display!=='none';p.style.display=open?'none':'block';this.querySelector('.atgrp-chev').textContent=open?'▸':'▾'"
+        style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;cursor:pointer">
+        <span style="font-size:15px;flex-shrink:0">${t.icon}</span>
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:.82em;font-weight:700">${groupTitle}${obligBadge}</div>
+          <div style="font-size:.74em;color:var(--text);margin-top:1px">${peopleLabel}</div>
+          ${groupMeta?`<div style="font-size:.68em;color:var(--muted);margin-top:1px">${groupMeta}</div>`:''}
+        </div>
+        <button onclick="event.stopPropagation();_fifaNovEditAtBatch(${a0.batchId})" title="Editar el grupo entero" style="border:none;background:none;cursor:pointer;color:var(--hint);font-size:14px;flex-shrink:0">✏️</button>
+        <span class="atgrp-chev" style="font-size:20px;font-weight:900;flex-shrink:0;color:var(--cel-dk);line-height:1">▸</span>
+      </div>
+      <div id="${gid}" style="display:none">${personRows}</div>
+    </div>`;
+  }).join('') : `<div style="padding:10px;color:var(--muted);font-size:.82em">Sin atenciones cargadas todavía.</div>`;
+  const listSection=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1.25rem">
+      <div style="padding:9px 13px;background:var(--surface);font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">📋 Atenciones cargadas — ${atList.length}</div>
+      ${atRows}
+    </div>`;
+
+  // ── Conteo por persona — abajo, derivado de la lista de arriba ──
+  const countsFor=nom=>{ const c={}; atList.forEach(a=>{ if(a.quien===nom) c[a.tipo]=(c[a.tipo]||0)+1; }); return c; };
+  const counterRow=(nom,compact)=>{
+    const c=countsFor(nom);
+    const conDatos=FIFANOV_DISP_TIPOS.filter(t=>c[t.id]);
+    if(!conDatos.length) return `<span style="font-size:10px;color:${compact?'#9CA3AF':'var(--hint)'}">Sin atenciones</span>`;
+    return conDatos.map(t=>`<span title="${t.label}" style="display:inline-flex;align-items:center;gap:3px;background:${compact?'rgba(255,255,255,.08)':'var(--surface)'};border-radius:8px;padding:3px 7px;font-size:10.5px;font-weight:800;color:${compact?'#fff':'var(--text)'}">${t.icon} ${c[t.id]}</span>`).join('');
+  };
+  const totalOf=nom=>Object.values(countsFor(nom)).reduce((a,b)=>a+b,0);
+
+  const dtTotal=totalOf(dtNom);
+  const dtSection=`
+    <div style="background:var(--navy);border-radius:12px;overflow:hidden;margin-bottom:1.25rem">
+      <div style="padding:9px 13px;background:#0A0A0F;font-size:10px;font-weight:800;color:#5B8CAA;text-transform:uppercase;letter-spacing:.1em">🎙 Cuerpo Técnico</div>
+      <div style="padding:14px;background:#152539;border-left:4px solid var(--cel);margin:12px;border-radius:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:#fff">${dtNom}</div>
+            <div style="font-size:11px;color:#5B8CAA">Director Técnico</div>
+          </div>
+          <div style="background:${dtTotal===0?'#374151':'var(--cel)'};color:#fff;font-size:14px;font-weight:800;padding:4px 12px;border-radius:8px">${dtTotal}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${counterRow(dtNom,true)}</div>
+      </div>
+    </div>`;
+
+  const sorted=[...activos].sort((a,b)=>totalOf(b.nom)-totalOf(a.nom)||a.nom.localeCompare(b.nom));
+  const playerRows=sorted.map(p=>{
+    const noAt=totalOf(p.nom)===0;
+    // Dados de baja en la gira (lesión o por otro motivo) — ya no se los va a
+    // poder elegir para prensa de acá en más, pero se dejan en la lista (no se
+    // sacan) marcados en naranja para que se note de un vistazo.
+    const isBaja=!!(p.lesionEnGira||p.bajaGira);
+    const nameColor=isBaja?'#EA580C':(noAt?'var(--muted)':'var(--text)');
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap${noAt?';opacity:.55':''}">
+      <div style="flex:1;min-width:140px;font-size:.85em;font-weight:700;color:${nameColor}" title="${isBaja?'Dado de baja de la gira':''}">${_fnovNumTag(p.nom)}${p.nom}<span style="font-size:.72em;color:var(--muted);font-weight:500;margin-left:5px">${p.club||''}</span></div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">${counterRow(p.nom,false)}</div>
+    </div>`;
+  }).join('');
+
+  const playersSection=!pool.length ? '' : `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <div style="padding:9px 13px;background:var(--surface);font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">
+        👥 ${finales?'Convocados':'Reservados'} — ${activos.length} jugadores${finales?'':' (lista larga — se ordena esta sección cuando estén los 26 finales)'}
+      </div>
+      ${playerRows}
+    </div>`;
+
+  con.innerHTML = addForm + listSection + dtSection +
+    (!pool.length
+      ? _placeholder('👥','Sin reservados cargados todavía','La disponibilidad de jugadores se habilita cuando haya lista de reservados o convocados.')
+      : playersSection);
+}
+window.renderFifaNovDisponibilidad=renderFifaNovDisponibilidad;
+
+function _seedFifaNovPizarra(){
+  const key='auf4_amist_juv_fifamayor_nov26';
+  let list=[];
+  try{ list=JSON.parse(localStorage.getItem(key)||'[]'); }catch(_){}
+  let changed=false;
+  (FIFANOV26.partidosData||[]).forEach((p,i)=>{
+    if(list.some(m=>m.compId==='fifanov26'&&m.rival===p.rival)) return;
+    list.push({
+      id: Date.now()+i,
+      rival: p.rival, fecha: p.fecha, hora: p.hora, lugar: p.sede,
+      compId: 'fifanov26', oficial: true,
+      gLocal: null, gRival: null,
+      lineup: {formation:'4-3-3', starters:{}},
+      goles: {}, dtPartido: '', subs: [], tarjetas: [],
+    });
+    changed=true;
+  });
+  if(changed) stor.set(key, list);
+}
+function renderFifaNov26(tabId){
+  const slug = tabId.replace('fifanov26-','');
+  const con = document.getElementById(tabId+'-container');
+  if(!con) return;
+
+  const _placeholder = (icon, titulo, subtitulo='') => `
+    <div style="padding:32px 20px;text-align:center;color:var(--muted)">
+      <div style="font-size:2.4em;margin-bottom:12px">${icon}</div>
+      <div style="font-weight:800;font-size:1em;color:var(--text);margin-bottom:6px">${titulo}</div>
+      ${subtitulo?`<div style="font-size:.82em;max-width:340px;margin:0 auto;line-height:1.5">${subtitulo}</div>`:''}
+    </div>`;
+
+  const _header = (icon, titulo, desc) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 0 14px;border-bottom:1px solid var(--border);margin-bottom:20px">
+      <div style="width:38px;height:38px;border-radius:10px;background:#1D4ED8;display:flex;align-items:center;justify-content:center;font-size:1.2em;flex-shrink:0">${icon}</div>
+      <div>
+        <div style="font-weight:800;font-size:.95em;color:var(--text)">${titulo}</div>
+        <div style="font-size:.75em;color:var(--muted)">${desc}</div>
+      </div>
+    </div>`;
+
+  const _fifaMatches = FIFANOV26.partidosData||[];
+  const _FIFANOV_ISO=_FIFA_EV_ISO; // mapa país→bandera compartido (ver _FIFA_EV_ISO)
+  // Mismo lenguaje visual que el card de partido del Mundial (renderFixture):
+  // header con degradé + badge URU, cuerpo con escudos/nombres y hora local +
+  // UY al centro (todavía no hay resultado, son amistosos por jugarse), pie
+  // con estadio/ciudad. Antes esto era una fila plana con banderita + texto.
+  const _fifaMatchRow = (p) => {
+    // Resultado ya cargado en el motor de amistosos (mismo origen que Mi
+    // periplo/Pizarra) — si está, se muestra el marcador final acá en vez
+    // de la hora programada, coloreado según Victoria/Empate/Derrota.
+    let _fsList=[];
+    try{ _fsList=JSON.parse(localStorage.getItem('auf4_amist_juv_fifamayor_nov26')||'[]'); }catch(_){}
+    const _fm=_fsList.find(x=>x.rival===p.rival);
+    const _played=!!(_fm && _fm.gLocal!=null && _fm.gRival!=null);
+    const _gU=_played?_fm.gLocal:null, _gR=_played?_fm.gRival:null;
+    const _resCol=_played?(_gU>_gR?'#166534':_gU<_gR?'#B91C1C':'#92400E'):null;
+    const _resLabel=_played?(_gU>_gR?'Victoria':_gU<_gR?'Derrota':'Empate'):null;
+    const _centerHtml=_played
+      ? `<div style="text-align:center;min-width:90px">
+          <div style="font-size:30px;font-weight:900;color:${_resCol};line-height:1;letter-spacing:-.01em">${_gR} - ${_gU}</div>
+          <div style="font-size:10px;font-weight:800;color:${_resCol};margin-top:4px;text-transform:uppercase;letter-spacing:.04em">${_resLabel}</div>
+        </div>`
+      : `<div style="text-align:center;min-width:90px">
+          <div style="font-size:30px;font-weight:900;color:var(--text);line-height:1;letter-spacing:-.01em">${p.horaLocal||'—'}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--cel-dk);margin-top:4px">${p.hora||'—'} <span style="opacity:.6">UYT</span></div>
+        </div>`;
+    return `
+    <div style="border-radius:14px;overflow:hidden;border:2px solid var(--cel);box-shadow:0 2px 16px rgba(0,157,216,.12);margin-bottom:14px">
+      <div style="background:linear-gradient(90deg,var(--nero) 0%,var(--navy) 60%,#0D2240 100%);padding:8px 16px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:10px;font-weight:700;color:#7ABEE6">Fecha FIFA nov · ${_fmtDateCorta(p.fecha)}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${_played?`<span style="font-size:9px;font-weight:800;color:#fff;background:${_resCol};padding:2px 8px;border-radius:8px">Finalizado</span>`:(p.confirmado===false?`<span style="font-size:9px;font-weight:800;color:#92400E;background:#FFFBEB;padding:2px 8px;border-radius:8px">Por confirmar</span>`:'')}
+          <span style="font-size:10px;font-weight:800;background:var(--cel);color:#fff;padding:2px 9px;border-radius:8px;letter-spacing:.06em">URU</span>
+        </div>
+      </div>
+      <div style="background:#fff;padding:20px 24px">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px">
+          ${p.local===false ? `
+          <div style="display:flex;align-items:center;gap:10px">
+            ${flagImg(_FIFANOV_ISO[p.rival]||'un',28)}
+            <span style="font-size:16px;font-weight:600;color:var(--text)">${p.rival}</span>
+          </div>
+          ${_centerHtml}
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
+            <span style="font-size:16px;font-weight:800;color:var(--cel-dk);text-align:right">Uruguay</span>
+            ${flagImg('uy',28)}
+          </div>` : `
+          <div style="display:flex;align-items:center;gap:10px">
+            ${flagImg('uy',28)}
+            <span style="font-size:16px;font-weight:800;color:var(--cel-dk)">Uruguay</span>
+          </div>
+          ${_centerHtml}
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
+            <span style="font-size:16px;font-weight:600;color:var(--text);text-align:right">${p.rival}</span>
+            ${flagImg(_FIFANOV_ISO[p.rival]||'un',28)}
+          </div>`}
+        </div>
+      </div>
+      <div style="background:var(--surface);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid var(--border)">
+        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="ti ti-building-stadium" style="font-size:12px"></i>${p.sede}</span>
+        <span style="font-size:11px;color:var(--muted)">${p.local===false?'Visitante':'Local'}</span>
+      </div>
+    </div>`;
+  };
+  const _fifaMatchesFaltan = (FIFANOV26.partidos||0) - _fifaMatches.length;
+
+  if(slug==='calendario'){
+    con.innerHTML = _header('📅','Calendario', `${_fmtDateCorta(FIFANOV26.desde)} – ${_fmtDateCorta(FIFANOV26.hasta)} · viaje completo de la delegación`) +
+      `<div id="fifanov26-cal-timeline"></div>`;
+    renderFifaNovCal();
+  } else if(slug==='disponibilidad'){
+    con.innerHTML = _header('✅','Prensa y marketing','Seguimiento de atenciones por jugador') +
+      `<div id="fifanov26-disp-body"></div>`;
+    renderFifaNovDisponibilidad();
+  } else if(slug==='pizarra'){
+    if(!_fifaMatches.length){
+      con.innerHTML = _header('⚽','Pizarra','Formación, goles y tarjetas por partido') +
+        _placeholder('⚽','Partidos por confirmar','La Pizarra se arma sola cuando se carguen los rivales de la Fecha FIFA (partidosData).');
+    } else {
+    _seedFifaNovPizarra();
+    con.innerHTML = _buildJuvAmistosos('fifamayor','nov26','#1D4ED8',{anos:{nov26:{convocatorias:[]}}},'fifanov26');
+    }
+  } else if(slug==='plantel'){
+    const res=FIFANOV26.reservados;
+    if(!res){
+      con.innerHTML = _header('👥','Convocados','Lista oficial') +
+        _placeholder('📋','Lista de convocados por confirmar',`Se cargará cuando ${FIFANOV26.dt||'el DT'} anuncie la convocatoria oficial.`);
+    } else {
+      const finales=FIFANOV26.finales; // null hasta que salga la lista final de 23/26
+      const POS_ORDER=['POR','DEF','MED','DEL'];
+      const initialsOf=nom=>{const w=nom.split(' ').filter(Boolean);return((w[0]?.[0]||'')+(w[w.length-1]?.[0]||'')).toUpperCase();};
+      // Hitos "dato interesante" — solo para los ya confirmados en la convocatoria
+      // final. Se computan una sola vez acá afuera (no por tarjeta) para no
+      // recorrer todo JUGADORES 26 veces. Usa el total OFICIAL de JUGADORES
+      // a secas (el mismo número principal de la tarjeta): el "+N" de la
+      // Fecha FIFA es solo decorativo y no se suma, porque los partidos ya
+      // confirmados están cargados en JUGADORES — sumarlo duplicaba (ej. Mele,
+      // 9 PJ, figuraba "a 1" de Pacheco con 11 cuando en realidad estaba a 2).
+      const _allPjSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,pj:(dd.total?.pj||0)})).filter(e=>e.pj>0).sort((a,b)=>b.pj-a.pj);
+      const _allGSorted=Object.entries(JUGADORES).map(([n,dd])=>({n,g:(dd.total?.g||0)})).filter(e=>e.g>0).sort((a,b)=>b.g-a.g);
+      // Todos los múltiplos de 10 — los de 50 en adelante llevan estilo dorado
+      // (ahí se entrega la camiseta homenaje) pero la misma ventana de aviso que
+      // el resto: a 8 partidos "no tiene sentido, falta una vida" (feedback del
+      // usuario) — solo avisa a 3 partidos o menos del número cerrado.
+      const _PJM=Array.from({length:25},(_,i)=>(i+1)*10);
+      const _GM=[5,10,15,20,25,30,40,50];
+      // Mismas clases .p-ms (star/cap/hist/goal) que usa computeMilestones() en
+      // el Mundial, para que se vea igual acá.
+      // Los de partidos siempre terminan en 📌, los de goles en ⚽️.
+      const _fifaMilestoneNote=(nom,pj,g)=>{
+        const notes=[];
+        const nextPjM=_PJM.find(m=>m>pj&&(m-pj)<=3);
+        if(nextPjM){
+          const isJersey=nextPjM>=50;
+          const label=nextPjM===100?'¡los 100!':`los ${nextPjM}`;
+          notes.push({cls:isJersey?'star':'cap', txt:`A ${nextPjM-pj} de llegar a ${label} 📌`});
+        }
+        else{
+          const idx=_allPjSorted.findIndex(e=>e.n===nom);
+          if(idx>0){
+            const above=_allPjSorted[idx-1];
+            const gap=above.pj-pj;
+            if(gap>0&&gap<=3) notes.push({cls:'hist', txt:`A ${gap} de igualar a ${above.n} en partidos (${above.pj}) 📌`});
+          }
+        }
+        if(g>0){
+          const nextGM=_GM.find(m=>m>g&&m-g<=3);
+          if(nextGM) notes.push({cls:'goal', txt:`A ${nextGM-g} de llegar a los ${nextGM} goles ⚽️`});
+          else{
+            const idx=_allGSorted.findIndex(e=>e.n===nom);
+            if(idx>0){
+              const above=_allGSorted[idx-1];
+              const gap=above.g-g;
+              if(gap>0&&gap<=2) notes.push({cls:'goal', txt:`A ${gap} de igualar a ${above.n} en goles (${above.g}) ⚽️`});
+            }
+          }
+        }
+        return notes;
+      };
+      // Grilla de "jugó / entró / no entró / no participó" por partido de esta
+      // Fecha FIFA — mismo componente (part-grid/part-row/part-sel) y mismas
+      // 5 opciones (PART_OPTIONS) que usa el Mundial, pero guardado por
+      // nombre (no por dorsal) — se guardó antes de que llegaran los números
+      // de camiseta de esta gira y no vale la pena migrar la clave ahora.
+      const _FNOV_RIVAL_ABBR={}; // abreviaturas de rivales: se agregan cuando se conozcan
+      const fifaMatchList=(FIFANOV26.partidosData||[]).map(mp=>({id:mp.rival, label:`${mp.rivalBandera||''} vs. ${_FNOV_RIVAL_ABBR[mp.rival]||mp.rival}`}));
+      const getFifaNovPartVal=(nom,matchId)=>{ const p=stor.get('auf4_fifanov_part',{}); return (p[nom]&&p[nom][matchId])||''; };
+      // Número de camiseta de esta gira (planilla del cuerpo técnico, no dorsal
+      // de club) — cargado a mano en FIFANOV26.reservados[pos][].num.
+      const _fifaNovNumMap={};
+      Object.values(FIFANOV26.reservados||{}).forEach(arr=>(arr||[]).forEach(j=>{ if(j.num!=null) _fifaNovNumMap[j.nom]=j.num; }));
+      const tarjeta=(p)=>{
+        _fifaNovApplyFloor();
+        const d=JUGADORES[p.nom];
+        const pj=d?.total?.pj||0, g=d?.total?.g||0, min=d?.total?.min||0;
+        // Arqueros: importan los goles que le hicieron, casi nunca hacen uno
+        // propio — mismo criterio que ya usa la ficha de Jugadores (total.gc).
+        const isGK=p.pos==='POR';
+        const golesVal=isGK?(d?.total?.gc??null):g;
+        const golesLabel=isGK?'Goles enc.':'Goles';
+        // "+N" al lado del número — puramente informativo ("jugó N partidos
+        // en esta Fecha FIFA"), viene de auf4_fifanov_stats_delta (confirmado
+        // con el botón "Confirmar resultado" de la Pizarra). El número
+        // PRINCIPAL es siempre pj/golesVal/min a secas — el total oficial ya
+        // confirmado en JUGADORES — nunca se le suma el +N, así no se duplica
+        // cuando ese partido además se carga a mano en JUGADORES (como se hizo
+        // con Japón y Corea del Sur). El +N queda de adorno indefinidamente,
+        // no hace falta borrarlo después de confirmar.
+        const _fsDelta=getFifaNovStatsDelta();
+        let deltaPj=0, deltaG=0;
+        Object.values(_fsDelta).forEach(md=>{ const pd=md[p.nom]; if(pd){ deltaPj+=pd.pj||0; if(!isGK) deltaG+=pd.g||0; } });
+        const _base=FIFANOV26_STATS_BASELINE[p.nom];
+        const deltaMin=_base?Math.max(0,min-_base.min):0;
+        const edad=d?.fechaNac?_nacAge(d.fechaNac):null;
+        const primeraConv = (FIFANOV26.primeraConvocatoria||[]).includes(p.nom);
+        const enFinal = finales ? finales.includes(p.nom) : true;
+        // "Debutaría" (pj===0) es un hecho objetivo de las stats — distinto de
+        // "primera convocatoria" (confirmada a mano, no se infiere de 0 PJ: hay
+        // jugadores con 0 PJ ya convocados antes). Solo se muestra si NO es ya
+        // primeraConv, para no duplicar el mismo aviso con otro texto.
+        const debutaria = enFinal && pj===0 && !primeraConv;
+        // Si ya se confirmó el partido (deltaPj>0) el debut dejó de ser
+        // hipotético — pasa a tiempo pasado, y el "0" de Partidos deja de
+        // marcarse como "sería su debut" (ya lo fue).
+        const yaDebuto = debutaria && deltaPj>0;
+        const milestones = enFinal ? _fifaMilestoneNote(p.nom,pj,g) : [];
+        const photoSrc = window._getPhotoByName?.(p.nom) || d?.foto || '';
+        const safe=p.nom.replace(/'/g,"\\'");
+        const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');
+        const partGridHtml = (enFinal && fifaMatchList.length) ? `<div class="part-grid">${fifaMatchList.map(m=>{
+          const val=getFifaNovPartVal(p.nom,m.id);
+          const opt=PART_OPTIONS.find(o=>o.val===val)||PART_OPTIONS[0];
+          const opts=PART_OPTIONS.map(o=>`<option value="${o.val}"${o.val===val?' selected':''}${o.val==='baja'?' style="background:#DC2626;color:#fff"':''}>${o.label}</option>`).join('');
+          return `<div class="part-row">
+            <span class="part-match-lbl">${m.label}</span>
+            <select class="part-sel ${opt.cls}" onchange="_saveFifaNovPartVal('${nomEnc}','${m.id}',this)">${opts}</select>
+          </div>`;
+        }).join('')}</div>` : '';
+        const cid='res-'+nomEnc; // id de tarjeta para switchPTab (no hay número de camiseta todavía)
+        const inj=getResInjury(p.nom);
+        // Reborde para que un cambio de convocatoria (entrada/salida por lesión) se
+        // note incluso en gris — el filter:grayscale de la tarjeta desatura cualquier
+        // color de adentro, por eso el reborde va en un wrapper aparte sin el filtro.
+        const nuevoIn = enFinal && !!p.entrada;
+        const lesionOut = !enFinal && inj==='red'; // se lesionó antes de viajar y quedó afuera (ej. Valverde)
+        // Puntual por jugador (p.lesionEnGira / p.bajaGira en FIFANOV26.reservados) —
+        // NO el estado genérico de lesión (inj), que es compartido con toda la app y
+        // marca a cualquier jugador lesionado por otro motivo sin que eso signifique
+        // que se cae de ESTA convocatoria. Ambos casos atenúan la tarjeta (gris) para
+        // que se note que ya no están 100% disponibles, pero SOLO lesión lleva reborde
+        // rojo (ej. De Arrascaeta, Cáceres) — p.bajaGira (liberado por otro motivo,
+        // ej. Brian Rodríguez) queda gris sin reborde, para diferenciar el motivo a
+        // simple vista. Ambos quedan igual afuera del selector de la Pizarra de India
+        // (ver _openJuvSP / bajaSet).
+        const bajaGris = enFinal && !!(p.lesionEnGira || p.bajaGira);
+        const bajaActiva = enFinal && !!p.lesionEnGira;
+        const cardBorder = nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null);
+        // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
+        // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
+        const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
+        // Provisorios de esta gira puntual — no son estado permanente del jugador,
+        // por eso van aparte (auf4_fifanov_llegado / auf4_fifanov_shooting) y no
+        // en los stores compartidos con Jugadores/Local/Juveniles.
+        const isLlegado = !!(stor.get('auf4_fifanov_llegado',{})[p.nom]);
+        const faltaShooting = !!(stor.get('auf4_fifanov_shooting',{})[p.nom]);
+        const cardHtml = `<div class="p-card" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(bajaGris?'filter:grayscale(.55);opacity:.8':'')}">
+          <button onclick="event.stopPropagation();_toggleFifaNovCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
+          <div style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">
+            <button onclick="event.stopPropagation();_toggleFifaNovLlegado('${nomEnc}')" title="${isLlegado?'Ya se sumó a la delegación — click para desmarcar':'Todavía no llegó — click para marcar que ya se sumó'}" style="background:${isLlegado?'#16A34A':'#DC2626'};border:1.5px solid ${isLlegado?'#16A34A':'#DC2626'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;padding:0;line-height:1">🛬</button>
+            <button onclick="event.stopPropagation();_toggleFifaNovShooting('${nomEnc}')" title="${faltaShooting?'Falta shooting oficial — click para marcar que ya lo tiene':'Ya tiene shooting oficial — click para marcar que falta'}" style="background:${faltaShooting?'#DC2626':'#16A34A'};border:1.5px solid ${faltaShooting?'#DC2626':'#16A34A'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;padding:0;line-height:1">📷</button>
+          </div>
+          <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="p-card-num" title="${_fifaNovNumMap[p.nom]!=null?'Número de esta gira':'Todavía sin número asignado'}">${_fifaNovNumMap[p.nom]!=null?_fifaNovNumMap[p.nom]:'#'}</div>
+              <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
+                ${photoSrc?`<img src="${photoSrc}" alt="${p.nom}" loading="lazy" decoding="async" style="object-position:center 15%" onerror="this.style.display='none'">`:''}
+                <div class="p-avatar-ini">${initialsOf(p.nom)}</div>
+                <span style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
+                <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
+              </div>
+              <div class="p-card-right">
+                <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin:0">${p.pos||''}</span>
+              </div>
+            </div>
+            <button class="inj-toggle ${inj}" style="width:100%;justify-content:center;white-space:nowrap" onclick="event.stopPropagation();_cycleResInjury('${nomEnc}','renderFifaNov26Plantel')" title="Click para cambiar">
+              <span class="inj-dot-btn ${inj}"></span>${INJ_LABELS[inj]}
+            </button>
+          </div>
+          <div class="p-card-body">
+            <div class="p-name" onclick="${d?`showJugador('${safe}')`:''}" style="${d?'cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px':''}">${p.nom}</div>
+            <div class="p-card-tabs">
+              <button class="p-card-tab active" onclick="switchPTab(this,'stats','${cid}')">Stats</button>
+              <button class="p-card-tab" onclick="switchPTab(this,'prensa','${cid}')">Prensa</button>
+            </div>
+            <div class="p-tab-pane active" id="ptab-stats-${cid}">
+              ${primeraConv||debutaria?`<div style="margin-bottom:4px">
+                ${primeraConv?`<span style="font-size:8.5px;font-weight:800;background:#FCE7F3;color:#BE185D;padding:1px 5px;border-radius:5px;border:1px solid #EC4899">🆕 ${finales&&enFinal?'ES SU 1RA CONVOCATORIA':'SERÍA SU 1RA CONVOCATORIA'}</span>`:''}
+                ${debutaria?`<span style="font-size:8.5px;font-weight:800;background:${yaDebuto?'#F0FDF4':'#F5F3FF'};color:${yaDebuto?'#15803D':'#6D28D9'};padding:1px 5px;border-radius:5px;border:1px solid ${yaDebuto?'#86EFAC':'#A78BFA'};margin-left:${primeraConv?'4px':'0'}">⭐ ${yaDebuto?'DEBUTÓ':'DEBUTARÍA'}</span>`:''}
+              </div>`:''}
+              <div class="p-club">${p.clubPais||''} ${p.club}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:1px">${d?.fechaNac?_nacFmt(d.fechaNac):'Fecha de nac. sin cargar'}${edad!=null?` · <span style="font-weight:700;color:var(--fg)">${edad} años</span>`:''}</div>
+              <div class="p-stats" style="grid-template-columns:repeat(3,1fr)">
+                <div class="p-stat"><div class="p-stat-n${pj===0&&deltaPj===0?' zero':''}" title="${pj===0&&deltaPj===0?'Sería su debut':''}">${pj}${pj===0&&deltaPj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaPj>0?`<span class="p-stat-delta" title="Jugó ${deltaPj} partido${deltaPj>1?'s':''} en esta Fecha FIFA">+${deltaPj}</span>`:''}</div><div class="p-stat-l">Partidos</div></div>
+                <div class="p-stat"><div class="p-stat-n goal${golesVal===0&&!isGK&&deltaG===0?' zero':''}" title="${golesVal===0&&!isGK&&deltaG===0?'Sería su primer gol':''}">${golesVal==null?'—':golesVal}${golesVal===0&&!isGK&&deltaG===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaG>0?`<span class="p-stat-delta" title="Marcó ${deltaG} en esta Fecha FIFA">+${deltaG}</span>`:''}</div><div class="p-stat-l">${golesLabel}</div></div>
+                <div class="p-stat"><div class="p-stat-n${min===0&&deltaPj===0?' zero':''}" title="${min===0&&deltaPj===0?'Serían sus primeros minutos':''}">${min}${min===0&&deltaPj===0?'<span class="p-stat-zero-mark">*</span>':''}${deltaMin>0?`<span class="p-stat-delta" title="Sumó ${deltaMin} minutos en esta Fecha FIFA">+${deltaMin}</span>`:''}</div><div class="p-stat-l">Minutos</div></div>
+              </div>
+              ${milestones.map(m=>`<div class="p-ms ${m.cls}">${m.txt}</div>`).join('')}
+              ${partGridHtml}
+            </div>
+            <div class="p-tab-pane" id="ptab-prensa-${cid}">
+              <div style="font-size:11px;color:var(--muted);padding:8px 0">Sin atenciones registradas todavía.</div>
+            </div>
+          </div>
+        </div>`;
+        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':(p.lesionEnGira?'Lesionado — regresa a su club':'Dado de baja — regresa a su club'))}">${cardHtml}</div>` : cardHtml;
+      };
+      const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
+      const allPos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
+      // Con finales cargados: primero los convocados en el orden exacto de la lista
+      // oficial (no por posición), después — separados — los reservados que no
+      // quedaron, en gris, agrupados por posición como antes.
+      const convocadosOrdenados = finales ? finales.map(nom=>allPos.find(p=>p.nom===nom)).filter(Boolean) : [];
+      const noConvocados = finales ? allPos.filter(p=>!finales.includes(p.nom)) : [];
+      const todos = finales ? [...convocadosOrdenados, ...noConvocados] : allPos;
+      con.innerHTML = _header('👥', finales?'Convocados':'Lista de reservados', finales?'Convocatoria final':`Lista larga · ${totalRes} jugadores`) +
+        (finales ? '' : `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:.78em;color:#92400E"><strong>Todavía no es la convocatoria final.</strong> De esta lista larga sale el recorte a 23/26 que viaja — cuando se confirme, los elegidos quedan destacados acá arriba y el resto en gris abajo.</div>`) +
+        (finales
+          ? `<div class="p-grid">${convocadosOrdenados.map(tarjeta).join('')}</div>` +
+            (noConvocados.length ? `<div style="margin:20px 0 10px;font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--border);padding-top:14px">No convocados (${noConvocados.length})</div><div class="p-grid">${noConvocados.map(tarjeta).join('')}</div>` : '')
+          : `<div class="p-grid">${todos.map(tarjeta).join('')}</div>`);
+    }
+  } else if(slug==='fixture'){
+    con.innerHTML = _header('🗒️','Fixture',`${FIFANOV26.partidos||0} partidos · nov 2026`) +
+      (_fifaMatches.length ? _fifaMatches.map(_fifaMatchRow).join('') : '') +
+      (_fifaMatchesFaltan>0 ? _placeholder('🏟️',`${_fifaMatchesFaltan} partido${_fifaMatchesFaltan>1?'s':''} más por confirmar`,'Se cargarán cuando FIFA publique el calendario oficial completo.') : '');
+  } else if(slug==='grafica'){
+    con.innerHTML = _header('🎨','Diseño','Control de jugadores usados en piezas gráficas — MD-1 y MD por partido') +
+      `<div id="fifanov26-grafica-body"></div>`;
+    renderFifaNovGrafica();
+  } else if(slug==='infogeneral'){
+    renderInfoGeneral('fifanov26');
+  }
+}
+window.renderFifaNov26Plantel = function(){ renderFifaNov26('fifanov26-plantel'); };
+// ────────────────────────────────────────────────────────────────────────────
+
+// ── Calendario día a día de la Fecha FIFA sep-oct 2026 ───────────────────────
+// Mismo diseño/estructura que el calendario de la Copa Mundial: tarjeta por día,
+// eventos con estado (✓⏸✗), nota y links por evento, "+ Agregar actividad" y nota
+// del día. Reutiliza a propósito las mismas funciones/stores genéricos por fecha
+// que usa el Mundial — cycleEvSt, saveEvNote, saveEvLink, toggleEvDetail,
+// getDayActs/getDayNotes — así el comportamiento es idéntico y no hay que
+// mantener una lógica de estado paralela. No colisiona con las fechas del Mundial
+// (jun-jul 2026) porque son rangos de fechas disjuntos.
+// Lo que NO se reutiliza tal cual: renderCal()/buildEventsHtml() en sí, porque
+// están armados alrededor de CALENDAR_DAYS específicamente (¡~30 lugares del
+// código lo referencian directo!) y traen lógica exclusiva del Mundial que acá
+// no aplica o directamente no correspondería (chips de participación con el
+// plantel de 26 del Mundial, obligaciones de prensa FIFA, cierre de
+// entrenamientos con el reglamento de 1 por partido, cache de resultados ESPN).
+// Reescribir esas ~30 referencias para que sirvan a dos calendarios a la vez es
+// un cambio grande con riesgo real de romper el calendario del Mundial que ya
+// funciona — por eso esta es una fila de evento propia, más simple (sin chips de
+// jugadores ni reordenar/reagendar entre días), pero con el mismo look & feel y
+// las mismas funciones de estado/nota/links que ya existían.
+const FIFANOV_TYPE_LABELS={viaje:'Viaje',llegada:'Llegada',partido:'PARTIDO',descanso:'Libre',entreno:'Entrenamiento',tbd:'Por definir'};
+const FIFANOV_TYPE_BADGE ={viaje:'cb-viaje',llegada:'cb-llegada',partido:'cb-partido',descanso:'cb-descanso',entreno:'cb-entreno',tbd:'cb-descanso'};
+// Paleta pedida: viaje amarillo, cronograma celeste, entrenamiento verde
+// claro, partido verde oscuro, prensa/AUF naranja.
+const FIFANOV_TAG_HTML={
+  viaje:   `<span class="tag" style="font-size:9.5px;background:#FEF3C7;color:#92400E;font-weight:600">Viaje</span>`,
+  auf:     `<span class="tag" style="font-size:9.5px;background:#EA580C;color:#fff;font-weight:800">AUF</span>`,
+  auftv:   `<span class="tag" style="font-size:9.5px;background:#EA580C;color:#fff;font-weight:800">AUFtv</span>`,
+  team:    `<span class="tag" style="font-size:9.5px;background:#E5F5FC;color:#006FA3;font-weight:600">Cronograma</span>`,
+  entreno: `<span class="tag" style="font-size:9.5px;background:#DCFCE7;color:#15803D;font-weight:600">Entrenamiento</span>`,
+  partido: `<span class="tag" style="font-size:9.5px;background:#052e16;color:#86efac;font-weight:700">Partido</span>`,
+};
+// Mismos 5 tipos del picker "+ Agregar actividad" — click en la etiqueta de
+// una actividad ya cargada cicla entre ellos (nombre + color juntos) sin
+// tener que abrir ningún formulario.
+const FIFANOV_EV_TYPE_CYCLE=['team','auf','viaje','entreno','partido'];
+window._fifaNovCycleEvType=function(date,idx){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  const cur=e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':(e.auf||e.auftv)?'auf':'team';
+  const i=FIFANOV_EV_TYPE_CYCLE.indexOf(cur);
+  const next=FIFANOV_EV_TYPE_CYCLE[(i+1)%FIFANOV_EV_TYPE_CYCLE.length];
+  delete e.tipo; delete e.auf; delete e.auftv;
+  if(next==='viaje'||next==='entreno'||next==='partido') e.tipo=next;
+  else if(next==='auf') e.auf=true;
+  stor.set(KDayActs,acts);
+  renderFifaNovCal();
+};
+// Fondo de fila por tipo — mismos colores que las etiquetas, pero bien suaves,
+// para diferenciar de un vistazo sin tener que leer el tag.
+const FIFANOV_ROW_BG={viaje:'#FFFBEB',auf:'#FED7AA',auftv:'#FED7AA',entreno:'#F0FDF4',partido:'#ECFDF5',team:'#F0F9FF'};
+
+function _fnovFmtHora(h,e){
+  if(!h||h==='TBD') return 'TBD';
+  if(!/^\d{1,2}(:\d{2})?$/.test(h)) return h;
+  // Si se cargó en otro huso, se muestra el original al lado de la conversión
+  // a UY — antes solo se veía la hora ya convertida y parecía "otro número".
+  if(e?.origH && e?.origTz && e.origTz!=='UY'){
+    return `${e.origH} ${e.origTz} → ${h}h UY`;
+  }
+  return `${h}h (UY)`;
+}
+// Mismo concepto que la línea multi-huso del Mundial ("06:15 MX · 07:15 Miami
+// · 08:15 Uruguay"), pero con los husos de esta gira — se calculan todos a
+// partir de la hora ya guardada en UY (fuente única de verdad).
+function _fnovAllTzLine(e,h){
+  if(!h||h==='TBD'||!/^\d{1,2}(:\d{2})?$/.test(h)) return '';
+  const parts=Object.entries(FIFANOV_TZ_INFO).map(([k,v])=>{
+    const conv=k==='UY'?h:_fnovConvertTz(h,'UY',k);
+    return conv?`${conv} ${v.short}`:null;
+  }).filter(Boolean);
+  return `<div style="font-size:10.5px;color:var(--muted);margin-bottom:8px">🕐 ${parts.join(' · ')}</div>`;
+}
+// Personas asignadas a una actividad — array (e.personas). Compatibilidad con
+// el campo viejo e.quien (string, una sola persona) de antes de este cambio.
+function _fnovPersonasOf(e){
+  if(Array.isArray(e.personas)) return e.personas;
+  if(e.quien) return [e.quien];
+  return [];
+}
+// Si el acto está vinculado a una atención (Disponibilidad), ese "quien" es
+// una sola persona (no una lista) — el toggle manda: agregar a alguien la
+// convierte en LA persona de la atención; sacar a la única que había cae en
+// la siguiente que quede seleccionada (si no queda ninguna, no se toca).
+function _fnovSyncAtencionQuien(e,nextQuien){
+  if(!e.atencionId || !nextQuien) return;
+  const list=getFifaNovAt();
+  const i=list.findIndex(a=>a.id===e.atencionId);
+  if(i<0) return;
+  list[i]={...list[i], quien:nextQuien};
+  stor.set(KFifaNovAt,list);
+}
+window._fnovTogglePersona=function(date,idx,nom){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  let personas=_fnovPersonasOf(e);
+  const wasSelected=personas.includes(nom);
+  if(wasSelected) personas=personas.filter(n=>n!==nom);
+  else personas=[...personas,nom];
+  e.personas=personas;
+  delete e.quien; // migrado al array
+  stor.set(KDayActs,acts);
+  _fnovSyncAtencionQuien(e, wasSelected?personas[0]:nom);
+  renderFifaNovCal();
+};
+window._fnovToggleAllPersonas=function(date,idx,nombres,allSelected){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  e.personas = allSelected ? [] : nombres.slice();
+  delete e.quien;
+  stor.set(KDayActs,acts);
+  if(!allSelected) _fnovSyncAtencionQuien(e, nombres[0]);
+  renderFifaNovCal();
+};
+// Mismas dos secciones separadas (DT / Cuerpo Técnico, Jugadores) que usa el
+// Mundial — antes iba todo junto en una sola fila.
+function _fnovPersonaChipsHtml(date,idx,e){
+  const {nombres}=_fifaNovQuienNames();
+  const ct=(typeof CT_MAYOR_FORLAN!=='undefined'?CT_MAYOR_FORLAN:[]).map(m=>m.name);
+  const sel=_fnovPersonasOf(e);
+  const ctChips=ct.map(n=>`<span class="ev-p-chip${sel.includes(n)?' sel-bielsa':''}" onclick="_fnovTogglePersona('${date}',${idx},'${n.replace(/'/g,"\\'")}')">${n}</span>`).join('');
+  const allSelected=nombres.length>0&&nombres.every(n=>sel.includes(n));
+  const todosBtn=nombres.length?`<span class="ev-p-chip${allSelected?' sel':''}" style="font-weight:800" onclick='_fnovToggleAllPersonas("${date}",${idx},${JSON.stringify(nombres)},${allSelected})'>👥 ${allSelected?'Quitar todos':'Todos'}</span>`:'';
+  const playerChips=nombres.map(n=>`<span class="ev-p-chip${sel.includes(n)?' sel':''}" onclick="_fnovTogglePersona('${date}',${idx},'${n.replace(/'/g,"\\'")}')">${n.split(' ').pop()}</span>`).join('');
+  return `
+    ${ct.length?`<div class="ev-parts-lbl">DT / Cuerpo técnico</div><div class="ev-parts-chips" style="margin-bottom:8px">${ctChips}</div>`:''}
+    ${nombres.length?`<div class="ev-parts-lbl">Jugadores</div><div class="ev-parts-chips">${todosBtn}${playerChips}</div>`:''}`;
+}
+function _fifaNovEvRowHtml(date,e,idx,total){
+  const k=evKey(date,idx);
+  const s=(getEvStatus()[k])||'';
+  const note=getEvNotes()[k]||'';
+  const link=getEvLinks()[k]||'';
+  const txt=getEvTxt(date,idx,e.txt);
+  const hora=getCalTime(date,idx,e.h||'TBD');
+  const statusClass=s==='done'?'st-done':s==='sus'?'st-sus':s==='no'?'st-no':'';
+  const icons={'done':'✓','sus':'⏸','no':'✗','':'○'};
+  const evType=e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':e.auf?'auf':e.auftv?'auftv':'team';
+  const dotClass=evType==='viaje'?'ce-viaje':evType==='auf'?'ce-oblig':evType==='auftv'?'ce-info':evType==='entreno'?'ce-info':evType==='partido'?'ce-oblig':'ce-team';
+  const tag=FIFANOV_TAG_HTML[evType];
+  const rowBg=FIFANOV_ROW_BG[evType]||'';
+  return `
+    <div class="cal-ev" id="cev-${date}-${idx}" style="${rowBg?`background:${rowBg};border-radius:8px`:''}">
+      <div class="cal-ev-row">
+        <div class="ev-sts">
+          <button class="ev-st st-done${s==='done'?' act':''}" onclick="_fnovSetEvSt('${date}',${idx},'done')" title="Hecho">✓</button>
+          <button class="ev-st st-sus${s==='sus'?' act':''}" onclick="_fnovSetEvSt('${date}',${idx},'sus')" title="Suspendida">⏸</button>
+          <button class="ev-st st-no${s==='no'?' act':''}" onclick="_fnovSetEvSt('${date}',${idx},'no')" title="No realizada">✗</button>
+          <button class="ev-st-cycle${statusClass?' '+statusClass:''}" onclick="_fnovCycleEvSt('${date}',${idx})" title="${s==='done'?'Hecho':s==='sus'?'Suspendida':s==='no'?'No realizada':'Sin estado'}">${icons[s]||'○'}</button>
+        </div>
+        <div class="cal-event-h" style="margin-top:2px;min-width:64px;cursor:pointer" title="Click para editar horario" onclick="_fnovEditTime('${date}',${idx},this)">${_fnovFmtHora(hora,e)}</div>
+        <div class="ev-txt-wrap">
+          <div class="ev-main-txt${statusClass?' '+statusClass:''}">
+            <span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${date}',${idx},this)">${txt}</span>
+            <span onclick="event.stopPropagation();_fifaNovCycleEvType('${date}',${idx})" style="cursor:pointer" title="Click para cambiar el tipo">${tag}</span>
+            ${e.oblig?`<span class="tag tag-oblig" style="font-size:9.5px" title="Compromiso contractual/obligatorio">Obligatoria</span>`:''}
+            ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" style="font-size:11px;text-decoration:none;margin-left:2px">🔗${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
+          </div>
+          ${_fnovPersonasOf(e).length?`<div class="ev-selected-parts">👤 ${_fnovPersonasOf(e).map(n=>`<span style="color:var(--cel-dk);background:var(--cel-lt);padding:0 4px;border-radius:4px;font-size:10px">${n}</span>`).join('<span style="color:var(--hint)"> · </span>')}</div>`:''}
+        </div>
+        <div class="cal-event-dot ${dotClass}" style="margin-top:5px;flex-shrink:0"></div>
+        <button onclick="deleteFifaNovAct('${date}',${idx},event)" title="Eliminar esta actividad" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 3px;color:var(--hint)">🗑</button>
+        <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+          <button onclick="_fifaNovMoveAct('${date}',${idx},-1,event)" title="Mover arriba" ${idx===0?'disabled':''} style="background:none;border:none;cursor:${idx===0?'default':'pointer'};font-size:9px;padding:0 2px;color:${idx===0?'var(--border)':'var(--hint)'};line-height:1">▲</button>
+          <button onclick="_fifaNovMoveAct('${date}',${idx},1,event)" title="Mover abajo" ${idx>=total-1?'disabled':''} style="background:none;border:none;cursor:${idx>=total-1?'default':'pointer'};font-size:9px;padding:0 2px;color:${idx>=total-1?'var(--border)':'var(--hint)'};line-height:1">▼</button>
+        </div>
+        <button class="ev-expand" onclick="toggleEvDetail('${date}',${idx},this)" title="Nota / links">⌄</button>
+      </div>
+      <div class="cal-ev-detail" id="ced-${date}-${idx}">
+        ${_fnovAllTzLine(e,hora)}
+        ${_fnovPersonaChipsHtml(date,idx,e)}
+        <div class="ev-parts-lbl" style="margin-top:8px">📝 Nota</div>
+        <textarea class="ev-note-field${note?' has-note':''}" rows="2"
+          placeholder="Observación, recordatorio..."
+          oninput="saveEvNote('${date}',${idx},this)"
+        >${note}</textarea>
+        <div class="ev-parts-lbl" style="margin-top:6px">🔗 Links (tuit, video, etc.)</div>
+        <textarea class="ev-note-field${link?' has-note':''}" rows="2" style="margin-top:3px"
+          placeholder="https://..."
+          oninput="renderEvLinkChips('${date}',${idx},this)"
+          onchange="saveEvLink('${date}',${idx},this);renderFifaNovCal()"
+        >${link.replace(/</g,'&lt;')}</textarea>
+        <div id="ev-link-chips-${date}-${idx}" style="margin-top:3px;display:flex;flex-wrap:wrap;gap:5px">
+          ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:12px;text-decoration:none;background:var(--surface)">🔗 Link ${i+1}</a>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderFifaNovCal(){
+  const tl=document.getElementById('fifanov26-cal-timeline');
+  if(!tl) return;
+  const dn=getDayNotes();
+  const acts=getDayActs();
+  const openDates=new Set([...tl.querySelectorAll('.cal-day.open')].map(d=>d.dataset.date));
+  tl.innerHTML='';
+  FIFANOV26_CAL_DAYS.forEach(day=>{
+    const custom=acts[day.date]||[];
+    const isToday=day.date===TODAY;
+    const note=dn[day.date]||'';
+    const rival=day.rival?` · vs. ${day.rival}${day.sede?' ('+day.sede+')':''}`:'';
+    // Se muestran ordenadas por horario (no por orden de carga) — sin hora o TBD
+    // van al final. idx sigue siendo la posición real en el array guardado, así
+    // que estado/nota/links/mover siguen apuntando a la actividad correcta.
+    const _parseH=(h)=>{ if(!h||h==='TBD') return Infinity; const mm=/^(\d{1,2})(?::(\d{2}))?$/.exec(h); return mm ? parseInt(mm[1],10)*60+parseInt(mm[2]||'0',10) : Infinity; };
+    // Si la actividad se cargó en un huso distinto a UY (ej. estando ya en Japón,
+    // con la hora local de destino), se ordena por esa hora local en vez de por
+    // su equivalente en UY — convertir "9h JAP" (desayuno) a UY cruza medianoche
+    // y da "21:00", lo que la mandaba al final del día aunque en la realidad (y
+    // en el huso en el que se vive el día) sea lo primero.
+    const _sortKeyH=(e,idx)=>{
+      if(e.origH && e.origTz && typeof _fnovParseHora==='function'){
+        const p=_fnovParseHora(e.origH);
+        if(p) return p.h*60+p.mi;
+      }
+      return _parseH(getCalTime(day.date,idx,e.h||'TBD'));
+    };
+    const sortedCustom = custom.map((e,idx)=>({e,idx}))
+      .sort((a,b)=>_sortKeyH(a.e,a.idx)-_sortKeyH(b.e,b.idx));
+    const evsHtml=custom.length
+      ? sortedCustom.map(({e,idx})=>_fifaNovEvRowHtml(day.date,e,idx,custom.length)).join('')
+      : `<div style="padding:8px 0;color:var(--muted);font-size:.8em">Sin actividades cargadas todavía.</div>`;
+    const isNA=getFifaNovDayNA()[day.date]||false;
+    const isClosed=!isNA&&(getDayClosed()[day.date]||false);
+    const naLabels={open:{icon:'🟢',txt:'Abierto',title:'Abierto — click para cerrar'},closed:{icon:'🔒',txt:'Cerrado',title:'Cerrado — click para marcar "no aplica"'},na:{icon:'⚪',txt:'No aplica',title:'No aplica (sin entrenamiento) — click para volver a abierto'}};
+    const dayState=isNA?'na':isClosed?'closed':'open';
+    // MD-1 = el día calendario anterior a cualquier partido (se calcula solo,
+    // no hay que marcarlo a mano día por día).
+    const _nextDateStr=(iso)=>{ const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); };
+    const isMD1 = day.tipo!=='partido' && FIFANOV26_CAL_DAYS.some(d2=>d2.tipo==='partido' && d2.date===_nextDateStr(day.date));
+    const dayTypeLabel = (day.llegadas && day.tipo==='entreno') ? 'Llegadas + Entrenamiento' : FIFANOV_TYPE_LABELS[day.tipo];
+    const div=document.createElement('div');
+    div.className='cal-day'+((isToday||openDates.has(day.date))?' today open':'')+(day.tipo==='partido'?' tipo-partido':isMD1?' tipo-md1':'');
+    div.dataset.date=day.date;
+    div.innerHTML=`
+      <div class="cal-day-hdr" onclick="event.target.closest('.cal-day-hdr')===this&&toggleCalDay(this.parentElement)">
+        <div class="cal-dow">${day.dow}</div>
+        <div class="cal-date">${day.label}</div>
+        ${isMD1?`<span class="cal-badge" style="background:#1E293B;color:#fff;font-weight:900;letter-spacing:.04em">MD-1</span>`:''}
+        <span class="cal-badge ${FIFANOV_TYPE_BADGE[day.tipo]}">${dayTypeLabel}</span>
+        <div class="cal-rival" style="flex:1">${rival}</div>
+        ${day.tipo!=='partido'?`<button class="day-closed-btn ${dayState}"
+          onclick="event.stopPropagation();_fnovToggleDayClosed('${day.date}')"
+          title="${naLabels[dayState].title}">
+          ${naLabels[dayState].icon} ${naLabels[dayState].txt}
+        </button>`:''}
+        ${day.lugar?`<div class="cal-lugar" style="margin-left:6px">${day.lugar}</div>`:''}
+        ${isToday?'<span class="cal-today-chip" style="margin-left:4px">Hoy</span>':''}
+      </div>
+      <div class="cal-day-body">
+        <div class="cal-events" style="display:flex;flex-direction:column;gap:0">${evsHtml}</div>
+        <div class="add-act-wrap">
+          <button class="add-act-btn" onclick="toggleFifaNovAddAct('${day.date}',this)">＋ Agregar actividad</button>
+          <div id="fnov-${day.date}" style="display:none;margin-top:8px;gap:6px;flex-direction:column">
+            <div class="aap-type-btns" style="grid-template-columns:repeat(3,1fr)">
+              <button class="aap-type-btn" data-fnov-type="team" data-idle-bg="#E5F5FC" data-idle-fg="#006FA3" onclick="_fnovSetType('${day.date}','team',this)" style="border:1.5px solid var(--border);background:#E5F5FC;color:#006FA3">📅 General</button>
+              <button class="aap-type-btn" data-fnov-type="auf" data-idle-bg="#EA580C" data-idle-fg="#fff" onclick="_fnovSetType('${day.date}','auf',this)" style="border:1.5px solid var(--border);background:#EA580C;color:#fff">📋 AUF / prensa</button>
+              <button class="aap-type-btn" data-fnov-type="viaje" data-idle-bg="#FEF3C7" data-idle-fg="#92400E" onclick="_fnovSetType('${day.date}','viaje',this)" style="border:1.5px solid var(--border);background:#FEF3C7;color:#92400E">✈️ Viaje</button>
+              <button class="aap-type-btn" data-fnov-type="entreno" data-idle-bg="#DCFCE7" data-idle-fg="#15803D" onclick="_fnovSetType('${day.date}','entreno',this)" style="border:1.5px solid var(--border);background:#DCFCE7;color:#15803D">🏃 Entrenamiento</button>
+              <button class="aap-type-btn" data-fnov-type="partido" data-idle-bg="#052e16" data-idle-fg="#86efac" onclick="_fnovSetType('${day.date}','partido',this)" style="border:1.5px solid var(--border);background:#052e16;color:#86efac">🏟️ Partido</button>
+            </div>
+            <select id="fnov-quien-${day.date}" class="aap-input" style="margin-bottom:6px">${_fifaNovQuienOptionsHtml()}</select>
+            <input class="aap-input" id="fnov-txt-${day.date}" placeholder="Ej: Entrenamiento, viaje al estadio, zona mixta…" autocomplete="off"
+              onkeydown="if(event.key==='Enter')document.getElementById('fnov-h-${day.date}').focus()">
+            <div>
+              <input class="aap-input" id="fnov-h-${day.date}" placeholder="Hora — ej: 11:30 o TBD" style="width:160px" autocomplete="off"
+                oninput="_fnovUpdateTzPreview('${day.date}')" onkeydown="if(event.key==='Enter')addFifaNovAct('${day.date}')">
+              <div class="aap-tz-chips" style="margin-top:5px">
+                <span style="font-size:10px;color:var(--muted);line-height:2;margin-right:2px">Huso:</span>
+                ${Object.entries(FIFANOV_TZ_INFO).map(([k,v])=>`<button class="aap-tz-chip${k===(_fnovTzState[day.date]||_fnovDefaultTzFor(day.date))?' active':''}" data-tz="${k}" onclick="_fnovSetTz('${day.date}','${k}')">${v.short}</button>`).join('')}
+              </div>
+              <div class="aap-tz-preview" id="fnov-tz-prev-${day.date}"></div>
+            </div>
+            <div>
+              <button class="btn primary sm" onclick="addFifaNovAct('${day.date}')">Agregar</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:7px">
+          <div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">📝 Nota del día</div>
+          <textarea class="cal-day-note${note?' has-note':''}"
+            placeholder="Nota general del día..."
+            rows="1"
+            oninput="saveDayNote('${day.date}',this)"
+            onfocus="this.rows=3"
+            onblur="if(!this.value)this.rows=1"
+          >${note}</textarea>
+        </div>
+      </div>`;
+    tl.appendChild(div);
+  });
+}
+window.renderFifaNovCal=renderFifaNovCal;
+
+// Botonera de huso horario para "Agregar actividad" de la Fecha FIFA — mismo
+// patrón visual que TZ_INFO/aapSetTz del Mundial (reutiliza las clases
+// aap-tz-chips/aap-tz-chip/aap-tz-preview), pero con los husos de esta gira
+// (Japón/Corea +9, India +5:30) en vez de las ciudades del Mundial, y en
+// minutos (no horas enteras) porque India no es un offset entero.
+const FIFANOV_TZ_INFO={
+  UY: {label:'Uruguay', short:'UY', offsetMin:-180},
+  // Se suman acá los husos de la sede (y se mapean en _fnovDefaultTzFor) cuando
+  // se confirme dónde se juega — {label, short, offsetMin} como en set-oct.
+};
+const FIFANOV_TZ_DEFAULT='UY';
+const _fnovTzState={};
+// Huso por defecto según dónde está la delegación ESE día — antes siempre
+// arrancaba en UY aunque ya estuviéramos en Japón/Corea/India, obligando a
+// cambiarlo a mano cada vez. Se deriva de day.lugar (ya dice el país) en vez
+// de mantener un mapa de fechas aparte que se desincroniza solo. Sigue
+// siendo editable — esto es solo lo que viene pintado al abrir el form.
+function _fnovDefaultTzFor(date){
+  // Sede por confirmar: todo en UY. Cuando se sepa el país, mapear acá por
+  // day.lugar/day.rival igual que en set-oct (ojo: esta función se llama al
+  // cargar el script, antes de que FIFANOV_TZ_INFO esté inicializado — no
+  // referenciarlo acá, tira ReferenceError por temporal dead zone).
+  return 'UY';
+}
+// Acepta "9", "9h", "09:00", "9:00h", "9.30" — antes exigía "H:MM" exacto y
+// cualquier otra forma (ej. "9h", como se carga naturalmente hablando de
+// horarios) fallaba en silencio: la hora quedaba sin convertir, guardada tal
+// cual en el huso de origen pero etiquetada como si ya fuera hora UY — eso
+// rompía además el orden cronológico del día (una resta de husos entre un
+// horario sí convertido y otro no).
+function _fnovParseHora(raw){
+  if(!raw) return null;
+  const s=raw.trim().toLowerCase().replace(/h$/,'').replace(',','.').trim();
+  let m=/^(\d{1,2})[:.](\d{2})$/.exec(s);
+  if(m) return {h:parseInt(m[1],10), mi:parseInt(m[2],10)};
+  m=/^(\d{1,2})$/.exec(s);
+  if(m) return {h:parseInt(m[1],10), mi:0};
+  return null;
+}
+function _fnovConvertTz(hStr, fromTz, toTz){
+  const p=_fnovParseHora(hStr);
+  if(!p || p.h>23 || p.mi>59) return null;
+  const fromMin=(FIFANOV_TZ_INFO[fromTz]||FIFANOV_TZ_INFO.UY).offsetMin;
+  const toMin=(FIFANOV_TZ_INFO[toTz]||FIFANOV_TZ_INFO.UY).offsetMin;
+  let total=p.h*60+p.mi+(toMin-fromMin);
+  total=((total%1440)+1440)%1440;
+  return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+}
+window._fnovSetTz=function(date, tz){
+  _fnovTzState[date]=tz;
+  document.querySelectorAll(`#fnov-${date} .aap-tz-chip`).forEach(el=>{
+    el.classList.toggle('active', el.dataset.tz===tz);
+  });
+  _fnovUpdateTzPreview(date);
+};
+window._fnovUpdateTzPreview=function(date){
+  const h=document.getElementById(`fnov-h-${date}`)?.value.trim();
+  const tz=_fnovTzState[date]||_fnovDefaultTzFor(date);
+  const prev=document.getElementById(`fnov-tz-prev-${date}`);
+  if(!prev) return;
+  if(tz==='UY'){ prev.textContent=''; return; }
+  const uy=_fnovConvertTz(h,tz,'UY');
+  prev.textContent=uy?`→ ${uy} Uruguay`:'';
+};
+
+const _fnovType={};
+window._fnovSetType=function(date,type,btn){
+  _fnovType[date]=type;
+  btn.parentElement.querySelectorAll('[data-fnov-type]').forEach(b=>{
+    const sel=b===btn;
+    // Seleccionado: resaltado celeste (mismo criterio "activo" del resto de la
+    // app). Sin seleccionar: vuelve a su propio color de tipo (no gris parejo),
+    // para poder distinguirlos de un vistazo incluso antes de elegir.
+    b.style.background=sel?'var(--cel)':(b.dataset.idleBg||'var(--card)');
+    b.style.color=sel?'#fff':(b.dataset.idleFg||'var(--text)');
+    b.style.borderColor=sel?'var(--cel)':'var(--border)';
+  });
+};
+
+window.toggleFifaNovAddAct=function(date,btn){
+  const wrap=document.getElementById(`fnov-${date}`);
+  if(!wrap) return;
+  const open=wrap.style.display!=='none';
+  wrap.style.display=open?'none':'flex';
+  btn.textContent=open?'＋ Agregar actividad':'✕ Cerrar';
+  if(!open){
+    delete _fnovType[date];
+    document.getElementById(`fnov-txt-${date}`)?.focus();
+    // Día de partido: ya sabemos la hora (FIFANOV26.partidosData) — se
+    // precarga para no tener que retipearla, mismo criterio que el Mundial.
+    const day=FIFANOV26_CAL_DAYS.find(d=>d.date===date);
+    if(day?.tipo==='partido'){
+      const p=(FIFANOV26.partidosData||[]).find(x=>x.fecha===date);
+      const hEl=document.getElementById(`fnov-h-${date}`);
+      if(p?.hora && hEl && !hEl.value) hEl.value=p.hora;
+    }
+  }
+};
+
+window.addFifaNovAct=function(date){
+  const txtEl=document.getElementById(`fnov-txt-${date}`);
+  const hEl=document.getElementById(`fnov-h-${date}`);
+  const quienEl=document.getElementById(`fnov-quien-${date}`);
+  const txt=(txtEl?.value||'').trim();
+  if(!txt) return;
+  const type=_fnovType[date]||'team';
+  const acts=getDayActs();
+  if(!acts[date]) acts[date]=[];
+  const hRaw=(hEl?.value||'').trim();
+  const tz=_fnovTzState[date]||_fnovDefaultTzFor(date);
+  // La hora se guarda siempre en Uruguay (mismo criterio que el resto del
+  // calendario) — si se cargó en otro huso, se convierte acá recién al
+  // guardar (antes solo se mostraba la conversión en el preview y se
+  // guardaba el valor tal cual se había tipeado, sin convertir).
+  const converted = (tz!=='UY' && hRaw && hRaw!=='TBD') ? _fnovConvertTz(hRaw,tz,'UY') : null;
+  const h = converted || (hRaw||'TBD');
+  const opt={txt, h};
+  if(converted){ opt.origH=hRaw; opt.origTz=tz; }
+  if(type==='viaje') opt.tipo='viaje';
+  else if(type==='entreno') opt.tipo='entreno';
+  else if(type==='partido') opt.tipo='partido';
+  else if(type==='auf') opt.auf=true;
+  const quien=(quienEl?.value||'').trim();
+  if(quien) opt.personas=[quien]; // se puede sumar más gente después, editando la actividad
+  acts[date].push(opt);
+  stor.set(KDayActs,acts);
+  delete _fnovType[date];
+  delete _fnovTzState[date];
+  renderFifaNovCal();
+  toast('Actividad agregada'+(tz!=='UY'&&h!==hRaw?` (${hRaw} ${tz} → ${h} UY)`:''));
+};
+
+// Los overrides por evento (texto editado, hora, estado, nota, links) se guardan
+// por posición — evKey(date,idx) — no por identidad del evento. Si se borra o
+// reordena una actividad sin reacomodar estos overrides, la actividad que pasa a
+// ocupar ese índice "hereda" los datos editados de la que estaba antes ahí (bug
+// real detectado en vivo: se borró un "Viaje a San Pablo" ya editado, se cargó
+// una actividad nueva en su lugar, y le quedó pegado el texto viejo). Estas dos
+// funciones reacomodan todos los stores relevantes para que sigan el evento.
+const _FNOV_FLAT_STORES=[KEvTxt,KEvS,KEvN,KEvLink];
+function _fnovReindexAfterDelete(date,removedIdx){
+  _FNOV_FLAT_STORES.forEach(storeKey=>{
+    const obj=stor.get(storeKey,{});
+    let maxIdx=-1;
+    const prefix=date+'_';
+    Object.keys(obj).forEach(k=>{
+      if(!k.startsWith(prefix))return;
+      const n=parseInt(k.slice(prefix.length));
+      if(!isNaN(n))maxIdx=Math.max(maxIdx,n);
+    });
+    for(let i=removedIdx+1;i<=maxIdx;i++){
+      const fromKey=evKey(date,i), toKey=evKey(date,i-1);
+      if(obj[fromKey]!==undefined) obj[toKey]=obj[fromKey]; else delete obj[toKey];
+    }
+    if(maxIdx>=removedIdx) delete obj[evKey(date,maxIdx)];
+    stor.set(storeKey,obj,{allowShrink:true});
+  });
+  const ct=stor.get(KCalT,{});
+  if(ct[date]){
+    const idxs=Object.keys(ct[date]).map(Number);
+    const maxIdx=idxs.length?Math.max(...idxs):-1;
+    for(let i=removedIdx+1;i<=maxIdx;i++){
+      if(ct[date][i]!==undefined) ct[date][i-1]=ct[date][i]; else delete ct[date][i-1];
+    }
+    if(maxIdx>=removedIdx) delete ct[date][maxIdx];
+    stor.set(KCalT,ct,{allowShrink:true});
+  }
+}
+function _fnovSwapOverrides(date,i,j){
+  _FNOV_FLAT_STORES.forEach(storeKey=>{
+    const obj=stor.get(storeKey,{});
+    const kI=evKey(date,i), kJ=evKey(date,j);
+    const vI=obj[kI], vJ=obj[kJ];
+    if(vJ!==undefined) obj[kI]=vJ; else delete obj[kI];
+    if(vI!==undefined) obj[kJ]=vI; else delete obj[kJ];
+    stor.set(storeKey,obj,{allowShrink:true});
+  });
+  const ct=stor.get(KCalT,{});
+  if(ct[date]){
+    const vI=ct[date][i], vJ=ct[date][j];
+    if(vJ!==undefined) ct[date][i]=vJ; else delete ct[date][i];
+    if(vI!==undefined) ct[date][j]=vI; else delete ct[date][j];
+    stor.set(KCalT,ct,{allowShrink:true});
+  }
+}
+window.deleteFifaNovAct=function(date,idx,ev){
+  if(ev) ev.stopPropagation();
+  const acts=getDayActs();
+  if(!acts[date]||!acts[date][idx]) return;
+  const removed=acts[date][idx];
+  _gcalDeleteById(removed.gcalEventId);
+  acts[date].splice(idx,1);
+  stor.set(KDayActs,acts,{allowShrink:true});
+  _fnovReindexAfterDelete(date,idx);
+  // Vinculada a una atención de Disponibilidad — es un solo evento, se borra junto.
+  // Si es un batch, el evento compartido representa a TODO el grupo: borrarlo
+  // borra las atenciones de todas las personas del grupo, no solo una.
+  let hadAt=false;
+  if(removed.batchId){
+    const list=getFifaNovAt().filter(a=>a.batchId!==removed.batchId);
+    stor.set(KFifaNovAt, list, {allowShrink:true});
+    hadAt=true;
+  } else if(removed.atencionId){
+    stor.set(KFifaNovAt, getFifaNovAt().filter(a=>a.id!==removed.atencionId), {allowShrink:true});
+    hadAt=true;
+  }
+  renderFifaNovCal();
+  toast(hadAt?'Actividad y atención eliminadas':'Actividad eliminada');
+};
+
+// Variantes propias de setEvSt/cycleEvSt/toggleDayClosed que refrescan
+// renderFifaNovCal() en vez de renderCal() — las originales del Mundial terminan
+// llamando renderCal(), que rompería acá porque #cal-timeline no existe en esta página.
+window._fnovSetEvSt=function(date,idx,val){
+  const ev=getEvStatus();
+  const k=evKey(date,idx);
+  ev[k]=(ev[k]===val)?'':val;
+  setEvStatus_store(ev);
+  renderFifaNovCal();
+  toast(val==='done'?'✓ Hecho':val==='sus'?'⏸ Suspendida':'✗ No realizada');
+};
+window._fnovCycleEvSt=function(date,idx){
+  const ev=getEvStatus();
+  const k=evKey(date,idx);
+  const cur=ev[k]||'';
+  ev[k]=cur===''?'done':cur==='done'?'sus':cur==='sus'?'no':'';
+  setEvStatus_store(ev);
+  renderFifaNovCal();
+};
+// "No aplica" — tercer estado para días sin entrenamiento (viaje, llegada,
+// descanso) donde "abierto/cerrado a prensa" no tiene sentido. Guardado
+// aparte (KFifaNovDayNA) para no tocar el formato de KDayClosed, que también
+// usa el calendario del Mundial.
+const KFifaNovDayNA='auf4_fifanov_day_na';
+function getFifaNovDayNA(){ return stor.get(KFifaNovDayNA,{}); }
+window._fnovToggleDayClosed=function(date){
+  const dc=getDayClosed();
+  const naMap=getFifaNovDayNA();
+  // Ciclo: abierto → cerrado → no aplica → abierto
+  if(naMap[date]){
+    naMap[date]=false; dc[date]=false;
+    toast('🟢 Abierto (15 min para prensa)');
+  } else if(dc[date]){
+    naMap[date]=true;
+    toast('⚪ No aplica (sin entrenamiento)');
+  } else {
+    dc[date]=true;
+    toast('🔒 Cerrado (sin apertura de prensa)');
+  }
+  stor.set(KDayClosed,dc);
+  stor.set(KFifaNovDayNA,naMap);
+  renderFifaNovCal();
+};
+// Guardan/borran origH+origTz en el propio objeto del acto (acts[date][idx]) —
+// _fnovFmtHora los lee de ahí para mostrar "12:30 JAP → 00:30h UY", igual que
+// ya hace addFifaNovAct al cargar una actividad nueva en otro huso.
+function _fnovSetOrig(date,idx,origH,origTz){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  e.origH=origH; e.origTz=origTz;
+  stor.set(KDayActs,acts);
+}
+function _fnovClearOrig(date,idx){
+  const acts=getDayActs();
+  const e=acts[date]?.[idx]; if(!e) return;
+  delete e.origH; delete e.origTz;
+  stor.set(KDayActs,acts);
+}
+window._fnovEditTime=function(date,idx,el){
+  const acts=getDayActs();
+  const curE=acts[date]?.[idx]||{};
+  const cur=curE.origTz && curE.origTz!=='UY' ? curE.origH : getCalTime(date,idx,'');
+  const curTz=curE.origTz||'UY';
+  const wrap=document.createElement('div');
+  wrap.style.cssText='display:flex;flex-direction:column;gap:3px;min-width:110px';
+  const inp=document.createElement('input');
+  inp.type='text'; inp.value=cur==='TBD'?'':cur;
+  inp.placeholder='ej: 17:30';
+  inp.style.cssText='width:110px;font-size:11px;font-weight:700;border:1.5px solid var(--cel);border-radius:5px;padding:2px 6px;font-family:inherit;background:#fff;outline:none';
+  const tzWrap=document.createElement('div');
+  tzWrap.className='aap-tz-chips';
+  let tz=curTz;
+  Object.entries(FIFANOV_TZ_INFO).forEach(([k,v])=>{
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=v.short; b.title=v.label;
+    b.className='aap-tz-chip'+(k===tz?' active':'');
+    // Evita que el click en el chip le saque el foco al input antes de leer tz
+    b.onmousedown=ev=>ev.preventDefault();
+    b.onclick=()=>{ tz=k; tzWrap.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b)); inp.focus(); };
+    tzWrap.appendChild(b);
+  });
+  wrap.appendChild(inp); wrap.appendChild(tzWrap);
+  el.replaceWith(wrap); inp.focus(); inp.select();
+  let committed=false;
+  function commit(){
+    if(committed) return; committed=true;
+    const raw=inp.value.trim();
+    if(!raw){ saveCalTime(date,idx,'TBD'); _fnovClearOrig(date,idx); _fnovSyncAtencionTime(date,idx); renderFifaNovCal(); return; }
+    if(tz==='UY'){
+      saveCalTime(date,idx,raw);
+      _fnovClearOrig(date,idx);
+    } else {
+      const converted=_fnovConvertTz(raw,tz,'UY')||raw;
+      saveCalTime(date,idx,converted);
+      _fnovSetOrig(date,idx,raw,tz);
+    }
+    _fnovSyncAtencionTime(date,idx);
+    renderFifaNovCal();
+  }
+  inp.onblur=commit;
+  inp.onkeydown=ev=>{ if(ev.key==='Enter') commit(); if(ev.key==='Escape'){ committed=true; renderFifaNovCal(); } };
+};
+window._fifaNovMoveAct=function(date,idx,dir,ev){
+  if(ev) ev.stopPropagation();
+  const acts=getDayActs();
+  const list=acts[date];
+  if(!list) return;
+  const j=idx+dir;
+  if(j<0||j>=list.length) return;
+  [list[idx],list[j]]=[list[j],list[idx]];
+  stor.set(KDayActs,acts);
+  _fnovSwapOverrides(date,idx,j);
+  renderFifaNovCal();
+};
+
+
 function _infoGeneralDefaults(tKey){
-  if(tKey==='fifasep26'){
-    const matches=FIFASEP26.partidosData||[];
-    const faltan=(FIFASEP26.partidos||0)-matches.length;
+  if(tKey==='fifasep26' || tKey==='fifanov26'){
+    // Mismo bloque para las dos Fechas FIFA: cambia solo el objeto de datos.
+    const EV = tKey==='fifanov26' ? FIFANOV26 : FIFASEP26;
+    const matches=EV.partidosData||[];
+    const faltan=(EV.partidos||0)-matches.length;
     const rivalesTxt=matches.length
       ? matches.map(p=>`${p.rivalBandera} ${p.rival} (${_fmtDateCorta(p.fecha)}${p.local===false?', visitante':''})`).join(', ')+(faltan>0?`, +${faltan} por confirmar`:'')
       : 'Por confirmar';
     return {
-      title: '📅 '+FIFASEP26.label,
+      title: '📅 '+EV.label,
       sub: 'Período reglamentario FIFA',
-      dataGeneral: `<li>Período reglamentario FIFA: del ${_fmtDateCorta(FIFASEP26.periodoFifa?.desde||'2026-09-21')} al ${_fmtDateCorta(FIFASEP26.periodoFifa?.hasta||'2026-10-06')} de 2026</li>
-          <li>${FIFASEP26.desc}</li>
-          <li>Director técnico: ${FIFASEP26.dt||'Por confirmar'}</li>
+      dataGeneral: `<li>Período reglamentario FIFA: del ${_fmtDateCorta(EV.periodoFifa?.desde||(tKey==='fifanov26'?'2026-11-09':'2026-09-21'))} al ${_fmtDateCorta(EV.periodoFifa?.hasta||(tKey==='fifanov26'?'2026-11-17':'2026-10-06'))} de 2026</li>
+          <li>${EV.desc}</li>
+          <li>Director técnico: ${EV.dt||'Por confirmar'}</li>
           <li>Rivales: ${rivalesTxt}</li>
-          ${(FIFASEP26.deadlines||[]).map(d=>`<li>${_fmtDateCorta(d.fecha)}: ${d.txt}</li>`).join('')}
-          ${(FIFASEP26.reglasLista||[]).map(t=>`<li>${t}</li>`).join('')}`,
-      dataNuestra: (FIFASEP26.itinerario||[]).length
-        ? `<ul style="margin:0;padding-left:18px">${FIFASEP26.itinerario.map(t=>`<li>${t}</li>`).join('')}</ul>`
+          ${(EV.deadlines||[]).map(d=>`<li>${_fmtDateCorta(d.fecha)}: ${d.txt}</li>`).join('')}
+          ${(EV.reglasLista||[]).map(t=>`<li>${t}</li>`).join('')}`,
+      dataNuestra: (EV.itinerario||[]).length
+        ? `<ul style="margin:0;padding-left:18px">${EV.itinerario.map(t=>`<li>${t}</li>`).join('')}</ul>`
         : `<div style="color:var(--muted)">Se cargará cuando se confirmen sede, hoteles y logística de los partidos.</div>`,
       showCloseBanner: false,
     };
@@ -12760,6 +14865,20 @@ function renderPeriplo(view){
     if(!byYear[2026]) byYear[2026]=[];
     byYear[2026].push(...fsapRows);
   }
+  // Fecha FIFA nov 2026: misma derivación en vivo (FIFANOV26.partidosData + lo
+  // cargado en la Pizarra, auf4_amist_juv_fifamayor_nov26). Sin partidos todavía → vacío.
+  let fnovRows=[];
+  if(typeof FIFANOV26!=='undefined' && FIFANOV26.partidosData && FIFANOV26.partidosData.length){
+    let fnList=[];
+    try{ fnList=JSON.parse(localStorage.getItem('auf4_amist_juv_fifamayor_nov26')||'[]'); }catch(_){}
+    fnovRows=FIFANOV26.partidosData.map(p=>{
+      const m=fnList.find(x=>x.rival===p.rival);
+      const res=(m && m.gLocal!=null && m.gRival!=null) ? `${m.gLocal}-${m.gRival}` : null;
+      return {yr:2026, fase:'Fecha FIFA nov 2026', tipo:'AM', rival:p.rival, res, loc:p.local===false?'V':'L', est:p.sede||'Sede por confirmar', ciudad:p.ciudad||p.rival, pais:p.rival, fui:true};
+    });
+    if(!byYear[2026]) byYear[2026]=[];
+    byYear[2026].push(...fnovRows);
+  }
 
   // ── Estadísticas "tipo jugador" (PJ/G/E/P/GF/GC) — Selección Mayor ──────
   // Cuenta TODOS los partidos con resultado cargado (mayor + Fecha FIFA en
@@ -12768,7 +14887,7 @@ function renderPeriplo(view){
   // muestra cuántos de cada stat corresponden a partidos NO presenciados.
   let pjT=0,gT=0,eT=0,pT=0,gfT=0,gcT=0;
   let pjN=0,gN=0,eN=0,pN=0,gfN=0,gcN=0;
-  [...mayor, ...fsapRows].forEach(m=>{
+  [...mayor, ...fsapRows, ...fnovRows].forEach(m=>{
     if(!m.res) return;
     const score=m.res.replace(/\(.*\)/,'').trim();
     const [a,b]=score.split('-').map(Number);
@@ -13066,6 +15185,42 @@ window._saveFifaSepPartVal=function(nomEnc,matchId,sel){
   if(!p[nom]) p[nom]={};
   p[nom][matchId]=sel.value;
   stor.set('auf4_fifasep_part',p);
+  const opt=PART_OPTIONS.find(o=>o.val===sel.value)||PART_OPTIONS[0];
+  sel.className='part-sel '+opt.cls;
+};
+window._toggleFifaNovCapitan=function(nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const s=stor.get('auf4_capitan',{});
+  s[nom]=!s[nom];
+  stor.set('auf4_capitan',s);
+  _refreshAllFichaViews();
+  window.renderFifaNov26Plantel?.();
+};
+// Provisorios de la gira — se resetean solos cuando termine (no son estado
+// permanente del jugador como capitán/lesión, por eso van en su propio store).
+window._toggleFifaNovLlegado=function(nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const s=stor.get('auf4_fifanov_llegado',{});
+  s[nom]=!s[nom];
+  stor.set('auf4_fifanov_llegado',s);
+  window.renderFifaNov26Plantel?.();
+};
+window._toggleFifaNovShooting=function(nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const s=stor.get('auf4_fifanov_shooting',{});
+  s[nom]=!s[nom];
+  stor.set('auf4_fifanov_shooting',s);
+  window.renderFifaNov26Plantel?.();
+};
+// Participación por partido (jugó/entró/no entró/no participó) — mismo
+// componente y mismas PART_OPTIONS que el Mundial, guardado aparte por
+// nombre (auf4_fifanov_part) porque acá los jugadores no tienen dorsal.
+window._saveFifaNovPartVal=function(nomEnc,matchId,sel){
+  const nom=decodeURIComponent(nomEnc);
+  const p=stor.get('auf4_fifanov_part',{});
+  if(!p[nom]) p[nom]={};
+  p[nom][matchId]=sel.value;
+  stor.set('auf4_fifanov_part',p);
   const opt=PART_OPTIONS.find(o=>o.val===sel.value)||PART_OPTIONS[0];
   sel.className='part-sel '+opt.cls;
 };
@@ -13588,7 +15743,7 @@ function renderTecnicos(){
         </div>`).join('')}
     </div>`;
   const _forlanRolesPorModo={
-    mayor:[['Mayor · DT interino',`Fecha FIFA set-oct 2026 · ${_forlanMayorRecord().pj} PJ (21/9–6/10)`],['Mayor · DT interino','Fecha FIFA nov 2026 · 2 PJ (9/11–17/11)'],['Mayor · DT interino','Fecha FIFA mar 2027 · 2 PJ']],
+    mayor:[['Mayor · DT interino',`Fecha FIFA set-oct 2026 · ${_forlanMayorRecord('sep').pj} PJ (21/9–6/10)`],['Mayor · DT interino',`Fecha FIFA nov 2026 · ${_forlanMayorRecord('nov').pj} PJ (9/11–17/11)`],['Mayor · DT interino','Fecha FIFA mar 2027 · 2 PJ']],
     sub20:[['Sub-20 · Director técnico','Hasta el Sudamericano Sub-20 de enero 2027']],
   };
   const _forlanRec=(_tecMode==='mayor')?_forlanMayorRecord():null;
@@ -13849,7 +16004,7 @@ window._mobCardToggle=function(card){
   if(!wasExp){card.classList.add('mob-exp');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
 };
 function renderJugadores(){
-  _fifaSepApplyFloor();
+  _fifaSepApplyFloor(); _fifaNovApplyFloor();
   const con=document.getElementById('jugadores-container');
   if(!con) return;
   const _scrollY=window.scrollY;
@@ -14195,7 +16350,7 @@ function _buildJugadorHTML(nom,closeId){
     </div>`;
 }
 function showJugador(nom){
-  _fifaSepApplyFloor();
+  _fifaSepApplyFloor(); _fifaNovApplyFloor();
   let overlay=document.getElementById('jug-modal-overlay');
   if(!overlay){
     overlay=document.createElement('div');
@@ -15517,13 +17672,13 @@ const AUF_HIST_UPDATED={date:'26/06/2026', match:'vs. España (Fecha 3 — Fase 
 function aufHistUpdatedLabel(){
   let ult=null;
   try{
-    _fifaSepPizarraMatches().forEach(m=>{
+    [..._fifaSepPizarraMatches(), ..._fifaNovPizarraMatches()].forEach(m=>{
       if(m&&m.fecha&&!isNaN(parseInt(m.gLocal))&&!isNaN(parseInt(m.gRival))&&(!ult||m.fecha>ult.fecha)) ult=m;
     });
   }catch(_){}
   if(!ult) return `${AUF_HIST_UPDATED.date} · ${AUF_HIST_UPDATED.match}`;
   const f=ult.fecha.split('-').reverse().join('/');
-  return `${f} · vs. ${ult.rival} (Fecha FIFA sep-oct 2026) · incluye partidos de la Pizarra, por contrastar con AUF`;
+  return `${f} · vs. ${ult.rival} (${ult.compId==='fifanov26'?'Fecha FIFA nov 2026':'Fecha FIFA sep-oct 2026'}) · incluye partidos de la Pizarra, por contrastar con AUF`;
 }
 
 // Genera slug AUF: "José María Giménez" → "jose-maria-gimenez"
@@ -17659,10 +19814,16 @@ window._saveForlanConf=function(){
 function _forlanConfsDesdeAtenciones(){
   const dt=(typeof FIFASEP26!=='undefined'&&FIFASEP26.dt)||'Diego Forlán';
   const evS=getEvStatus(), evL=getEvLinks();
-  return getFifaSepAt()
-    .filter(a=>a.quien===dt && (a.tipo==='md1'||a.tipo==='md'))
-    .map(a=>{
-      const linked=a.batchId?_fsapFindLinkedActByBatch(a.batchId):_fsapFindLinkedAct(a.id);
+  // Conferencias MD-1/MD de TODAS las Fechas FIFA (set-oct y nov), cada una con su
+  // propio vínculo al Calendario.
+  const _atsCon=[
+    ...getFifaSepAt().map(a=>({a, byB:_fsapFindLinkedActByBatch, byId:_fsapFindLinkedAct})),
+    ...getFifaNovAt().map(a=>({a, byB:_fnovFindLinkedActByBatch, byId:_fnovFindLinkedAct})),
+  ];
+  return _atsCon
+    .filter(({a})=>a.quien===dt && (a.tipo==='md1'||a.tipo==='md'))
+    .map(({a,byB,byId})=>{
+      const linked=a.batchId?byB(a.batchId):byId(a.id);
       const k=linked?evKey(linked.date,linked.idx):null;
       const lbl=(FIFASEP_DISP_TIPOS.find(t=>t.id===a.tipo)||{}).label||'Conferencia';
       return {txt:a.titulo||a.txt||lbl, tipoLbl:lbl, fecha:a.fecha||'', hora:a.hora||'',
@@ -17674,8 +19835,8 @@ function _forlanConfsDesdeAtenciones(){
 // Fecha FIFA cargados en la Pizarra (auf4_amist_juv_fifamayor_sepoct26: marcador
 // gLocal–gRival + goleadores), así que se actualiza en cuanto se carga cada
 // resultado, sin cargar nada aparte.
-function _forlanMayorRecord(){
-  const list=_fifaSepPizarraMatches();
+function _forlanMayorRecord(evId){
+  const list=(evId==='sep'?_fifaSepPizarraMatches():evId==='nov'?_fifaNovPizarraMatches():[..._fifaSepPizarraMatches(),..._fifaNovPizarraMatches()]);
   const rec={pj:0,g:0,e:0,p:0,gf:0,gc:0,pct:0,matches:[],scorers:[],ec:0};
   const sc={};
   (list||[]).filter(Boolean).forEach(m=>{
@@ -17697,7 +19858,7 @@ function buildForlanStatsHtml(){
   const rec=_forlanMayorRecord();
   if(!rec.pj) return `<div style="color:var(--muted);font-size:12px;padding:20px 0">Sin datos disponibles aún.</div>`;
   const chip=(l,v,c)=>`<div style="background:var(--surface);border-radius:8px;padding:10px 6px;text-align:center;border:0.5px solid var(--border)"><div style="font-size:18px;font-weight:900;color:${c}">${v}</div><div style="font-size:8.5px;font-weight:700;color:var(--muted);margin-top:2px;letter-spacing:.04em">${l}</div></div>`;
-  const banderas={}; (FIFASEP26.partidosData||[]).forEach(pd=>{ banderas[pd.rival]=pd.rivalBandera||''; });
+  const banderas={}; [...(FIFASEP26.partidosData||[]),...(FIFANOV26.partidosData||[])].forEach(pd=>{ banderas[pd.rival]=pd.rivalBandera||''; });
   const mrow=m=>{
     const col=m.gl>m.gr?'#16a34a':m.gl===m.gr?'#ca8a04':'#dc2626';
     const lbl=m.gl>m.gr?'G':m.gl===m.gr?'E':'P';
@@ -17712,7 +19873,7 @@ function buildForlanStatsHtml(){
   };
   const hdr=t=>`<div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px">${t}</div>`;
   return `
-    ${hdr('Récord con Selección Mayor · Fecha FIFA set-oct 2026')}
+    ${hdr('Récord con Selección Mayor · Fechas FIFA set-oct y nov 2026')}
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:16px">
       ${chip('PJ',rec.pj,'var(--text)')}${chip('G',rec.g,'#16a34a')}${chip('E',rec.e,'#ca8a04')}${chip('P',rec.p,'#dc2626')}${chip('GF',rec.gf,'var(--cel-dk)')}${chip('GC',rec.gc,'#dc2626')}${chip('%',rec.pct+'%','#7c3aed')}
     </div>
@@ -17811,6 +19972,8 @@ function buildForlanConvHtml(){
   // (FIFASEP26.reservados / FIFASEP26.finales), no hay que cargarlas acá.
   const _reservaNoms=Object.values(FIFASEP26.reservados||{}).flat().map(j=>j.nom).filter(Boolean);
   const _finalNoms=(FIFASEP26.finales||[]).filter(Boolean);
+  const _reservaNomsNov=Object.values(FIFANOV26.reservados||{}).flat().map(j=>j.nom).filter(Boolean);
+  const _finalNomsNov=(FIFANOV26.finales||[]).filter(Boolean);
   const _convDetalle=noms=>noms.length?`<details style="padding:2px 10px 6px"><summary style="cursor:pointer;font-size:10.5px;font-weight:700;color:var(--cel-dk)">${noms.length} jugadores</summary>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${noms.map(n=>`<span style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">${n}</span>`).join('')}</div></details>`:'';
   const dateRow=(vi,tipo,label,def)=>{
@@ -17831,9 +19994,9 @@ function buildForlanConvHtml(){
         <div style="font-size:10.5px;color:var(--muted);margin-bottom:8px">${v.partidos} partidos · ${v.rango}</div>
         <div style="display:flex;flex-direction:column;gap:4px">
           ${dateRow(vi,'reserva','Lista de reserva',v.reserva)}
-          ${vi===0?_convDetalle(_reservaNoms):''}
+          ${vi===0?_convDetalle(_reservaNoms):vi===1?_convDetalle(_reservaNomsNov):''}
           ${dateRow(vi,'final','Convocatoria final',v.final)}
-          ${vi===0?_convDetalle(_finalNoms):''}
+          ${vi===0?_convDetalle(_finalNoms):vi===1?_convDetalle(_finalNomsNov):''}
           </div>
         </div>
       </div>`).join('')}
@@ -17956,7 +20119,7 @@ let _legendsEdit=false;
 function toggleLegendsEdit(){ _legendsEdit=!_legendsEdit; renderEstadisticas(); }
 
 function buildAllHistFromJugadores(){
-  _fifaSepApplyFloor();
+  _fifaSepApplyFloor(); _fifaNovApplyFloor();
   const legs=getLegends();
   const byName=Object.fromEntries(PLAYERS.map(p=>[p.name,p]));
   const PC={POR:'#CA8A04',DEF:'#16a34a',MED:'#2563EB',DEL:'#EA580C'};
@@ -17972,6 +20135,7 @@ function buildAllHistFromJugadores(){
     if(pp){const eff=effectiveStats(pp);pj=eff.caps;g=eff.goals;wcPj=eff.wcCaps;wcG=eff.wcGoals;}
     // Fecha FIFA sep-oct 2026: suma lo cargado en la Pizarra (ver _fifaSepFloor)
     const _ff=_fifaSepFloor(nom); if(_ff){ pj=Math.max(pj,_ff.pj); g=Math.max(g,_ff.g); }
+    const _fn=_fifaNovFloor(nom); if(_fn){ pj=Math.max(pj,_fn.pj); g=Math.max(g,_fn.g); }
     return{nom,d,isRet,isLeg,pp,pj,g,wcPj,wcG};
   });
 
@@ -17996,8 +20160,8 @@ function buildAllHistFromJugadores(){
     const _grayscale=isRet||isFall?'grayscale(.8)':'';
     // Destaca a los convocados a la próxima Fecha FIFA — útil como referencia
     // rápida al armar piezas/datos con la tabla histórica.
-    const isConvFifaSep=typeof FIFASEP26!=='undefined'&&FIFASEP26.finales&&FIFASEP26.finales.includes(nom);
-    const convBadge=isConvFifaSep?`<span title="Convocado — Fecha FIFA sep-oct 2026" style="font-size:7.5px;font-weight:800;background:#DBEAFE;color:#1D4ED8;border-radius:4px;padding:1px 5px;margin-left:5px;letter-spacing:.04em;vertical-align:middle">📅 FIFA</span>`:'';
+    const isConvFifaSep=(typeof FIFASEP26!=='undefined'&&FIFASEP26.finales&&FIFASEP26.finales.includes(nom))||(typeof FIFANOV26!=='undefined'&&FIFANOV26.finales&&FIFANOV26.finales.includes(nom));
+    const convBadge=isConvFifaSep?`<span title="Convocado — Fecha FIFA ${(typeof FIFANOV26!=='undefined'&&FIFANOV26.finales&&FIFANOV26.finales.includes(nom))?'nov 2026':'sep-oct 2026'}" style="font-size:7.5px;font-weight:800;background:#DBEAFE;color:#1D4ED8;border-radius:4px;padding:1px 5px;margin-left:5px;letter-spacing:.04em;vertical-align:middle">📅 FIFA</span>`:'';
     const avatarHtml=`<div style="position:relative;width:24px;height:24px;flex-shrink:0">
       <div style="position:absolute;inset:0;border-radius:50%;background:${pc}22;border:1.5px solid ${pc};display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:800;color:${pc};letter-spacing:-.5px">${initials}</div>
       <img data-hist-nom="${nom.replace(/"/g,'&quot;')}" src="${_initSrc}" style="position:absolute;inset:0;width:24px;height:24px;border-radius:50%;object-fit:cover;object-position:top center;filter:${_grayscale};${_initSrc?'':'display:none'}" onerror="this.style.display='none'">
@@ -20143,6 +22307,7 @@ function lgCopy(i,url){
         if(!last || last==='inicio') return;
         if(!document.getElementById(last)) return;
         const tid = last.startsWith('fifasep26-') ? 'fifasep26'
+          : last.startsWith('fifanov26-') ? 'fifanov26'
           : (TOURNAMENTS['cm2026']?.tabs.some(t=>t.id===last) ? 'cm2026' : null);
         if(tid){
           window._activeTournament=tid;
@@ -27768,11 +29933,12 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
   // visibles para que quede claro que existen, pero sin poder seleccionarlos.
   const bajaSet = new Set();
   const isIndiaFifaSep = m.compId==='fifasep26' && m.rival==='India';
-  if(m.compId==='fifasep26' && typeof FIFASEP26!=='undefined' && FIFASEP26.reservados){
-    Object.entries(FIFASEP26.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
+  const _fevSP = (typeof _fifaEvOf==='function') ? _fifaEvOf(m.compId) : null; // Fecha FIFA del partido (set-oct o nov)
+  if(_fevSP && _fevSP.reservados){
+    Object.entries(_fevSP.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
       // Confirmados los 26 finales, el selector de cancha se restringe a
       // esos — ya no tiene sentido poner en la pizarra a un descartado.
-      if(FIFASEP26.finales && !FIFASEP26.finales.includes(j.nom)) return;
+      if(_fevSP.finales && !_fevSP.finales.includes(j.nom)) return;
       const k=_norm(j.nom);
       if(!convMap.has(k)) convMap.set(k, j.nom);
       _fifaSepPosMap[j.nom]=pos;
@@ -27804,7 +29970,7 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
       }
     }
   }
-  const juvPosRaw = m.compId==='fifasep26' ? _fifaSepPosMap : getJuvPos();
+  const juvPosRaw = _fevSP ? _fifaSepPosMap : getJuvPos();
   const juvPosByNorm = {};
   Object.entries(juvPosRaw).forEach(([k,v])=>{ const nk=_norm(k); if(!(nk in juvPosByNorm)) juvPosByNorm[nk]=v; });
   const juvPos = new Proxy({}, {get:(_,nom)=>juvPosRaw[nom]??juvPosByNorm[_norm(String(nom))]??''});
@@ -27818,7 +29984,7 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
     const pos = juvPos[nom]||'';
     // Selector de la Fecha FIFA (Mayor real, m.compId==='fifasep26'): sin riesgo de
     // homónimo, así que cae a la foto ya cargada en JUGADORES si no hay una propia.
-    const ph = window._juvGetPhoto?.(nom) || (m.compId==='fifasep26' ? (window._getPhotoByName?.(nom)||JUGADORES?.[nom]?.foto) : null) || null;
+    const ph = window._juvGetPhoto?.(nom) || (_fevSP ? (window._getPhotoByName?.(nom)||JUGADORES?.[nom]?.foto) : null) || null;
     const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
     const inUse = usedNoms.has(nom) && nom!==curNom;
     const isBaja = isIndiaFifaSep && bajaSet.has(nom);
@@ -28206,14 +30372,14 @@ function _saveAmistosos(cat, year, list){ stor.set(_amistKey(cat,year), list); }
 // reusa el mismo motor desde Selección Mayor: sin este chequeo, cualquier
 // cambio (asignar jugador, gol, tarjeta, DT, formación...) actualizaba el
 // dato pero renderizaba Juveniles en vez de refrescar la Pizarra visible.
-function _amistRerender(cat){
-  if(cat==='fifamayor') window.renderFifaSep26?.('fifasep26-pizarra');
+function _amistRerender(cat, year){
+  if(cat==='fifamayor') (year==='nov26' ? window.renderFifaNov26?.('fifanov26-pizarra') : window.renderFifaSep26?.('fifasep26-pizarra'));
   else window.renderJuveniles?.();
 }
 function _amistPatch(cat, year, id, fn){
   const list = _getAmistosos(cat, year);
   const m = list.find(m=>m.id===id); if(!m) return;
-  fn(m); _saveAmistosos(cat, year, list); _amistRerender(cat);
+  fn(m); _saveAmistosos(cat, year, list); _amistRerender(cat, year);
 }
 // Confirmar un partido = "ya se jugó, contá sus stats" — antes _juvOfficialStats
 // adivinaba esto solo por fecha (m.fecha<=TODAY), y eso fallaba seguido (partido
@@ -28492,9 +30658,10 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
   const convSet = new Set();
   const convPosMap = {}; // nom → pos from static convocatorias
   const convNumMap = {}; // nom → num oficial del torneo (si hay convocatoria final)
-  if(filterCompId==='fifasep26' && typeof FIFASEP26!=='undefined' && FIFASEP26.reservados){
-    Object.entries(FIFASEP26.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
-      if(FIFASEP26.finales && !FIFASEP26.finales.includes(j.nom)) return;
+  const _fevB = _fifaEvOf(filterCompId); // Fecha FIFA de este fixture (set-oct o nov), o null
+  if(_fevB && _fevB.reservados){
+    Object.entries(_fevB.reservados).forEach(([pos,arr])=>(arr||[]).forEach(j=>{
+      if(_fevB.finales && !_fevB.finales.includes(j.nom)) return;
       convSet.add(j.nom);
       convPosMap[j.nom]=pos;
       if(j.num!=null) convNumMap[j.nom]=j.num;
@@ -28543,7 +30710,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
     const pendiente = list.find(m=>m.gLocal==null || m.gRival==null);
     return (pendiente || list[list.length-1])?.id;
   };
-  const openId = (filterCompId==='fifasep26' && !list.some(m=>m.id===window._amistDetailOpen))
+  const openId = (_fifaEvOf(filterCompId) && !list.some(m=>m.id===window._amistDetailOpen))
     ? _fifaSepDefaultMatchId()
     : window._amistDetailOpen;
   if(openId!=null){
@@ -28803,14 +30970,14 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
           </div>
         </div>`;
 
-      const matchTabsHtml = filterCompId==='fifasep26' ? `
+      const matchTabsHtml = _fifaEvOf(filterCompId) ? `
         <div class="tabs" style="margin-bottom:12px">
-          ${list.map(lm=>`<button onclick="window._amistDetailOpen=${lm.id};window.renderFifaSep26?.('fifasep26-pizarra')" class="tab${lm.id===m.id?' active':''}">vs. ${lm.rival}</button>`).join('')}
+          ${list.map(lm=>`<button onclick="window._amistDetailOpen=${lm.id};${_fifaRenderCall(filterCompId)}" class="tab${lm.id===m.id?' active':''}">vs. ${lm.rival}</button>`).join('')}
         </div>` : '';
       return `
         ${matchTabsHtml}
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-          ${filterCompId==='fifasep26'?'':`
+          ${_fifaEvOf(filterCompId)?'':`
           <button onclick="_amistCloseDetail()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700;flex-shrink:0">
             <i class="ti ti-arrow-left"></i> Volver
           </button>`}
@@ -28820,14 +30987,14 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
           </div>
           <div style="font-size:1.3em;font-weight:900;color:${resColor};flex-shrink:0">${resLabel}</div>
         </div>
-        ${filterCompId==='fifasep26'?_fifaSepConfirmBtnHtml(cat,year,m):''}
+        ${filterCompId==='fifasep26'?_fifaSepConfirmBtnHtml(cat,year,m):filterCompId==='fifanov26'?_fifaNovConfirmBtnHtml(cat,year,m):''}
         ${legTabs}
         <div class="piz-3col">
           <div class="piz-col-left">${leftCol}</div>
           <div class="piz-col-center">${pitchHtml}</div>
           <div class="piz-col-right" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">${benchHtml}</div>
         </div>
-        ${filterCompId==='fifasep26'?'':`
+        ${_fifaEvOf(filterCompId)?'':`
         <button onclick="_amistDeleteMatch('${cat}','${year}',${m.id})"
           style="width:100%;padding:8px;background:var(--card);border:1.5px solid #fca5a5;color:#dc2626;border-radius:10px;font-size:.78em;font-weight:700;cursor:pointer;margin-top:12px">
           <i class="ti ti-trash"></i> Eliminar partido
@@ -29161,6 +31328,7 @@ async function _loadJuvPhotoCache(){
   // fotos recién cargadas quedaban en iniciales para siempre hasta salir y volver
   // a entrar, dando la falsa impresión de que la foto se había borrado.
   if(document.getElementById('fifasep26-plantel')?.classList.contains('active') && typeof window.renderFifaSep26Plantel==='function') window.renderFifaSep26Plantel();
+    if(document.getElementById('fifanov26-plantel')?.classList.contains('active') && typeof window.renderFifaNov26Plantel==='function') window.renderFifaNov26Plantel();
   // Cargar fotos desde Supabase Storage (cross-device)
   _loadPhotosFromSupabase();
 }
@@ -29207,6 +31375,7 @@ async function _loadPhotosFromSupabase(){
     if(patchedEst && typeof renderEstructura==='function') renderEstructura();
     if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
     if(document.getElementById('fifasep26-plantel')?.classList.contains('active') && typeof window.renderFifaSep26Plantel==='function') window.renderFifaSep26Plantel();
+    if(document.getElementById('fifanov26-plantel')?.classList.contains('active') && typeof window.renderFifaNov26Plantel==='function') window.renderFifaNov26Plantel();
   }catch(e){console.warn('Supabase photo load:',e);}
 }
 
