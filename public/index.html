@@ -33469,80 +33469,135 @@ const REDES_PLATS = {
 
 // Semilla inicial — primer relevamiento 15 may–6 jul 2026 (previo al Mundial en adelante).
 // Se sobreescribe/ extiende con lo que vaya guardando el chequeo semanal en stor('auf4_social_metrics').
+function _redesParsePaises(str){ return (str||'').split(';').filter(Boolean).map(x=>{ const i=x.lastIndexOf(':'); return [x.slice(0,i), parseInt(x.slice(i+1),10)]; }); }
+// Audiencia de YouTube (canal AUFTV) por país, en visualizaciones, de cada ventana (top ~30-50).
+const REDES_YT_PAISES_RAW = {
+  w1: "Uruguay:131317;Argentina:30052;España:20353;Estados Unidos:19568;México:8637;Brasil:4834;Perú:4270;Colombia:3920;Chile:3721;Venezuela:2449;Ecuador:2251;Bolivia:2106;Australia:1896;Canadá:1613;Honduras:1402;Paraguay:1394;El Salvador:1384;Guatemala:1216;Italia:1021;Irak:1008;Panamá:860;Alemania:769;Bangladés:686;Marruecos:658;Costa Rica:639;Francia:612;India:595;Reino Unido:580;Indonesia:535",
+  w2: "Uruguay:126470;Argentina:51644;Paraguay:47411;Perú:25688;Estados Unidos:23573;España:17965;Colombia:15382;Ecuador:14134;Venezuela:14089;México:13130;Chile:12698;Bolivia:7381;Brasil:5750;Australia:2253;Canadá:2097;Italia:1910;Guatemala:1497;Honduras:1373;Francia:1362;Costa Rica:1347;Panamá:1302;Japón:1048;Alemania:1046;Indonesia:839;El Salvador:798;Bangladés:556;Reino Unido:545;Vietnam:409;Turquía:341",
+  w3: "Uruguay:312837;Argentina:55854;Perú:37845;Estados Unidos:37240;México:31612;España:30550;Chile:21474;Indonesia:18017;Brasil:11744;Colombia:11696;Ecuador:8360;Bolivia:6003;Paraguay:5360;Italia:5070;Australia:4641;Canadá:4425;Venezuela:4238;Nigeria:3046;Kenia:2910;Sudáfrica:1919;Alemania:1807;Reino Unido:1526;Francia:1408;India:1370;Guatemala:1220;Costa Rica:1203;Japón:1200;Panamá:1151;Malasia:1128",
+  w4: "Uruguay:268191;Brasil:44121;Malasia:37668;Argentina:29131;Estados Unidos:23612;España:22478;Indonesia:18412;Uzbekistán:17785;Perú:12119;México:11009;Colombia:9850;Chile:7396;Ecuador:7177;Bolivia:4755;Australia:4688;República Dominicana:4551;Paraguay:4132;Venezuela:3186;Canadá:3058;Italia:2101;Tailandia:2042;Alemania:1658;Vietnam:1616;Japón:1536;Corea del Sur:1535;Reino Unido:1517;Bangladés:1398;Rusia:1255;Singapur:1118;Panamá:1068;India:1029;Kazajistán:1008;Francia:842;Suecia:831;Países Bajos:732;Camboya:720;Marruecos:696;Israel:668;Sudáfrica:667;Costa Rica:643;Kenia:612;Kirguistán:558;Myanmar (Birmania):551;Turquía:544;Hong Kong:541;Portugal:529;Guatemala:515;Honduras:462",
+  w5: "Uruguay:155949;Argentina:35922;México:27498;Estados Unidos:23189;España:14287;Brasil:10097;Colombia:6917;Chile:5718;Perú:4286;Paraguay:3096;Australia:2681;Ecuador:2458;Canadá:2047;Venezuela:1595;Bolivia:1097;Uzbekistán:838;Indonesia:778;Italia:730;Costa Rica:634;Guatemala:575;Alemania:549;Panamá:548;Honduras:487;Francia:414;Malasia:357;Reino Unido:312;Cuba:301;Suecia:263;Israel:246;El Salvador:241;República Dominicana:222;Japón:179;Países Bajos:174;Suiza:165;India:134",
+  w6: "Uruguay:707197;México:194007;España:179162;Indonesia:119962;Argentina:96504;Estados Unidos:85885;Brasil:53524;Nigeria:23413;Kenia:22422;Malasia:22163;Sudáfrica:20538;Chile:16921;Reino Unido:16714;Perú:16475;Australia:16447;Francia:16205;Colombia:15714;Italia:14421;Tailandia:13690;Canadá:13682;India:13103;Etiopía:12652;Senegal:10571;Ecuador:10471;Bangladés:8849;Uzbekistán:8824;Paraguay:8521;Myanmar (Birmania):8483;Ghana:8312;Argelia:8205;Rusia:7952;Alemania:7631;Venezuela:7596;Tanzania:7004;Singapur:6630;Portugal:6197;Hong Kong:6029;Guatemala:5624;Marruecos:5429",
+  wc: "Uruguay:2775734;Argentina:439534;Estados Unidos:257364;España:255385;México:216224;Brasil:106682;Chile:92114;Perú:46388;Colombia:45981;Australia:37491;Canadá:28564;Paraguay:27153;Italia:20557;Ecuador:17198;Venezuela:15410;Alemania:12613;Bolivia:12511;Reino Unido:10701;Francia:10200;Costa Rica:8730;Indonesia:7798;Guatemala:7291;Argelia:7248;Panamá:7121;Suecia:6311;Israel:6024;Japón:5756;Portugal:5593;Honduras:5549",
+  w7: "Uruguay:1750522;Indonesia:811472;Brasil:390929;Japón:377300;Argentina:351864;México:336927;Estados Unidos:270743;España:250420;Corea del Sur:241396;Perú:201830;India:183018;Bangladés:174100;Malasia:134919;Vietnam:106993;Colombia:106922;Ecuador:104150;Chile:98926;Tailandia:97457;Canadá:82123;Australia:80545;Reino Unido:61325;Kenia:55872;Italia:50861;Francia:49856;Nigeria:47114;Sudáfrica:46590;Bolivia:45475;Venezuela:43303;Turquía:42778;Alemania:42105;Paraguay:38484;Hong Kong:35579;Marruecos:35542;Singapur:34327;Myanmar (Birmania):31793;Portugal:29747;Nepal:27344;Arabia Saudí:24213;Argelia:22583;Uzbekistán:22312;Guatemala:19405;Honduras:18737;Emiratos Árabes Unidos:18040;Costa Rica:18017",
+};
 const REDES_SEED = {
+  // Cada relevamiento = una ventana de fechas (dias). Los totales NO son comparables
+  // entre ventanas de distinto largo: para comparar usar el ritmo por día (ver
+  // _redesFifaTabla). Fuente: Meta Business Suite (Facebook e Instagram de
+  // "AUF - Selección Uruguaya de Fútbol") y YouTube Studio (canal AUFTV), recolectados
+  // automáticamente. X y TikTok quedan en null: requieren sesión iniciada con la
+  // cuenta de la Selección. Reglas de lectura:
+  //  - alcance = Visualizaciones de cada red (FB/IG: métrica nueva de Meta; antes del
+  //    31/7/2025 Meta medía otra cosa y en IG no existe → null).
+  //  - IG antes de jul 2025: sin visualizaciones ni interacciones confiables → null.
+  //  - youtube.interacciones = horas de visualización; youtube.paises = visualizaciones
+  //    por país (top). El canal AUFTV incluye también la Liga AUF, no solo la Selección.
   snapshots: [
     {
-      fecha_snapshot: '2025-03-25', rango_desde: '2025-03-17', rango_hasta: '2025-03-25',
-      label: 'Eliminatorias · mar 2025',
+      fecha_snapshot: '2025-03-25', rango_desde: '2025-03-17', rango_hasta: '2025-03-25', dias: 9,
+      label: 'Eliminatorias · mar 2025', corto: 'mar 2025',
       x:         {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Impresiones',interacciones:null},
       tiktok:    {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Vistas de video',interacciones:null},
-      instagram: {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones (90d)',interacciones:null},
-      youtube:   {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null,interacciones_lbl:'Horas de visualización'},
-      facebook:  {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null},
+      instagram: {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null,alcance_unico:20814957,visitas_perfil:877988,clics_enlace:5599},
+      youtube:   {seguidores:null, seguidores_nuevos:1700, alcance:267685, alcance_lbl:'Visualizaciones', interacciones:19900, interacciones_lbl:'Horas de visualización', paises:_redesParsePaises(REDES_YT_PAISES_RAW.w1)},
+      facebook:  {seguidores:null,seguidores_nuevos:4559,alcance:8596097,alcance_lbl:'Visualizaciones',interacciones:170532,visitas_perfil:223549,clics_enlace:3536},
     },
     {
-      fecha_snapshot: '2025-06-10', rango_desde: '2025-06-02', rango_hasta: '2025-06-10',
-      label: 'Eliminatorias · jun 2025',
+      fecha_snapshot: '2025-06-10', rango_desde: '2025-06-02', rango_hasta: '2025-06-10', dias: 9,
+      label: 'Eliminatorias · jun 2025', corto: 'jun 2025',
       x:         {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Impresiones',interacciones:null},
       tiktok:    {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Vistas de video',interacciones:null},
-      instagram: {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones (90d)',interacciones:null},
-      youtube:   {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null,interacciones_lbl:'Horas de visualización'},
-      facebook:  {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null},
+      instagram: {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null,alcance_unico:13097476,visitas_perfil:526157,clics_enlace:5888},
+      youtube:   {seguidores:null, seguidores_nuevos:1500, alcance:412210, alcance_lbl:'Visualizaciones', interacciones:20200, interacciones_lbl:'Horas de visualización', paises:_redesParsePaises(REDES_YT_PAISES_RAW.w2)},
+      facebook:  {seguidores:null,seguidores_nuevos:4078,alcance:10200845,alcance_lbl:'Visualizaciones',interacciones:158586,visitas_perfil:178667,clics_enlace:9091},
     },
     {
-      fecha_snapshot: '2025-09-09', rango_desde: '2025-09-01', rango_hasta: '2025-09-09',
-      label: 'Eliminatorias · sep 2025',
+      fecha_snapshot: '2025-09-09', rango_desde: '2025-09-01', rango_hasta: '2025-09-09', dias: 9,
+      label: 'Eliminatorias · sep 2025', corto: 'sep 2025',
       x:         {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Impresiones',interacciones:null},
       tiktok:    {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Vistas de video',interacciones:null},
-      instagram: {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones (90d)',interacciones:null},
-      youtube:   {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null,interacciones_lbl:'Horas de visualización'},
-      facebook:  {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null},
+      instagram: {seguidores:null,seguidores_nuevos:null,alcance:121954187,alcance_lbl:'Visualizaciones',interacciones:3165439,alcance_unico:26621190,visitas_perfil:672623,clics_enlace:6658},
+      youtube:   {seguidores:null, seguidores_nuevos:2800, alcance:668470, alcance_lbl:'Visualizaciones', interacciones:39100, interacciones_lbl:'Horas de visualización', paises:_redesParsePaises(REDES_YT_PAISES_RAW.w3)},
+      facebook:  {seguidores:null,seguidores_nuevos:5299,alcance:12942718,alcance_lbl:'Visualizaciones',interacciones:261821,alcance_unico:4575114,visitas_perfil:150168,clics_enlace:6243},
     },
     {
-      fecha_snapshot: '2025-10-14', rango_desde: '2025-10-06', rango_hasta: '2025-10-14',
-      label: 'Fecha FIFA · oct 2025 (Malasia)',
+      fecha_snapshot: '2025-10-14', rango_desde: '2025-10-06', rango_hasta: '2025-10-14', dias: 9,
+      label: 'Fecha FIFA · oct 2025 (Malasia)', corto: 'oct 2025 · Malasia',
       x:         {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Impresiones',interacciones:null},
       tiktok:    {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Vistas de video',interacciones:null},
-      instagram: {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones (90d)',interacciones:null},
-      youtube:   {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null,interacciones_lbl:'Horas de visualización'},
-      facebook:  {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null},
+      instagram: {seguidores:null,seguidores_nuevos:5442,alcance:45362128,alcance_lbl:'Visualizaciones',interacciones:791450,alcance_unico:5853500,visitas_perfil:292568,clics_enlace:1557},
+      youtube:   {seguidores:null, seguidores_nuevos:1938, alcance:585131, alcance_lbl:'Visualizaciones', interacciones:38477, interacciones_lbl:'Horas de visualización', paises:_redesParsePaises(REDES_YT_PAISES_RAW.w4)},
+      facebook:  {seguidores:null,seguidores_nuevos:1512,alcance:5318404,alcance_lbl:'Visualizaciones',interacciones:71943,alcance_unico:1690741,visitas_perfil:118912,clics_enlace:795},
     },
     {
-      fecha_snapshot: '2025-11-18', rango_desde: '2025-11-10', rango_hasta: '2025-11-18',
-      label: 'Fecha FIFA · nov 2025 (México y EE.UU.)',
+      fecha_snapshot: '2025-11-18', rango_desde: '2025-11-10', rango_hasta: '2025-11-18', dias: 9,
+      label: 'Fecha FIFA · nov 2025 (México y EE.UU.)', corto: 'nov 2025 · México/EE.UU.',
       x:         {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Impresiones',interacciones:null},
       tiktok:    {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Vistas de video',interacciones:null},
-      instagram: {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones (90d)',interacciones:null},
-      youtube:   {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null,interacciones_lbl:'Horas de visualización'},
-      facebook:  {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Visualizaciones',interacciones:null},
+      instagram: {seguidores:null,seguidores_nuevos:8705,alcance:45347130,alcance_lbl:'Visualizaciones',interacciones:740712,alcance_unico:6598538,visitas_perfil:339966,clics_enlace:986},
+      youtube:   {seguidores:null, seguidores_nuevos:646, alcance:318320, alcance_lbl:'Visualizaciones', interacciones:16900, interacciones_lbl:'Horas de visualización', paises:_redesParsePaises(REDES_YT_PAISES_RAW.w5)},
+      facebook:  {seguidores:null,seguidores_nuevos:7564,alcance:12135287,alcance_lbl:'Visualizaciones',interacciones:183103,alcance_unico:3790039,visitas_perfil:323365,clics_enlace:516},
     },
     {
       // Fecha FIFA marzo 2026 — amistosos vs. Inglaterra y Argelia (23/3–31/3)
       // Período desde el 19/3 (viaje) al 31/3
-      fecha_snapshot: '2026-03-31',
-      rango_desde: '2026-03-19',
-      rango_hasta: '2026-03-31',
-      label: 'Fecha FIFA · mar 2026',
-      x:         {seguidores: null, seguidores_nuevos: null, alcance: null, alcance_lbl:'Impresiones', interacciones: null},
-      tiktok:    {seguidores: null, seguidores_nuevos: null, alcance: null, alcance_lbl:'Vistas de video', interacciones: null},
-      instagram: {seguidores: null, seguidores_nuevos: null, alcance: null, alcance_lbl:'Visualizaciones (90d)', interacciones: null},
-      youtube:   {seguidores: null, seguidores_nuevos: null, alcance: null, alcance_lbl:'Visualizaciones', interacciones: null, interacciones_lbl:'Horas de visualización'},
-      facebook:  {seguidores: null, seguidores_nuevos: null, alcance: null, alcance_lbl:'Visualizaciones', interacciones: null},
+      fecha_snapshot: '2026-03-31', rango_desde: '2026-03-19', rango_hasta: '2026-03-31', dias: 13,
+      label: 'Fecha FIFA · mar 2026 (Inglaterra y Argelia)', corto: 'mar 2026',
+      x:         {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Impresiones',interacciones:null},
+      tiktok:    {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Vistas de video',interacciones:null},
+      instagram: {seguidores:null,seguidores_nuevos:45649,alcance:110184015,alcance_lbl:'Visualizaciones',interacciones:3883265,alcance_unico:17895314,visitas_perfil:1088915,clics_enlace:9931},
+      youtube:   {seguidores:null, seguidores_nuevos:13000, alcance:2056044, alcance_lbl:'Visualizaciones', interacciones:94800, interacciones_lbl:'Horas de visualización', paises:_redesParsePaises(REDES_YT_PAISES_RAW.w6)},
+      facebook:  {seguidores:null,seguidores_nuevos:8398,alcance:14709642,alcance_lbl:'Visualizaciones',interacciones:307886,alcance_unico:5216048,visitas_perfil:192138,clics_enlace:5375},
     },
     {
       fecha_snapshot: '2026-07-06',
       rango_desde: '2026-05-15',
-      rango_hasta: '2026-07-06',
+      rango_hasta: '2026-07-06', dias: 53,
+      label: 'Copa Mundial 2026 (15 may – 6 jul)', corto: 'Mundial 2026',
       x:         {seguidores: 1000000, seguidores_nuevos: 3900,   alcance: 36500000, alcance_lbl:'Impresiones', interacciones: 739500},
       tiktok:    {seguidores: 1300000, seguidores_nuevos: 357800, alcance: 41400000, alcance_lbl:'Vistas de video', interacciones: 4000000},
-      instagram: {seguidores: 1752916, seguidores_nuevos: null,   alcance: 180123871, alcance_lbl:'Visualizaciones (90d)', interacciones: 6279613},
-      youtube:   {seguidores: 165671,  seguidores_nuevos: 13500,  alcance: 4650752,  alcance_lbl:'Visualizaciones', interacciones: 382200, interacciones_lbl:'Horas de visualización'},
+      instagram: {seguidores: 1752916, seguidores_nuevos: null,   alcance: 180123871, alcance_lbl:'Visualizaciones (90d)', interacciones: 6279613, dias: 90},
+      youtube:   {seguidores: 165671,  seguidores_nuevos: 13500,  alcance: 4650752,  alcance_lbl:'Visualizaciones', interacciones: 382200, interacciones_lbl:'Horas de visualización', paises:_redesParsePaises(REDES_YT_PAISES_RAW.wc)},
       facebook:  {seguidores: 1560967, seguidores_nuevos: 79960,  alcance: 24031449, alcance_lbl:'Visualizaciones', interacciones: 1481366},
-    }
+    },
+    {
+      // Fecha FIFA sep–oct 2026 — Japón (24/9), Corea del Sur (28/9) e India (6/10). Ventana: viaje completo 17/9–8/10.
+      // Seguidores = total actual al 12/10/2026 (IG y FB: Meta Business Suite · Público; YouTube: Studio).
+      fecha_snapshot: '2026-10-08', rango_desde: '2026-09-17', rango_hasta: '2026-10-08', dias: 22,
+      label: 'Fecha FIFA · sep–oct 2026 (Japón, Corea del Sur e India)', corto: 'sep–oct 2026 · Asia',
+      x:         {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Impresiones',interacciones:null},
+      tiktok:    {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Vistas de video',interacciones:null},
+      instagram: {seguidores:1734006,seguidores_nuevos:23830,alcance:104181586,alcance_lbl:'Visualizaciones',interacciones:3468345,alcance_unico:15171275,visitas_perfil:822615,clics_enlace:10398},
+      youtube:   {seguidores:175797,seguidores_nuevos:7893,alcance:7758046,alcance_lbl:'Visualizaciones',interacciones:153338,interacciones_lbl:'Horas de visualización',paises:_redesParsePaises(REDES_YT_PAISES_RAW.w7),videos_top:[['Japón 3-1 Uruguay',3291254],['Corea 1-4 Uruguay',1779781],['India 1-6 Uruguay',505483]]},
+      facebook:  {seguidores:1563577,seguidores_nuevos:2322,alcance:710920,alcance_lbl:'Visualizaciones',interacciones:16873,alcance_unico:466826,visitas_perfil:57740,clics_enlace:4040},
+    },
   ]
 };
+// Control: agosto 2026 completo (31 días), sin partidos de la Selección: sirve para ver
+// qué parte de la audiencia internacional es de la Selección y qué parte es base.
+const REDES_YT_CONTROL = {label:'Agosto 2026 (sin partidos de la Selección)', dias:31, total:1124138, paises:null};
+REDES_YT_CONTROL.paises=_redesParsePaises("Uruguay:769810;Argentina:66851;España:60029;Estados Unidos:53024;Brasil:38094;México:14149;Australia:14050;Chile:9654;Perú:9354;Canadá:6196;Italia:5402;Colombia:4751;Paraguay:4260;Costa Rica:4219;Alemania:3034;Reino Unido:2603;Israel:2502;Venezuela:2248;Ecuador:2145;Francia:2015;Indonesia:1870;Marruecos:1797;Nueva Zelanda:1781;Bolivia:1613;Suecia:1225;Portugal:1215;Japón:1123;Panamá:1055;Suiza:914");
 
-function _redesData(){ return stor.get('auf4_social_metrics', null) || REDES_SEED; }
+function _redesData(){
+  // Semilla (relevamientos históricos del código) + relevamientos guardados por el
+  // chequeo automático (auf4_social_metrics), fusionados por fecha_snapshot.
+  const st=stor.get('auf4_social_metrics', null);
+  if(!st || !Array.isArray(st.snapshots)) return REDES_SEED;
+  const map=new Map(REDES_SEED.snapshots.map(x=>[x.fecha_snapshot,x]));
+  st.snapshots.forEach(x=>{ map.set(x.fecha_snapshot, {...(map.get(x.fecha_snapshot)||{}), ...x}); });
+  return {...st, snapshots:[...map.values()].sort((a,b)=>a.fecha_snapshot.localeCompare(b.fecha_snapshot))};
+}
+// Seguidores "actuales" por red: el último valor no nulo de cualquier relevamiento.
+function _redesSeguidoresActuales(){
+  const out={};
+  Object.keys(REDES_PLATS).forEach(k=>{
+    const snaps=_redesSnaps();
+    for(let i=snaps.length-1;i>=0;i--){ const v=snaps[i][k]?.seguidores; if(v!=null){ out[k]={seguidores:v}; return; } }
+    out[k]={seguidores:null};
+  });
+  return out;
+}
 function _redesSnaps(){ return (_redesData().snapshots)||[]; }
 function _redesLatest(){ const s=_redesSnaps(); return s[s.length-1]||null; }
 function _redesPrev(){ const s=_redesSnaps(); return s.length>1?s[s.length-2]:null; }
@@ -33568,7 +33623,11 @@ function renderRedes(){
   const el=document.getElementById('redes-body');
   if(!el) return;
   const latest=_redesLatest();
-  const prev=_redesPrev();
+  // La sección "Copa Mundial 2026" muestra el relevamiento del Mundial (no el último:
+  // los de las Fechas FIFA son de otras ventanas y no son comparables con él).
+  const wc=_redesSnaps().find(x=>x.fecha_snapshot==='2026-07-06')||latest;
+  const prev={};
+  const segActuales=_redesSeguidoresActuales();
   if(!latest){
     el.innerHTML=`<div style="text-align:center;padding:48px 24px;color:var(--muted)">
       <i class="ti ti-chart-arrows" style="font-size:2.5em;display:block;margin-bottom:12px;opacity:.3"></i>
@@ -33586,17 +33645,25 @@ function renderRedes(){
         <div style="font-size:1.1em;font-weight:900;color:var(--text)">Redes sociales — Selección Uruguaya</div>
         <div style="font-size:.78em;color:var(--muted);margin-top:2px">Último relevamiento: ${_redesFmtFecha(latest.rango_desde)} → ${_redesFmtFecha(latest.rango_hasta)}</div>
       </div>
-      ${_redesHeroSeguidores(latest)}
+      ${_redesHeroSeguidores(segActuales)}
 
       <!-- Copa Mundial 2026 -->
       <div style="display:flex;align-items:center;gap:10px;margin:24px 0 14px">
         <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">⚽ Copa Mundial 2026</div>
         <div style="flex:1;height:1px;background:var(--border)"></div>
       </div>
-      ${_redesResumenCombinado(latest,prev)}
-      ${_redesPorPlataforma(latest,prev)}
-      ${_redesConclusiones(latest,prev)}
-      ${_redesContextoCifra(latest)}
+      ${_redesResumenCombinado(wc,prev)}
+      ${_redesPorPlataforma(wc,prev)}
+      ${_redesConclusiones(wc,prev)}
+      ${_redesContextoCifra(segActuales)}
+
+      <!-- Fechas FIFA: audiencia por país -->
+      <div style="display:flex;align-items:center;gap:10px;margin:24px 0 14px">
+        <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">🌏 Fechas FIFA — audiencia por país</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      ${_redesFifaPaises()}
+      ${_redesFifaTabla()}
 
       <!-- Análisis -->
       <div style="display:flex;align-items:center;gap:10px;margin:24px 0 14px">
@@ -33608,7 +33675,7 @@ function renderRedes(){
       ${_redesHistorial()}
     </div>
   `;
-  _redesFetchAIConclusiones(latest,prev);
+  _redesFetchAIConclusiones(wc,prev);
 }
 
 function _redesFmtFecha(iso){
@@ -33829,6 +33896,129 @@ function _redesContextoCifra(latest){
   </div>`;
 }
 
+
+// ── Fechas FIFA: audiencia por país (YouTube) + ritmo diario por red ────────────
+const REDES_FIFA_FOCO=['Japón','Corea del Sur','India','Indonesia','Bangladés','Malasia','Vietnam'];
+const REDES_ASIA=['Indonesia','Japón','Corea del Sur','India','Bangladés','Malasia','Vietnam','Tailandia','Hong Kong','Singapur','Myanmar (Birmania)','Nepal','Arabia Saudí','Emiratos Árabes Unidos','Uzbekistán','Kirguistán','Kazajistán','Camboya','Filipinas','Pakistán','China','Taiwán','Sri Lanka','Irak','Jordania'];
+window._redesFifaSel=window._redesFifaSel||null;
+window._redesFifaSelSet=function(f){ window._redesFifaSel=f; renderRedes(); };
+function _redesFifaConPaises(){ return _redesSnaps().filter(s=>s.youtube && s.youtube.paises && s.youtube.paises.length); }
+function _redesPaisViews(snap,pais){ const r=(snap.youtube.paises||[]).find(p=>p[0]===pais); return r?r[1]:null; }
+function _redesAsiaViews(snap){ return (snap.youtube.paises||[]).filter(p=>REDES_ASIA.includes(p[0])).reduce((a,p)=>a+p[1],0); }
+function _redesFifaPaises(){
+  const snaps=_redesFifaConPaises();
+  if(!snaps.length) return '';
+  const sel=snaps.find(s=>s.fecha_snapshot===window._redesFifaSel)||snaps[snaps.length-1];
+  const total=sel.youtube.alcance||0;
+  const dias=sel.dias||1;
+  const uy=_redesPaisViews(sel,'Uruguay')||0;
+  const asia=_redesAsiaViews(sel);
+  const pills=snaps.map(s=>`<button onclick="_redesFifaSelSet('${s.fecha_snapshot}')" style="padding:5px 11px;border-radius:20px;border:1.5px solid ${s===sel?'var(--cel)':'var(--border)'};background:${s===sel?'var(--cel)':'var(--card)'};color:${s===sel?'#fff':'var(--text)'};font-size:.72em;font-weight:700;cursor:pointer;margin:0 4px 6px 0">${s.corto||s.label}</button>`).join('');
+  // top 12 + los países foco que no estén (con su posición real en la tabla)
+  const lista=sel.youtube.paises;
+  const top=lista.slice(0,12).map((p,i)=>({n:p[0],v:p[1],pos:i+1}));
+  REDES_FIFA_FOCO.forEach(f=>{ if(!top.some(t=>t.n===f)){ const i=lista.findIndex(p=>p[0]===f); if(i>=0) top.push({n:f,v:lista[i][1],pos:i+1}); } });
+  const max=Math.max(...top.map(t=>t.v),1);
+  const ctrl=REDES_YT_CONTROL;
+  const bars=top.map(t=>{
+    const foco=REDES_FIFA_FOCO.includes(t.n);
+    const asiaF=REDES_ASIA.includes(t.n);
+    const base=(ctrl.paises.find(p=>p[0]===t.n)||[null,null])[1];
+    const cola=ctrl.paises[ctrl.paises.length-1][1]; // el último país listado en agosto: cualquier otro tuvo menos que esto
+    const post=sel.fecha_snapshot>'2026-08-31';
+    const esCota=!base&&post;
+    const x=post?(t.v/dias)/((base||cola)/ctrl.dias):null; // veces vs. ritmo diario de agosto (cota mínima si no figura en agosto)
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+      <div style="width:18px;text-align:right;font-size:.66em;color:var(--hint);font-weight:700">${t.pos}</div>
+      <div style="width:132px;font-size:.78em;font-weight:${foco?800:600};color:${foco?'var(--cel-dk)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.n}</div>
+      <div style="flex:1;height:14px;background:var(--surface);border-radius:7px;overflow:hidden"><div style="width:${(t.v/max*100).toFixed(1)}%;height:100%;background:${t.n==='Uruguay'?'var(--cel)':asiaF?'#EA580C':'#94A3B8'}"></div></div>
+      <div style="width:92px;text-align:right;font-size:.74em;font-weight:800">${_redesFmt(t.v)} <span style="color:var(--muted);font-weight:600">${(t.v/total*100).toFixed(1)}%</span></div>
+      <div style="width:64px;text-align:right;font-size:.66em;font-weight:800;color:${x&&x>=3?'#EA580C':'var(--muted)'}">${x?((esCota?'≥×':'×')+(x>=10?Math.round(x):x.toFixed(1))):''}</div>
+    </div>`;
+  }).join('');
+  const chips=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.64em;color:var(--muted);font-weight:700;text-transform:uppercase">Vistas YouTube</div><div style="font-size:1.15em;font-weight:900">${_redesFmt(total)}</div><div style="font-size:.66em;color:var(--muted)">${_redesFmt(Math.round(total/dias))}/día · ${dias} días</div></div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.64em;color:var(--muted);font-weight:700;text-transform:uppercase">Desde Uruguay</div><div style="font-size:1.15em;font-weight:900;color:var(--cel-dk)">${(uy/total*100).toFixed(1)}%</div><div style="font-size:.66em;color:var(--muted)">${_redesFmt(uy)}</div></div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.64em;color:var(--muted);font-weight:700;text-transform:uppercase">Desde Asia (mín.)</div><div style="font-size:1.15em;font-weight:900;color:#EA580C">${(asia/total*100).toFixed(1)}%</div><div style="font-size:.66em;color:var(--muted)">${_redesFmt(asia)}</div></div>
+      ${sel.youtube.seguidores_nuevos!=null?`<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px"><div style="font-size:.64em;color:var(--muted);font-weight:700;text-transform:uppercase">Suscriptores nuevos</div><div style="font-size:1.15em;font-weight:900;color:var(--green)">+${_redesFmt(sel.youtube.seguidores_nuevos)}</div><div style="font-size:.66em;color:var(--muted)">${sel.youtube.interacciones?_redesFmt(sel.youtube.interacciones)+' h vistas':''}</div></div>`:''}
+    </div>`;
+  const videos=(sel.youtube.videos_top||[]).length?`<div style="font-size:.72em;color:var(--muted);margin:2px 0 10px">▶ Más vistos en el período: ${sel.youtube.videos_top.map(v=>`<b style="color:var(--text)">${v[0]}</b> ${_redesFmt(v[1])}`).join(' · ')} — los tres partidos suman el ${((sel.youtube.videos_top.reduce((a,v)=>a+v[1],0))/total*100).toFixed(0)}% de las vistas.</div>`:'';
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">▶ YouTube (AUFTV) · visualizaciones por país</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px">
+      <div style="margin-bottom:6px">${pills}</div>
+      <div style="font-size:.82em;font-weight:800;margin-bottom:8px">${sel.label} · ${_redesFmtFecha(sel.rango_desde)} → ${_redesFmtFecha(sel.rango_hasta)}</div>
+      ${chips}${videos}
+      <div style="display:flex;gap:8px;font-size:.6em;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;padding:0 0 4px;border-bottom:1px solid var(--border)"><div style="width:18px"></div><div style="width:132px">País</div><div style="flex:1"></div><div style="width:92px;text-align:right">Vistas · %</div><div style="width:64px;text-align:right" title="Veces el ritmo diario de agosto 2026 (mes sin partidos de la Selección)">vs. agosto</div></div>
+      ${bars}
+      <div style="font-size:.64em;color:var(--muted);margin-top:8px;line-height:1.5">Naranja = países de Asia. "vs. agosto" compara el ritmo diario de cada país con agosto 2026 (sin partidos de la Selección): mide cuánto de esa audiencia llegó por los partidos. El canal AUFTV incluye también la Liga AUF, no solo la Selección.</div>
+    </div>
+  </div>`;
+}
+function _redesFifaTabla(){
+  const snaps=_redesFifaConPaises();
+  if(!snaps.length) return '';
+  const colHdr=snaps.map(s=>`<th style="padding:7px;text-align:right;white-space:nowrap">${s.corto||s.label}</th>`).join('');
+  const celda=(v,pct)=>v==null?'<td style="padding:7px;text-align:right;color:var(--hint)">—</td>':`<td style="padding:7px;text-align:right">${_redesFmt(v)}${pct!=null?` <span style="color:var(--muted);font-size:.85em">${pct.toFixed(1)}%</span>`:''}</td>`;
+  const filaPais=(n,est)=>`<tr style="${est?'background:var(--surface);font-weight:800':''}"><td style="padding:7px;font-weight:700;white-space:nowrap">${n}</td>${snaps.map(s=>{ const v=n==='Uruguay'?_redesPaisViews(s,'Uruguay'):n==='Asia (mín.)'?_redesAsiaViews(s):_redesPaisViews(s,n); const t=s.youtube.alcance; return celda(v,v!=null&&t?v/t*100:null); }).join('')}</tr>`;
+  const filas=['Uruguay',...REDES_FIFA_FOCO,'Asia (mín.)'].map(n=>filaPais(n,n==='Asia (mín.)'||n==='Uruguay')).join('');
+  // ritmo diario por red (ventanas de distinto largo → todo por día)
+  const todas=_redesSnaps().filter(s=>s.dias);
+  const pd=(v,d)=>v!=null&&d?_redesFmt(Math.round(v/d)):'—';
+  const filasRitmo=todas.map(s=>{
+    const nuevos=['instagram','facebook','youtube'].map(k=>s[k]?.seguidores_nuevos);
+    const nv=nuevos.every(v=>v!=null)?nuevos.reduce((a,b)=>a+b,0):null; // solo si están las tres redes
+    return `<tr><td style="padding:7px;font-weight:700;white-space:nowrap">${s.corto||s.label}<div style="font-size:.78em;color:var(--muted);font-weight:600">${s.dias} días</div></td>
+      <td style="padding:7px;text-align:right">${pd(s.youtube?.alcance,s.dias)}</td>
+      <td style="padding:7px;text-align:right">${pd(s.instagram?.alcance,s.instagram?.dias||s.dias)}</td>
+      <td style="padding:7px;text-align:right">${pd(s.instagram?.alcance_unico,s.dias)}</td>
+      <td style="padding:7px;text-align:right">${pd(s.facebook?.alcance,s.dias)}</td>
+      <td style="padding:7px;text-align:right">${nv!=null?'+'+pd(nv,s.dias):'—'}</td></tr>`;
+  }).join('');
+  // conclusiones automáticas (ventana más reciente con países vs. agosto y vs. Fechas FIFA anteriores)
+  const last=snaps[snaps.length-1];
+  const prevF=snaps.filter(s=>s!==last&&s.fecha_snapshot!=='2026-07-06');
+  const bullets=[];
+  const uyL=(_redesPaisViews(last,'Uruguay')||0)/last.youtube.alcance*100;
+  const uyP=prevF.length?prevF.reduce((a,s)=>a+(_redesPaisViews(s,'Uruguay')||0)/s.youtube.alcance*100,0)/prevF.length:null;
+  if(uyP!=null) bullets.push(`En <b>${last.corto}</b> solo el <b>${uyL.toFixed(1)}%</b> de las vistas de YouTube vino de Uruguay (en las Fechas FIFA anteriores fue ~${uyP.toFixed(0)}%): la audiencia de la Selección se internacionalizó.`);
+  const ctrl=REDES_YT_CONTROL;
+  const colaC=ctrl.paises[ctrl.paises.length-1][1];
+  const cambios=REDES_FIFA_FOCO.map(f=>{ const v=_redesPaisViews(last,f); if(!v) return null; const b=(ctrl.paises.find(p=>p[0]===f)||[null,null])[1]; return {f,v,cota:!b,x:(v/last.dias)/((b||colaC)/ctrl.dias)}; }).filter(Boolean).sort((a,b)=>b.x-a.x);
+  if(cambios.length) bullets.push('Contra agosto (mes sin Selección), el ritmo diario de vistas se multiplicó: '+cambios.map(c=>`<b>${c.f}</b> ${c.cota?'≥':''}×${c.x>=10?Math.round(c.x):c.x.toFixed(1)} (${_redesFmt(c.v)})`).join(', ')+'. (≥ = mínimo: el país ni figuraba entre los principales de agosto.)');
+  const ind=_redesPaisViews(last,'Indonesia'); const posInd=last.youtube.paises.findIndex(p=>p[0]==='Indonesia')+1;
+  const mar=snaps.find(s=>s.fecha_snapshot==='2026-03-31');
+  if(ind) bullets.push(`<b>Indonesia</b> quedó ${posInd}.º en el ranking de países (${_redesFmt(ind)} vistas, ${(ind/last.youtube.alcance*100).toFixed(1)}%)${mar?`: ya venía creciendo (marzo 2026: ${_redesFmt(_redesPaisViews(mar,'Indonesia'))}) pero se disparó con la gira`:''}.`);
+  const fbL=last.facebook?.alcance, fbD=last.dias, fbM=(snaps.find(s=>s.fecha_snapshot==='2026-03-31')||{}).facebook;
+  if(fbL!=null&&mar&&mar.facebook?.alcance) bullets.push(`<b>Facebook</b> muestra una caída fuerte: ${_redesFmt(Math.round(fbL/fbD))} visualizaciones por día en la gira vs. ${_redesFmt(Math.round(mar.facebook.alcance/mar.dias))} en marzo (${((fbL/fbD)/(mar.facebook.alcance/mar.dias)*100-100).toFixed(0)}%) — conviene revisar si cambió la estrategia de publicación o es un tema de la página.`);
+  const igL=last.instagram?.alcance_unico, igM=mar&&mar.instagram?.alcance_unico;
+  if(igL&&igM){ const a=last.instagram.seguidores_nuevos/last.dias, b=mar.instagram.seguidores_nuevos/mar.dias; const va=last.instagram.alcance/last.dias, vb=mar.instagram.alcance/mar.dias; const ch=(va/vb-1)*100; bullets.push(`<b>Instagram</b>: ${ch<0?'bajó':'subió'} ${Math.abs(Math.round(ch))}% en visualizaciones por día vs. marzo (${_redesFmt(Math.round(va))} vs. ${_redesFmt(Math.round(vb))}) y suma ${Math.round((1-a/b)*100)}% menos seguidores nuevos por día (+${_redesFmt(Math.round(a))} vs. +${_redesFmt(Math.round(b))}). Los seguidores de IG y Facebook siguen concentrados en Uruguay y Latinoamérica: el crecimiento de la gira está en YouTube, no en las redes sociales.`); }
+  return `
+  <div style="margin-bottom:20px">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Países foco por Fecha FIFA (YouTube) — vistas y % del total</div>
+    <div style="overflow-x:auto;margin-bottom:14px">
+    <table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:14px;font-size:.76em;min-width:640px">
+      <thead><tr style="background:var(--surface)"><th style="padding:7px;text-align:left">País</th>${colHdr}</tr></thead>
+      <tbody>${filas}</tbody>
+    </table></div>
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Ritmo por día en cada red (las ventanas tienen distinto largo)</div>
+    <div style="overflow-x:auto;margin-bottom:14px">
+    <table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:14px;font-size:.76em;min-width:560px">
+      <thead><tr style="background:var(--surface)"><th style="padding:7px;text-align:left">Ventana</th><th style="padding:7px;text-align:right">▶ YouTube vistas</th><th style="padding:7px;text-align:right">◎ IG visualiz.</th><th style="padding:7px;text-align:right">◎ IG alcance</th><th style="padding:7px;text-align:right">📘 FB visualiz.</th><th style="padding:7px;text-align:right">Seguidores nuevos (IG+FB+YT)</th></tr></thead>
+      <tbody>${filasRitmo}</tbody>
+    </table></div>
+    <div style="background:var(--gold-lt);border:1px solid #f0dca6;border-radius:14px;padding:14px 16px;margin-bottom:10px">
+      <div style="font-size:9.5px;font-weight:800;color:#8a5a00;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🧠 Lectura de la última Fecha FIFA</div>
+      <ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">${bullets.map(b=>`<li>${b}</li>`).join('')}</ul>
+    </div>
+    <div style="font-size:.68em;color:var(--muted);line-height:1.6;background:var(--surface);border-radius:12px;padding:10px 12px">
+      <b>Qué falta / cómo leerlo.</b> X y TikTok todavía no están: sus estadísticas requieren sesión iniciada con la cuenta de la Selección (cuando esté, se suman solas). IG y Facebook se miden desde Meta Business Suite; antes de jul 2025 Meta medía "visualizaciones" distinto y IG no tiene visualizaciones ni interacciones confiables, por eso esas celdas quedan vacías. Audiencia por país solo hay de YouTube: Meta muestra el país de los <i>seguidores</i> (IG: Uruguay 39%, Brasil 10%, Argentina 4,5%, EE.UU. 3%, México 3%; FB: Uruguay 51%, México 5%, Perú 5%, Argentina 5%), no de las visualizaciones.
+    </div>
+  </div>`;
+}
+
 // ── Momentos — cruce con el calendario de la Mayor (MOMENTOS ya definido) ──
 function _redesMomentos(){
   const items=(typeof MOMENTOS!=='undefined'?MOMENTOS:[]).map(m=>{
@@ -33857,12 +34047,13 @@ function _redesComparativaMensual(){
   snaps.forEach(s=>{
     const mes=(s.fecha_snapshot||'').slice(0,7);
     if(!mes) return;
-    if(!byMonth[mes]) byMonth[mes]={alcance:0,interacciones:0,nuevos:0};
+    if(!byMonth[mes]) byMonth[mes]={alcance:0,interacciones:0,nuevos:0,dias:0};
     Object.keys(REDES_PLATS).forEach(k=>{
       byMonth[mes].alcance+=(s[k]?.alcance||0);
       byMonth[mes].interacciones+=(s[k]?.interacciones||0);
       byMonth[mes].nuevos+=(s[k]?.seguidores_nuevos||0);
     });
+    byMonth[mes].dias=(byMonth[mes].dias||0)+(s.dias||0);
   });
   const meses=Object.keys(byMonth).sort();
   if(meses.length<2){
@@ -33876,13 +34067,13 @@ function _redesComparativaMensual(){
   }
   const rows=meses.map(m=>{
     const d=byMonth[m];
-    return `<tr><td style="padding:8px;font-weight:700">${m}</td><td style="padding:8px;text-align:right">${_redesFmt(d.alcance)}</td><td style="padding:8px;text-align:right">${_redesFmt(d.interacciones)}</td><td style="padding:8px;text-align:right">+${_redesFmt(d.nuevos)}</td></tr>`;
+    return `<tr><td style="padding:8px;font-weight:700">${m}</td><td style="padding:8px;text-align:right">${_redesFmt(d.alcance)}</td><td style="padding:8px;text-align:right">${_redesFmt(d.interacciones)}</td><td style="padding:8px;text-align:right">+${_redesFmt(d.nuevos)}</td><td style="padding:8px;text-align:right;color:var(--muted)">${d.dias?_redesFmt(Math.round(d.alcance/d.dias))+'/día':'—'}</td></tr>`;
   }).join('');
   return `
   <div style="margin-bottom:20px">
     <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">📊 Comparativa mensual (todas las redes)</div>
     <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;font-size:.8em">
-      <thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px;text-align:left">Mes</th><th style="padding:8px;text-align:right">Alcance</th><th style="padding:8px;text-align:right">Interacciones</th><th style="padding:8px;text-align:right">Nuevos seg.</th></tr></thead>
+      <thead><tr style="background:var(--navy);color:#fff"><th style="padding:8px;text-align:left">Mes</th><th style="padding:8px;text-align:right">Alcance</th><th style="padding:8px;text-align:right">Interacciones</th><th style="padding:8px;text-align:right">Nuevos seg.</th><th style="padding:8px;text-align:right">Alcance/día</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
