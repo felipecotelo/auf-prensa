@@ -557,22 +557,27 @@ async function computeMisIdas() {
   const aufPm = personalEvents.filter(e => e.summary.toLowerCase() === 'auf pm').length;
 
   const thisYear = new Date().getFullYear();
-  // "Mayor | Viaje a X" marca cada salida (puede haber más de una dentro del mismo viaje,
-  // ej. Inglaterra→Turín); "Vuelta a Uruguay" (con o sin el prefijo "Mayor | ", según cómo
-  // se haya cargado) cierra el viaje que sigue abierto. Se filtra por año ANTES de emparejar:
-  // años anteriores tienen viajes sin "Vuelta a Uruguay" cargada (ej. 2025 Bolivia/Malasia),
-  // que si se dejan en la cadena rompen el emparejamiento de los viajes reales del año actual.
+  // Viajes de la Mayor: "Mayor | Viaje a X" (con o sin el prefijo "Mayor | ") marca cada salida
+  // (puede haber varias dentro del mismo viaje: Inglaterra→Turín, Japón→Corea del Sur→India) y
+  // el regreso es "Vuelta a Uruguay" o "Viaje a Uruguay" (el vuelo de regreso; desde Asia aterriza
+  // el día siguiente, por eso ese marcador cuenta un día más). Los juveniles ("Sub-17 | Viaje a ...")
+  // no cuentan porque el texto no arranca con "Viaje a" ni con "Mayor |". Se filtra por año ANTES
+  // de emparejar: años anteriores tienen viajes sin regreso cargado (ej. 2025 Bolivia/Malasia) que
+  // romperían el emparejamiento. Cada viaje cuenta ambos extremos (salida y regreso inclusive).
+  const reVuelta = /^(mayor\s*\|\s*)?(vuelta|viaje|regreso) a uruguay\s*$/i;
+  const reViaje = /^(mayor\s*\|\s*)?viaje a /i;
   const travelMarkers = seleccionEvents
     .filter(e => e.start.getFullYear() === thisYear)
-    .filter(e => /^mayor\s*\|\s*viaje a /i.test(e.summary) || /^(mayor\s*\|\s*)?vuelta a uruguay$/i.test(e.summary.trim()))
+    .filter(e => reVuelta.test(e.summary.trim()) || reViaje.test(e.summary.trim()))
     .sort((a, b) => a.start - b.start);
   let fifaDays = 0, tripStart = null;
   for (const e of travelMarkers) {
-    const isViaje = /^mayor\s*\|\s*viaje a /i.test(e.summary);
-    if (isViaje) {
+    const esVuelta = reVuelta.test(e.summary.trim());
+    if (!esVuelta) {
       if (!tripStart) tripStart = e.start;
     } else if (tripStart) {
-      fifaDays += Math.round((e.start - tripStart) / 86400000);
+      const llegada = /^(mayor\s*\|\s*)?viaje a uruguay\s*$/i.test(e.summary.trim()) ? new Date(e.start.getTime() + 86400000) : e.start;
+      fifaDays += Math.round((llegada - tripStart) / 86400000) + 1;
       tripStart = null;
     }
   }
