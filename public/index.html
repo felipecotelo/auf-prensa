@@ -34069,6 +34069,8 @@ function _redesFifaTabla(){
       <td style="padding:7px;text-align:right">${pd(s.instagram?.alcance,s.instagram?.dias||s.dias)}</td>
       <td style="padding:7px;text-align:right">${pd(s.instagram?.alcance_unico,s.dias)}</td>
       <td style="padding:7px;text-align:right">${pd(s.facebook?.alcance,s.dias)}</td>
+      <td style="padding:7px;text-align:right">${pd(s.tiktok?.alcance,s.dias)}</td>
+      <td style="padding:7px;text-align:right">${pd(s.x?.alcance,s.dias)}</td>
       <td style="padding:7px;text-align:right">${nv!=null?'+'+pd(nv,s.dias):'—'}</td></tr>`;
   }).join('');
   const sel=snaps.find(x=>x.fecha_snapshot===window._redesFifaSel)||snaps[snaps.length-1];
@@ -34083,16 +34085,19 @@ function _redesFifaTabla(){
     </table></div>
     <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Ritmo por día en cada red (las ventanas tienen distinto largo)</div>
     <div style="overflow-x:auto;margin-bottom:14px">
-    <table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:14px;font-size:.76em;min-width:560px">
-      <thead><tr style="background:var(--surface)"><th style="padding:7px;text-align:left">Ventana</th><th style="padding:7px;text-align:right">▶ YouTube vistas</th><th style="padding:7px;text-align:right">◎ IG visualiz.</th><th style="padding:7px;text-align:right">◎ IG alcance</th><th style="padding:7px;text-align:right">📘 FB visualiz.</th><th style="padding:7px;text-align:right">Seguidores nuevos (IG+FB+YT)</th></tr></thead>
+    <table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:14px;font-size:.76em;min-width:760px">
+      <thead><tr style="background:var(--surface)"><th style="padding:7px;text-align:left">Ventana</th><th style="padding:7px;text-align:right">▶ YouTube vistas</th><th style="padding:7px;text-align:right">◎ IG visualiz.</th><th style="padding:7px;text-align:right">◎ IG alcance</th><th style="padding:7px;text-align:right">📘 FB visualiz.</th><th style="padding:7px;text-align:right">♪ TikTok vistas</th><th style="padding:7px;text-align:right">𝕏 X impresiones</th><th style="padding:7px;text-align:right">Seguidores nuevos (IG+FB+YT)</th></tr></thead>
       <tbody>${filasRitmo}</tbody>
     </table></div>
+    ${(()=>{ const lt=sel.tiktok&&sel.tiktok.paises_espectadores, lx=sel.x&&sel.x.paises_audiencia; if(!lt&&!lx) return '';
+      const col=(tt,lst,color)=>`<div style="flex:1;min-width:240px"><div style="font-size:.74em;font-weight:800;color:var(--muted);margin-bottom:6px">${tt}</div>${lst.map(([n,v])=>`<div style="display:flex;align-items:center;gap:8px;font-size:.78em;margin-bottom:3px"><span style="width:96px;${REDES_ASIA.includes(n)?'font-weight:800;':''}">${n}</span><span style="flex:1;background:var(--surface);border-radius:4px;height:9px"><span style="display:block;height:9px;border-radius:4px;width:${(v/lst[0][1]*100).toFixed(0)}%;background:${REDES_ASIA.includes(n)?'#ea580c':color}"></span></span><b style="width:44px;text-align:right">${String(v).replace('.',',')}%</b></div>`).join('')}</div>`;
+      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px"><div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Audiencia por país en TikTok y X — ${(sel.corto||sel.label).split(' · ')[0]}</div><div style="display:flex;gap:24px;flex-wrap:wrap">${lt?col('♪ TikTok — espectadores (últimos 28 días)',sel.tiktok.paises_espectadores,'#FF2D55'):''}${lx?col('𝕏 X — audiencia que interactúa (últimos 28 días)',sel.x.paises_audiencia,'#444'):''}</div><div style="font-size:.68em;color:var(--muted);margin-top:8px">Ni TikTok ni X dejan fijar un rango propio para la audiencia por país (7, 28, 60 o 365 días / 7D, 28D, 3M): se usan los últimos 28 días, que incluyen la ventana. En naranja, países de Asia.</div></div>`; })()}
     <div style="background:var(--gold-lt);border:1px solid #f0dca6;border-radius:14px;padding:14px 16px;margin-bottom:10px">
       <div style="font-size:9.5px;font-weight:800;color:#8a5a00;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🧠 Conclusiones — ${(sel.corto||sel.label).split(' · ')[0]} <span id="redes-fifa-tag">· ${(window._redesIAFifa||{})[sel.fecha_snapshot]?'generadas por IA':'automáticas (reglas)'}</span></div>
       <ul id="redes-fifa-list" style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">${((window._redesIAFifa||{})[sel.fecha_snapshot]||bullets).map(b=>`<li>${b}</li>`).join('')}</ul>
     </div>
     <div style="font-size:.68em;color:var(--muted);line-height:1.6;background:var(--surface);border-radius:12px;padding:10px 12px">
-      <b>Qué falta / cómo leerlo.</b> X y TikTok todavía no están: sus estadísticas requieren sesión iniciada con la cuenta de la Selección (cuando esté, se suman solas). IG y Facebook se miden desde Meta Business Suite; antes de jul 2025 Meta medía "visualizaciones" distinto y IG no tiene visualizaciones ni interacciones confiables, por eso esas celdas quedan vacías. Audiencia por país solo hay de YouTube: Meta muestra el país de los <i>seguidores</i> (IG: Uruguay 39%, Brasil 10%, Argentina 4,5%, EE.UU. 3%, México 3%; FB: Uruguay 51%, México 5%, Perú 5%, Argentina 5%), no de las visualizaciones.
+      <b>Cómo leerlo.</b> TikTok y X están medidos desde sep–oct 2026 (TikTok Studio y X Analytics, cifras redondeadas por las plataformas) y el Mundial; las ventanas anteriores quedan en blanco porque todavía no se cargaron (TikTok solo da 365 días hacia atrás). IG y Facebook se miden desde Meta Business Suite; antes de jul 2025 Meta medía "visualizaciones" distinto y IG no tiene visualizaciones ni interacciones confiables, por eso esas celdas quedan vacías. Audiencia por país solo hay de YouTube: Meta muestra el país de los <i>seguidores</i> (IG: Uruguay 39%, Brasil 10%, Argentina 4,5%, EE.UU. 3%, México 3%; FB: Uruguay 51%, México 5%, Perú 5%, Argentina 5%), no de las visualizaciones.
     </div>
   </div>`;
 }
