@@ -33566,8 +33566,15 @@ const REDES_SEED = {
       // Seguidores = total actual al 12/10/2026 (IG y FB: Meta Business Suite · Público; YouTube: Studio).
       fecha_snapshot: '2026-10-08', rango_desde: '2026-09-17', rango_hasta: '2026-10-08', dias: 22,
       label: 'Fecha FIFA · sep–oct 2026 (Japón, Corea del Sur e India)', corto: 'sep–oct 2026 · Asia',
-      x:         {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Impresiones',interacciones:null},
-      tiktok:    {seguidores:null,seguidores_nuevos:null,alcance:null,alcance_lbl:'Vistas de video',interacciones:null},
+      // X Analytics (@Uruguay, 13/10/2026), rango 17/9–8/10. Seguidores: 1M (X solo muestra el redondeo); seguidores nuevos: X no da el neto del período.
+      // País = audiencia de quienes dan me gusta, últimos 28 días (15/9–12/10; en Audiencia X solo permite 7D/28D/3M).
+      x:         {seguidores:1000000,seguidores_nuevos:null,alcance:14400000,alcance_lbl:'Impresiones',interacciones:227800,interacciones_lbl:'Interacciones',me_gusta:143300,reposts:11000,respuestas:4700,visitas_perfil:62600,tasa_interaccion:1.5,
+                  paises_audiencia:[['Uruguay',38.3],['India',20.9],['Japón',11.7],['Brasil',5.9],['Estados Unidos',3.1]]},
+      // TikTok Studio (cuenta oficial, 13/10/2026), rango personalizado 17/9–8/10; TikTok redondea las cifras.
+      // Interacciones = me gusta (487,2K) + comentarios (18,1K) + compartidos (248,4K). Países de espectadores: últimos 28 días (15/9–12/10; en Espectadores TikTok no deja fijar rango propio).
+      tiktok:    {seguidores:1400000,seguidores_nuevos:6900,alcance:6300000,alcance_lbl:'Vistas de video',interacciones:753700,interacciones_lbl:'Me gusta, comentarios y compartidos',vistas_perfil:2700000,espectadores:5800000,espectadores_nuevos:4300000,
+                  paises_espectadores:[['Uruguay',37.8],['México',14.8],['Argentina',9.9],['Colombia',4.9],['Perú',4.9],['Guatemala',3.3],['Ecuador',3.1],['Bolivia',3.1],['Chile',2.2],['España',2.2]],
+                  paises_seguidores:[['Uruguay',23.5],['México',6.0],['Argentina',5.4],['Brasil',2.8],['Estados Unidos',2.7],['Colombia',2.5],['Perú',2.4],['España',2.2],['Indonesia',1.7],['Senegal',1.6]]},
       instagram: {seguidores:1734006,seguidores_nuevos:23830,alcance:104181586,alcance_lbl:'Visualizaciones',interacciones:3468345,alcance_unico:15171275,visitas_perfil:822615,clics_enlace:10398},
       youtube:   {seguidores:175797,seguidores_nuevos:7893,alcance:7758046,alcance_lbl:'Visualizaciones',interacciones:153338,interacciones_lbl:'Horas de visualización',paises:_redesParsePaises(REDES_YT_PAISES_RAW.w7),videos_top:[['Japón 3-1 Uruguay',3291254],['Corea 1-4 Uruguay',1779781],['India 1-6 Uruguay',505483]]},
       facebook:  {seguidores:1563577,seguidores_nuevos:2322,alcance:710920,alcance_lbl:'Visualizaciones',interacciones:16873,alcance_unico:466826,visitas_perfil:57740,clics_enlace:4040},
@@ -33685,7 +33692,7 @@ function renderRedes(){
 window._redesIAFifa=window._redesIAFifa||{};
 function _redesCompactSnap(x){
   if(!x) return null;
-  const pick=k=>x[k]?{alcance:x[k].alcance,seguidores:x[k].seguidores,seguidores_nuevos:x[k].seguidores_nuevos,interacciones:x[k].interacciones}:null;
+  const pick=k=>x[k]?{alcance:x[k].alcance,seguidores:x[k].seguidores,seguidores_nuevos:x[k].seguidores_nuevos,interacciones:x[k].interacciones,vistas_perfil:x[k].vistas_perfil,paises_audiencia_28d:x[k].paises_espectadores||x[k].paises_audiencia,paises_seguidores:x[k].paises_seguidores}:null;
   return {label:x.label,desde:x.rango_desde,hasta:x.rango_hasta,dias:x.dias,
     youtube:x.youtube?{alcance:x.youtube.alcance,seguidores_nuevos:x.youtube.seguidores_nuevos,horas_visualizacion:x.youtube.interacciones,paises_top:(x.youtube.paises||[]).slice(0,15),videos_top:x.youtube.videos_top||[]}:null,
     instagram:pick('instagram'),facebook:pick('facebook'),tiktok:pick('tiktok'),x:pick('x')};
@@ -34009,8 +34016,10 @@ function _redesFifaConclusiones(sel){
   const uyShare=x=>(_redesPaisViews(x,'Uruguay')||0)/x.youtube.alcance*100;
   const asiaShare=x=>_redesAsiaViews(x)/x.youtube.alcance*100;
   const rd=(x,k)=>x[k]&&x[k].alcance!=null?x[k].alcance/((x[k].dias)||x.dias):null;
-  const ry=rd(sel,'youtube'), ri=rd(sel,'instagram'), rf=rd(sel,'facebook');
-  if(ry!=null&&ri!=null&&rf!=null){ const t3=ry+ri+rf; bullets.push(`Entre las tres redes medidas en esta ventana (YouTube, Instagram y Facebook), <b>Instagram</b> concentró el <b>${(ri/t3*100).toFixed(0)}%</b> de las visualizaciones por día, <b>YouTube</b> el ${(ry/t3*100).toFixed(0)}% y <b>Facebook</b> el ${(rf/t3*100).toFixed(0)}%. TikTok y X no se miden en esta ventana.`); }
+  const rr=[['YouTube','youtube'],['Instagram','instagram'],['Facebook','facebook'],['TikTok','tiktok'],['X','x']].map(([n,k])=>[n,rd(sel,k)]).filter(r=>r[1]!=null);
+  if(rr.length>=3){ const t5=rr.reduce((a,r)=>a+r[1],0); const faltan=['TikTok','X'].filter(n=>!rr.some(r=>r[0]===n)); bullets.push(`Entre las ${rr.length} redes medidas en esta ventana, ${[...rr].sort((a,b)=>b[1]-a[1]).map(r=>`<b>${r[0]}</b> concentró el ${(r[1]/t5*100).toFixed(r[1]/t5<0.02?1:0)}%`).join(', ')} de las visualizaciones o impresiones por día (la métrica no es idéntica entre redes).${faltan.length?' Falta medir '+faltan.join(' y ')+' en esta ventana.':''}`); }
+  if(sel.tiktok&&sel.tiktok.alcance!=null&&sel.tiktok.paises_espectadores){ const tp=sel.tiktok.paises_espectadores; bullets.push(`<b>TikTok</b> sumó ${_redesFmt(sel.tiktok.alcance)} vistas de video (${_redesFmt(Math.round(sel.tiktok.alcance/sel.dias))} por día) y su audiencia es latinoamericana: ${tp.slice(0,3).map(p=>`${p[0]} ${String(p[1]).replace('.',',')}%`).join(', ')}. Ningún país de Asia está entre los diez primeros, así que el efecto de la gira apareció en YouTube y no en TikTok.`); }
+  if(sel.x&&sel.x.alcance!=null&&sel.x.paises_audiencia){ const xi=sel.x.paises_audiencia.find(p=>p[0]==='India'), xj=sel.x.paises_audiencia.find(p=>p[0]==='Japón'); bullets.push(`<b>X</b> tuvo ${_redesFmt(sel.x.alcance)} impresiones (${_redesFmt(Math.round(sel.x.alcance/sel.dias))} por día) y ${_redesFmt(sel.x.interacciones)} interacciones. Entre quienes interactúan, <b>India</b> aporta el ${xi?String(xi[1]).replace('.',','):'-'}% y <b>Japón</b> el ${xj?String(xj[1]).replace('.',','):'-'}%: junto con YouTube, es la red donde se ve la gira por Asia.`); }
   const uyS=uyShare(sel), uyO=prom(uyShare);
   if(uyO!=null) bullets.push(`En <b>${nm(sel)}</b> el <b>${uyS.toFixed(1)}%</b> de las vistas de YouTube vino de Uruguay (promedio de las otras Fechas FIFA: ~${uyO.toFixed(0)}%)${uyS<uyO-8?': la audiencia de la Selección se internacionalizó':''}.`);
   const ext=sel.youtube.paises.filter(p=>p[0]!=='Uruguay').slice(0,3);
@@ -34163,7 +34172,7 @@ async function _redesDescargarInformePdf(){
     ((window._redesIAFifa||{})[sel.fecha_snapshot]||_redesFifaConclusiones(sel).filter(b=>!/^(YouTube|Instagram|Facebook):/.test(_redesPdfSan(b)))).forEach(b=>bullet(b));
     y+=2;
     // ── red por red ──
-    h2('Red por red en el período');
+    need(62); h2('Red por red en el período');
     const cw2=[27,27,24,30,24,20,26]; const hd2=['Red','Seguidores','Nuevos','Visualizaciones','Por día','vs. ant.','Interacciones'];
     const filaHead=(hd,cw)=>{ need(8); doc.setFillColor(...C.claro); doc.rect(M,y,CW,6.5,'F'); let cx=M; hd.forEach((h,i)=>{ txt(h,i?cx+cw[i]-1.5:cx+2,y+4.4,{size:7,bold:true,color:C.gris,align:i?'right':undefined}); cx+=cw[i]; }); y+=6.5; };
     need(52); filaHead(hd2,cw2);
@@ -34188,8 +34197,8 @@ async function _redesDescargarInformePdf(){
       ['YouTube',`${nf(total/dias)} vistas por día${cambio('youtube')}. El ${yS.toFixed(1)}% vino de Uruguay y el ${aS.toFixed(1)}% de países de Asia: es la red donde se ve la audiencia internacional.`],
       ['Instagram',sel.instagram&&sel.instagram.alcance!=null?`${nf(rate(sel,'instagram'))} visualizaciones por día${cambio('instagram')}${sel.instagram.seguidores_nuevos!=null?', con +'+nf(sel.instagram.seguidores_nuevos)+' seguidores nuevos':''}. Es la red de mayor volumen bruto.`:'Sin visualizaciones confiables en esta ventana.'],
       ['Facebook',sel.facebook&&sel.facebook.alcance!=null?`${nf(rate(sel,'facebook'))} visualizaciones por día${cambio('facebook')}. Ojo: los posteos de Instagram no se están replicando en la página (el compartido automático figura activado, causa en revisión), así que la caída refleja menos publicaciones y no necesariamente menos interés.`:'Sin datos en esta ventana.'],
-      ['TikTok',(sel.tiktok&&sel.tiktok.alcance!=null)?`${nf(sel.tiktok.alcance/dias)} vistas por día.`:'No hay medición en esta ventana (hace falta la sesión de la cuenta en TikTok Studio).'+mundial('tiktok','vistas de video')],
-      ['X',(sel.x&&sel.x.alcance!=null)?`${nf(sel.x.alcance/dias)} impresiones por día.`:'No hay medición en esta ventana (hace falta la sesión de la cuenta en X Analytics).'+mundial('x','impresiones')],
+      ['TikTok',(sel.tiktok&&sel.tiktok.alcance!=null)?`${nf(sel.tiktok.alcance/dias)} vistas de video por día${wc&&wc.tiktok&&wc.tiktok.alcance?`, un ${Math.abs(Math.round(pct(sel.tiktok.alcance/dias,wc.tiktok.alcance/wc.dias)))}% ${pct(sel.tiktok.alcance/dias,wc.tiktok.alcance/wc.dias)<0?'menos':'más'} que en el Mundial (${nf(wc.tiktok.alcance/wc.dias)} por día)`:''}, con ${compact(sel.tiktok.vistas_perfil)} de vistas del perfil y +${nf(sel.tiktok.seguidores_nuevos)} seguidores netos. La audiencia es sobre todo latinoamericana (${(sel.tiktok.paises_espectadores||[]).slice(0,3).map(p=>p[0]+' '+String(p[1]).replace('.',',')+'%').join(', ')}) y no aparece ningún país de Asia entre los diez primeros: a diferencia de YouTube, la gira no se vio en TikTok.`:'No hay medición en esta ventana (hace falta la sesión de la cuenta en TikTok Studio).'+mundial('tiktok','vistas de video')],
+      ['X',(sel.x&&sel.x.alcance!=null)?`${nf(sel.x.alcance/dias)} impresiones por día${wc&&wc.x&&wc.x.alcance?`, un ${Math.abs(Math.round(pct(sel.x.alcance/dias,wc.x.alcance/wc.dias)))}% ${pct(sel.x.alcance/dias,wc.x.alcance/wc.dias)<0?'menos':'más'} que en el Mundial (${nf(wc.x.alcance/wc.dias)} por día)`:''}, con ${nf(sel.x.interacciones)} interacciones (tasa ${String(sel.x.tasa_interaccion).replace('.',',')}%) y ${nf(sel.x.visitas_perfil)} visitas al perfil. Es la red social donde sí se ve la gira: entre quienes interactúan, India aporta el ${String((sel.x.paises_audiencia||[]).find(p=>p[0]==='India')?.[1]).replace('.',',')}% y Japón el ${String((sel.x.paises_audiencia||[]).find(p=>p[0]==='Japón')?.[1]).replace('.',',')}%.`:'No hay medición en esta ventana (hace falta la sesión de la cuenta en X Analytics).'+mundial('x','impresiones')],
     ];
     lectura.forEach(([n,t])=>bullet(n+': '+t));
     y+=2;
@@ -34210,6 +34219,23 @@ async function _redesDescargarInformePdf(){
       y+=4;
     }
     // ── audiencia por país ──
+    if((sel.tiktok&&sel.tiktok.paises_espectadores)||(sel.x&&sel.x.paises_audiencia)){
+      need(78); h2('Audiencia por país en TikTok y X');
+      const tcw=CW/2-4;
+      const cols=[];
+      if(sel.tiktok&&sel.tiktok.paises_espectadores) cols.push(['TikTok - espectadores (últimos 28 días)',sel.tiktok.paises_espectadores,[255,45,85]]);
+      if(sel.x&&sel.x.paises_audiencia) cols.push(['X - audiencia que interactúa (últimos 28 días)',sel.x.paises_audiencia,[60,60,60]]);
+      let hmax=0;
+      cols.forEach(([tt,lst,col],ci)=>{
+        const x0=M+ci*(tcw+8); let yy=y; txt(tt,x0,yy+3,{size:8,bold:true,color:C.gris}); yy+=6;
+        lst.forEach(([n,v])=>{ const asiaF=REDES_ASIA.includes(n); txt(n,x0,yy+3.4,{size:8,bold:asiaF}); const bx=x0+30,bw=tcw-48; doc.setFillColor(...C.claro); doc.rect(bx,yy+0.6,bw,3.6,'F'); doc.setFillColor(...(asiaF?C.naranja:col)); doc.rect(bx,yy+0.6,Math.max(0.5,bw*v/lst[0][1]),3.6,'F'); txt(String(v).replace('.',',')+'%',x0+tcw,yy+3.4,{size:8,bold:true,align:'right'}); yy+=5.2; });
+        hmax=Math.max(hmax,yy-y);
+      });
+      y+=hmax+2;
+      if(sel.tiktok&&sel.tiktok.paises_seguidores) para('Seguidores de TikTok por país: '+sel.tiktok.paises_seguidores.map(p=>p[0]+' '+String(p[1]).replace('.',',')+'%').join(', ')+'.',{size:8,lh:4});
+      para('Fuente: TikTok Studio y X Analytics. Ninguna de las dos deja fijar un rango propio para la audiencia por país (TikTok: 7, 28, 60 o 365 días; X: 7D, 28D o 3M), por eso se usan los últimos 28 días (15 sep - 12 oct), que incluyen la ventana. En naranja, países de Asia. En TikTok ningún país de Asia está entre los diez primeros de espectadores; en X, India y Japón están entre los tres primeros.',{size:7.5,color:C.gris,lh:3.8});
+      y+=4;
+    }
     need(108); h2('Audiencia de YouTube por país');
     const lista=sel.youtube.paises;
     const top=lista.slice(0,12).map((p,i)=>({n:p[0],v:p[1],pos:i+1}));
@@ -34262,7 +34288,7 @@ async function _redesDescargarInformePdf(){
     y+=4;
     // ── notas ──
     h2('Notas y límites de los datos');
-    ['Fuentes: Meta Business Suite (Facebook e Instagram de "AUF - Selección Uruguaya de Fútbol") y YouTube Studio (canal AUFTV), relevados automáticamente. TikTok y X: en esta ventana no hay medición propia; los datos disponibles son los del Mundial y los seguidores del último relevamiento (redondeados). Se suman cuando haya sesión iniciada con la cuenta de la Selección.',
+    ['Fuentes: Meta Business Suite (Facebook e Instagram de "AUF - Selección Uruguaya de Fútbol") y YouTube Studio (canal AUFTV), relevados automáticamente. TikTok (TikTok Studio) y X (X Analytics) se midieron el 13/10/2026 con las cuentas oficiales; ambas redondean las cifras. En X no figura el neto de seguidores nuevos del período (queda en blanco) y su audiencia por país corresponde a quienes dan me gusta.',
      'Las ventanas tienen distinto largo: comparar siempre por día. El canal AUFTV incluye también la Liga AUF, no solo la Selección.',
      'La audiencia por país solo está disponible para YouTube. En Instagram y Facebook, Meta informa el país de los seguidores (no de las visualizaciones).',
      'Facebook: la página se alimentaba con el compartido automático desde Instagram. Hoy el compartido figura activado en Instagram pero los posteos no aparecen en Facebook (causa en revisión), por lo que sus cifras recientes no son comparables con ventanas anteriores hasta que se resuelva.',
