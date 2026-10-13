@@ -33566,9 +33566,9 @@ const REDES_SEED = {
       // Seguidores = total actual al 12/10/2026 (IG y FB: Meta Business Suite · Público; YouTube: Studio).
       fecha_snapshot: '2026-10-08', rango_desde: '2026-09-17', rango_hasta: '2026-10-08', dias: 22,
       label: 'Fecha FIFA · sep–oct 2026 (Japón, Corea del Sur e India)', corto: 'sep–oct 2026 · Asia',
-      // X Analytics (@Uruguay, 13/10/2026), rango 17/9–8/10. Seguidores: 1M (X solo muestra el redondeo); seguidores nuevos: X no da el neto del período.
+      // X Analytics (@Uruguay, 13/10/2026), rango 17/9–8/10. Seguidores: 1M (X solo muestra el redondeo). Seguidores nuevos: ESTIMADO midiendo las barras de 'Seguimientos en el tiempo' (altas ≈2.237, bajas ≈872, neto ≈+1.365); X no publica el neto.
       // País = audiencia de quienes dan me gusta, últimos 28 días (15/9–12/10; en Audiencia X solo permite 7D/28D/3M).
-      x:         {seguidores:1000000,seguidores_nuevos:null,alcance:14400000,alcance_lbl:'Impresiones',interacciones:227800,interacciones_lbl:'Interacciones',me_gusta:143300,reposts:11000,respuestas:4700,visitas_perfil:62600,tasa_interaccion:1.5,
+      x:         {seguidores:1000000,seguidores_nuevos:1365,seguidores_altas:2237,seguidores_bajas:872,seguidores_estimado:true,alcance:14400000,alcance_lbl:'Impresiones',interacciones:227800,interacciones_lbl:'Interacciones',me_gusta:143300,reposts:11000,respuestas:4700,visitas_perfil:62600,tasa_interaccion:1.5,
                   paises_audiencia:[['Uruguay',38.3],['India',20.9],['Japón',11.7],['Brasil',5.9],['Estados Unidos',3.1]]},
       // TikTok Studio (cuenta oficial, 13/10/2026), rango personalizado 17/9–8/10; TikTok redondea las cifras.
       // Interacciones = me gusta (487,2K) + comentarios (18,1K) + compartidos (248,4K). Países de espectadores: últimos 28 días (15/9–12/10; en Espectadores TikTok no deja fijar rango propio).
@@ -34169,7 +34169,7 @@ async function _redesDescargarInformePdf(){
       doc.setFillColor(...hex(col)); doc.rect(x,y,cwid,1.6,'F');
       txt(n,x+3,y+6.5,{size:7.5,bold:true,color:C.gris});
       txt(compact((seg[k]||{}).seguidores),x+3,y+14,{size:12,bold:true});
-      txt(d.seguidores_nuevos!=null?('+'+nf(d.seguidores_nuevos)+' nuevos'):'nuevos: sin dato',x+3,y+20,{size:7,color:d.seguidores_nuevos!=null?C.verde:C.gris,bold:d.seguidores_nuevos!=null});
+      txt(d.seguidores_nuevos!=null?((d.seguidores_estimado?'~+':'+')+nf(d.seguidores_nuevos)+' nuevos'):'nuevos: sin dato',x+3,y+20,{size:7,color:d.seguidores_nuevos!=null?C.verde:C.gris,bold:d.seguidores_nuevos!=null});
     });
     y+=31;
     // ── conclusiones generales ──
@@ -34186,7 +34186,7 @@ async function _redesDescargarInformePdf(){
       const b=ant&&ant[k]?ant[k].alcance:null, bd=ant&&ant[k]?((ant[k].dias)||ant.dias):1;
       const ch=a!=null&&b?pct(a/dd,b/bd):null;
       need(7.5); doc.setFillColor(...hex(col)); doc.rect(M,y+1.2,1.2,5,'F');
-      const vals=[n,compact((seg[k]||{}).seguidores),d.seguidores_nuevos!=null?'+'+nf(d.seguidores_nuevos):'-',a!=null?nf(a):'sin dato',a!=null?nf(a/dd):'-',chTxt(ch),d.interacciones!=null?nf(d.interacciones):'-'];
+      const vals=[n,compact((seg[k]||{}).seguidores),d.seguidores_nuevos!=null?(d.seguidores_estimado?'~+':'+')+nf(d.seguidores_nuevos):'-',a!=null?nf(a):'sin dato',a!=null?nf(a/dd):'-',chTxt(ch),d.interacciones!=null?nf(d.interacciones):'-'];
       let cx=M; vals.forEach((v,i)=>{ txt(v,i?cx+cw2[i]-1.5:cx+3,y+4.8,{size:8,bold:i===0,align:i?'right':undefined,color:i===5&&ch!=null?(ch>=0?C.verde:C.rojo):(v==='sin dato'||v==='-')?C.gris:C.navy}); cx+=cw2[i]; });
       doc.setDrawColor(...C.borde); doc.line(M,y+7.5,M+CW,y+7.5); y+=7.5;
     });
@@ -34203,7 +34203,7 @@ async function _redesDescargarInformePdf(){
       ['Instagram',sel.instagram&&sel.instagram.alcance!=null?`${nf(rate(sel,'instagram'))} visualizaciones por día${cambio('instagram')}${sel.instagram.seguidores_nuevos!=null?', con +'+nf(sel.instagram.seguidores_nuevos)+' seguidores nuevos':''}. Es la red de mayor volumen bruto.`:'Sin visualizaciones confiables en esta ventana.'],
       ['Facebook',sel.facebook&&sel.facebook.alcance!=null?`${nf(rate(sel,'facebook'))} visualizaciones por día${cambio('facebook')}. Ojo: los posteos de Instagram no se están replicando en la página (el compartido automático figura activado, causa en revisión), así que la caída refleja menos publicaciones y no necesariamente menos interés.`:'Sin datos en esta ventana.'],
       ['TikTok',(sel.tiktok&&sel.tiktok.alcance!=null)?`${nf(sel.tiktok.alcance/dias)} vistas de video por día${wc&&wc.tiktok&&wc.tiktok.alcance?`, un ${Math.abs(Math.round(pct(sel.tiktok.alcance/dias,wc.tiktok.alcance/wc.dias)))}% ${pct(sel.tiktok.alcance/dias,wc.tiktok.alcance/wc.dias)<0?'menos':'más'} que en el Mundial (${nf(wc.tiktok.alcance/wc.dias)} por día)`:''}, con ${compact(sel.tiktok.vistas_perfil)} de vistas del perfil y +${nf(sel.tiktok.seguidores_nuevos)} seguidores netos. La audiencia es sobre todo latinoamericana (${(sel.tiktok.paises_espectadores||[]).slice(0,3).map(p=>p[0]+' '+String(p[1]).replace('.',',')+'%').join(', ')}) y no aparece ningún país de Asia entre los diez primeros: a diferencia de YouTube, la gira no se vio en TikTok.`:'No hay medición en esta ventana (hace falta la sesión de la cuenta en TikTok Studio).'+mundial('tiktok','vistas de video')],
-      ['X',(sel.x&&sel.x.alcance!=null)?`${nf(sel.x.alcance/dias)} impresiones por día${wc&&wc.x&&wc.x.alcance?`, un ${Math.abs(Math.round(pct(sel.x.alcance/dias,wc.x.alcance/wc.dias)))}% ${pct(sel.x.alcance/dias,wc.x.alcance/wc.dias)<0?'menos':'más'} que en el Mundial (${nf(wc.x.alcance/wc.dias)} por día)`:''}, con ${nf(sel.x.interacciones)} interacciones (tasa ${String(sel.x.tasa_interaccion).replace('.',',')}%) y ${nf(sel.x.visitas_perfil)} visitas al perfil. Es la red social donde sí se ve la gira: entre quienes interactúan, India aporta el ${String((sel.x.paises_audiencia||[]).find(p=>p[0]==='India')?.[1]).replace('.',',')}% y Japón el ${String((sel.x.paises_audiencia||[]).find(p=>p[0]==='Japón')?.[1]).replace('.',',')}%.`:'No hay medición en esta ventana (hace falta la sesión de la cuenta en X Analytics).'+mundial('x','impresiones')],
+      ['X',(sel.x&&sel.x.alcance!=null)?`${nf(sel.x.alcance/dias)} impresiones por día${wc&&wc.x&&wc.x.alcance?`, un ${Math.abs(Math.round(pct(sel.x.alcance/dias,wc.x.alcance/wc.dias)))}% ${pct(sel.x.alcance/dias,wc.x.alcance/wc.dias)<0?'menos':'más'} que en el Mundial (${nf(wc.x.alcance/wc.dias)} por día)`:''}, con ${nf(sel.x.interacciones)} interacciones (tasa ${String(sel.x.tasa_interaccion).replace('.',',')}%) y ${nf(sel.x.visitas_perfil)} visitas al perfil${sel.x.seguidores_nuevos!=null?`; ganó unos ${nf(sel.x.seguidores_nuevos)} seguidores netos (aprox.: ${nf(sel.x.seguidores_altas)} altas y ${nf(sel.x.seguidores_bajas)} bajas)`:''}. Es la red social donde sí se ve la gira: entre quienes interactúan, India aporta el ${String((sel.x.paises_audiencia||[]).find(p=>p[0]==='India')?.[1]).replace('.',',')}% y Japón el ${String((sel.x.paises_audiencia||[]).find(p=>p[0]==='Japón')?.[1]).replace('.',',')}%.`:'No hay medición en esta ventana (hace falta la sesión de la cuenta en X Analytics).'+mundial('x','impresiones')],
     ];
     lectura.forEach(([n,t])=>bullet(n+': '+t));
     y+=2;
@@ -34293,7 +34293,7 @@ async function _redesDescargarInformePdf(){
     y+=4;
     // ── notas ──
     h2('Notas y límites de los datos');
-    ['Fuentes: Meta Business Suite (Facebook e Instagram de "AUF - Selección Uruguaya de Fútbol") y YouTube Studio (canal AUFTV), relevados automáticamente. TikTok (TikTok Studio) y X (X Analytics) se midieron el 13/10/2026 con las cuentas oficiales; ambas redondean las cifras. En X no figura el neto de seguidores nuevos del período (queda en blanco) y su audiencia por país corresponde a quienes dan me gusta.',
+    ['Fuentes: Meta Business Suite (Facebook e Instagram de "AUF - Selección Uruguaya de Fútbol") y YouTube Studio (canal AUFTV), relevados automáticamente. TikTok (TikTok Studio) y X (X Analytics) se midieron el 13/10/2026 con las cuentas oficiales; ambas redondean las cifras. En X los seguidores nuevos son una estimación (~) medida sobre el gráfico de altas y bajas, porque X no publica el neto; su audiencia por país corresponde a quienes dan me gusta.',
      'Las ventanas tienen distinto largo: comparar siempre por día. El canal AUFTV incluye también la Liga AUF, no solo la Selección.',
      'La audiencia por país solo está disponible para YouTube. En Instagram y Facebook, Meta informa el país de los seguidores (no de las visualizaciones).',
      'Facebook: la página se alimentaba con el compartido automático desde Instagram. Hoy el compartido figura activado en Instagram pero los posteos no aparecen en Facebook (causa en revisión), por lo que sus cifras recientes no son comparables con ventanas anteriores hasta que se resuelva.',
