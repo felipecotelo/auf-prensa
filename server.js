@@ -542,6 +542,62 @@ function parseIcsEvents(ics) {
   return events;
 }
 
+// ── Efemérides y cumpleaños anuales leídos DIRECTO del calendario de Google ("Selección | Planificación") ──
+// Reemplaza la carga manual: la app siempre muestra lo que figura en el calendario, sin depender de
+// que la tarea programada de la Mac haya corrido. Solo eventos con RRULE:FREQ=YEARLY.
+// BEGIN calendario-anual (funciones puras, sin APIs de Node)
+function parseIcsYearly(ics) {
+  const txt = String(ics).replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '');
+  const out = [];
+  for (const block of txt.split('BEGIN:VEVENT').slice(1)) {
+    const b = '\n' + block.split('END:VEVENT')[0];
+    if (!/\nRRULE:[^\n]*FREQ=YEARLY/.test(b)) continue;
+    if (/\nRECURRENCE-ID/.test(b) || /\nSTATUS:CANCELLED/.test(b)) continue;
+    const sm = b.match(/\nSUMMARY:(.*)/);
+    const dm = b.match(/\nDTSTART[^:\n]*:(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?/);
+    if (!sm || !dm) continue;
+    let mm = dm[2], dd = dm[3];
+    if (dm[4] && dm[7] === 'Z') { // hora UTC → fecha local de Montevideo (UTC-3, sin horario de verano)
+      const d = new Date(Date.UTC(+dm[1], +dm[2] - 1, +dm[3], +dm[4], +dm[5], +dm[6]) - 3 * 3600 * 1000);
+      mm = String(d.getUTCMonth() + 1).padStart(2, '0'); dd = String(d.getUTCDate()).padStart(2, '0');
+    }
+    const summary = sm[1].replace(/\\,/g, ',').replace(/\;/g, ';').replace(/\\n/gi, ' ').replace(/\s+/g, ' ').trim();
+    out.push({ mmdd: mm + '-' + dd, summary });
+  }
+  return out;
+}
+function clasificarEfemerides(items) {
+  const res = [], vistos = new Set();
+  for (const it of items) {
+    const t = it.summary;
+    if (!t || t.indexOf('|') >= 0 || /^(sub-|mayor)/i.test(t)) continue;
+    const m = t.match(/^cumplea[ñn]os\s*(?:de\s*)?(.+)$/i);
+    const limpio = x => x.replace(/\s+\d{1,2}\/\d{1,2}$/, '').replace(/\s+/g, ' ').trim();
+    const o = m ? { mmdd: it.mmdd, txt: limpio(m[1]), tipo: 'cumple_cal' } : { mmdd: it.mmdd, txt: limpio(t), tipo: 'aniversario' };
+    const k = o.tipo + '|' + o.mmdd + '|' + o.txt;
+    if (!o.txt || vistos.has(k)) continue;
+    vistos.add(k); res.push(o);
+  }
+  return res.sort((a, b) => (a.mmdd + a.tipo + a.txt).localeCompare(b.mmdd + b.tipo + b.txt));
+}
+// END calendario-anual
+let _calAnualCache = null; // {ts, items}
+const CAL_ANUAL_TTL = 30 * 60 * 1000; // 30 min
+app.get('/api/calendario-anual', async (req, res) => {
+  try {
+    if (_calAnualCache && (Date.now() - _calAnualCache.ts) < CAL_ANUAL_TTL) return res.json({ ok: true, items: _calAnualCache.items, cached: true });
+    const url = process.env.SELECCION_ICS_URL;
+    if (!url) return res.status(501).json({ ok: false, error: 'Falta SELECCION_ICS_URL' });
+    const ics = await fetchText(url);
+    const items = clasificarEfemerides(parseIcsYearly(ics));
+    if (items.length < 20) return res.status(502).json({ ok: false, error: 'el calendario devolvió muy pocos eventos anuales (' + items.length + ')' });
+    _calAnualCache = { ts: Date.now(), items };
+    res.json({ ok: true, items, updatedAt: new Date().toISOString() });
+  } catch (e) {
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
 async function computeMisIdas() {
   const url = process.env.PERSONAL_ICS_URL;
   const url2 = process.env.SELECCION_ICS_URL; // opcional, calendario "Selección | Planificación" para Fecha FIFA

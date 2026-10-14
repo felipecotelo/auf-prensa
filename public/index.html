@@ -5191,7 +5191,25 @@ const KCalendarioHoy='auf4_calendario_hoy';
 const CALENDARIO_SELECCION_DEFAULT=[
   {mmdd:'07-30', txt:'Uruguay Campeón del Mundo 1930', tipo:'aniversario'},
 ];
-function getCalendarioSeleccion(){ return stor.get(KCalendarioHoy, CALENDARIO_SELECCION_DEFAULT); }
+// Efemérides y cumpleaños anuales: se leen DIRECTO del calendario de Google desde el servidor (/api/calendario-anual),
+// así no dependen de que la tarea programada haya corrido. Si el servidor no responde, queda lo guardado en la nube.
+window._calAnualSrv=null;
+function getCalendarioSeleccion(){
+  const st=stor.get(KCalendarioHoy, CALENDARIO_SELECCION_DEFAULT);
+  const srv=window._calAnualSrv;
+  if(!srv||!srv.length) return st;
+  return st.filter(c=>c.tipo!=='aniversario'&&c.tipo!=='cumple_cal').concat(srv);
+}
+function _cargarCalAnual(){
+  fetch('/api/calendario-anual').then(r=>r.json()).then(d=>{
+    if(!d||!d.ok||!Array.isArray(d.items)||d.items.length<20) return;
+    const cambio=JSON.stringify(window._calAnualSrv)!==JSON.stringify(d.items);
+    window._calAnualSrv=d.items;
+    if(cambio&&typeof renderInicio==='function'){ try{ renderInicio(); }catch(e){} }
+  }).catch(()=>{});
+}
+setTimeout(_cargarCalAnual,2500);
+setInterval(_cargarCalAnual,3*3600*1000);
 
 function renderInicioHoySeleccion(dayOffset){
   dayOffset=dayOffset||0;
