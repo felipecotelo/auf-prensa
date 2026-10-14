@@ -5345,6 +5345,21 @@ function renderInicioHoySeleccion(dayOffset){
 
     // ── Aniversarios / actividades del calendario ──────────────────────────
     const calendarioSel=getCalendarioSeleccion();
+    // Cumpleaños que figuran en el Google Calendar ("Cumpleaños X") y la app no mostró ese día
+    // (jugador/DT que no está en la base, o cargado con otra fecha): se muestran igual para no perder el aviso.
+    const _nrm=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const _toks=x=>new Set((_nrm(x).match(/[a-z]+/g)||[]).filter(t=>t.length>3));
+    const cumplesCal=calendarioSel.filter(c=>c.tipo==='cumple_cal'&&c.mmdd===mmdd).filter(c=>{
+      const tc=_toks(c.txt); return !cumples.some(x=>{ const tx=_toks(x.nom); let n=0; tc.forEach(t=>{ if(tx.has(t)) n++; }); return n>=1; });
+    });
+    const cumpleCalRows=cumplesCal.map(c=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 0;${borderCss}">
+        <div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">🎂</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:${isMob?'13px':'12.5px'};font-weight:700;color:${rowColor}">${c.txt}</div>
+          <div style="font-size:${isMob?'11px':'10.5px'};color:${subColor}">Cumpleaños ${rel} · según el calendario</div>
+        </div>
+      </div>`).join('');
     const aniversarios=calendarioSel.filter(c=>c.tipo==='aniversario'&&c.mmdd===mmdd);
     const actividades=calendarioSel.filter(c=>c.tipo==='actividad'&&(c.fecha||'').slice(5,10)===mmdd);
     const rowHtml=(icon,txt)=>`
@@ -5505,7 +5520,7 @@ function renderInicioHoySeleccion(dayOffset){
         </div>
       </div>`).join('');
 
-    const vacio=!cumples.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !partidosHoy.length && !fifaSepHoy.length && !entrenoHoy.length && !planHoy.length;
+    const vacio=!cumples.length && !cumplesCal.length && !cumplesEstructura.length && !aniversarioRows && !actividadRows && !partidosHoy.length && !fifaSepHoy.length && !entrenoHoy.length && !planHoy.length;
     // "Hoy" siempre se muestra, aunque no haya nada — así el widget da una señal
     // clara de "reviewed, no hay nada" en vez de simplemente desaparecer. Ayer y
     // Mañana, al ser menos críticos de tener siempre a la vista, se ocultan si
@@ -5517,7 +5532,7 @@ function renderInicioHoySeleccion(dayOffset){
       : (partidoRows?subHdr('🏟️ Partidos')+partidoRows:'')
       +(fifaSepRows?subHdr('🇺🇾 Fecha FIFA — Selección Mayor')+fifaSepRows:'')
       +(entrenoRows?subHdr('🏃 Entrenamientos y cobertura')+entrenoRows:'')
-      +(cumples.length?subHdr('🎂 Cumpleaños')+cumpleRows:'')
+      +((cumples.length||cumplesCal.length)?subHdr('🎂 Cumpleaños')+cumpleRows+cumpleCalRows:'')
       +(cumpleEstructuraRows?subHdr('🎂 Cumpleaños · Estructura')+cumpleEstructuraRows:'')
       +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
       +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
