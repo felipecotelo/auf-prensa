@@ -3595,7 +3595,7 @@ function _famHtml(nom){
   const fam = FAMILIA_JUGADORES[nom];
   if(!fam || !fam.length) return '';
   return `<div style="font-size:.62em;color:var(--muted);margin-top:2px;display:flex;flex-wrap:wrap;gap:6px">
-    ${fam.map(f=>`<span onclick="event.stopPropagation();_famGo('${encodeURIComponent(f.nombre)}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px">👪 ${f.rel} ${f.nombre}</span>`).join('')}
+    ${fam.map(f=>`<span onclick="event.stopPropagation();_famGo('${_encJs(f.nombre)}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px">👪 ${f.rel} ${f.nombre}</span>`).join('')}
   </div>`;
 }
 const setMayorNac = (nom, val) => { const d=getMayorNac(); if(val) d[nom]=val; else delete d[nom]; stor.set(KMayorNac,d,{allowShrink:true}); cloudPushDebounced(KMayorNac,d,{allowShrink:true}); };
@@ -5171,6 +5171,8 @@ function countDone(matchId,items){
 
 // Widget "Hoy" — cumpleaños del día entre jugadores (base histórica) y DTs. Se recalcula
 // solo, sin cargar nada a mano: mira la fecha de hoy contra fechaNac de cada uno.
+// encodeURIComponent deja pasar el apostrofe y rompe los onclick entre comillas simples (O'Neill, 'Ruso' Perez...)
+window._encJs=function(x){ return encodeURIComponent(x).replace(/'/g,'%27'); };
 const _SALUDO_ESTADOS=['pendiente','saludado','no_aplica'];
 const _SALUDO_LABEL={pendiente:'No lo saludamos todavía',saludado:'✓ Ya lo saludamos',no_aplica:'No aplica saludo'};
 const _SALUDO_COLOR={pendiente:'#B45309',saludado:'#16A34A',no_aplica:'#64748B'};
@@ -5246,7 +5248,7 @@ function renderInicioHoySeleccion(dayOffset){
         const fn=mayorNacOvr[nom]||d?.fechaNac||(typeof MAYOR_NAC_DEFAULT!=='undefined'?MAYOR_NAC_DEFAULT[nom]:null);
         if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
           const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
-          cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('mayor','${encodeURIComponent(nom)}')`});
+          cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('mayor','${_encJs(nom)}')`});
           cumpleNames.add(nom);
         }
       });
@@ -5281,7 +5283,7 @@ function renderInicioHoySeleccion(dayOffset){
           if(cumpleNames.has(nom)) return;
           if(fn.length>=10 && fn.slice(5,10)===mmdd){
             const fallecido=!!fallecidoMayorLS[nom];
-            cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Juveniles · '+label, fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo?window._gnavGo('juveniles','${encodeURIComponent(nom)}'):showSection('juveniles')`});
+            cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Juveniles · '+label, fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo?window._gnavGo('juveniles','${_encJs(nom)}'):showSection('juveniles')`});
             cumpleNames.add(nom);
           }
         });
@@ -5293,7 +5295,7 @@ function renderInicioHoySeleccion(dayOffset){
         const fn=LOCAL_NAC_DATES[nom];
         if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
           const fallecido=!!fallecidoMayorLS[nom];
-          cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Local', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('local','${encodeURIComponent(nom)}')`});
+          cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Local', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('local','${_encJs(nom)}')`});
           cumpleNames.add(nom);
         }
       });
@@ -5348,7 +5350,7 @@ function renderInicioHoySeleccion(dayOffset){
       const lkey=isoHoy+'_'+c.nom;
       const saludo=(hoyLinks[lkey]||{}).saludo||'pendiente';
       // Mañana todavía no pasó: no tiene sentido trackear si se mandó saludo.
-      const saludoBtn=esManana?'':`<button onclick="event.stopPropagation();window._hoySaludoCycle('${lkey}')" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
+      const saludoBtn=esManana?'':`<button data-k="${String(lkey).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="event.stopPropagation();window._hoySaludoCycle(this.dataset.k)" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
       const leyendaBadge=c.leyenda?`<span style="font-size:8px;font-weight:800;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">⭐ LEYENDA</span>`:'';
       return `
       <div onclick="${c.onclick}" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;${borderCss}">
@@ -5981,7 +5983,7 @@ function renderInicioFotos(){
     if(typeof PLAYERS!=='undefined'){
       PLAYERS.forEach(p=>{
         const has=(_idbPhotos&&_idbPhotos[p.n])||p.photo||window._getPhotoByName?.(p.name);
-        if(!has) faltantes.push({nom:p.name, sub:'Plantel actual', onclick:`window._gnavGo('mayor','${encodeURIComponent(p.name)}')`});
+        if(!has) faltantes.push({nom:p.name, sub:'Plantel actual', onclick:`window._gnavGo('mayor','${_encJs(p.name)}')`});
       });
     }
     if(typeof ESTRUCTURA_PERSONAS!=='undefined'){
@@ -6093,7 +6095,7 @@ function renderInicioProximo(){
           const fecha=nextOcurrencia(d.fechaNac.slice(5,10));
           const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
           const edad=fecha.getFullYear()-parseInt(d.fechaNac.slice(0,4));
-          candidatos.push({label:`🎂 Cumpleaños de ${nom}`+(fallecido?` (hubiera cumplido ${edad})`:` (${edad} años)`), fecha, cats:['mayor','cumple'], onclick:`window._gnavGo('mayor','${encodeURIComponent(nom)}')`});
+          candidatos.push({label:`🎂 Cumpleaños de ${nom}`+(fallecido?` (hubiera cumplido ${edad})`:` (${edad} años)`), fecha, cats:['mayor','cumple'], onclick:`window._gnavGo('mayor','${_encJs(nom)}')`});
         }
       });
     }
@@ -6128,7 +6130,7 @@ function renderInicioProximo(){
       juvSeen.forEach(({fn,catKey},nom)=>{
         const fecha=nextOcurrencia(fn.slice(5,10));
         const edad=fecha.getFullYear()-parseInt(fn.slice(0,4));
-        candidatos.push({label:`🎂 Cumpleaños de ${nom} (${edad} años)`, fecha, cats:[catKey,'cumple'], onclick:`window._gnavGo?window._gnavGo('juveniles','${encodeURIComponent(nom)}'):showSection('juveniles')`});
+        candidatos.push({label:`🎂 Cumpleaños de ${nom} (${edad} años)`, fecha, cats:[catKey,'cumple'], onclick:`window._gnavGo?window._gnavGo('juveniles','${_encJs(nom)}'):showSection('juveniles')`});
       });
     }
     // Cumpleaños de Selección Local
@@ -6138,7 +6140,7 @@ function renderInicioProximo(){
         if(fn && fn.length>=10){
           const fecha=nextOcurrencia(fn.slice(5,10));
           const edad=fecha.getFullYear()-parseInt(fn.slice(0,4));
-          candidatos.push({label:`🎂 Cumpleaños de ${nom} (${edad} años)`, fecha, cats:['local','cumple'], onclick:`window._gnavGo('local','${encodeURIComponent(nom)}')`});
+          candidatos.push({label:`🎂 Cumpleaños de ${nom} (${edad} años)`, fecha, cats:['local','cumple'], onclick:`window._gnavGo('local','${_encJs(nom)}')`});
         }
       });
     }
@@ -7543,7 +7545,7 @@ function renderAapSuggestions(date, query){
   const matches=q?all.filter(t=>_gnavNorm(t.txt).includes(q)):all.slice(0,8);
   if(!matches.length){box.innerHTML='<div class="aap-sug-sub" style="padding:6px 2px">Sin resultados — usá las opciones de abajo</div>';return;}
   box.innerHTML=matches.map((t,i)=>`
-    <div class="aap-sug-item" onclick="aapPickTemplate('${date}',${i},'${encodeURIComponent(query||'')}')">
+    <div class="aap-sug-item" onclick="aapPickTemplate('${date}',${i},'${_encJs(query||'')}')">
       <span class="aap-sug-label">${t.txt}</span>
       ${aapTagHtml(t)}
     </div>`).join('');
@@ -29667,8 +29669,8 @@ function _gnavRowHTML(r, isJug, theme){
   const foto = _gnavPhotoFor(r);
   const initials = r.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const goCall = isJug
-    ? `window._gnavGo('${r.section}','${encodeURIComponent(r.nom)}')`
-    : `window._gnavCTGo('${r.section}','${encodeURIComponent(r.nom)}','${encodeURIComponent((r.extra&&r.extra.key)||'')}')`;
+    ? `window._gnavGo('${r.section}','${_encJs(r.nom)}')`
+    : `window._gnavCTGo('${r.section}','${_encJs(r.nom)}','${encodeURIComponent((r.extra&&r.extra.key)||'')}')`;
   const badge = _gnavBadge[r.section]||'';
   if(theme==='light'){
     const avatar = foto
@@ -33049,10 +33051,10 @@ function _buildJuvCompBody(compId, color, catData){
         : `<span>${initials}</span>`;
       return `
       <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
-        <div onclick="_clickCtPhoto('${encodeURIComponent(m.name)}')" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
+        <div onclick="_clickCtPhoto('${_encJs(m.name)}')" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
           <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
           <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
-          <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${encodeURIComponent(m.name)}',this)">
+          <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(m.name)}',this)">
         </div>
         <div style="flex:1">
           <div style="font-weight:800;font-size:.9em">${m.name}</div>
@@ -33120,10 +33122,10 @@ function _buildJuvCompBody(compId, color, catData){
         : `<span>${initials}</span>`;
       return `
       <div style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">
-        <div onclick="_clickCtPhoto('${encodeURIComponent(m.name)}')" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
+        <div onclick="_clickCtPhoto('${_encJs(m.name)}')" style="position:relative;width:38px;height:38px;border-radius:50%;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85em;flex-shrink:0;border:2px solid var(--border);cursor:pointer;overflow:visible">
           <div style="width:100%;height:100%;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center">${avatar}</div>
           <span style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;background:rgba(0,0,0,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;border:1.5px solid rgba(255,255,255,.5)">📷</span>
-          <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${encodeURIComponent(m.name)}',this)">
+          <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(m.name)}',this)">
         </div>
         <div style="flex:1">
           <div style="font-weight:800;font-size:.9em">${m.name}</div>
@@ -35056,7 +35058,7 @@ function _renderVentana(id){
                 <span style="font-size:.65em;font-weight:700;background:${estCfg.bg};color:${estCfg.color};border-radius:20px;padding:2px 7px;white-space:nowrap">${estCfg.label}</span>
                 <button onclick="event.stopPropagation();_pwAgToggleRealizada('${id}',${item.si})" title="${isRealizada?'Quitar realizada':'Marcar como realizada'}" style="border:none;background:none;cursor:pointer;padding:1px;font-size:1.2em;color:${isRealizada?'#16A34A':'#94A3B8'};line-height:1"><i class="ti ti-${isRealizada?'circle-check-filled':'circle-check'}"></i></button>
               </div>
-              <button onclick="event.stopPropagation();_pwAgConjuntoOpen('${id}',${item.si},'${rowId}','${encodeURIComponent(otrosSiData)}')" style="border:1px solid ${inGrupo?'#10B981':'transparent'};background:transparent;border-radius:6px;cursor:pointer;color:${inGrupo?'#059669':'#9CA3AF'};font-size:.65em;font-weight:700;padding:2px 6px;line-height:1.4">${inGrupo?'✎ conjunto':'+ junto'}</button>
+              <button onclick="event.stopPropagation();_pwAgConjuntoOpen('${id}',${item.si},'${rowId}','${_encJs(otrosSiData)}')" style="border:1px solid ${inGrupo?'#10B981':'transparent'};background:transparent;border-radius:6px;cursor:pointer;color:${inGrupo?'#059669':'#9CA3AF'};font-size:.65em;font-weight:700;padding:2px 6px;line-height:1.4">${inGrupo?'✎ conjunto':'+ junto'}</button>
             </div>
           </div>
           <div id="${rowId}-edit" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #BBF7D0" onclick="event.stopPropagation()">
@@ -38335,8 +38337,8 @@ function _mobUSearchInput(val){
   const rows=allResults.slice(0,30).map(r=>{
     const isJug=jugadores.includes(r);
     const closeCall=isJug
-      ?`_mobCloseUnifiedSearch();window._gnavGo('${r.section}','${encodeURIComponent(r.nom)}')`
-      :`_mobCloseUnifiedSearch();window._gnavCTGo('${r.section}','${encodeURIComponent(r.nom)}','${encodeURIComponent((r.extra&&r.extra.key)||'')}')`;
+      ?`_mobCloseUnifiedSearch();window._gnavGo('${r.section}','${_encJs(r.nom)}')`
+      :`_mobCloseUnifiedSearch();window._gnavCTGo('${r.section}','${_encJs(r.nom)}','${encodeURIComponent((r.extra&&r.extra.key)||'')}')`;
     return _mobRenderRow(r,closeCall);
   });
   res.innerHTML=rows.join('')+(allResults.length>30?`<div style="text-align:center;padding:14px;font-size:12px;color:rgba(239,243,248,.3)">+${allResults.length-30} más resultados</div>`:'');
