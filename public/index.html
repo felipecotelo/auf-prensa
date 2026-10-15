@@ -4651,7 +4651,24 @@ async function cloudPush(key,value,opts){
         if(!error && data?.value){
           const serverVal=JSON.parse(data.value);
           if(serverVal && typeof serverVal==='object' && !Array.isArray(serverVal) && !opts.allowShrink){
-            const missingKeys=Object.keys(serverVal).filter(k=>!(k in value));
+            let missingKeys=Object.keys(serverVal).filter(k=>!(k in value));
+            if(missingKeys.length>0){
+              // Claves que el servidor tiene y esta pestaña NUNCA vio (alguien las agregó o renombró
+              // desde otro lado después de que esta pestaña cargó): no es una pérdida ni una edición
+              // en conflicto, así que en vez de frenar el guardado con el cartel rojo se incorporan
+              // al objeto que se manda (nada se pierde). Si la pestaña SÍ había visto la clave y ahora
+              // falta, sigue bloqueando: eso sí puede ser un borrado accidental.
+              const _snap=_lastServerSnapshot[key];
+              if(_snap && _snap.size>0){
+                const _vistas=new Set([..._snap].map(x=>String(x).split('::')[0]));
+                const _nuevas=missingKeys.filter(k=>!_vistas.has(k));
+                if(_nuevas.length>0){
+                  _nuevas.forEach(k=>{ value[k]=serverVal[k]; });
+                  console.info(`cloudPush "${key}": se incorporaron ${_nuevas.length} clave(s) nuevas del servidor antes de guardar.`, _nuevas);
+                  missingKeys=missingKeys.filter(k=>!_nuevas.includes(k));
+                }
+              }
+            }
             if(missingKeys.length>0){
               console.warn(`cloudPush bloqueado para "${key}": el servidor tiene ${missingKeys.length} clave(s) que este guardado no incluye.`, missingKeys);
               _setSyncStatus('error');
