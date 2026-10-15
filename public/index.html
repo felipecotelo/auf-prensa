@@ -4527,6 +4527,17 @@ function renderClosedBanner(){
 }
 // Inicializar cierre al cargar — se ejecuta después de que stor esté listo
 
+// Migración de nombres (15/10/2026): "Juan Pablo Gancheff" pasó a "Juan Gancheff" en el servidor. Si esta
+// pestaña/navegador guardó localmente una copia con el nombre viejo, se descarta para que la próxima
+// carga baje la versión corregida del servidor (si no, ambos lados quedaban trabados y salía el cartel rojo).
+(function(){
+  try{
+    ['auf4_juv_club','auf4_juvPos','auf4_amist_juv_sub17_2025-2026'].forEach(k=>{
+      const v=localStorage.getItem(k);
+      if(v && v.indexOf('Juan Pablo Gancheff')>=0) localStorage.removeItem(k);
+    });
+  }catch(_){}
+})();
 let _autoSyncDirty=false;
 // ── Supabase cloud sync ────────────────────────────────────────────────────
 const _SB_URL='https://wsiudiexcodrhyejevco.supabase.co';
@@ -4667,6 +4678,17 @@ async function cloudPush(key,value,opts){
                   console.info(`cloudPush "${key}": se incorporaron ${_nuevas.length} clave(s) nuevas del servidor antes de guardar.`, _nuevas);
                   missingKeys=missingKeys.filter(k=>!_nuevas.includes(k));
                 }
+              }
+            }
+            if(missingKeys.length>0){
+              // Divergencia: esta pestaña tiene claves que el servidor ya no tiene Y el servidor tiene claves
+              // que acá faltan (típico de un renombre hecho del otro lado, ej. "Juan Pablo X" → "Juan X").
+              // Eso no es un borrado: se hace la unión (no se pierde nada de ningún lado) en vez del cartel.
+              const _extraLocal=Object.keys(value).filter(k=>!(k in serverVal));
+              if(_extraLocal.length>0){
+                missingKeys.forEach(k=>{ value[k]=serverVal[k]; });
+                console.info(`cloudPush "${key}": unión con el servidor (${missingKeys.length} clave(s) del servidor, ${_extraLocal.length} locales).`);
+                missingKeys=[];
               }
             }
             if(missingKeys.length>0){
