@@ -31357,11 +31357,17 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
       <div style="font-weight:700;margin-bottom:3px">Sin partidos${esOficial?' oficiales':' amistosos'} registrados</div>
       <div style="font-size:.78em">Creá un partido con el botón de arriba</div>
-    </div>` : (()=>{ const seenTorneos=new Set(); const _mundialList=list.filter(x=>x.compId==='mundial-sub15-2026'); return list.map(m=>{
+    </div>` : (()=>{ const seenTorneos=new Set(); let _prevTorneo=null; const _mundialList=list.filter(x=>x.compId==='mundial-sub15-2026'); return list.map(m=>{
       // Título de grupo — se muestra una sola vez, arriba del primer partido de
       // ese torneo (ej. "Torneo Pioneros de Albion" dentro de los amistosos de
       // preparación de esta competencia).
       let torneoHdr='';
+      // Sub-16: cuando después de un torneo (ej. Pioneros de Albion) siguen partidos que no son de ese torneo
+      // (ej. los de preparación con Perú), se corta con una línea divisoria. Solo Sub-16: el resto no cambia.
+      if(cat==='sub16' && !m.torneo && _prevTorneo){
+        torneoHdr='<div style="height:1px;background:var(--border);margin:20px 0 14px"></div>';
+      }
+      _prevTorneo=m.torneo||null;
       if(m.torneo && !seenTorneos.has(m.torneo)){
         seenTorneos.add(m.torneo);
         // Sin "Torneo" fijo adelante — no todos son torneos competitivos (ej.
