@@ -676,6 +676,10 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 /* MD-1 and Partido day highlight */
 .cal-day.tipo-md1 .cal-day-hdr{border-left:4px solid var(--gold)}
 .cal-day.tipo-partido .cal-day-hdr{border-left:4px solid var(--green);background:rgba(25,146,79,.04)}
+/* Días previos NO oficiales de una Fecha FIFA (a veces llega algún jugador): otro tono y borde punteado */
+.cb-previo{background:#F5F3FF;color:#6D28D9;border:1px dashed #C4B5FD}
+.cal-day.tipo-previo{border:1.5px dashed #C4B5FD;background:#FBFAFF}
+.cal-day.tipo-previo .cal-day-hdr{border-left:4px dashed #C4B5FD}
 .cal-rival{font-size:12px;font-weight:700;color:var(--text);flex:1}
 .cal-today-chip{
   font-size:9.5px;font-weight:800;background:var(--cel);color:#fff;
@@ -5493,7 +5497,7 @@ function renderInicioHoySeleccion(dayOffset){
       if(typeof FIFASEP26_CAL_DAYS!=='undefined'){
         const day=[...FIFASEP26_CAL_DAYS, ...(typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[])].find(d=>d.date===isoHoy);
         // tipo 'tbd' (día por definir de una Fecha FIFA sin confirmar) no se muestra
-        if(day && day.tipo!=='partido' && day.tipo!=='tbd'){
+        if(day && day.tipo!=='partido' && day.tipo!=='tbd' && day.tipo!=='previo'){
           const FSH_ICON={viaje:'✈️',llegada:'🛬',entreno:'🏃',descanso:'😌'};
           const FSH_LABEL={viaje:'Viaje de la Mayor',llegada:'Llegada de la Mayor',entreno:'Entrenamiento de la Mayor',descanso:'Día libre — Mayor'};
           fifaSepHoy.push({icon:FSH_ICON[day.tipo]||'📅', txt:`${FSH_LABEL[day.tipo]||'Mayor'}${day.lugar?' · '+day.lugar:''}`, onclick:`showSection('mayor')`});
@@ -12637,6 +12641,9 @@ window._fifaNovConfirmStats=function(cat,year,matchId){
 // arrancan como 'tbd' (por definir) porque todavía no se sabe sede, viaje ni
 // fechas de los partidos; cuando se confirmen se les pone tipo/lugar/rival.
 const FIFANOV26_CAL_DAYS = [
+  // Días previos al período oficial FIFA (9–17/11): no son parte de la Fecha FIFA, pero a veces llega algún jugador.
+  {date:'2026-11-07', dow:'Sáb', label:'7 nov',  tipo:'previo', lugar:'Día previo · no oficial de la Fecha FIFA (a veces llega algún jugador)', eventos:[]},
+  {date:'2026-11-08', dow:'Dom', label:'8 nov',  tipo:'previo', lugar:'Día previo · no oficial de la Fecha FIFA (a veces llega algún jugador)', eventos:[]},
   {date:'2026-11-09', dow:'Lun', label:'9 nov',  tipo:'tbd', lugar:'Por definir · los entrenamientos son en el Complejo Celeste (Uruguay)', eventos:[]},
   {date:'2026-11-10', dow:'Mar', label:'10 nov', tipo:'tbd', lugar:'Por definir · los entrenamientos son en el Complejo Celeste (Uruguay)', eventos:[]},
   {date:'2026-11-11', dow:'Mié', label:'11 nov', tipo:'tbd', lugar:'Por definir · los entrenamientos son en el Complejo Celeste (Uruguay)', eventos:[]},
@@ -13941,8 +13948,8 @@ window.renderFifaNov26Plantel = function(){ renderFifaNov26('fifanov26-plantel')
 // funciona — por eso esta es una fila de evento propia, más simple (sin chips de
 // jugadores ni reordenar/reagendar entre días), pero con el mismo look & feel y
 // las mismas funciones de estado/nota/links que ya existían.
-const FIFANOV_TYPE_LABELS={viaje:'Viaje',llegada:'Llegada',partido:'PARTIDO',descanso:'Libre',entreno:'Entrenamiento',tbd:'Por definir'};
-const FIFANOV_TYPE_BADGE ={viaje:'cb-viaje',llegada:'cb-llegada',partido:'cb-partido',descanso:'cb-descanso',entreno:'cb-entreno',tbd:'cb-descanso'};
+const FIFANOV_TYPE_LABELS={viaje:'Viaje',llegada:'Llegada',partido:'PARTIDO',descanso:'Libre',entreno:'Entrenamiento',tbd:'Por definir',previo:'Previo · no oficial'};
+const FIFANOV_TYPE_BADGE ={viaje:'cb-viaje',llegada:'cb-llegada',partido:'cb-partido',descanso:'cb-descanso',entreno:'cb-entreno',tbd:'cb-descanso',previo:'cb-previo'};
 // Paleta pedida: viaje amarillo, cronograma celeste, entrenamiento verde
 // claro, partido verde oscuro, prensa/AUF naranja.
 const FIFANOV_TAG_HTML={
@@ -14153,7 +14160,7 @@ function renderFifaNovCal(){
     const isMD1 = day.tipo!=='partido' && FIFANOV26_CAL_DAYS.some(d2=>d2.tipo==='partido' && d2.date===_nextDateStr(day.date));
     const dayTypeLabel = (day.llegadas && day.tipo==='entreno') ? 'Llegadas + Entrenamiento' : FIFANOV_TYPE_LABELS[day.tipo];
     const div=document.createElement('div');
-    div.className='cal-day'+((isToday||openDates.has(day.date))?' today open':'')+(day.tipo==='partido'?' tipo-partido':isMD1?' tipo-md1':'');
+    div.className='cal-day'+((isToday||openDates.has(day.date))?' today open':'')+(day.tipo==='partido'?' tipo-partido':day.tipo==='previo'?' tipo-previo':isMD1?' tipo-md1':'');
     div.dataset.date=day.date;
     div.innerHTML=`
       <div class="cal-day-hdr" onclick="event.target.closest('.cal-day-hdr')===this&&toggleCalDay(this.parentElement)">
