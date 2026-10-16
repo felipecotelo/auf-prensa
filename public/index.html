@@ -11500,7 +11500,7 @@ function _seedFifaSepPizarra(){
       rival: p.rival, fecha: p.fecha, hora: p.hora, lugar: p.sede,
       compId: 'fifasep26', oficial: true,
       gLocal: null, gRival: null,
-      lineup: {formation:'4-4-2', starters:{}},
+      lineup: {formation:'4-3-3', starters:{}},
       goles: {}, dtPartido: '', subs: [], tarjetas: [],
     });
     changed=true;
@@ -30160,11 +30160,19 @@ window._filterJuvSP = function(val){
 // Formación por defecto de la Pizarra: la de la Mayor (Fechas FIFA, cat 'fifamayor') arranca en 4-4-2 porque es la
 // que usa Forlán; el resto (Juveniles) sigue en 4-3-3. Solo cambia el valor inicial: las demás formaciones
 // siguen disponibles y los partidos que ya tienen formación guardada no se tocan.
-window._juvDefForm = function(cat){ return cat==='fifamayor' ? '4-4-2' : '4-3-3'; };
+window._JUV_DEF442_DESDE = '2026-11-13'; // vs. Argentina (La Bombonera): de este partido en adelante
+window._juvDefForm = function(cat, m){
+  return (cat==='fifamayor' && m && String(m.fecha||'')>=window._JUV_DEF442_DESDE) ? '4-4-2' : '4-3-3';
+};
+// Orden de los botones de formación: en los partidos con default 4-4-2 esa opción va primero.
+window._juvFormKeys = function(cat, m){
+  const ks=Object.keys(FORMATIONS), d=window._juvDefForm(cat,m);
+  return d==='4-3-3' ? ks : [d, ...ks.filter(k=>k!==d)];
+};
 window._assignJuvP = function(cat, year, matchId, leg, slotId, nom){
   _amistPatch(cat, year, matchId, m=>{
     const sfx = leg===2?'2':'';
-    if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat),starters:{}};
+    if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat,m),starters:{}};
     if(slotId) m['lineup'+sfx].starters[slotId] = nom;
   });
   _closeJuvSP();
@@ -30182,7 +30190,7 @@ window._setJuvCaptain = function(cat, year, matchId, leg, nomEncoded){
 window._setJuvCaptainByName = function(cat, year, matchId, leg, nom){
   _amistPatch(cat, year, matchId, m=>{
     const sfx = leg===2?'2':'';
-    if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat),starters:{}};
+    if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat,m),starters:{}};
     m['lineup'+sfx].captain = nom||null;
   });
 };
@@ -30191,7 +30199,7 @@ window._amistSetNum = function(cat, year, matchId, leg, slotId, val){
   const list = _getAmistosos(cat, year);
   const m = list.find(x=>x.id===matchId); if(!m) return;
   const sfx = leg===2?'2':'';
-  if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat),starters:{}};
+  if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat,m),starters:{}};
   if(!m['lineup'+sfx].nums) m['lineup'+sfx].nums={};
   if(num) m['lineup'+sfx].nums[slotId]=num; else delete m['lineup'+sfx].nums[slotId];
   _saveAmistosos(cat, year, list);
@@ -30206,7 +30214,7 @@ window._amistSetNum = function(cat, year, matchId, leg, slotId, val){
 window._juvChangeForm = function(cat, year, matchId, leg, form){
   _amistPatch(cat, year, matchId, m=>{
     const sfx = leg===2?'2':'';
-    if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat),starters:{}};
+    if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat,m),starters:{}};
     // Tocar el botón de la formación YA activa no debe borrar el 11 armado —
     // antes cualquier click acá, incluso repetido, vaciaba starters sin avisar.
     if(m['lineup'+sfx].formation === form) return;
@@ -30292,8 +30300,8 @@ window._amistRemoveLesion = function(cat, year, matchId, leg, idx){
 // Returns {pitchHtml, benchHtml} — assembled into piz-3col layout
 function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, convNumMap, cat, year, lesiones){
   const sfx = leg===2?'2':'';
-  const lu = m['lineup'+sfx]||{formation:_juvDefForm(cat),starters:{}};
-  const form = lu.formation||_juvDefForm(cat);
+  const lu = m['lineup'+sfx]||{formation:_juvDefForm(cat,m),starters:{}};
+  const form = lu.formation||_juvDefForm(cat,m);
   const slots = FORMATIONS[form];
   const st = lu.starters||{};
   const goles = m['goles'+sfx]||{};
@@ -30357,7 +30365,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
   }).join('');
 
   // ── Pitch HTML ──
-  const formBtns = Object.keys(FORMATIONS).map(f=>
+  const formBtns = _juvFormKeys(cat,m).map(f=>
     `<button class="form-btn${f===form?' active':''}" onclick="_juvChangeForm('${cat}','${year}',${m.id},${leg},'${f}')">${f}</button>`
   ).join('');
 
@@ -31050,7 +31058,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         <div style="margin-top:10px">
           <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Formación</div>
           <div class="form-sel-btns" style="flex-wrap:wrap">
-            ${Object.keys(FORMATIONS).map(f=>`<button class="form-btn${(luSfx.formation||_juvDefForm(cat))===f?' active':''}" onclick="_juvChangeForm('${cat}','${year}',${m.id},${leg},'${f}')">${f}</button>`).join('')}
+            ${_juvFormKeys(cat,m).map(f=>`<button class="form-btn${(luSfx.formation||_juvDefForm(cat,m))===f?' active':''}" onclick="_juvChangeForm('${cat}','${year}',${m.id},${leg},'${f}')">${f}</button>`).join('')}
           </div>
         </div>
 
