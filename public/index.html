@@ -34135,15 +34135,30 @@ function _redesConclusionesGenerales(){
   const rank=Object.keys(act).filter(k=>act[k].seguidores!=null).sort((a,b)=>act[b].seguidores-act[a].seguidores);
   if(rank.length>=3){
     const tot=rank.reduce((a,k)=>a+act[k].seguidores,0);
-    bullets.push(`Entre las cinco redes la Selección suma <b>${_redesFmt(tot)}</b> seguidores. La de mayor audiencia es <b>${REDES_PLATS[rank[0]].label}</b> (${_redesFmt(act[rank[0]].seguidores)}), seguida de ${REDES_PLATS[rank[1]].label} (${_redesFmt(act[rank[1]].seguidores)}) y ${REDES_PLATS[rank[2]].label} (${_redesFmt(act[rank[2]].seguidores)}).`);
+    bullets.push(`Entre las cinco redes se suman <b>${_redesFmt(tot)}</b> seguidores (YouTube es el canal AUFTV, que no es solo de la Selección). La de mayor audiencia es <b>${REDES_PLATS[rank[0]].label}</b> (${_redesFmt(act[rank[0]].seguidores)}), seguida de ${REDES_PLATS[rank[1]].label} (${_redesFmt(act[rank[1]].seguidores)}) y ${REDES_PLATS[rank[2]].label} (${_redesFmt(act[rank[2]].seguidores)}).`);
+  }
+  // Cruce con el contexto nacional (encuesta CIFRA): seguidores de la Selección vs. usuarios de cada red en Uruguay.
+  if(typeof REDES_CIFRA_CONTEXTO!=='undefined'){
+    const cx=REDES_CIFRA_CONTEXTO.plataformas.filter(p=>act[p.key]?.seguidores!=null).map(p=>{
+      const uy=Math.round(REDES_UY_POB_ADULTA*p.penetracion/100);
+      return {n:p.nombre.replace('X/Twitter','X'),pct:Math.round(act[p.key].seguidores/uy*100)};
+    });
+    const dentro=cx.filter(c=>c.pct<=100), fuera=cx.filter(c=>c.pct>100);
+    if(cx.length>=3) bullets.push(`Cruzando con la encuesta CIFRA sobre uso de redes en Uruguay (junio 2026): los seguidores de la Selección equivalen a ${dentro.map(c=>`~${c.pct}% de los usuarios de ${c.n}`).join(' y ')} en Uruguay${fuera.length?`; en ${fuera.map(c=>`${c.n} (~${c.pct}%)`).join(' y ')} superan ese universo, así que gran parte de esa audiencia está fuera del país`:''}. Es una referencia de escala, no una medición de audiencia local.`);
   }
   const last=snaps[snaps.length-1];
   if(last && last.dias){
-    const g=Object.keys(REDES_PLATS).filter(k=>last[k]?.seguidores_nuevos!=null && !last[k].seguidores_estimado)
+    // YouTube queda afuera de este ranking: el canal AUFTV también sube contenido que no es de la Selección.
+    const g=Object.keys(REDES_PLATS).filter(k=>k!=='youtube' && last[k]?.seguidores_nuevos!=null && !last[k].seguidores_estimado)
       .map(k=>({k,d:last[k].seguidores_nuevos/last.dias})).sort((a,b)=>b.d-a.d);
     if(g.length>=2) bullets.push(`En la última ventana medida (${last.corto||last.label}, ${last.dias} días), la red que más seguidores sumó por día fue <b>${REDES_PLATS[g[0].k].label}</b> (${Math.round(g[0].d).toLocaleString('es-UY')} por día), seguida de ${REDES_PLATS[g[1].k].label} (${Math.round(g[1].d).toLocaleString('es-UY')}).`);
-    const yt=snaps.filter(s=>s.youtube?.alcance&&s.dias).map(s=>({s,d:s.youtube.alcance/s.dias})).sort((a,b)=>b.d-a.d);
-    if(yt.length>=3 && yt[0].s===last) bullets.push(`YouTube (canal AUFTV) tuvo en esa ventana su mejor ritmo diario de visualizaciones de todas las medidas: <b>${_redesFmt(Math.round(yt[0].d))} por día</b>, contra ${_redesFmt(Math.round(yt[1].d))} de la siguiente.`);
+    // YouTube (AUFTV) sube también HL y notas de todo el fútbol uruguayo: el total del canal no habla de la
+    // Selección. Se lee por contenido: cuánto de las visualizaciones vino de los videos de la Selección.
+    const vt=last.youtube?.videos_top||[];
+    if(vt.length && last.youtube?.alcance){
+      const sum=vt.reduce((a,v)=>a+v[1],0), pct=Math.round(sum/last.youtube.alcance*100);
+      bullets.push(`YouTube se lee por contenido, no por el total del canal (AUFTV también sube HL y notas de todo el fútbol uruguayo): en esa ventana los ${vt.length} videos más vistos, todos de la Selección (${vt.map(v=>v[0]).join(', ')}), sumaron <b>${_redesFmt(sum)}</b> de las ${_redesFmt(last.youtube.alcance)} visualizaciones del canal (${pct}%).`);
+    }
   }
   if(last && last.dias){
     const ia=Object.keys(REDES_PLATS).filter(k=>k!=='youtube'&&last[k]?.interacciones!=null)
