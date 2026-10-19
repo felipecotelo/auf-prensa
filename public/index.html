@@ -10217,6 +10217,24 @@ window._delegAddOpen=function(gi,tKey){
   setTimeout(()=>document.getElementById('deleg-add-inp')?.focus(),50);
   window._delegAddSearch(gi,tKey);
 };
+// Personas que se pueden sumar a una delegación: las mismas que ve la pantalla de Estructura
+// (incluye al CT Mayor vigente de Forlán —Diego Pérez, etc.— y a las personas agregadas a mano),
+// sin los ciclos históricos ni los CT por categoría. Antes solo miraba la lista fija
+// ESTRUCTURA_PERSONAS y por eso no encontraba a quienes se cargaron después.
+function _delegPool(){
+  const out=[], seen=new Set();
+  let secs;
+  try{ secs=_estBuildAllSections(); }catch(e){ secs=ESTRUCTURA_PERSONAS; }
+  secs.forEach(d=>{
+    if(d.showAll || /Ciclo|Hist/.test(d.dept||'')) return;
+    (d.personas||[]).forEach(p=>{
+      if(p.rol && p.rol.startsWith('Ex ')) return;
+      if(seen.has(p.key)) return;
+      seen.add(p.key); out.push(p);
+    });
+  });
+  return out;
+}
 window._delegAddSearch=function(gi,tKey){
   // No usar _gnavNorm acá: por algún motivo de scoping no está accesible desde este
   // punto del archivo (reproducido: tira "_gnavNorm is not defined" real, no solo en
@@ -10225,13 +10243,7 @@ window._delegAddSearch=function(gi,tKey){
   const q=norm((document.getElementById('deleg-add-inp')?.value||'').trim());
   const res=document.getElementById('deleg-add-results');
   if(!res) return;
-  const all=[];
-  ESTRUCTURA_PERSONAS.forEach(d=>{
-    (d.personas||[]).forEach(p=>{
-      if(p.rol && p.rol.startsWith('Ex ')) return;
-      if(!q||norm(p.label).includes(q)) all.push(p);
-    });
-  });
+  const all=_delegPool().filter(p=>!q||norm(p.label).includes(q));
   if(!all.length){ res.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:12.5px">Sin resultados</div>`; return; }
   res.innerHTML=all.slice(0,40).map(p=>`
     <div onclick="window._delegAddPick(${gi},'${p.key}','${tKey}')" style="padding:9px 8px;border-bottom:0.5px solid var(--border);cursor:pointer;display:flex;flex-direction:column">
@@ -10240,11 +10252,11 @@ window._delegAddSearch=function(gi,tKey){
     </div>`).join('');
 };
 window._delegAddPick=function(gi,key,tKey){
-  let found=null;
-  ESTRUCTURA_PERSONAS.forEach(d=>{ (d.personas||[]).forEach(p=>{ if(p.key===key) found=p; }); });
+  const found=_delegPool().find(p=>p.key===key);
   if(!found) return;
   const d=getDelegacion(tKey);
-  d[gi].people.push({name:found.label,iso:'uy',role:found.rol||''});
+  // Se quita el aclaratorio de período "(ago 2026–mar 2027)" del cargo: en la delegación va corto.
+  d[gi].people.push({name:found.label,iso:'uy',role:(found.rol||'').replace(/\s*\([^)]*\d{4}[^)]*\)\s*$/,'')});
   setDelegacion(d,tKey);
   document.getElementById('deleg-add-modal').style.display='none';
   renderInfoGeneral(tKey);
@@ -12482,7 +12494,7 @@ const _FIFA_EV_ISO={
   'Polonia':'pl','Suecia':'se','Noruega':'no','Dinamarca':'dk','Turquía':'tr','Grecia':'gr','Rumanía':'ro','Hungría':'hu',
   'República Checa':'cz','Ucrania':'ua','Marruecos':'ma','Túnez':'tn','Argelia':'dz','Egipto':'eg','Senegal':'sn',
   'Nigeria':'ng','Ghana':'gh','Camerún':'cm','Costa de Marfil':'ci','Sudáfrica':'za','Cabo Verde':'cv','Mali':'ml',
-  'Arabia Saudita':'sa','Catar':'qa','Irán':'ir','Irak':'iq','Jordania':'jo','Emiratos Árabes Unidos':'ae','Uzbekistán':'uz',
+  'República Dominicana':'do','Arabia Saudita':'sa','Catar':'qa','Irán':'ir','Irak':'iq','Jordania':'jo','Emiratos Árabes Unidos':'ae','Uzbekistán':'uz',
   'Australia':'au','Nueva Zelanda':'nz','China':'cn','Tailandia':'th','Vietnam':'vn','Indonesia':'id',
 };
 // Dado el compId de un partido de la Pizarra de la Mayor, devuelve el objeto de
@@ -12497,7 +12509,7 @@ const FIFANOV26 = {
   desde: '2026-11-09',
   hasta: '2026-11-17',
   partidos: 2,
-  desc: 'Fecha FIFA de noviembre 2026 (9 al 17/11), 2 partidos: Argentina vs. Uruguay el viernes 13/11 (amistoso internacional, transmite AUFTV; estadio y hora por confirmar) y el del martes 17/11 por confirmar. Los entrenamientos son todos en Uruguay, en el Complejo Celeste.',
+  desc: 'Fecha FIFA de noviembre 2026 (9 al 17/11), 2 partidos: Argentina vs. Uruguay el viernes 13/11 (amistoso internacional, transmite AUFTV; estadio y hora por confirmar) y Uruguay vs. República Dominicana el martes 17/11 en Uruguay (rival casi confirmado; estadio y hora por confirmar). Los entrenamientos son todos en Uruguay, en el Complejo Celeste.',
   dt: 'Diego Forlán',
   periodoFifa: {desde:'2026-11-09', hasta:'2026-11-17'},
   deadlines: [
@@ -12514,9 +12526,11 @@ const FIFANOV26 = {
   // arman solos a partir de esta lista.
   // Viernes 13/11: rival y fecha oficiales (anuncio de @Uruguay del 16/10); el estadio (¿La Bombonera?) y el horario
   // todavía no están confirmados (la hora queda en "—" hasta que se confirme).
-  // El segundo partido (martes 17/11) todavía no tiene rival ni sede: se agrega acá cuando se confirme.
+  // Martes 17/11 (último día de la Fecha FIFA): vs. República Dominicana, en Uruguay, estadio y hora por confirmar. Rival "99% confirmado"
+  // según el usuario (19/10): queda confirmado:false (badge "Por confirmar") hasta que sea oficial.
   partidosData: [
     {fecha:'2026-11-13', rival:'Argentina', rivalBandera:'🇦🇷', sede:'Argentina · estadio por confirmar', hora:'', horaLocal:'', local:false, confirmado:true},
+    {fecha:'2026-11-17', rival:'República Dominicana', rivalBandera:'🇩🇴', sede:'Uruguay · estadio por confirmar', hora:'', horaLocal:'', local:true, confirmado:false},
   ],
   itinerario: [],
   // Listas: se cargan cuando se publiquen. `reservados` null = "lista por
@@ -12661,7 +12675,7 @@ const FIFANOV26_CAL_DAYS = [
   {date:'2026-11-14', dow:'Sáb', label:'14 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-15', dow:'Dom', label:'15 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-16', dow:'Lun', label:'16 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
-  {date:'2026-11-17', dow:'Mar', label:'17 nov', tipo:'partido', rival:'rival por confirmar', eventos:[]},
+  {date:'2026-11-17', dow:'Mar', label:'17 nov', tipo:'partido', rival:'República Dominicana', lugar:'Uruguay', eventos:[]},
 ];
 
 // Delegación de Fecha FIFA sep-oct 2026, misma estructura que la del Mundial
@@ -13776,7 +13790,7 @@ function renderFifaNov26(tabId){
       // 5 opciones (PART_OPTIONS) que usa el Mundial, pero guardado por
       // nombre (no por dorsal) — se guardó antes de que llegaran los números
       // de camiseta de esta gira y no vale la pena migrar la clave ahora.
-      const _FNOV_RIVAL_ABBR={}; // abreviaturas de rivales: se agregan cuando se conozcan
+      const _FNOV_RIVAL_ABBR={'República Dominicana':'R. Dominicana'}; // abreviaturas de rivales: se agregan cuando se conozcan
       const fifaMatchList=(FIFANOV26.partidosData||[]).map(mp=>({id:mp.rival, label:`${mp.rivalBandera||''} vs. ${_FNOV_RIVAL_ABBR[mp.rival]||mp.rival}`}));
       const getFifaNovPartVal=(nom,matchId)=>{ const p=stor.get('auf4_fifanov_part',{}); return (p[nom]&&p[nom][matchId])||''; };
       // Número de camiseta de esta gira (planilla del cuerpo técnico, no dorsal
