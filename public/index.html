@@ -26454,7 +26454,7 @@ const WC17_2026 = {
   fecha:'19 nov – 14 dic 2026 · Qatar',
   infoGeneral:{
     'Grupo':'Grupo D — Uruguay, Francia, Haití y Arabia Saudita',
-    'Fase':'Grupo D: 19/11 Arabia Saudita (13:00 UY), 22/11 Haití (12:30 UY), 25/11 Francia (10:30 UY)',
+    'Fase':'Grupo D: 19/11 Arabia Saudita (13:00 Uruguay · 19:00 Qatar), 22/11 Haití (12:30 Uruguay · 18:30 Qatar), 25/11 Francia (10:30 Uruguay · 16:30 Qatar)',
   },
   ct:[
     {iso:'uy',name:'Ignacio María González',rol:'Director técnico',dt:true},
@@ -30721,6 +30721,12 @@ window._amistOpenDetail = function(id){ window._amistDetailOpen=id; window.rende
 window._amistCloseDetail = function(){ window._amistDetailOpen=null; window.renderJuveniles?.(); };
 
 // Save result — versión silenciosa (sin re-render, actualiza badge in-place)
+// Partidos en otro huso (ej. Mundial Sub-17 en Qatar): se muestran las DOS horas con el país, sin decir "hora local"
+// (no se entiende si es la de la sede o la de Uruguay). Datos: hora = hora de Uruguay, horaLocal = hora en la sede, paisSede.
+function _amistHorasTxt(m){
+  if(m && m.horaLocal && m.paisSede) return (m.hora?m.hora+'h Uruguay · ':'')+m.horaLocal+'h '+m.paisSede;
+  return null;
+}
 window._amistSaveResult = function(cat, year, id, leg){
   const sfx = leg===2?'2':'';
   const gl = parseInt(document.getElementById('amist-res-gl'+sfx+'-'+id)?.value);
@@ -31142,7 +31148,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             </div>`:''}
             <div class="piz-card-sep" style="margin-top:8px"></div>
             <div class="piz-card-meta">
-              ${fechaFmt?`<b>${fechaFmt}</b>`:''}${horaSrc?` · ${horaSrc}`:''}${lugarSrc?`<br>${lugarSrc}`:''}
+              ${fechaFmt?`<b>${fechaFmt}</b>`:''}${leg!==2&&_amistHorasTxt(m)?` · ${_amistHorasTxt(m)}`:(horaSrc?` · ${horaSrc}`:'')}${lugarSrc&&!(leg!==2&&_amistHorasTxt(m)&&lugarSrc===m.paisSede)?`<br>${lugarSrc}`:''}
             </div>
             <div style="display:flex;gap:6px;align-items:center;margin-top:10px">
               <input id="amist-res-gl${sfx}-${m.id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
@@ -31462,7 +31468,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             ${_isMundial ? _mundialLine : `<div style="font-weight:800;font-size:.9em;margin-bottom:2px">
               Uruguay vs. <span style="color:${color}">${m.rival}</span>${ivBadge}${auftvBadge}
             </div>
-            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${m.hora?' · '+m.hora:''}${m.lugar?' · '+m.lugar:''}</div>`}
+            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${_amistHorasTxt(m)?' · '+_amistHorasTxt(m):(m.hora?' · '+m.hora:'')+(m.lugar?' · '+m.lugar:'')}</div>`}
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
             ${_isMundial?'':resHtml}
