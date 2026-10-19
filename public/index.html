@@ -33955,6 +33955,7 @@ function renderRedes(){
         <div style="font-size:.78em;color:var(--muted);margin-top:2px">Último relevamiento: ${_redesFmtFecha(latest.rango_desde)} → ${_redesFmtFecha(latest.rango_hasta)}</div>
       </div>
       ${_redesHeroSeguidores(segActuales)}
+      ${_redesConclusionesGenerales()}
 
       <!-- Copa Mundial 2026 -->
       <div style="display:flex;align-items:center;gap:10px;margin:24px 0 14px">
@@ -33963,7 +33964,6 @@ function renderRedes(){
       </div>
       ${_redesResumenCombinado(wc,prev)}
       ${_redesPorPlataforma(wc,prev)}
-      ${_redesConclusiones(wc,prev)}
       ${_redesContextoCifra(segActuales)}
 
       <!-- Fechas FIFA: audiencia por país -->
@@ -33985,7 +33985,7 @@ function renderRedes(){
       ${_redesHistorial()}
     </div>
   `;
-  _redesFetchAIConclusiones(wc,prev);
+  _redesFetchAIConclusiones();
   _redesFetchAIFifa();
 }
 
@@ -34128,30 +34128,52 @@ function _redesPorPlataforma(latest,prev){
   </div>`;
 }
 
-// ── Conclusiones automáticas (reglas simples, no requiere IA externa) ──────
-function _redesConclusiones(latest,prev){
-  const bullets=[];
-  const keys=Object.keys(REDES_PLATS);
-  if(prev){
-    let best=null,worst=null;
-    keys.forEach(k=>{
-      const pct=_redesPct(latest[k]?.alcance,prev[k]?.alcance);
-      if(pct===null) return;
-      if(!best||pct>best.pct) best={k,pct};
-      if(!worst||pct<worst.pct) worst={k,pct};
+// ── Conclusiones GENERALES (no atadas al Mundial, que ya terminó) ───────────
+// Respaldo calculado con los datos (sin IA): se ve siempre; si el servidor tiene la key de IA
+// se reemplaza por conclusiones generadas sobre TODAS las ventanas medidas.
+function _redesGeneralPayload(){
+  const snaps=_redesSnaps();
+  const r=(n,d)=>n==null||!d?null:Math.round(n/d);
+  const ventanas=snaps.map(s=>{
+    const o={ventana:s.corto||s.label,desde:s.rango_desde,hasta:s.rango_hasta,dias:s.dias};
+    Object.keys(REDES_PLATS).forEach(k=>{
+      const x=s[k]; if(!x) return;
+      o[k]={seguidores:x.seguidores??null,seguidores_nuevos:x.seguidores_nuevos??null,
+        por_dia:{visualizaciones:r(x.alcance,s.dias),interacciones:r(x.interacciones,s.dias),seguidores_nuevos:r(x.seguidores_nuevos,s.dias)}};
+      if(x.seguidores_estimado) o[k].seguidores_nuevos_estimado=true;
+      if(x.alcance_lbl) o[k].medida_visualizaciones=x.alcance_lbl;
     });
-    if(best) bullets.push(`<b>${REDES_PLATS[best.k].label}</b> fue la red que más creció en alcance respecto al relevamiento anterior (${best.pct>=0?'+':''}${best.pct.toFixed(1)}%).`);
-    if(worst && worst.pct<0) bullets.push(`<b>${REDES_PLATS[worst.k].label}</b> fue la que más cayó (${worst.pct.toFixed(1)}%) — vale la pena revisar qué contenido se publicó esa semana.`);
-  } else {
-    bullets.push('Este es el primer relevamiento — a partir del próximo chequeo semanal vamos a poder comparar y detectar tendencias.');
+    return o;
+  });
+  const act=_redesSeguidoresActuales(), seg={};
+  Object.keys(act).forEach(k=>{ seg[REDES_PLATS[k].label]=act[k].seguidores; });
+  return {seguidores_actuales:seg,ventanas};
+}
+function _redesConclusionesGenerales(){
+  const snaps=_redesSnaps(), bullets=[];
+  const act=_redesSeguidoresActuales();
+  const rank=Object.keys(act).filter(k=>act[k].seguidores!=null).sort((a,b)=>act[b].seguidores-act[a].seguidores);
+  if(rank.length>=3){
+    const tot=rank.reduce((a,k)=>a+act[k].seguidores,0);
+    bullets.push(`Entre las cinco redes la Selección suma <b>${_redesFmt(tot)}</b> seguidores. La de mayor audiencia es <b>${REDES_PLATS[rank[0]].label}</b> (${_redesFmt(act[rank[0]].seguidores)}), seguida de ${REDES_PLATS[rank[1]].label} (${_redesFmt(act[rank[1]].seguidores)}) y ${REDES_PLATS[rank[2]].label} (${_redesFmt(act[rank[2]].seguidores)}).`);
   }
-  // Reglas fijas sobre el snapshot inicial (Mundial 2026)
-  bullets.push('TikTok fue, en el arranque del Mundial, la red con mayor crecimiento relativo de seguidores (+356%) e interacciones (+369%) — el formato corto está funcionando mejor que el resto para captar audiencia nueva.');
-  bullets.push('Instagram es la red con mayor volumen bruto de alcance (180M visualizaciones en 90 días) pero no tiene comparación semana a semana todavía por límites de Meta Business Suite.');
-  bullets.push('X tuvo la tasa de interacción más floja relativa (2%, -1 punto) pese al salto en impresiones — más ruido que conversación real esa semana.');
+  const last=snaps[snaps.length-1];
+  if(last && last.dias){
+    const g=Object.keys(REDES_PLATS).filter(k=>last[k]?.seguidores_nuevos!=null && !last[k].seguidores_estimado)
+      .map(k=>({k,d:last[k].seguidores_nuevos/last.dias})).sort((a,b)=>b.d-a.d);
+    if(g.length>=2) bullets.push(`En la última ventana medida (${last.corto||last.label}, ${last.dias} días), la red que más seguidores sumó por día fue <b>${REDES_PLATS[g[0].k].label}</b> (${Math.round(g[0].d).toLocaleString('es-UY')} por día), seguida de ${REDES_PLATS[g[1].k].label} (${Math.round(g[1].d).toLocaleString('es-UY')}).`);
+    const yt=snaps.filter(s=>s.youtube?.alcance&&s.dias).map(s=>({s,d:s.youtube.alcance/s.dias})).sort((a,b)=>b.d-a.d);
+    if(yt.length>=3 && yt[0].s===last) bullets.push(`YouTube (canal AUFTV) tuvo en esa ventana su mejor ritmo diario de visualizaciones de todas las medidas: <b>${_redesFmt(Math.round(yt[0].d))} por día</b>, contra ${_redesFmt(Math.round(yt[1].d))} de la siguiente.`);
+  }
+  const wc=snaps.find(x=>x.fecha_snapshot==='2026-07-06');
+  if(wc){
+    const t=wc.tiktok?.seguidores_nuevos, f=wc.facebook?.seguidores_nuevos;
+    if(t&&f) bullets.push(`Como referencia del Mundial (${_redesFmtFecha(wc.rango_desde)} → ${_redesFmtFecha(wc.rango_hasta)}): TikTok sumó ${_redesFmt(t)} seguidores y Facebook ${_redesFmt(f)}, las mayores altas de ese período.`);
+  }
+  if(!bullets.length) bullets.push('Todavía no hay suficientes relevamientos para sacar conclusiones generales.');
   return `
-  <div style="margin-bottom:20px">
-    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🧠 Conclusiones del Mundial <span id="redes-concl-tag">· automáticas (reglas)</span></div>
+  <div style="margin:20px 0">
+    <div style="font-size:9.5px;font-weight:800;color:var(--hint);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">🧠 Conclusiones generales <span id="redes-concl-tag">· calculadas con los datos</span></div>
     <div id="redes-conclusiones-box" style="background:var(--gold-lt);border:1px solid #f0dca6;border-radius:14px;padding:14px 16px">
       <ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">
         ${bullets.map(b=>`<li>${b}</li>`).join('')}
@@ -34161,14 +34183,17 @@ function _redesConclusiones(latest,prev){
 }
 
 // Progressive enhancement: si el servidor tiene ANTHROPIC_API_KEY configurada,
-// reemplaza las conclusiones heurísticas por conclusiones generadas por IA.
-// Si falla (sin key, sin red, error), deja las heurísticas que ya se ven — no rompe nada.
-async function _redesFetchAIConclusiones(latest,prev){
+// reemplaza el respaldo por conclusiones generadas por IA sobre todas las ventanas.
+// Si falla (sin key, sin red, error), deja lo que ya se ve — no rompe nada.
+async function _redesFetchAIConclusiones(){
   try{
+    const g=_redesGeneralPayload();
     const res=await fetch('/api/redes-conclusiones',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({modo:'mundial',latest,prev,momentos:(typeof MOMENTOS!=='undefined'?MOMENTOS:[])})
+      body:JSON.stringify({modo:'general',latest:g,
+        nota_facebook:'La página de Facebook se alimentaba con el compartido automático desde Instagram; hoy figura activado pero los posteos no aparecen en Facebook (causa en revisión). Su caída reciente no refleja necesariamente menos interés.',
+        momentos:(typeof MOMENTOS!=='undefined'?MOMENTOS:[])})
     });
     const data=await res.json();
     if(!data.ok||!data.conclusiones||!data.conclusiones.length) return;
@@ -34178,7 +34203,7 @@ async function _redesFetchAIConclusiones(latest,prev){
     box.innerHTML=`<ul style="margin:0;padding-left:18px;font-size:.82em;line-height:1.7;color:#4a3d15">${data.conclusiones.map(b=>`<li>${b}</li>`).join('')}</ul>`;
     if(tag) tag.textContent='· generadas por IA';
   }catch(e){
-    // sin conexión / endpoint no disponible — se queda con las heurísticas, sin romper nada
+    // sin conexión / endpoint no disponible — se queda con el respaldo calculado, sin romper nada
   }
 }
 
