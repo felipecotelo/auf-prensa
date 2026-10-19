@@ -5269,6 +5269,9 @@ function _cargarCalAnual(){
 setTimeout(_cargarCalAnual,2500);
 setInterval(_cargarCalAnual,3*3600*1000);
 
+// Clave de comparación de nombres: sin tildes ni mayúsculas ("Guillermo De Amores" = "Guillermo de Amores").
+function _nomKey(n){ return String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
+
 function renderInicioHoySeleccion(dayOffset){
   dayOffset=dayOffset||0;
   try{
@@ -5305,7 +5308,7 @@ function renderInicioHoySeleccion(dayOffset){
         if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
           const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
           cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:d.retirado?'Ex jugador de la Mayor':'Jugador de la Mayor', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('mayor','${_encJs(nom)}')`});
-          cumpleNames.add(nom);
+          cumpleNames.add(_nomKey(nom));
         }
       });
     }
@@ -5321,38 +5324,38 @@ function renderInicioHoySeleccion(dayOffset){
     if(typeof JUVENILES!=='undefined'){
       try{
         const juvNac=typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES:{};
-        const juvNames=new Map();
+        const juvNames=new Map(), juvKeys=new Set();
         Object.entries(JUVENILES).forEach(([catKey,catData])=>{
           try{
             const label=catData.label||catKey.replace('sub','Sub-');
             Object.values(catData.anos||{}).forEach(anoData=>{
               (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
-                if(j.nom && !juvNames.has(j.nom)){
+                if(j.nom && !juvKeys.has(_nomKey(j.nom))){
                   const fn=juvNac[j.nom]||j.fechaNac;
-                  if(fn) juvNames.set(j.nom,{fn,label});
+                  if(fn){ juvKeys.add(_nomKey(j.nom)); juvNames.set(j.nom,{fn,label}); }
                 }
               }));
             });
           }catch(catErr){ console.error('cumples: error escaneando categoría',catKey,catErr); }
         });
         juvNames.forEach(({fn,label},nom)=>{
-          if(cumpleNames.has(nom)) return;
+          if(cumpleNames.has(_nomKey(nom))) return;
           if(fn.length>=10 && fn.slice(5,10)===mmdd){
             const fallecido=!!fallecidoMayorLS[nom];
             cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Juveniles · '+label, fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo?window._gnavGo('juveniles','${_encJs(nom)}'):showSection('juveniles')`});
-            cumpleNames.add(nom);
+            cumpleNames.add(_nomKey(nom));
           }
         });
       }catch(juvErr){ console.error('cumples: error general en escaneo de Juveniles',juvErr); }
     }
     if(typeof _getLocalStats==='function' && typeof LOCAL_NAC_DATES!=='undefined'){
       Object.keys(_getLocalStats()).forEach(nom=>{
-        if(cumpleNames.has(nom)) return;
+        if(cumpleNames.has(_nomKey(nom))) return;
         const fn=LOCAL_NAC_DATES[nom];
         if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
           const fallecido=!!fallecidoMayorLS[nom];
           cumples.push({nom, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), tipo:'Selección Local', fallecido, leyenda:legends.has(nom), onclick:`window._gnavGo('local','${_encJs(nom)}')`});
-          cumpleNames.add(nom);
+          cumpleNames.add(_nomKey(nom));
         }
       });
     }
@@ -6143,11 +6146,13 @@ function renderInicioProximo(){
     const legends=typeof getLegends==='function'?getLegends():new Set();
     const fallecidoMayorLS=stor.get('auf4_fallecido',{});
     const cumpleNombres=new Set(legends);
+    const proxKeys=new Set(); // misma persona en Mayor y Juveniles (o con otra mayúscula): una sola vez
     if(typeof PLAYERS!=='undefined') PLAYERS.forEach(p=>cumpleNombres.add(p.name));
     if(typeof JUGADORES!=='undefined'){
       cumpleNombres.forEach(nom=>{
         const d=JUGADORES[nom];
         if(d?.fechaNac && d.fechaNac.length>=10){
+          proxKeys.add(_nomKey(nom));
           const fecha=nextOcurrencia(d.fechaNac.slice(5,10));
           const fallecido=(typeof LEYENDAS_FALLECIDOS!=='undefined'&&!!LEYENDAS_FALLECIDOS[nom])||!!fallecidoMayorLS[nom];
           const edad=fecha.getFullYear()-parseInt(d.fechaNac.slice(0,4));
@@ -6184,6 +6189,8 @@ function renderInicioProximo(){
         });
       });
       juvSeen.forEach(({fn,catKey},nom)=>{
+        if(proxKeys.has(_nomKey(nom))) return;
+        proxKeys.add(_nomKey(nom));
         const fecha=nextOcurrencia(fn.slice(5,10));
         const edad=fecha.getFullYear()-parseInt(fn.slice(0,4));
         candidatos.push({label:`🎂 Cumpleaños de ${nom} (${edad} años)`, fecha, cats:[catKey,'cumple'], onclick:`window._gnavGo?window._gnavGo('juveniles','${_encJs(nom)}'):showSection('juveniles')`});
