@@ -33062,6 +33062,33 @@ function _juvCompAllPlayers(compId){
   });
   return Object.values(out);
 }
+// Ficha de jugador de una competencia (la de la pestaña Jugadores): foto, posición, stats, historial y botonera.
+function _juvCompCardHtml(p, dimmed, isConv, cc){
+      const nomEnc = encodeURIComponent(p.nom).replace(/'/g,'%27');
+      const photo = window._juvGetPhoto?.(p.nom)||null;
+      const initials = p.nom.split(' ').filter((_,i,a)=>i===0||i===a.length-1).map(w=>w[0]).join('').toUpperCase();
+      const posLabel = p.pos||'—';
+      const posFg = (window.JUV_POS_FG||{})[p.pos]||'#fff';
+      const posBg = (window.JUV_POS_BG||{})[p.pos]||'#6B7280';
+      const photoEl = photo
+        ? `<img src="${photo}" style="width:54px;height:54px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<div style="width:54px;height:54px;border-radius:50%;background:var(--bg);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.9em;color:var(--muted);flex-shrink:0">${initials}</div>`;
+      const convBadge = isConv ? `<div style="position:absolute;top:4px;right:4px;font-size:.55em;font-weight:800;color:${cc};background:${cc}18;border-radius:5px;padding:1px 5px">CONV.</div>` : '';
+      const ascIcon = p.asc ? `<span style="font-size:.6em;color:#7C3AED;font-weight:800">⬆ ex-16</span>` : '';
+      const fullCard = _juvFichaCard(p, _juvPlayerHistory(p.nom), _juvOfficialStats(p.nom), ascIcon);
+      return `<div style="position:relative${dimmed?';opacity:.5':''}">
+        <div class="juv-ficha-wrap" onclick="if(window.innerWidth<=600){event.preventDefault();_openJuvDetail('${nomEnc}');}">
+          <div class="juv-ficha-mob-cpt">
+            ${photoEl}
+            <div class="juv-ficha-mob-nm">${p.nom}</div>
+            <div class="juv-ficha-mob-pos" style="background:${posBg};color:${posFg}">${posLabel}</div>
+          </div>
+          <div class="juv-ficha-full">${fullCard}</div>
+        </div>
+        ${convBadge}
+      </div>`;
+    }
+
 // Pestañas de un Mundial (convocatoria que queda guardada): sin Goleadores, Info general al final.
 function _juvCompTabsMundial(comp){
   const t=[
@@ -33075,56 +33102,32 @@ function _juvCompTabsMundial(comp){
   return t;
 }
 
-// Convocados de un Mundial (convocatoria que queda guardada): tarjetas con la misma estética de la Mayor
-// (dorsal grande, foto, posición, club) y, abajo, todos los que estuvieron en el proceso de la categoría.
+// Convocados de un Mundial (convocatoria que queda guardada): SOLO los convocados cambian — la ficha de siempre
+// (con toda su botonera) con un encabezado navy y el dorsal grande, estilo Mayor. Abajo, separados, todos los que
+// estuvieron en el proceso con las fichas normales de siempre (atenuadas, como el pool de la pestaña Jugadores).
 function _juvConvMundialHtml(comp, cc, catData, year){
-  const nk=_nomKey, pos=getJuvPos();
-  const edadDe=f=>{ if(!f) return null; const d=new Date(f+'T12:00:00'), h=new Date(); let a=h.getFullYear()-d.getFullYear(); if(h<new Date(h.getFullYear(),d.getMonth(),d.getDate())) a--; return a; };
-  const nacFmt=f=>f?(typeof _nacFmt==='function'?_nacFmt(f):f):'Fecha de nac. sin cargar';
-  const ini=n=>(typeof initialsOf==='function'?initialsOf(n):n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase());
-  const card=(j,{num,gris,sub})=>{
-    const nomEnc=encodeURIComponent(j.nom).replace(/'/g,'%27');
-    const photo=window._juvGetPhoto?.(j.nom)||null;
-    const ps=pos[j.nom]||j.pos||'';
-    const ed=edadDe(j.fechaNac);
-    return `<div class="p-card" style="position:relative;${gris?'filter:grayscale(1);opacity:.55':''}">
-      <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="p-card-num">${num!=null?num:'·'}</div>
-          <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
-            ${photo?`<img src="${photo}" alt="${j.nom}" loading="lazy" decoding="async" style="object-position:center 15%" onerror="this.style.display='none'">`:''}
-            <div class="p-avatar-ini">${ini(j.nom)}</div>
-            <span style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
-            <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
-          </div>
-          <div class="p-card-right"><span class="p-pos-badge pos-${ps||'DEF'}" style="margin:0">${ps}</span></div>
-        </div>
-      </div>
-      <div class="p-card-body">
-        <div class="p-name">${j.nom}</div>
-        <div class="p-club">${j.club||''}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:1px">${nacFmt(j.fechaNac)}${ed!=null?` · <span style="font-weight:700;color:var(--fg)">${ed} años</span>`:''}</div>
-        ${sub?`<div style="font-size:10px;color:var(--muted);margin-top:4px">${sub}</div>`:''}
-      </div>
-    </div>`;
-  };
+  const nk=_nomKey, juvPos=getJuvPos();
+  const POS_ORDER={POR:0,DEF:1,MED:2,DEL:3,'':4};
+  const mk=j=>({nom:j.nom,club:j.club||'',num:j.num,asc:j.asc,fechaNac:j.fechaNac||'',tmId:j.tmId||null,paisSec:j.paisSec||null,paisSecLabel:j.paisSecLabel||null,pos:juvPos[j.nom]||''});
   const conv=(comp.convocados||[]).filter(j=>!j.descartado).slice().sort((a,b)=>(a.num??99)-(b.num??99));
   const enConv=new Set(conv.map(j=>nk(j.nom)));
-  // Todos los del proceso (convocatorias del ciclo de la categoría) que no quedaron en la lista final.
   const cycle=(catData.anos?.[year]?.convocatorias)||[];
   const proc=new Map();
-  cycle.forEach(c=>(c.jugadores||[]).forEach(j=>{
-    const k=nk(j.nom); if(enConv.has(k)) return;
-    if(!proc.has(k)) proc.set(k,{...j,veces:0});
-    proc.get(k).veces++;
-  }));
-  const proceso=[...proc.values()].sort((a,b)=>(b.veces-a.veces)||a.nom.localeCompare(b.nom));
+  cycle.forEach(c=>(c.jugadores||[]).forEach(j=>{ const k=nk(j.nom); if(!enConv.has(k)&&!proc.has(k)) proc.set(k,j); }));
+  const proceso=[...proc.values()].map(mk).sort((a,b)=>(POS_ORDER[a.pos]-POS_ORDER[b.pos])||a.nom.localeCompare(b.nom));
+  const grid='display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px';
+  const convHtml=conv.map(j=>`<div style="border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+      <div style="background:linear-gradient(135deg,var(--navy),var(--navy2));padding:6px 14px;display:flex;align-items:center">
+        <span class="p-card-num" style="font-size:36px;min-width:0;text-align:left">${j.num!=null?j.num:'—'}</span>
+      </div>
+      ${_juvCompCardHtml(mk(j),false,true,cc)}
+    </div>`).join('');
   return `
     <div style="background:${cc}12;border:1px solid ${cc}40;border-radius:9px;padding:7px 12px;margin-bottom:12px;font-size:.72em;font-weight:800;color:${cc}">🌍 ${comp.convocadosFecha||'Convocatoria final'}</div>
     <div style="font-size:.68em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Convocados — ${conv.length} jugadores</div>
-    <div class="p-grid">${conv.map(j=>card(j,{num:j.num})).join('')}</div>
-    ${proceso.length?`<div style="margin:22px 0 10px;font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--border);padding-top:14px">Estuvieron en el proceso (${proceso.length})</div>
-    <div class="p-grid">${proceso.map(j=>card(j,{gris:true,sub:`En ${j.veces} de ${cycle.length} convocatorias`})).join('')}</div>`:''}`;
+    <div style="${grid};margin-bottom:20px">${convHtml}</div>
+    ${proceso.length?`<div style="margin:22px 0 8px;font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--border);padding-top:14px">Estuvieron en el proceso — ${proceso.length} jugadores</div>
+    <div style="${grid}">${proceso.map(p=>_juvCompCardHtml(p,true,false,cc)).join('')}</div>`:''}`;
 }
 
 function _buildJuvCompBody(compId, color, catData){
@@ -33174,8 +33177,7 @@ function _buildJuvCompBody(compId, color, catData){
         </div>`:''}`;
   }
 
-  // (apagado a pedido del usuario 20/10/2026: el rediseño de Convocados del Mundial se rehace; flag `convocadosEstiloMayor` sin usar por ahora)
-  else if(_juvCompTab==='convocados' && comp.convocadosEstiloMayor){
+  else if(_juvCompTab==='convocados' && comp.estiloMundial){
     content = _juvConvMundialHtml(comp, cc, catData, _juvYear);
   }
   else if(_juvCompTab==='convocados'){
@@ -33299,31 +33301,7 @@ function _buildJuvCompBody(compId, color, catData){
     const pool = Object.values(allMap).filter(p=>!p.activo)
       .map(p=>({...p,pos:juvPos[p.nom]||''}))
       .sort((a,b)=>(POS_ORDER[a.pos]-POS_ORDER[b.pos])||a.nom.localeCompare(b.nom));
-    const _mkJuvCompCard = (p, dimmed, isConv) => {
-      const nomEnc = encodeURIComponent(p.nom).replace(/'/g,'%27');
-      const photo = window._juvGetPhoto?.(p.nom)||null;
-      const initials = p.nom.split(' ').filter((_,i,a)=>i===0||i===a.length-1).map(w=>w[0]).join('').toUpperCase();
-      const posLabel = p.pos||'—';
-      const posFg = (window.JUV_POS_FG||{})[p.pos]||'#fff';
-      const posBg = (window.JUV_POS_BG||{})[p.pos]||'#6B7280';
-      const photoEl = photo
-        ? `<img src="${photo}" style="width:54px;height:54px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-        : `<div style="width:54px;height:54px;border-radius:50%;background:var(--bg);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.9em;color:var(--muted);flex-shrink:0">${initials}</div>`;
-      const convBadge = isConv ? `<div style="position:absolute;top:4px;right:4px;font-size:.55em;font-weight:800;color:${cc};background:${cc}18;border-radius:5px;padding:1px 5px">CONV.</div>` : '';
-      const ascIcon = p.asc ? `<span style="font-size:.6em;color:#7C3AED;font-weight:800">⬆ ex-16</span>` : '';
-      const fullCard = _juvFichaCard(p, _juvPlayerHistory(p.nom), _juvOfficialStats(p.nom), ascIcon);
-      return `<div style="position:relative${dimmed?';opacity:.5':''}">
-        <div class="juv-ficha-wrap" onclick="if(window.innerWidth<=600){event.preventDefault();_openJuvDetail('${nomEnc}');}">
-          <div class="juv-ficha-mob-cpt">
-            ${photoEl}
-            <div class="juv-ficha-mob-nm">${p.nom}</div>
-            <div class="juv-ficha-mob-pos" style="background:${posBg};color:${posFg}">${posLabel}</div>
-          </div>
-          <div class="juv-ficha-full">${fullCard}</div>
-        </div>
-        ${convBadge}
-      </div>`;
-    };
+    const _mkJuvCompCard = (p, dimmed, isConv) => _juvCompCardHtml(p, dimmed, isConv, cc);
     const fichasActivas = activos.map(p=>_mkJuvCompCard(p,false,true)).join('');
     const fichasPool = pool.map(p=>_mkJuvCompCard(p,true,false)).join('');
     // Banners fotos
