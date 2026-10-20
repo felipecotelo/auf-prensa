@@ -33102,34 +33102,6 @@ function _juvCompTabsMundial(comp){
   return t;
 }
 
-// Convocados de un Mundial (convocatoria que queda guardada): SOLO los convocados cambian — la ficha de siempre
-// (con toda su botonera) con un encabezado navy y el dorsal grande, estilo Mayor. Abajo, separados, todos los que
-// estuvieron en el proceso con las fichas normales de siempre (atenuadas, como el pool de la pestaña Jugadores).
-function _juvConvMundialHtml(comp, cc, catData, year){
-  const nk=_nomKey, juvPos=getJuvPos();
-  const POS_ORDER={POR:0,DEF:1,MED:2,DEL:3,'':4};
-  const mk=j=>({nom:j.nom,club:j.club||'',num:j.num,asc:j.asc,fechaNac:j.fechaNac||'',tmId:j.tmId||null,paisSec:j.paisSec||null,paisSecLabel:j.paisSecLabel||null,pos:juvPos[j.nom]||''});
-  const conv=(comp.convocados||[]).filter(j=>!j.descartado).slice().sort((a,b)=>(a.num??99)-(b.num??99));
-  const enConv=new Set(conv.map(j=>nk(j.nom)));
-  const cycle=(catData.anos?.[year]?.convocatorias)||[];
-  const proc=new Map();
-  cycle.forEach(c=>(c.jugadores||[]).forEach(j=>{ const k=nk(j.nom); if(!enConv.has(k)&&!proc.has(k)) proc.set(k,j); }));
-  const proceso=[...proc.values()].map(mk).sort((a,b)=>(POS_ORDER[a.pos]-POS_ORDER[b.pos])||a.nom.localeCompare(b.nom));
-  const grid='display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px';
-  const convHtml=conv.map(j=>`<div style="border-radius:12px;overflow:hidden;border:1px solid var(--border)">
-      <div style="background:linear-gradient(135deg,var(--navy),var(--navy2));padding:6px 14px;display:flex;align-items:center">
-        <span class="p-card-num" style="font-size:36px;min-width:0;text-align:left">${j.num!=null?j.num:'—'}</span>
-      </div>
-      ${_juvCompCardHtml(mk(j),false,true,cc)}
-    </div>`).join('');
-  return `
-    <div style="background:${cc}12;border:1px solid ${cc}40;border-radius:9px;padding:7px 12px;margin-bottom:12px;font-size:.72em;font-weight:800;color:${cc}">🌍 ${comp.convocadosFecha||'Convocatoria final'}</div>
-    <div style="font-size:.68em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Convocados — ${conv.length} jugadores</div>
-    <div style="${grid};margin-bottom:20px">${convHtml}</div>
-    ${proceso.length?`<div style="margin:22px 0 8px;font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--border);padding-top:14px">Estuvieron en el proceso — ${proceso.length} jugadores</div>
-    <div style="${grid}">${proceso.map(p=>_juvCompCardHtml(p,true,false,cc)).join('')}</div>`:''}`;
-}
-
 function _buildJuvCompBody(compId, color, catData){
   const comp = COMP_DATA[compId];
   if(!comp) return '<div style="padding:32px;text-align:center;color:var(--muted)">Sin datos</div>';
@@ -33177,9 +33149,6 @@ function _buildJuvCompBody(compId, color, catData){
         </div>`:''}`;
   }
 
-  else if(_juvCompTab==='convocados' && comp.estiloMundial){
-    content = _juvConvMundialHtml(comp, cc, catData, _juvYear);
-  }
   else if(_juvCompTab==='convocados'){
     const convs = comp.convocados||[];
     const activos = convs.filter(j=>!j.descartado);
@@ -33293,6 +33262,15 @@ function _buildJuvCompBody(compId, color, catData){
     (comp.lista||[]).forEach(j=>{
       if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
     });
+    // Mundial (convocatoria que queda guardada): además de los convocados, todos los que estuvieron en el proceso
+    // del ciclo (convocatorias de la categoría) quedan abajo como pool, con la ficha de siempre.
+    if(comp.estiloMundial){
+      const _enMapa = new Set(Object.values(allMap).map(p=>_nomKey(p.nom)));
+      cycleConvocatorias.forEach(c=>(c.jugadores||[]).forEach(j=>{
+        const k=_nomKey(j.nom); if(_enMapa.has(k)) return; _enMapa.add(k);
+        allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
+      }));
+    }
     const juvPos = getJuvPos();
     const POS_ORDER = {POR:0,DEF:1,MED:2,DEL:3,'':4};
     const activos = Object.values(allMap).filter(p=>p.activo)
@@ -33302,7 +33280,16 @@ function _buildJuvCompBody(compId, color, catData){
       .map(p=>({...p,pos:juvPos[p.nom]||''}))
       .sort((a,b)=>(POS_ORDER[a.pos]-POS_ORDER[b.pos])||a.nom.localeCompare(b.nom));
     const _mkJuvCompCard = (p, dimmed, isConv) => _juvCompCardHtml(p, dimmed, isConv, cc);
-    const fichasActivas = activos.map(p=>_mkJuvCompCard(p,false,true)).join('');
+    // En el Mundial los convocados se distinguen con un encabezado navy con el dorsal grande (estilo Mayor);
+    // la ficha de abajo es la de siempre, con su botonera.
+    const fichasActivas = activos.slice().sort((a,b)=>comp.estiloMundial?((a.num??99)-(b.num??99)):0).map(p=>comp.estiloMundial
+      ? `<div style="border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+          <div style="background:linear-gradient(135deg,var(--navy),var(--navy2));padding:6px 14px;display:flex;align-items:center">
+            <span class="p-card-num" style="font-size:36px;min-width:0;text-align:left">${p.num!=null?p.num:'—'}</span>
+          </div>
+          ${_mkJuvCompCard(p,false,true)}
+        </div>`
+      : _mkJuvCompCard(p,false,true)).join('');
     const fichasPool = pool.map(p=>_mkJuvCompCard(p,true,false)).join('');
     // Banners fotos
     const _sinFotoActivos = activos.filter(p=>!window._juvGetPhoto?.(p.nom));
@@ -33345,7 +33332,7 @@ function _buildJuvCompBody(compId, color, catData){
       </div>
       ${pool.length?`
       <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
-        Pool / preparación — ${pool.length} jugadores
+        ${comp.estiloMundial?'Estuvieron en el proceso':'Pool / preparación'} — ${pool.length} jugadores
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
         ${fichasPool}
