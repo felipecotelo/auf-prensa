@@ -28729,6 +28729,7 @@ const MUNDIAL_SUB15_2026 = {
   // así que `convocados` queda vacío hasta esa fecha y se activa solo (si no, la
   // lista de viaje taparía la de entrenamiento en la pestaña Convocados).
   convocadosFecha:'Convocatoria final · Mundial Sub-15 Azerbaiyán 2026',
+  estiloMundial:true, // Convocados con la estética de la Mayor (dorsal grande) + el proceso abajo; no es una convocatoria de entrenamiento
   convocadosDesde:'2026-10-19',
   get convocados(){ return new Date().toLocaleDateString('en-CA')>=this.convocadosDesde ? MUNDIAL_SUB15_2026_VIAJEROS : []; },
   preparacion:[],
@@ -32399,7 +32400,6 @@ function _renderJuvenilesSafe(el){
         const CTABS = [
           {id:'convocados',label:'Convocados',icon:'ti-users'},
           {id:'jugadores',label:'Jugadores',icon:'ti-id-badge-2'},
-          {id:'dorsales',label:'Dorsales',icon:'ti-hash'},
           {id:'fixture',label:'Fixture',icon:'ti-calendar-event'},
           {id:'goleadores',label:'Goleadores',icon:'ti-ball-football'},
           {id:'ct_del',label:'CT · Delegación',icon:'ti-id-badge'},
@@ -33061,16 +33061,69 @@ function _juvCompAllPlayers(compId){
   });
   return Object.values(out);
 }
+// Convocados de un Mundial (convocatoria que queda guardada): tarjetas con la misma estética de la Mayor
+// (dorsal grande, foto, posición, club) y, abajo, todos los que estuvieron en el proceso de la categoría.
+function _juvConvMundialHtml(comp, cc, catData, year){
+  const nk=_nomKey, pos=getJuvPos();
+  const edadDe=f=>{ if(!f) return null; const d=new Date(f+'T12:00:00'), h=new Date(); let a=h.getFullYear()-d.getFullYear(); if(h<new Date(h.getFullYear(),d.getMonth(),d.getDate())) a--; return a; };
+  const nacFmt=f=>f?(typeof _nacFmt==='function'?_nacFmt(f):f):'Fecha de nac. sin cargar';
+  const ini=n=>(typeof initialsOf==='function'?initialsOf(n):n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase());
+  const card=(j,{num,gris,sub})=>{
+    const nomEnc=encodeURIComponent(j.nom).replace(/'/g,'%27');
+    const photo=window._juvGetPhoto?.(j.nom)||null;
+    const ps=pos[j.nom]||j.pos||'';
+    const ed=edadDe(j.fechaNac);
+    return `<div class="p-card" style="position:relative;${gris?'filter:grayscale(1);opacity:.55':''}">
+      <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="p-card-num">${num!=null?num:'·'}</div>
+          <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
+            ${photo?`<img src="${photo}" alt="${j.nom}" loading="lazy" decoding="async" style="object-position:center 15%" onerror="this.style.display='none'">`:''}
+            <div class="p-avatar-ini">${ini(j.nom)}</div>
+            <span style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
+            <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
+          </div>
+          <div class="p-card-right"><span class="p-pos-badge pos-${ps||'DEF'}" style="margin:0">${ps}</span></div>
+        </div>
+      </div>
+      <div class="p-card-body">
+        <div class="p-name">${j.nom}</div>
+        <div class="p-club">${j.club||''}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px">${nacFmt(j.fechaNac)}${ed!=null?` · <span style="font-weight:700;color:var(--fg)">${ed} años</span>`:''}</div>
+        ${sub?`<div style="font-size:10px;color:var(--muted);margin-top:4px">${sub}</div>`:''}
+      </div>
+    </div>`;
+  };
+  const conv=(comp.convocados||[]).filter(j=>!j.descartado).slice().sort((a,b)=>(a.num??99)-(b.num??99));
+  const enConv=new Set(conv.map(j=>nk(j.nom)));
+  // Todos los del proceso (convocatorias del ciclo de la categoría) que no quedaron en la lista final.
+  const cycle=(catData.anos?.[year]?.convocatorias)||[];
+  const proc=new Map();
+  cycle.forEach(c=>(c.jugadores||[]).forEach(j=>{
+    const k=nk(j.nom); if(enConv.has(k)) return;
+    if(!proc.has(k)) proc.set(k,{...j,veces:0});
+    proc.get(k).veces++;
+  }));
+  const proceso=[...proc.values()].sort((a,b)=>(b.veces-a.veces)||a.nom.localeCompare(b.nom));
+  return `
+    <div style="background:${cc}12;border:1px solid ${cc}40;border-radius:9px;padding:7px 12px;margin-bottom:12px;font-size:.72em;font-weight:800;color:${cc}">🌍 ${comp.convocadosFecha||'Convocatoria final'}</div>
+    <div style="font-size:.68em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Convocados — ${conv.length} jugadores</div>
+    <div class="p-grid">${conv.map(j=>card(j,{num:j.num})).join('')}</div>
+    ${proceso.length?`<div style="margin:22px 0 10px;font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--border);padding-top:14px">Estuvieron en el proceso (${proceso.length})</div>
+    <div class="p-grid">${proceso.map(j=>card(j,{gris:true,sub:`En ${j.veces} de ${cycle.length} convocatorias`})).join('')}</div>`:''}`;
+}
+
 function _buildJuvCompBody(compId, color, catData){
   const comp = COMP_DATA[compId];
   if(!comp) return '<div style="padding:32px;text-align:center;color:var(--muted)">Sin datos</div>';
   const cc = comp.color||color;
 
+  // La pestaña "Dorsales" se fusionó con "Convocados" (mostraba lo mismo): si quedó guardada, va a Convocados.
+  if(_juvCompTab==='dorsales') _juvCompTab='convocados';
   // Sub-tabs (lista y preparacion reemplazados por jugadores unificado)
   const CTABS = [
     {id:'convocados',label:'Convocados',icon:'ti-users'},
     {id:'jugadores',label:'Jugadores',icon:'ti-id-badge-2'},
-    {id:'dorsales',label:'Dorsales',icon:'ti-hash'},
     {id:'fixture',label:'Fixture',icon:'ti-calendar-event'},
     {id:'goleadores',label:'Goleadores',icon:'ti-ball-football'},
     {id:'ct_del',label:'CT · Delegación',icon:'ti-id-badge'},
@@ -33105,10 +33158,17 @@ function _buildJuvCompBody(compId, color, catData){
         </div>`:''}`;
   }
 
+  else if(_juvCompTab==='convocados' && comp.estiloMundial){
+    content = _juvConvMundialHtml(comp, cc, catData, _juvYear);
+  }
   else if(_juvCompTab==='convocados'){
     const convs = comp.convocados||[];
     const activos = convs.filter(j=>!j.descartado);
     const descartados = convs.filter(j=>j.descartado);
+    // Camiseta 1ª/2ª por dorsal (antes solo se veía en la pestaña Dorsales): se muestra al lado del nombre si está cargada.
+    const _dis = comp.diseno||{};
+    const _sh1 = `<svg width="16" height="18" viewBox="0 0 18 20" fill="none"><path d="M6 1L1 4l2 4 2-1v12h8V7l2 1 2-4L12 1 9 3 6 1z" fill="#1A56DB" stroke="#fff" stroke-width=".5"/></svg>`;
+    const _sh2 = `<svg width="16" height="18" viewBox="0 0 18 20" fill="none"><path d="M6 1L1 4l2 4 2-1v12h8V7l2 1 2-4L12 1 9 3 6 1z" fill="#fff" stroke="#1A56DB" stroke-width="1"/></svg>`;
     content = `
       <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">
         ${activos.length} convocados
@@ -33120,6 +33180,7 @@ function _buildJuvCompBody(compId, color, catData){
             <span style="font-weight:700;font-size:.88em">${j.nom}</span>
             ${j.asc?`<span style="font-size:.65em;color:#7C3AED;margin-left:4px;font-weight:700">⬆ ex-16</span>`:''}
           </div>
+          ${j.num!=null&&_dis[j.num]?`<span title="${_dis[j.num]===1?'1ª camiseta':'2ª camiseta'}" style="display:inline-flex">${_dis[j.num]===1?_sh1:_sh2}</span>`:''}
           <span style="font-size:.72em;color:var(--muted)">${j.club}</span>
         </div>`).join('')}
       ${descartados.length?`
