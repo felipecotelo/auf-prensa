@@ -32397,7 +32397,7 @@ function _renderJuvenilesSafe(el){
     if(_juvComp){
       const comp = COMP_DATA[_juvComp];
       if(comp){
-        const CTABS = [
+        let CTABS = [
           {id:'convocados',label:'Convocados',icon:'ti-users'},
           {id:'jugadores',label:'Jugadores',icon:'ti-id-badge-2'},
           {id:'fixture',label:'Fixture',icon:'ti-calendar-event'},
@@ -32406,6 +32406,7 @@ function _renderJuvenilesSafe(el){
           {id:'amistosos',label:'Amistosos prep.',icon:'ti-ball-football'},
         ];
         if(comp.infoGeneral||comp.grupos) CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
+        if(comp.estiloMundial) CTABS = _juvCompTabsMundial(comp);
         navL2 = `<div class="tabs">${CTABS.map(t=>`
           <button onclick="_setJuvCompTab('${t.id}')" class="tab${t.id===_juvCompTab?' active':''}">
             <i class="ti ${t.icon}"></i>${t.label}
@@ -33061,6 +33062,19 @@ function _juvCompAllPlayers(compId){
   });
   return Object.values(out);
 }
+// Pestañas de un Mundial (convocatoria que queda guardada): sin Goleadores, Info general al final.
+function _juvCompTabsMundial(comp){
+  const t=[
+    {id:'convocados',label:'Convocados',icon:'ti-users'},
+    {id:'fixture',label:'Fixture',icon:'ti-calendar-event'},
+    {id:'jugadores',label:'Jugadores',icon:'ti-id-badge-2'},
+    {id:'ct_del',label:'CT · Delegación',icon:'ti-id-badge'},
+    {id:'amistosos',label:'Amistosos prep.',icon:'ti-ball-football'},
+  ];
+  if(comp.infoGeneral||comp.grupos) t.push({id:'info',label:'Info general',icon:'ti-info-circle'});
+  return t;
+}
+
 // Convocados de un Mundial (convocatoria que queda guardada): tarjetas con la misma estética de la Mayor
 // (dorsal grande, foto, posición, club) y, abajo, todos los que estuvieron en el proceso de la categoría.
 function _juvConvMundialHtml(comp, cc, catData, year){
@@ -33120,8 +33134,9 @@ function _buildJuvCompBody(compId, color, catData){
 
   // La pestaña "Dorsales" se fusionó con "Convocados" (mostraba lo mismo): si quedó guardada, va a Convocados.
   if(_juvCompTab==='dorsales') _juvCompTab='convocados';
+  if(comp.estiloMundial && _juvCompTab==='goleadores') _juvCompTab='convocados';
   // Sub-tabs (lista y preparacion reemplazados por jugadores unificado)
-  const CTABS = [
+  let CTABS = [
     {id:'convocados',label:'Convocados',icon:'ti-users'},
     {id:'jugadores',label:'Jugadores',icon:'ti-id-badge-2'},
     {id:'fixture',label:'Fixture',icon:'ti-calendar-event'},
@@ -33131,6 +33146,7 @@ function _buildJuvCompBody(compId, color, catData){
   if(comp.infoGeneral||comp.grupos){
     CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
   }
+  if(comp.estiloMundial) CTABS = _juvCompTabsMundial(comp);
   let content = '';
 
   if(_juvCompTab==='info'){
