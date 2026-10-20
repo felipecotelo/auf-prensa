@@ -609,10 +609,13 @@ async function computeMisIdas() {
   const personalEvents = parseIcsEvents(icsPersonal);
   const seleccionEvents = icsSeleccion ? parseIcsEvents(icsSeleccion) : personalEvents;
 
-  const complejo = personalEvents.filter(e => /complejo/i.test(e.summary)).length;
-  const aufPm = personalEvents.filter(e => e.summary.toLowerCase() === 'auf pm').length;
-
   const thisYear = new Date().getFullYear();
+  // Solo cuentan las idas del año en curso y que ya pasaron (o son de hoy): el calendario trae años anteriores
+  // (ej. 'Complejo AM' de dic 2025, reuniones de 2023 que dicen 'complejo') y eventos futuros ya agendados.
+  const finDeHoy = new Date(); finDeHoy.setHours(23, 59, 59, 999);
+  const esDelAnioYaOcurrido = e => e.start.getFullYear() === thisYear && e.start <= finDeHoy;
+  const complejo = personalEvents.filter(e => /complejo/i.test(e.summary) && esDelAnioYaOcurrido(e)).length;
+  const aufPm = personalEvents.filter(e => e.summary.toLowerCase() === 'auf pm' && esDelAnioYaOcurrido(e)).length;
   // Viajes de la Mayor: "Mayor | Viaje a X" (con o sin el prefijo "Mayor | ") marca cada salida
   // (puede haber varias dentro del mismo viaje: Inglaterra→Turín, Japón→Corea del Sur→India) y
   // el regreso es "Vuelta a Uruguay" o "Viaje a Uruguay" (el vuelo de regreso; desde Asia aterriza
