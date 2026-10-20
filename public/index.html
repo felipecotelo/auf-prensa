@@ -33627,15 +33627,22 @@ function _pwId(){ return Date.now().toString(36)+Math.random().toString(36).slic
   if(changed) _pwSave(list);
 })();
 
+// Misma persona con y sin segundo nombre: se muestra una sola vez, con el nombre completo (el vigente).
+const _PW_ALIAS_PERSONAS={'ignacio gonzalez':'Ignacio María González'};
+function _pwCanonLabel(label){ return _PW_ALIAS_PERSONAS[_nomKey(label)]||label; }
 function _pwPersonOptions(){
   const opts = [];
   // Una sola marca de "ya visto" para TODAS las fuentes — antes cada lista se
   // deduplicaba contra sí misma nomás, así que alguien presente en dos listas
   // (ej. Estructura + Delegación) aparecía dos veces en el buscador.
+  // Se compara sin tildes/mayúsculas y con los alias de arriba.
   const seen = new Set();
   const push = (key,label,rol,cat) => {
-    if(seen.has(label)) return;
-    seen.add(label);
+    const canon=_pwCanonLabel(label);
+    if(canon!==label){ if(key.endsWith(label)) key=key.slice(0,-label.length)+canon; label=canon; }
+    const sk=_nomKey(label);
+    if(seen.has(sk)) return;
+    seen.add(sk);
     opts.push({key,label,rol,cat});
   };
   // Staff AUF (Estructura de Selección)
@@ -33678,6 +33685,34 @@ function _pwPersonOptions(){
   (typeof PLAYERS!=='undefined'?PLAYERS:[]).forEach(p=>push('p:'+p.n, p.name, p.pos+' · '+p.club, 'Jugadores Mayor'));
   return opts;
 }
+
+// Migración: ventanas que ya tenían a la misma persona con el nombre corto ("Ignacio González") pasan al nombre
+// completo, sin tocar nada más (fechas, estados, pedidos).
+(function _pwMigrateAliasPersonas(){
+  try{
+    const list=_pwGetAll(); let changed=false;
+    list.forEach(vw=>{
+      let ch=false;
+      (vw.participantes||[]).forEach(p=>{
+        const c=_pwCanonLabel(p.label);
+        if(c!==p.label){ if(p.key&&p.key.endsWith(p.label)) p.key=p.key.slice(0,-p.label.length)+c; p.label=c; ch=true; }
+      });
+      if(ch){
+        vw.personLabel=(vw.participantes||[]).map(p=>p.label).join(', ');
+        if(vw.participantes[0]) vw.personKey=vw.participantes[0].key;
+        changed=true;
+      }
+      (vw.solicitudes||[]).forEach(s=>{
+        const pl=s.protagonistaLabel;
+        if(pl){
+          const nl=pl.split(',').map(x=>_pwCanonLabel(x.trim())).filter((x,i,a)=>a.findIndex(y=>_nomKey(y)===_nomKey(x))===i).join(', ');
+          if(nl!==pl){ s.protagonistaLabel=nl; s.protagonistaKey=nl; changed=true; }
+        }
+      });
+    });
+    if(changed) _pwSave(list);
+  }catch(e){ console.error('migración alias personas (prensa):',e); }
+})();
 
 function _pwPersonSelect(selected=''){
   const opts = _pwPersonOptions();
@@ -34137,14 +34172,11 @@ function _redesConclusionesGenerales(){
     const tot=rank.reduce((a,k)=>a+act[k].seguidores,0);
     bullets.push(`Entre las cinco redes se suman <b>${_redesFmt(tot)}</b> seguidores (YouTube es el canal AUFTV, que no es solo de la Selección). La de mayor audiencia es <b>${REDES_PLATS[rank[0]].label}</b> (${_redesFmt(act[rank[0]].seguidores)}), seguida de ${REDES_PLATS[rank[1]].label} (${_redesFmt(act[rank[1]].seguidores)}) y ${REDES_PLATS[rank[2]].label} (${_redesFmt(act[rank[2]].seguidores)}).`);
   }
-  // Cruce con el contexto nacional (encuesta CIFRA): seguidores de la Selección vs. usuarios de cada red en Uruguay.
+  // Cruce con el contexto nacional (encuesta CIFRA): solo seguidores DE URUGUAY vs. usuarios de la red en Uruguay.
   if(typeof REDES_CIFRA_CONTEXTO!=='undefined'){
-    const cx=REDES_CIFRA_CONTEXTO.plataformas.filter(p=>act[p.key]?.seguidores!=null).map(p=>{
-      const uy=Math.round(REDES_UY_POB_ADULTA*p.penetracion/100);
-      return {n:p.nombre.replace('X/Twitter','X'),pct:Math.round(act[p.key].seguidores/uy*100)};
-    });
-    const dentro=cx.filter(c=>c.pct<=100), fuera=cx.filter(c=>c.pct>100);
-    if(cx.length>=3) bullets.push(`Cruzando con la encuesta CIFRA sobre uso de redes en Uruguay (junio 2026): los seguidores de la Selección equivalen a ${dentro.map(c=>`~${c.pct}% de los usuarios de ${c.n}`).join(' y ')} en Uruguay${fuera.length?`; en ${fuera.map(c=>`${c.n} (~${c.pct}%)`).join(' y ')} superan ese universo, así que gran parte de esa audiencia está fuera del país`:''}. Es una referencia de escala, no una medición de audiencia local.`);
+    const cx=REDES_CIFRA_CONTEXTO.plataformas.map(p=>_redesCruceUY(p.key)).filter(Boolean);
+    const con=cx.filter(c=>!c.sinDato), sin=cx.filter(c=>c.sinDato);
+    if(con.length) bullets.push(`Cruzando con la encuesta CIFRA sobre uso de redes en Uruguay (junio 2026), solo con los seguidores que son de Uruguay: ${con.map(c=>`en ${c.nombre} son el ${String(c.pctUY).replace('.',',')}% de los seguidores (~${_redesFmt(c.seguidoresUY)}), equivalente a ~${c.cobertura}% de los ${_redesFmt(c.usuariosUY)} usuarios de la red en el país${c.cobertura<50?': hay mercado disponible en casa':''}`).join('; ')}.${sin.length?` En ${sin.map(c=>c.nombre).join(', ').replace(/, ([^,]*)$/,' y $1')} todavía falta cargar el país de los seguidores para hacer el mismo cruce.`:''}`);
   }
   const last=snaps[snaps.length-1];
   if(last && last.dias){
@@ -34206,14 +34238,28 @@ const REDES_CIFRA_CONTEXTO = {
 // de cada red — es una estimación redonda (INE ronda los 2,7M de mayores de 18), no un dato
 // censal exacto. Sirve para calcular "usuarios totales de la red en Uruguay" = población × %.
 const REDES_UY_POB_ADULTA = 2700000;
+// Cruce con CIFRA: SOLO los seguidores cuyo país es Uruguay contra los usuarios de esa red en Uruguay.
+// Nunca seguidores totales vs. usuarios UY (número contra número: no dice nada del mercado local).
+function _redesCruceUY(k){
+  const pl=REDES_CIFRA_CONTEXTO.plataformas.find(x=>x.key===k); if(!pl) return null;
+  const usuariosUY=Math.round(REDES_UY_POB_ADULTA*pl.penetracion/100);
+  const snaps=_redesSnaps(), act=_redesSeguidoresActuales();
+  for(let i=snaps.length-1;i>=0;i--){
+    const ps=snaps[i][k]?.paises_seguidores;
+    const uy=ps&&ps.find(x=>x[0]==='Uruguay'), tot=act[k]?.seguidores;
+    if(uy&&tot){ const n=Math.round(tot*uy[1]/100); return {k,nombre:pl.nombre.replace('X/Twitter','X'),pctUY:uy[1],seguidoresUY:n,usuariosUY,cobertura:Math.round(n/usuariosUY*100)}; }
+  }
+  return {k,nombre:pl.nombre.replace('X/Twitter','X'),usuariosUY,sinDato:true};
+}
 function _redesContextoCifra(latest){
   const c=REDES_CIFRA_CONTEXTO;
   const plats=c.plataformas.map(p=>{
     const usuariosUY=Math.round(REDES_UY_POB_ADULTA*p.penetracion/100);
     const seguidores=latest?.[p.key]?.seguidores;
-    const cruce=seguidores!=null
-      ? `<div style="font-size:.68em;color:var(--cel);font-weight:700;margin-top:4px">📊 La Selección tiene ${_redesFmt(seguidores)} seguidores — equivale a ~${Math.round(seguidores/usuariosUY*100)}% de los ${_redesFmt(usuariosUY)} usuarios de ${p.nombre} en Uruguay${seguidores>usuariosUY?' (supera ese universo: gran parte de sus seguidores no son de Uruguay)':''}</div>`
-      : '';
+    const cx=_redesCruceUY(p.key);
+    const cruce=!cx?'':(cx.sinDato
+      ? `<div style="font-size:.68em;color:var(--muted);font-weight:700;margin-top:4px">📊 Falta cargar el país de los seguidores para cruzar con los ${_redesFmt(cx.usuariosUY)} usuarios de ${p.nombre} en Uruguay</div>`
+      : `<div style="font-size:.68em;color:var(--cel);font-weight:700;margin-top:4px">📊 ${String(cx.pctUY).replace('.',',')}% de los seguidores de ${p.nombre} son de Uruguay (~${_redesFmt(cx.seguidoresUY)}): equivale a ~${cx.cobertura}% de los ${_redesFmt(cx.usuariosUY)} usuarios de la red en el país${cx.cobertura<50?' — queda mercado disponible en Uruguay':''}</div>`);
     return `
     <div style="padding:8px 0;border-bottom:1px dashed var(--border)">
       <div style="display:flex;align-items:center;gap:10px">
@@ -34237,7 +34283,7 @@ function _redesContextoCifra(latest){
       <div style="font-size:.78em;color:var(--text);line-height:1.6;margin-bottom:12px">${c.usoGeneral}</div>
       ${plats}
       <div style="font-size:.72em;color:var(--muted);margin-top:10px">${c.politica}</div>
-      <div style="font-size:.65em;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Fuente: ${c.fuente} · ${_redesFmtFecha(c.fecha)}<br>${c.encuesta}<br>Universo de usuarios por red en Uruguay estimado sobre una población adulta (18+) de ~${_redesFmt(REDES_UY_POB_ADULTA)}. Los seguidores de la Selección incluyen público fuera de Uruguay, así que el cruce es una referencia de escala, no una medición de audiencia local real.</div>
+      <div style="font-size:.65em;color:var(--muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">Fuente: ${c.fuente} · ${_redesFmtFecha(c.fecha)}<br>${c.encuesta}<br>Universo de usuarios por red en Uruguay estimado sobre una población adulta (18+) de ~${_redesFmt(REDES_UY_POB_ADULTA)}. El cruce usa solo los seguidores cuyo país es Uruguay (no el total de seguidores); donde no está cargado el país de los seguidores no se hace el cruce.</div>
     </div>
   </div>`;
 }
@@ -36001,17 +36047,45 @@ function _pwAtenResetForm(){
   ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom','A definir'].forEach(x=>{ const btn=document.getElementById('pw-aten-diasol-'+x.replace(/[^a-zA-Z]/g,'')); if(!btn) return; btn.style.background='transparent'; btn.style.color='#64748B'; btn.style.border='1.5px solid #CBD5E1'; });
   ['mañana','mediodía','tarde','noche'].forEach(x=>{ const btn=document.getElementById('pw-aten-franja-'+x); if(!btn) return; btn.style.background='transparent'; btn.style.color='#64748B'; btn.style.border='1.5px solid #CBD5E1'; });
 }
-function _pwAtenProtShowSug(q){
+// "Quién participó" admite VARIOS (ej. el DT y un jugador): el campo guarda los nombres separados por coma.
+// Lo ya elegido queda; el buscador trabaja sobre lo que se está escribiendo después de la última coma.
+let _pwAtenProtMatches=[];
+function _pwAtenProtState(){
+  const inp=document.getElementById('pw-aten-prot');
+  const parts=(inp?inp.value:'').split(',');
+  const chosen=parts.slice(0,-1).map(s=>s.trim()).filter(Boolean);
+  let last=(parts[parts.length-1]||'').trim();
+  // si lo último ya es un nombre completo de la lista, cuenta como elegido y se puede seguir sumando
+  if(last && _pwPersonOptions().some(o=>_nomKey(o.label)===_nomKey(last))){ chosen.push(last); last=''; }
+  return {chosen,last};
+}
+function _pwAtenProtShowSug(){
   const sug=document.getElementById('pw-aten-prot-sug'); if(!sug) return;
-  const qn=_gnavNorm(q);
-  const opts=_pwPersonOptions();
-  const matches=qn ? opts.filter(o=>_gnavNorm(o.label).includes(qn)||_gnavNorm(o.rol).includes(qn)) : opts;
-  if(!matches.length){ sug.style.display='none'; return; }
-  sug.innerHTML=matches.slice(0,16).map(o=>`<div onclick="document.getElementById('pw-aten-prot').value='${o.label.replace(/'/g,"\\'")}';document.getElementById('pw-aten-prot-sug').style.display='none'" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.85em" onmouseover="this.style.background='#F0F9FF'" onmouseout="this.style.background=''">${o.label}<span style="color:var(--muted);font-size:.85em"> · ${o.rol}</span></div>`).join('');
+  const {chosen,last}=_pwAtenProtState();
+  const qn=_gnavNorm(last);
+  const ya=new Set(chosen.map(_nomKey));
+  // Primero quienes ya participan en esta ventana (ej. Ignacio María González y Lautaro Muñiz), después el resto.
+  const vw=(_pwGetAll().find(v=>v.id===_pwAtenVwId))||{};
+  const enVentana=new Set((vw.participantes||[]).map(p=>_nomKey(_pwCanonLabel(p.label))));
+  const opts=_pwPersonOptions().filter(o=>!ya.has(_nomKey(o.label)));
+  const fil=qn ? opts.filter(o=>_gnavNorm(o.label).includes(qn)||_gnavNorm(o.rol).includes(qn)) : opts;
+  const matches=[...fil.filter(o=>enVentana.has(_nomKey(o.label))), ...fil.filter(o=>!enVentana.has(_nomKey(o.label)))];
+  _pwAtenProtMatches=matches.slice(0,16);
+  if(!_pwAtenProtMatches.length){ sug.style.display='none'; return; }
+  sug.innerHTML=_pwAtenProtMatches.map((o,i)=>`<div onmousedown="event.preventDefault();_pwAtenProtPick(${i})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.85em" onmouseover="this.style.background='#F0F9FF'" onmouseout="this.style.background=''">${o.label}<span style="color:var(--muted);font-size:.85em"> · ${o.rol}</span>${enVentana.has(_nomKey(o.label))?'<span style="font-size:.7em;font-weight:800;color:#15803D;margin-left:6px">EN ESTA VENTANA</span>':''}</div>`).join('');
   sug.style.display='block';
 }
-function _pwAtenProtFocus(inp){ _pwAtenProtShowSug((inp.value||'').toLowerCase().trim()); }
-function _pwAtenProtInput(inp){ _pwAtenProtShowSug((inp.value||'').toLowerCase().trim()); }
+function _pwAtenProtPick(i){
+  const o=_pwAtenProtMatches[i]; if(!o) return;
+  const inp=document.getElementById('pw-aten-prot'); if(!inp) return;
+  const {chosen}=_pwAtenProtState();
+  chosen.push(o.label);
+  inp.value=chosen.join(', ');
+  const sug=document.getElementById('pw-aten-prot-sug'); if(sug) sug.style.display='none';
+}
+window._pwAtenProtPick=_pwAtenProtPick;
+function _pwAtenProtFocus(inp){ _pwAtenProtShowSug(); }
+function _pwAtenProtInput(inp){ _pwAtenProtShowSug(); }
 
 function _pwAtenNueva(vwId){
   _pwEnsureAtenModal();
