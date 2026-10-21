@@ -30895,6 +30895,17 @@ function _seedPioneerosAlbion(){
 // uno de esos torneos, ese pool puntual manda sobre el de la competencia.
 function _matchTorneoPool(m){
   if(!m) return null;
+  // Partido que se juega con la convocatoria de UNA semana puntual (ej. amistosos de la semana): m.poolConv es el
+  // comienzo del título de esa convocatoria en el ciclo ("Microciclo 05 · lunes a viernes · 19-23 oct 2026").
+  // Así la Pizarra ofrece solo a esos convocados y no a todo el pool de preparación.
+  if(m.poolConv && typeof JUVENILES!=='undefined'){
+    for(const cd of Object.values(JUVENILES)){
+      for(const ad of Object.values(cd.anos||{})){
+        const c=(ad.convocatorias||[]).find(c=>(c.fecha||'').startsWith(m.poolConv));
+        if(c && (c.jugadores||[]).length) return c.jugadores;
+      }
+    }
+  }
   if(m.torneo==='Pioneros de Albion' && typeof PIONEROS_ALBION_2026!=='undefined') return PIONEROS_ALBION_2026.convocados;
   // Gira a España oct 2026 (Suecia/Bélgica/Polonia) — no es un torneo con
   // convocatoria propia aparte como Pioneros de Albion, son amistosos dentro
