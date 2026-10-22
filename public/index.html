@@ -6585,6 +6585,70 @@ function _sizeTareaTAs(){
     ta.style.height=Math.ceil(lines*lineHeight+padV+2)+'px';
   });
 }
+// ── Recordatorios (prueba: diseño MD-1 de los partidos oficiales del Mundial Sub-15) ─────────────────────────
+// Lista en `auf4_recordatorios`: {id, titulo, detalle, vence:'YYYY-MM-DD', hora:'HH:MM', hecho, ref}. Se cargan aparte
+// (los de esta prueba también están en la app Recordatorios de Apple, lista "AUF Prensa"). En Inicio aparece un bloque
+// sutil con los que vencen hoy, mañana o ya vencieron, y un aviso discreto al abrir la app.
+const KRecordatorios='auf4_recordatorios';
+function _recGet(){ const v=stor.get(KRecordatorios,[]); return Array.isArray(v)?v:[]; }
+function _recDue(r){ return new Date(r.vence+'T'+(r.hora||'09:00')+':00'); }
+function _recPendientes(){
+  const lim=new Date(); lim.setDate(lim.getDate()+1); lim.setHours(23,59,59,999);
+  return _recGet().filter(r=>!r.hecho && _recDue(r)<=lim).sort((a,b)=>_recDue(a)-_recDue(b));
+}
+function _recEtiqueta(r){
+  const d=_recDue(r), hoy0=new Date(); hoy0.setHours(0,0,0,0);
+  const dias=Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-hoy0)/86400000);
+  const hh=(r.hora||'09:00');
+  if(dias<0) return {t:`vencido ${-dias===1?'ayer':'hace '+(-dias)+' días'}`,c:'#D97706',bg:'#FEF3C7'};
+  if(dias===0) return {t:d<new Date()?`hoy ${hh} · ya es hora`:`hoy ${hh}`,c:d<new Date()?'#DC2626':'#0369A1',bg:d<new Date()?'#FEE2E2':'#E0F2FE'};
+  return {t:`mañana ${hh}`,c:'#64748B',bg:'#F1F5F9'};
+}
+const _recEsc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function renderInicioRecordatorios(){
+  const pend=_recPendientes();
+  if(!pend.length) return '';
+  const isMob=window.innerWidth<=600;
+  const rows=pend.map(r=>{
+    const e=_recEtiqueta(r);
+    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px 0">
+      <button onclick="window._recHecho('${r.id}')" title="Marcar como hecho" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid ${isMob?'rgba(239,243,248,.35)':'#94A3B8'};background:none;cursor:pointer;padding:0"></button>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:600;color:${isMob?'#EFF3F8':'var(--text)'}">${_recEsc(r.titulo)}</div>
+        ${r.detalle?`<div style="font-size:11px;color:${isMob?'rgba(239,243,248,.5)':'var(--muted)'};margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
+      </div>
+      <span style="font-size:10px;font-weight:700;color:${e.c};background:${isMob?'rgba(255,255,255,.08)':e.bg};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${e.t}</span>
+    </div>`;
+  }).join('');
+  return _inicioBox('🔔 Recordatorios', rows, '#0EA5E9', isMob);
+}
+window._recHecho=function(id){
+  const l=_recGet(); const r=l.find(x=>x.id===id); if(!r) return;
+  r.hecho=true; r.hechoEn=new Date().toISOString();
+  stor.set(KRecordatorios,l);
+  const n=document.getElementById('rec-noti'); if(n) n.remove();
+  if(typeof renderInicio==='function') renderInicio();
+};
+// Aviso sutil (una vez por día y dispositivo) cuando hay recordatorios que ya vencieron o son de hoy.
+function _recAvisoSutil(){
+  try{
+    const ahora=new Date();
+    const hoy=_recPendientes().filter(r=>_recDue(r)<=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate(),23,59,59));
+    if(!hoy.length) return;
+    const k='rec-aviso-'+TODAY+'-'+hoy.map(r=>r.id).join(',');
+    try{ if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,'1'); }catch(_){}
+    document.getElementById('rec-noti')?.remove();
+    const d=document.createElement('div'); d.id='rec-noti';
+    const primero=hoy[0];
+    d.style.cssText='position:fixed;right:18px;bottom:18px;z-index:9000;max-width:330px;background:#0F2347;color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.28);border-left:4px solid #0EA5E9;font-size:12.5px;line-height:1.4;display:flex;gap:10px;align-items:flex-start;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s;cursor:pointer';
+    d.innerHTML=`<span style="font-size:17px;line-height:1">🔔</span><div style="flex:1;min-width:0"><div style="font-weight:800;margin-bottom:2px">${hoy.length===1?'Recordatorio para hoy':hoy.length+' recordatorios para hoy'}</div><div style="opacity:.85">${_recEsc(primero.titulo)}${hoy.length>1?' y '+(hoy.length-1)+' más':''}</div></div><button onclick="event.stopPropagation();this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,.55);cursor:pointer;font-size:14px;padding:0 2px">✕</button>`;
+    d.onclick=()=>{ d.remove(); try{ showTab('inicio'); }catch(_){} };
+    document.body.appendChild(d);
+    requestAnimationFrame(()=>{ d.style.opacity='1'; d.style.transform='translateY(0)'; });
+    setTimeout(()=>{ if(d.parentNode){ d.style.opacity='0'; d.style.transform='translateY(8px)'; setTimeout(()=>d.remove(),400); } },9000);
+  }catch(e){ console.error('aviso recordatorios:',e); }
+}
+
 function renderInicioTareas(){
   const isMob=window.innerWidth<=600;
   const isoHoy=TODAY;
@@ -6670,6 +6734,7 @@ function renderInicio(){
       ${renderInicioAyerSeleccion()}
       ${renderInicioHoySeleccion()}
       ${renderInicioMananaSeleccion()}
+      ${renderInicioRecordatorios()}
       ${renderInicioTareas()}
       ${renderInicioCobertura()}
       ${renderInicioProximo()}
@@ -6690,6 +6755,7 @@ function renderInicio(){
       </div>
     `;
     _sizeTareaTAs();
+    setTimeout(_recAvisoSutil,900);
     return;
   }
 
@@ -6709,6 +6775,7 @@ function renderInicio(){
     ${renderInicioAyerSeleccion()}
     ${renderInicioHoySeleccion()}
     ${renderInicioMananaSeleccion()}
+    ${renderInicioRecordatorios()}
     ${renderInicioTareas()}
     ${renderInicioCobertura()}
     ${renderInicioProximo()}
@@ -6720,6 +6787,7 @@ function renderInicio(){
     ${group('Herramientas',tools)}
   </div>`;
   _sizeTareaTAs();
+  setTimeout(_recAvisoSutil,900);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
