@@ -5895,7 +5895,7 @@ function _futbolRondaLabel(round, fase){
 // Fila de partido al estilo soyjuvenil.uy: a la izquierda el bloque de liga + hora (o FT), después los dos equipos apilados
 // (escudo, nombre y marcador; el ganador resalta) y debajo una línea chica con el día y la fecha del torneo.
 function _futbolFilaPro(m,liga,esResultado,isMob){
-  const ronda=_futbolRondaLabel(m.round, m.fase);
+  const ronda=liga.k==='copa'?{texto:String(m.fase||'').toUpperCase(),esFinal:false}:_futbolRondaLabel(m.round, m.fase);
   const mm=String(m.score||'').match(/(\d+)\s*[-–]\s*(\d+)/);
   const gh=mm?+mm[1]:null, ga=mm?+mm[2]:null;
   const winH=esResultado&&gh!=null&&gh>ga, winA=esResultado&&ga!=null&&ga>gh;
@@ -5907,7 +5907,7 @@ function _futbolFilaPro(m,liga,esResultado,isMob){
     </div>`;
   const toggle=(m.finalizado&&m.id)?`<button onclick="_futGoles('${m.id}')" title="Ver goles" style="border:none;background:none;color:${mu};cursor:pointer;font-size:18px;font-weight:800;flex-shrink:0;width:30px;line-height:1;padding:0">+</button>`:'';
   const panel=(m.finalizado&&m.id)?`<div data-fut-goles="${m.id}" style="display:none;padding:0 18px 10px 92px;font-size:11px;color:${mu}"></div>`:'';
-  return `<div style="border-top:1px solid ${bd};${ronda.esFinal?'background:rgba(245,158,11,.08)':''}">
+  return `<div style="border-top:1px solid ${bd};background:rgba(${liga.bg||'148,163,184'},${isMob?.1:.07})">
     <div style="display:flex;align-items:stretch">
       <div style="width:78px;flex-shrink:0;padding:12px 6px;text-align:center;border-right:1px solid ${bd};display:flex;flex-direction:column;justify-content:center;gap:4px">
         <div style="display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${mu}"><span style="width:6px;height:6px;border-radius:50%;background:${liga.color};flex-shrink:0"></span>${liga.corto}</div>
@@ -6071,7 +6071,7 @@ window._loadFutbolUY = async function(){
     let descensoFilas=[];
     try{ if(rDesc&&rDesc.ok) descensoFilas=(await rDesc.json()).filas||[]; }catch(_){}
     const isMobF=window.innerWidth<=600;
-    const LIGAS=[{k:'primera',corto:'Liga AUF',color:'#059669'},{k:'segunda',corto:'Segunda',color:'#0EA5E9'}];
+    const LIGAS=[{k:'primera',corto:'Liga AUF',color:'#059669',bg:'5,150,105'},{k:'segunda',corto:'Segunda',color:'#0EA5E9',bg:'14,165,233'},{k:'copa',corto:'Copa AUF',color:'#EA580C',bg:'234,88,12'}];
     const resultados=[], agenda=[];
     LIGAS.forEach(L=>{
       (d[L.k]?.ultimos||[]).forEach(m=>resultados.push({m:{...m,finalizado:true},L}));
@@ -6146,7 +6146,7 @@ function _redesTipsBody(c,isMob){
 }
 window._loadRedesTips=async function(){
   try{
-    let c=null; try{ c=JSON.parse(localStorage.getItem('inicio-redes-tips')||'null'); }catch(_){}
+    let c=null; try{ c=JSON.parse(localStorage.getItem('inicio-redes-tips2')||'null'); }catch(_){}
     if(c&&c.fecha===TODAY&&c.tips?.length) return;
     if(!window._redesTipsP){
       window._redesTipsP=(async()=>{
@@ -6154,7 +6154,7 @@ window._loadRedesTips=async function(){
         const d=await r.json();
         if(!d.ok||!d.tips?.length) throw new Error(d.error||'sin tips');
         const v={fecha:TODAY,tips:d.tips,generado:d.generado,buscoWeb:!!d.buscoWeb};
-        try{ localStorage.setItem('inicio-redes-tips',JSON.stringify(v)); }catch(_){}
+        try{ localStorage.setItem('inicio-redes-tips2',JSON.stringify(v)); }catch(_){}
         return v;
       })();
     }
@@ -6173,7 +6173,7 @@ function renderInicioRedes(){
     if(!snaps.length){
       return _inicioBox('Redes','Todavía no cargaste números de redes de este mes. <a href="#" onclick="event.preventDefault();showSection(\'redes\')" style="color:inherit;font-weight:700;text-decoration:underline">Cargarlos ahora →</a>','#EF4444',isMob);
     }
-    let c=null; try{ c=JSON.parse(localStorage.getItem('inicio-redes-tips')||'null'); }catch(_){}
+    let c=null; try{ c=JSON.parse(localStorage.getItem('inicio-redes-tips2')||'null'); }catch(_){}
     const hoy=c&&c.fecha===TODAY&&c.tips?.length?c:null;
     setTimeout(window._loadRedesTips,0);
     return _inicioBox('Redes',`<div class="inicio-redes-body">${_redesTipsBody(hoy,isMob)}</div>`,'#EF4444',isMob);
@@ -6980,6 +6980,7 @@ function renderInicioTareas(){
 function renderInicio(){
   const el=document.getElementById('inicio-body');
   if(!el)return;
+  window._inicioListo=true;
   window._recCumpleCache=null; // los recordatorios de cumpleaños se recalculan en CADA armado de Inicio (el caché solo sirve dentro del mismo armado)
   const isMob=window.innerWidth<=600;
 
@@ -22777,6 +22778,7 @@ function lgCopy(i,url){
       stor.set(KCm2026Closed,{date:_lastMatchDate,ts:Date.now(),auto:true});
     }
     if(getCm2026Closed()) applyTournamentClosed();
+    window._inicioListo=true;
     renderInicio();
     renderCal();
     renderLineup('uru-ksa');
@@ -32001,7 +32003,7 @@ async function _loadJuvPhotoCache(){
   // Ojo: el widget "Hoy en Selección" de Inicio también depende de esta caché (jugadores
   // de Juveniles/Local que cumplen años) — si no se refresca acá, la foto queda pegada
   // en iniciales hasta que el usuario navegue a otra sección y vuelva.
-  if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
+  if(window._inicioListo && document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
   // Mismo problema con la lista de reservados de Fecha FIFA (usa _getPhotoByName,
   // que lee de esta misma caché) — si esta hidratación de fotos tarda (puede haber
   // miles de archivos en el bucket) y el usuario ya tenía esa pestaña abierta, las
@@ -32053,7 +32055,7 @@ async function _loadPhotosFromSupabase(){
     if(document.getElementById('sec-local')?.classList.contains('active') && typeof renderSecLocal==='function') renderSecLocal();
     if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
     if(patchedEst && typeof renderEstructura==='function') renderEstructura();
-    if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
+    if(window._inicioListo && document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
     if(document.getElementById('fifasep26-plantel')?.classList.contains('active') && typeof window.renderFifaSep26Plantel==='function') window.renderFifaSep26Plantel();
     if(document.getElementById('fifanov26-plantel')?.classList.contains('active') && typeof window.renderFifaNov26Plantel==='function') window.renderFifaNov26Plantel();
   }catch(e){console.warn('Supabase photo load:',e);}
@@ -38931,7 +38933,7 @@ async function exportarFotosIDB(){
     if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
     if(typeof _patchStatPhotos==='function') _patchStatPhotos();
     if(window._juvGlobalPlayers && typeof window.renderJuveniles==='function') window.renderJuveniles();
-    if(document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
+    if(window._inicioListo && document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
   }catch(_){ window._estPhotoCache={}; }
 })();
 </script>

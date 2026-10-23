@@ -321,7 +321,7 @@ app.post('/api/redes-tips', async (req, res) => {
     const { resumen } = req.body || {};
     if (!resumen) { res.status(400).json({ ok: false, error: 'falta "resumen"' }); return; }
     const hoy = new Date().toISOString().slice(0, 10);
-    const clave = hoy + ':' + crypto.createHash('sha1').update(JSON.stringify(resumen)).digest('hex');
+    const clave = 'v2:' + hoy + ':' + crypto.createHash('sha1').update(JSON.stringify(resumen)).digest('hex');
     const hit = _tipsCache.get(clave);
     if (hit && Date.now() - hit.ts < 12 * 3600 * 1000) { res.json({ ok: true, ...hit.v, cache: true }); return; }
     const prompt = `Sos el analista de redes sociales de la Selección Uruguaya de Fútbol (AUF). Hoy es ${hoy}. Escribí EXACTAMENTE 5 tips breves y accionables para Comunicación, en español rioplatense, tono neutro y constructivo, en impersonal ("conviene", "una idea es") y sin segunda persona del plural. Cada tip en una línea, con formato "Etiqueta: texto" donde Etiqueta es la red (Instagram, TikTok, YouTube, Facebook, X) o "General"; máximo 30 palabras por tip; sin viñetas ni numeración, sin introducción ni cierre: tu respuesta final son solo esas 5 líneas.
@@ -340,12 +340,12 @@ ${JSON.stringify(resumen)}`;
     let ultimoError = null; const fallos = [];
     for (const it of intentos) {
       try {
-        const body = { model: it.model, max_tokens: 1200, messages: [{ role: 'user', content: prompt }] };
+        const body = { model: it.model, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] };
         if (it.web) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }];
         const out = await anthropicCall(body);
         const texto = (out.content || []).filter(b => b.type === 'text').map(b => b.text || '').join('\n').trim();
         const tips = texto.split('\n').map(l => l.replace(/^[-•*\d.)\s]+/, '').replace(/\*\*/g, '').trim()).filter(l => /^(Instagram|TikTok|YouTube|Facebook|X|General)\s*:/i.test(l) && l.length > 25).slice(0, 5);
-        if (tips.length < 3) throw new Error('tips insuficientes (' + tips.length + ')');
+        if (tips.length < 3) throw new Error('tips insuficientes (' + tips.length + ') stop=' + out.stop_reason + ' texto=' + JSON.stringify(texto.slice(-300)));
         const v = { tips, fallos, modelo: it.model, buscoWeb: it.web && (out.content || []).some(b => b.type === 'web_search_tool_result' || b.type === 'server_tool_use'), generado: new Date().toISOString() };
         _tipsCache.set(clave, { ts: Date.now(), v });
         res.json({ ok: true, ...v });
@@ -742,7 +742,7 @@ app.get('/api/mis-idas', async (req, res) => {
 // Uruguaya - Clausura") de forma nativa — no hace falta adivinar nada.
 let _futbolCache = null; // {ts, data}
 const FUTBOL_TTL = 30 * 60 * 1000; // 30 min
-const FUTBOL_LEAGUES = { primera: 617, segunda: 5523 }; // IDs de competencia en 365scores
+const FUTBOL_LEAGUES = { primera: 617, segunda: 5523, copa: 7847 }; // IDs de competencia en 365scores
 
 // Apertura e Intermedio 2026 ya terminaron y sus tablas finales no cambian más — se
 // mantienen como estaban (hardcodeadas, verificadas contra prensa/auf.org.uy) en vez de
@@ -804,12 +804,12 @@ const INTERMEDIO_SERIE_B_TABLA = [
 const _365_BASE = 'https://webws.365scores.com/web';
 const _365_QS = 'appTypeId=5&langId=29&timezoneName=America/Montevideo&userCountryId=111';
 
-async function fetchLigaUY(leagueId) {
+async function fetchLigaUY(leagueId, sinTablas) {
   const qs = `${_365_QS}&competitions=${leagueId}`;
   const [fixturesRaw, resultsRaw, standingsRaw] = await Promise.all([
     fetchText(`${_365_BASE}/games/fixtures/?${qs}`),
     fetchText(`${_365_BASE}/games/results/?${qs}`),
-    fetchText(`${_365_BASE}/standings/?${qs}&live=false`),
+    sinTablas ? Promise.resolve('{}') : fetchText(`${_365_BASE}/standings/?${qs}&live=false`),
   ]);
   const fixtures = JSON.parse(fixturesRaw).games || [];
   const results = JSON.parse(resultsRaw).games || [];
@@ -862,11 +862,12 @@ app.get('/api/futbol-uy', async (req, res) => {
     if (_futbolCache && (Date.now() - _futbolCache.ts) < FUTBOL_TTL) {
       return res.json(_futbolCache.data);
     }
-    const [primera, segunda] = await Promise.all([
+    const [primera, segunda, copa] = await Promise.all([
       fetchLigaUY(FUTBOL_LEAGUES.primera),
       fetchLigaUY(FUTBOL_LEAGUES.segunda),
+      fetchLigaUY(FUTBOL_LEAGUES.copa, true).catch(() => null), // Copa AUF Uruguay: solo partidos (sin tabla); si falla no rompe las ligas
     ]);
-    const data = { primera, segunda, updatedAt: new Date().toISOString() };
+    const data = { primera, segunda, copa, updatedAt: new Date().toISOString() };
     _futbolCache = { ts: Date.now(), data };
     res.json(data);
   } catch (e) {
