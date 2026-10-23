@@ -5618,7 +5618,7 @@ function renderInicioHoySeleccion(dayOffset){
       +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
       +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
       +(planHoy.length?subHdr(planLabel)+planRows:'');
-    return _inicioBox(tituloBox, body, colorBox, isMob, esAyer);
+    return _inicioBox(tituloBox, body, colorBox, isMob, esAyer, esManana?'#FFF8E8':undefined);
   }catch(_){ return ''; }
 }
 // "Ayer" y "Mañana en Selección" van minimizados (una barra chica con botón para ampliar); el foco de Inicio es
@@ -5627,7 +5627,7 @@ function _inicioColapsable(key,titulo,color,html){
   if(!html) return '';
   const isMob=window.innerWidth<=600, h=_inicioHead(titulo);
   let abierto=false; try{ abierto=localStorage.getItem('inicio-abierto-'+key)==='1'; }catch(_){}
-  const barBg=isMob?'rgba(255,255,255,.04)':'#fff', barBorde=isMob?'1px solid rgba(255,255,255,.08)':'1px solid var(--border)';
+  const barBg=isMob?(key==='ayer'?'rgba(255,255,255,.07)':'rgba(245,158,11,.08)'):(key==='ayer'?'#E9ECF1':'#FFF8E8'), barBorde=isMob?'1px solid rgba(255,255,255,.08)':(key==='ayer'?'1px solid #D5DAE2':'1px solid #F0DDB0');
   const txt=isMob?'#EFF3F8':'var(--text)', sub=isMob?'rgba(239,243,248,.45)':'var(--muted)';
   // Aviso en la barra: cumpleaños que todavía no se saludaron (están adentro y minimizados).
   const sinSaludar=(html.match(/No lo saludamos todav/g)||[]).length;
@@ -5664,25 +5664,26 @@ function _inicioHead(title){
   if(/^Ayer en Selección/.test(limpio))   return {eyebrow:fecha(-1), titulo:'Ayer en Selección'};
   if(/^Mañana en Selección/.test(limpio)) return {eyebrow:fecha(1), titulo:'Mañana en Selección'};
   if(/^Recordatorios/.test(limpio))       return {eyebrow:'Avisos', titulo:'Recordatorios'};
-  if(/^Tareas de hoy/.test(limpio))       return {eyebrow:'Pendientes', titulo:'Tareas de hoy'};
+  if(/^Tareas/.test(limpio))              return {eyebrow:'Pendientes', titulo:'Tareas'};
   if(/^Cobertura fotográfica semanal/.test(limpio)) return {eyebrow:'Juveniles', titulo:'Cobertura fotográfica semanal'};
   if(/^Se viene/.test(limpio))            return {eyebrow:'Agenda', titulo:'Se viene'};
   if(/^Partidos/.test(limpio))            return {eyebrow:'Fútbol uruguayo', titulo:'Partidos'};
   if(/^Mis idas/.test(limpio))            return {eyebrow:String(new Date().getFullYear()), titulo:'Mis idas'};
   if(/^Fotos faltantes/.test(limpio))     return {eyebrow:'Pendientes', titulo:'Fotos faltantes'};
-  if(/^Redes/.test(limpio))               return {eyebrow:'Mensual', titulo:'Redes'};
+  if(/^Redes/.test(limpio))               return {eyebrow:'Tips con IA', titulo:'Redes'};
   return {eyebrow:'', titulo:limpio};
 }
-function _inicioBox(title,bodyHtml,color,isMob,grisado){
-  const h=_inicioHead(title), grande=h.titulo==='Hoy en Selección';
+function _inicioBox(title,bodyHtml,color,isMob,grisado,fondo){
+  const h=_inicioHead(title);
   const eb=h.eyebrow?`<div style="display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}"><span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>${h.eyebrow}</div>`:'';
-  const head=`<div style="padding:14px 18px 12px;border-bottom:1px solid ${isMob?'rgba(255,255,255,.08)':'var(--border)'}">${eb}<div style="font-size:${grande?22:18}px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:${h.eyebrow?4:0}px;color:${isMob?'#EFF3F8':'var(--text)'}">${h.titulo}</div></div>`;
+  const bdc=isMob?'rgba(255,255,255,.08)':(grisado?'#D5DAE2':(fondo?'#F0DDB0':'var(--border)'));
+  const head=`<div style="padding:14px 18px 12px;border-bottom:1px solid ${isMob?'rgba(255,255,255,.08)':(grisado?'#D5DAE2':(fondo?'#F0DDB0':'var(--border)'))}">${eb}<div style="font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:${h.eyebrow?4:0}px;color:${isMob?'#EFF3F8':'var(--text)'}">${h.titulo}</div></div>`;
   return isMob
-    ? `<div style="background:${grisado?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)'};border:1px solid rgba(255,255,255,.08);border-radius:16px;margin-bottom:16px;overflow:hidden${grisado?';opacity:.8':''}">
+    ? `<div style="background:${grisado?'rgba(255,255,255,.07)':(fondo?'rgba(245,158,11,.08)':'rgba(255,255,255,.04)')};border:1px solid ${fondo?'rgba(245,158,11,.25)':'rgba(255,255,255,.08)'};border-radius:16px;margin-bottom:16px;overflow:hidden">
         ${head}
         <div style="padding:10px 18px 14px;font-size:12.5px;color:rgba(239,243,248,.75);line-height:1.5">${bodyHtml}</div>
       </div>`
-    : `<div style="background:${grisado?'var(--surface2,#F3F4F6)':'#fff'};border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden">
+    : `<div style="background:${grisado?'#E9ECF1':(fondo||'#fff')};border:1px solid ${bdc};border-radius:14px;margin-bottom:16px;overflow:hidden">
         ${head}
         <div style="padding:10px 18px 14px;font-size:12.5px;color:var(--text);line-height:1.5">${bodyHtml}</div>
       </div>`;
@@ -5789,10 +5790,11 @@ function _renderOtrasIdasModal(inner, close){
 function renderInicioMisIdas(){
   const isMob=window.innerWidth<=600;
   const lblCol=isMob?'rgba(239,243,248,.5)':'var(--muted)';
-  const cell=(id,label,color)=>`<div style="flex:1;min-width:88px;text-align:center">
-    <div id="${id}" style="font-size:20px;font-weight:900;color:${color}">…</div>
-    <div style="font-size:9.5px;color:${lblCol};text-transform:uppercase;font-weight:700;margin-top:2px;letter-spacing:.04em">${label}</div>
-  </div>`;
+  const bloque=(inner,color)=>`<div style="background:${isMob?'rgba(255,255,255,.04)':color+'0F'};border:1px solid ${isMob?'rgba(255,255,255,.08)':color+'33'};border-radius:12px;padding:12px 8px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:78px">${inner}</div>`;
+  let _mi=window._lastMisIdasData; if(!_mi){ try{ _mi=JSON.parse(localStorage.getItem('inicio-misidas')||'null'); }catch(_){} }
+  const _miVal={'mi-auf':'aufPm','mi-complejo':'complejo','mi-fifa':'fifaDays'};
+  const cell=(id,label,color)=>bloque(`<div id="${id}" style="font-size:24px;font-weight:800;line-height:1;color:${color}">${_mi&&_mi[_miVal[id]]!=null?_mi[_miVal[id]]:'…'}</div>
+    <div style="font-size:9.5px;color:${lblCol};text-transform:uppercase;font-weight:700;margin-top:6px;letter-spacing:.1em">${label}</div>`,color);
   // Días transcurridos del año en curso + cuántos de esos fueron hábiles (lun-vie).
   // Se recalcula con TODAY cada vez que se renderiza Inicio, así siempre está al día.
   const [ty,tm,td]=TODAY.split('-').map(Number);
@@ -5800,17 +5802,15 @@ function renderInicioMisIdas(){
   let habiles=0;
   for(let i=0;i<diasAno;i++){ const dow=new Date(ty,0,1+i).getDay(); if(dow!==0&&dow!==6) habiles++; }
   const otrosTotal=_otrasIdasTotal();
-  const body=`<div style="display:flex;gap:8px;flex-wrap:wrap">
+  const body=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px">
     ${cell('mi-auf','Idas a AUF','#15803D')}
     ${cell('mi-complejo','Idas al Complejo','#0EA5E9')}
     ${cell('mi-fifa','Días en el exterior','#EA580C')}
-    <div style="flex:1;min-width:88px;text-align:center">
-      <div id="mi-otros" style="font-size:20px;font-weight:900;color:#DB2777">${otrosTotal}</div>
-      <div style="font-size:9.5px;color:${lblCol};text-transform:uppercase;font-weight:700;margin-top:2px;letter-spacing:.04em">Otros</div>
-      <div onclick="_showOtrasIdasModal()" style="font-size:9.5px;color:#DB2777;font-weight:700;margin-top:2px;cursor:pointer;text-decoration:underline">Ver más</div>
-    </div>
+    ${bloque(`<div id="mi-otros" style="font-size:24px;font-weight:800;line-height:1;color:#DB2777">${otrosTotal}</div>
+      <div style="font-size:9.5px;color:${lblCol};text-transform:uppercase;font-weight:700;margin-top:6px;letter-spacing:.1em">Otros</div>
+      <div onclick="_showOtrasIdasModal()" style="font-size:9.5px;color:#DB2777;font-weight:700;margin-top:3px;cursor:pointer;text-decoration:underline">Ver más</div>`,'#DB2777')}
   </div>
-  <div id="mi-resumen" style="font-size:11px;font-weight:700;color:#EA580C;background:#EA580C14;border-radius:8px;padding:6px 10px;margin-top:10px;text-align:center">Van ${diasAno} días del ${ty} (${habiles} hábiles)</div>
+    <div id="mi-resumen" style="font-size:11px;font-weight:700;color:#EA580C;background:#EA580C14;border-radius:8px;padding:6px 10px;margin-top:10px;text-align:center">${_mi?_misIdasResumenHTML((_mi.aufPm||0)+(_mi.complejo||0)+(_mi.fifaDays||0)+otrosTotal,diasAno,habiles,ty):`Van ${diasAno} días del ${ty} (${habiles} hábiles)`}</div>
   <div id="mi-idas-err" style="display:none;font-size:11px;color:${lblCol};margin-top:8px">No se pudo leer el calendario ahora.</div>`;
   setTimeout(window._loadMisIdas,0);
   return _inicioBox('Mis idas', body, '#EA580C', isMob);
@@ -5821,6 +5821,7 @@ window._loadMisIdas = async function(){
     if(!r.ok) throw new Error('bad status');
     const d = await r.json();
     window._lastMisIdasData = d;
+    try{ localStorage.setItem('inicio-misidas',JSON.stringify(d)); }catch(_){}
     // getElementById solo agarra el primero: mobile y desktop renderizan ambos layouts en el DOM
     // (uno oculto por CSS), así que puede haber 2 elementos con el mismo id — evitamos duplicar
     // seteando el texto completo (no acumulando con +=) para que sea idempotente ante 2 llamados.
@@ -5859,9 +5860,26 @@ function _futbolDiaLabel(utcTime){
   if(diff===1) return 'Mañana';
   return new Date(utcTime).toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Montevideo'}).replace(/^\w/,c=>c.toUpperCase());
 }
-function _futbolEscudo(id,sz){
+// Escudos oficiales de la Escudoteca PN (paladarnegro.net/escudoteca/uruguay), copiados a /escudos: son los vigentes y de un mismo estilo.
+// Se eligen por nombre del club (el orden importa: "cerro largo" antes que "cerro", "plaza colonia" antes que "colon"); si el club
+// no está en la lista se usa el escudo de 365scores como antes.
+const _ESCUDOS_UY=[['plaza colonia','plazacolonia'],['cerro largo','cerrolargo'],['cerrito','cerrito'],['cerro','cerro'],['colon','colon'],
+  ['albion','albion'],['boston','bostonriver'],['central espanol','central_espanol'],['danubio','danubio'],['defensor','defensor'],['maldonado','maldonado'],
+  ['juventud','juventud'],['liverpool','liverpool'],['city torque','montevideocity'],['montevideo city','montevideocity'],['torque','montevideocity'],
+  ['wanderers','wanderers'],['nacional','nacional'],['penarol','penarol'],['progreso','progreso'],['racing','racing'],
+  ['atenas','atenas'],['fenix','fenix'],['huracan','huracan'],['la luz','la_luz'],['miramar','miramar_misiones'],['oriental','oriental'],
+  ['paysandu','paysandu'],['rentistas','rentistas'],['river plate','riverplate'],['tacuarembo','tacuarembo'],['montevideo fc','uruguay_montevideo'],['uruguay montevideo','uruguay_montevideo']];
+function _escudoLocal(nombre){
+  const n=String(nombre||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\./g,'').replace(/\s+/g,' ').trim();
+  const h=_ESCUDOS_UY.find(([k])=>n.includes(k));
+  return h?'./escudos/'+h[1]+'.png':null;
+}
+function _futbolEscudo(id,sz,nombre){
   sz=sz||20;
-  return `<img src="https://imagecache.365scores.com/image/upload/f_png,w_${sz*2},h_${sz*2},c_limit,q_auto:eco,dpr_2,d_Competitors:default1.png/v2/Competitors/${id}" style="width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
+  const remoto=`https://imagecache.365scores.com/image/upload/f_png,w_${sz*2},h_${sz*2},c_limit,q_auto:eco,dpr_2,d_Competitors:default1.png/v2/Competitors/${id}`;
+  const local=_escudoLocal(nombre);
+  if(local) return `<img src="${local}" style="width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0" onerror="this.onerror=function(){this.style.visibility='hidden'};this.src='${remoto}'">`;
+  return `<img src="${remoto}" style="width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
 }
 // Ronda → torneo. Antes esto tenía que ADIVINAR la fase cruzando ronda+fecha (FotMob no
 // la exponía directo, y el número de ronda ni siquiera reseteaba entre fases) — eso
@@ -5883,7 +5901,7 @@ function _futbolFilaPro(m,liga,esResultado,isMob){
   const winH=esResultado&&gh!=null&&gh>ga, winA=esResultado&&ga!=null&&ga>gh;
   const tx=isMob?'#EFF3F8':'var(--text)', mu=isMob?'rgba(239,243,248,.5)':'var(--muted)', bd=isMob?'rgba(255,255,255,.08)':'var(--border)';
   const team=(id,name,goles,gana)=>`<div style="display:flex;align-items:center;gap:10px;padding:3px 0">
-      ${_futbolEscudo(id,26)}
+      ${_futbolEscudo(id,26,name)}
       <span style="flex:1;min-width:0;font-size:14px;font-weight:${gana?700:500};color:${esResultado&&!gana&&gh!==ga?mu:tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</span>
       <span style="font-size:16px;font-weight:${gana?800:500};color:${esResultado?(gana||gh===ga?tx:mu):mu};min-width:16px;text-align:right">${esResultado&&goles!=null?goles:'–'}</span>
     </div>`;
@@ -6020,14 +6038,16 @@ function renderInicioFutbolUY(){
   const lblCol=isMob?'rgba(239,243,248,.5)':'var(--muted)';
   const tabBtn=(id,label,active)=>`<button onclick="_futTab('${id}')" data-fut-tab="${id}" style="border:1px solid #059669;background:${active?'#059669':'transparent'};color:${active?'#fff':'#059669'};font-weight:700;font-size:10px;letter-spacing:.12em;text-transform:uppercase;border-radius:999px;padding:4px 13px;cursor:pointer;font-family:inherit">${label}</button>`;
   setTimeout(window._loadFutbolUY,0);
+  let fc=null; try{ fc=JSON.parse(localStorage.getItem('inicio-fut-cache')||'null'); }catch(_){}
+  if(!(fc&&fc.fecha===TODAY)) fc=null;
   return `<div style="margin-bottom:16px">
     <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:0 2px 10px">
       <div><div style="display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}"><span style="width:7px;height:7px;border-radius:50%;background:#059669"></span>Fútbol uruguayo</div>
-      <div style="font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:4px;color:${isMob?'#EFF3F8':'var(--text)'}">Partidos</div></div>
+      <div style="font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:4px;color:${isMob?'#EFF3F8':'var(--text)'}">Partidos y tablas</div></div>
       <div style="display:flex;gap:6px">${tabBtn('partidos','Partidos',true)}${tabBtn('tablas','Tablas',false)}</div>
     </div>
-    <div class="fut-panel" data-fut-panel="partidos" style="font-size:12.5px;color:${lblCol}"><div class="fut-body">Cargando…</div></div>
-    <div class="fut-panel" data-fut-panel="tablas" style="display:none;font-size:12.5px;color:${lblCol}"><div class="fut-tablas">Cargando…</div></div>
+    <div class="fut-panel" data-fut-panel="partidos" style="font-size:12.5px;color:${lblCol}"><div class="fut-body">${fc&&fc.html?fc.html:'<div style="min-height:340px;color:'+lblCol+'">Cargando…</div>'}</div></div>
+    <div class="fut-panel" data-fut-panel="tablas" style="display:none;font-size:12.5px;color:${lblCol}"><div class="fut-tablas">${fc&&fc.tablas?fc.tablas:'Cargando…'}</div></div>
   </div>`;
 }
 window._futTab = function(tab){
@@ -6070,39 +6090,93 @@ window._loadFutbolUY = async function(){
         </div>`
       : '';
     document.querySelectorAll('.fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
+    window._futHtmlCache={fecha:TODAY,html:html||''};
     // La tabla de descenso (promedios) no la da FotMob — se agrega como pestaña extra fija.
     if(d.primera?.tablas?.length) d.primera.tablas.push({nombre:'Descenso', esDescenso:true, filas:descensoFilas});
     const htmlTablas=_futbolTablaHTML('Liga AUF Uruguaya','primera',d.primera)+_futbolTablaHTML('Segunda Profesional AUF','segunda',d.segunda);
     document.querySelectorAll('.fut-tablas').forEach(e=>e.innerHTML=htmlTablas||'Sin datos disponibles.');
+    try{ localStorage.setItem('inicio-fut-cache',JSON.stringify({fecha:TODAY,html:window._futHtmlCache.html,tablas:htmlTablas||''})); }catch(_){}
   }catch(_){
     document.querySelectorAll('.fut-body').forEach(e=>e.textContent='No se pudo leer el fixture ahora.');
     document.querySelectorAll('.fut-tablas').forEach(e=>e.textContent='No se pudo leer la tabla ahora.');
   }
 };
-// Resumen de redes — honesto: si no hay números cargados todavía, invita a cargarlos.
-// Si hay al menos 2 relevamientos, calcula sola cuál red creció más y cuál cayó más.
+// Redes en Inicio: 4-5 tips generados con IA (servidor: /api/redes-tips) a partir de las métricas cargadas de la Selección y,
+// cuando se pueden verificar con búsqueda web, tendencias o cambios recientes de las plataformas. Se guardan por día para no
+// recargarlos en cada pantalla.
+function _redesTipsResumen(){
+  const snaps=(_redesData().snapshots||[]).filter(s=>Object.keys(REDES_PLATS).some(k=>s[k]?.seguidores!=null||s[k]?.alcance!=null));
+  const r=(n,d)=>n==null||!d?null:Math.round(n/d);
+  const act=_redesSeguidoresActuales(), seg={};
+  Object.keys(act).forEach(k=>{ seg[REDES_PLATS[k].label]=act[k].seguidores; });
+  const ventanas=snaps.slice(-5).map(sn=>{
+    const o={ventana:sn.corto||sn.label,desde:sn.rango_desde,hasta:sn.rango_hasta,dias:sn.dias};
+    Object.keys(REDES_PLATS).forEach(k=>{
+      const x=sn[k]; if(!x) return;
+      o[REDES_PLATS[k].label]={por_dia:{visualizaciones:r(x.alcance,sn.dias),interacciones:r(x.interacciones,sn.dias),seguidores_nuevos:r(x.seguidores_nuevos,sn.dias)}};
+      if(x.seguidores_estimado) o[REDES_PLATS[k].label].seguidores_nuevos_estimado=true;
+    });
+    return o;
+  });
+  return {seguidores_actuales:seg,ventanas};
+}
+function _redesTipsBody(c,isMob){
+  const mu=isMob?'rgba(239,243,248,.5)':'var(--muted)', tx=isMob?'#EFF3F8':'var(--text)', bd=isMob?'rgba(255,255,255,.08)':'var(--border)';
+  const COL={'Instagram':'#DB2777','TikTok':'#111827','YouTube':'#DC2626','Facebook':'#1D4ED8','X':'#374151','General':'#0D9488'};
+  if(!c||!c.tips||!c.tips.length){
+    const rect=w=>`<div style="height:11px;width:${w}%;border-radius:6px;background:${isMob?'rgba(255,255,255,.08)':'#EEF1F5'};margin:7px 0"></div>`;
+    return c&&c.error
+      ? `<div style="font-size:12px;color:${mu};padding:6px 0">No se pudieron generar los tips ahora. <a href="#" onclick="event.preventDefault();showSection('redes')" style="color:inherit;font-weight:700;text-decoration:underline">Ver Redes</a></div>`
+      : `<div style="padding:4px 0">${rect(92)}${rect(78)}${rect(88)}${rect(70)}<div style="font-size:11px;color:${mu};margin-top:6px">Analizando las redes de la Selección…</div></div>`;
+  }
+  const items=c.tips.map(t=>{
+    const i=t.indexOf(':'); let lab=i>0&&i<=14?t.slice(0,i).trim():'General'; const txt=(i>0&&i<=14?t.slice(i+1):t).trim();
+    const col=COL[lab]||COL.General;
+    return `<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid ${bd}">
+      <span style="flex-shrink:0;min-width:74px;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${col};border:1px solid ${col}55;border-radius:999px;padding:3px 8px;margin-top:1px">${_recEsc(lab)}</span>
+      <span style="flex:1;font-size:12.5px;line-height:1.5;color:${tx}">${_recEsc(txt)}</span>
+    </div>`;
+  }).join('');
+  const fecha=c.generado?new Date(c.generado).toLocaleDateString('es-UY',{day:'numeric',month:'short'}):'';
+  return `<div style="margin-top:-4px">${items}</div>
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid ${bd};padding-top:8px;margin-top:2px;font-size:10.5px;color:${mu}">
+      <span>Generado con IA${fecha?' · '+fecha:''}${c.buscoWeb?' · con búsqueda web':' · sin búsqueda web'}</span>
+      <a href="#" onclick="event.preventDefault();showSection('redes')" style="color:inherit;font-weight:700;text-decoration:underline">Ver Redes</a>
+    </div>`;
+}
+window._loadRedesTips=async function(){
+  try{
+    let c=null; try{ c=JSON.parse(localStorage.getItem('inicio-redes-tips')||'null'); }catch(_){}
+    if(c&&c.fecha===TODAY&&c.tips?.length) return;
+    if(!window._redesTipsP){
+      window._redesTipsP=(async()=>{
+        const r=await fetch('/api/redes-tips',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resumen:_redesTipsResumen()})});
+        const d=await r.json();
+        if(!d.ok||!d.tips?.length) throw new Error(d.error||'sin tips');
+        const v={fecha:TODAY,tips:d.tips,generado:d.generado,buscoWeb:!!d.buscoWeb};
+        try{ localStorage.setItem('inicio-redes-tips',JSON.stringify(v)); }catch(_){}
+        return v;
+      })();
+    }
+    const v=await window._redesTipsP;
+    document.querySelectorAll('.inicio-redes-body').forEach(el=>{ el.innerHTML=_redesTipsBody(v,window.innerWidth<=600); });
+  }catch(e){
+    window._redesTipsP=null;
+    document.querySelectorAll('.inicio-redes-body').forEach(el=>{ el.innerHTML=_redesTipsBody({error:true},window.innerWidth<=600); });
+  }
+};
 function renderInicioRedes(){
   try{
     const isMob=window.innerWidth<=600;
     if(typeof _redesData!=='function'||typeof REDES_PLATS==='undefined') return '';
-    const data=_redesData();
-    const snaps=(data.snapshots||[]).filter(s=>Object.keys(REDES_PLATS).some(k=>s[k]?.seguidores!=null||s[k]?.alcance!=null));
+    const snaps=(_redesData().snapshots||[]).filter(s=>Object.keys(REDES_PLATS).some(k=>s[k]?.seguidores!=null||s[k]?.alcance!=null));
     if(!snaps.length){
-      return _inicioBox('📊 Redes','Todavía no cargaste números de redes de este mes. <a href="#" onclick="event.preventDefault();showSection(\'redes\')" style="color:inherit;font-weight:700;text-decoration:underline">Cargarlos ahora →</a>','#EF4444',isMob);
+      return _inicioBox('Redes','Todavía no cargaste números de redes de este mes. <a href="#" onclick="event.preventDefault();showSection(\'redes\')" style="color:inherit;font-weight:700;text-decoration:underline">Cargarlos ahora →</a>','#EF4444',isMob);
     }
-    const latest=snaps[snaps.length-1], prev=snaps.length>1?snaps[snaps.length-2]:null;
-    if(!prev) return _inicioBox('📊 Redes','Cargaste el primer relevamiento real — con el próximo ya vamos a poder comparar crecimiento entre redes.','#EF4444',isMob);
-    let best=null,worst=null;
-    Object.keys(REDES_PLATS).forEach(k=>{
-      const pct=_redesPct(latest[k]?.alcance,prev[k]?.alcance);
-      if(pct===null) return;
-      if(!best||pct>best.pct) best={k,pct};
-      if(!worst||pct<worst.pct) worst={k,pct};
-    });
-    if(!best) return _inicioBox('📊 Redes','Cargá el alcance de cada red para ver cuál viene creciendo más.','#EF4444',isMob);
-    let body=`<b>${REDES_PLATS[best.k].label}</b> es la que más creció en alcance (${best.pct>=0?'+':''}${best.pct.toFixed(1)}%).`;
-    if(worst && worst.pct<0 && worst.k!==best.k) body+=` <b>${REDES_PLATS[worst.k].label}</b> es la que más cayó (${worst.pct.toFixed(1)}%) — capaz vale la pena revisarla.`;
-    return _inicioBox('📊 Redes',body,'#EF4444',isMob);
+    let c=null; try{ c=JSON.parse(localStorage.getItem('inicio-redes-tips')||'null'); }catch(_){}
+    const hoy=c&&c.fecha===TODAY&&c.tips?.length?c:null;
+    setTimeout(window._loadRedesTips,0);
+    return _inicioBox('Redes',`<div class="inicio-redes-body">${_redesTipsBody(hoy,isMob)}</div>`,'#EF4444',isMob);
   }catch(_){ return ''; }
 }
 // Fotos faltantes — jugadores del plantel actual y de Estructura (activos) sin foto cargada.
@@ -6901,7 +6975,7 @@ function renderInicioTareas(){
     <input id="inicio-tarea-inp" type="text" placeholder="Agregar tarea del día..." onkeydown="if(event.key==='Enter'){window._inicioTareaAdd();}" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid ${borderCol};background:${bgCol};color:${rowColor};font-size:12.5px;outline:none">
     <button onclick="window._inicioTareaAdd()" style="padding:6px 14px;border-radius:8px;border:none;background:#1A56C4;color:#fff;font-weight:700;font-size:13px;cursor:pointer">+</button>
   </div>`;
-  return _inicioBox('✅ Tareas de hoy', rows+inputRow, '#0D9488', isMob);
+  return _inicioBox('Tareas', rows+inputRow, '#0D9488', isMob);
 }
 function renderInicio(){
   const el=document.getElementById('inicio-body');
