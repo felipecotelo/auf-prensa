@@ -5240,6 +5240,7 @@ window._hoySaludoCycle=function(lkey){
   const next=_SALUDO_ESTADOS[(_SALUDO_ESTADOS.indexOf(cur)+1)%_SALUDO_ESTADOS.length];
   links[lkey]={...(links[lkey]||{}), saludo:next};
   stor.set('auf4_hoylinks',links);
+  window._recCumpleCache=null;
   renderInicio();
 };
 // Aniversarios/actividades del Google Calendar real ("Selección | Planificación").
@@ -5413,7 +5414,7 @@ function renderInicioHoySeleccion(dayOffset){
       const saludoBtn=esManana?'':`<button data-k="${String(lkey).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="event.stopPropagation();window._hoySaludoCycle(this.dataset.k)" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
       const leyendaBadge=c.leyenda?`<span style="font-size:8px;font-weight:800;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">⭐ LEYENDA</span>`:'';
       return `
-      <div onclick="${c.onclick}" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;${borderCss}">
+      <div data-cumple="${String(lkey).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="${c.onclick}" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;${borderCss}">
         ${avatar}
         <div style="flex:1;min-width:0">
           <div style="font-size:${isMob?'13px':'12.5px'};font-weight:700;color:${rowColor}">${c.nom}${leyendaBadge}</div>
@@ -6625,26 +6626,36 @@ function _sizeTareaTAs(){
 const KRecordatorios='auf4_recordatorios';
 function _recGet(){ const v=stor.get(KRecordatorios,[]); return Array.isArray(v)?v:[]; }
 function _recDue(r){ return new Date(r.vence+'T'+(r.hora||'09:00')+':00'); }
-// Saludos de cumpleaños de HOY y AYER: aparecen también como recordatorios mientras no estén marcados como
-// "No aplica saludo". Se derivan de los botones de saludo de "Hoy/Ayer en Selección" (misma fuente, mismo estado):
-// tildar = "Ya lo saludamos"; "No aplica saludo" los saca de la lista.
+// Cumpleaños como recordatorios (igual que los MD-1): "Mandar a hacer diseño por cumpleaños de X" (2 días antes, 10:00)
+// y "Publicar saludo de cumpleaños de X" (el día del cumpleaños, 09:00; sigue hasta el día siguiente si quedó pendiente).
+// Se derivan de las filas de cumpleaños de "Hoy/Ayer/Mañana en Selección" (misma fuente y mismo estado). Si el saludo
+// se marca "No aplica saludo" —en la caja o con el botón "no aplica" del recordatorio— desaparecen los dos.
+// Tildar "publicar" = "Ya lo saludamos"; tildar "diseño" se guarda aparte (hoylinks[clave].diseno).
+function _recSumarDias(iso,n){ const d=new Date(iso+'T12:00:00'); d.setDate(d.getDate()+n); return d.toLocaleDateString('en-CA'); }
 function _recCumplesDerivados(){
+  if(window._recCumpleCache && Date.now()-window._recCumpleCache.t<1500) return window._recCumpleCache.v;
   const out=[];
   try{
-    const links=stor.get('auf4_hoylinks',{});
-    [0,-1].forEach(off=>{
+    const links=stor.get('auf4_hoylinks',{}), vistos=new Set();
+    [-1,0,1,2,3].forEach(off=>{
       let html=''; try{ html=renderInicioHoySeleccion(off)||''; }catch(_){ return; }
       if(!html) return;
       const doc=new DOMParser().parseFromString(html,'text/html');
-      doc.querySelectorAll('button[data-k]').forEach(b=>{
-        const k=b.getAttribute('data-k')||''; const m=k.match(/^(\d{4}-\d{2}-\d{2})_(.+)$/); if(!m) return;
-        const estado=(links[k]||{}).saludo||'pendiente';
+      doc.querySelectorAll('[data-cumple]').forEach(row=>{
+        const k=row.getAttribute('data-cumple')||''; const m=k.match(/^(\d{4}-\d{2}-\d{2})_(.+)$/); if(!m||vistos.has(k)) return; vistos.add(k);
+        const st=links[k]||{}, estado=st.saludo||'pendiente';
         if(estado==='no_aplica') return;
-        const info=b.parentElement, sub=info&&info.children[1]?info.children[1].textContent.replace(/\s+/g,' ').trim():'';
-        out.push({id:'cumple|'+k,titulo:'Saludar a '+m[2],detalle:sub,vence:m[1],hora:'09:00',etiqueta:'Cumpleaños',hecho:estado==='saludado',hechoEn:estado==='saludado'?new Date().toISOString():null,derivado:true});
+        const D=m[1], nom=m[2], info=row.children[1];
+        const sub=info&&info.children[1]?info.children[1].textContent.replace(/\s+/g,' ').trim():'';
+        if(D>TODAY){
+          out.push({id:'cumple-dis|'+k,titulo:'Mandar a hacer diseño por cumpleaños de '+nom,detalle:sub,vence:_recSumarDias(D,-2),hora:'10:00',etiqueta:'Cumpleaños',hecho:!!st.diseno,hechoEn:st.diseno?(st.disenoEn||new Date().toISOString()):null,derivado:true});
+        } else {
+          out.push({id:'cumple-pub|'+k,titulo:'Publicar saludo de cumpleaños de '+nom,detalle:sub,vence:D,hora:'09:00',etiqueta:'Cumpleaños',hecho:estado==='saludado',hechoEn:estado==='saludado'?new Date().toISOString():null,derivado:true});
+        }
       });
     });
   }catch(e){ console.error('recordatorios de cumpleaños:',e); }
+  window._recCumpleCache={t:Date.now(),v:out};
   return out;
 }
 function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados()]; }
@@ -6656,6 +6667,10 @@ function _recPendientes(){
 function _recHechosHoy(){
   return _recTodos().filter(r=>r.hecho && r.hechoEn && new Date(r.hechoEn).toLocaleDateString('en-CA')===TODAY)
     .sort((a,b)=>String(a.hechoEn).localeCompare(String(b.hechoEn)));
+}
+function _recNoAplicaBtn(r,hecho){
+  if(!r.derivado||hecho) return '';
+  return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoAplica(this.dataset.id)" title="No aplica saludo: lo saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no aplica</button>`;
 }
 function _recTick(r,hecho,oscuro){
   return hecho
@@ -6685,6 +6700,7 @@ function renderInicioRecordatorios(){
         ${r.detalle?`<div style="font-size:11px;color:${isMob?'rgba(239,243,248,.5)':'var(--muted)'};margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
       </div>
       <span style="font-size:10px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?(isMob?'rgba(22,163,74,.18)':'#DCFCE7'):(isMob?'rgba(255,255,255,.08)':e.bg)};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${hecho?'hecho':e.t}</span>
+      ${r.derivado&&!hecho?`<span style="align-self:center">${_recNoAplicaBtn(r,hecho)}</span>`:''}
     </div>`;
   }).join('');
   return `<div id="rec-box" style="scroll-margin-top:96px">${_inicioBox('🔔 Recordatorios', rows, '#0EA5E9', isMob)}</div>`;
@@ -6718,6 +6734,7 @@ function _recDockRender(){
           <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
             <span style="font-size:9.5px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?'#DCFCE7':e.bg};border-radius:5px;padding:1px 6px">${hecho?'hecho':e.t}</span>
             ${r.etiqueta?`<span style="font-size:9.5px;font-weight:700;color:#0369A1;background:#E0F2FE;border-radius:5px;padding:1px 6px">#${_recEsc(r.etiqueta)}</span>`:''}
+            ${_recNoAplicaBtn(r,hecho)}
           </div>
         </div>
       </div>`;
@@ -6745,12 +6762,20 @@ function _recIrAlBloque(){
     setTimeout(()=>{ b.style.boxShadow='none'; },2200);
   },250);
 }
+// "No aplica saludo" desde el recordatorio: saca de la lista el diseño y el saludo de ese cumpleaños.
+window._recNoAplica=function(id){
+  const k=String(id).slice(String(id).indexOf('|')+1); const links=stor.get('auf4_hoylinks',{});
+  links[k]={...(links[k]||{}), saludo:'no_aplica'}; stor.set('auf4_hoylinks',links);
+  window._recCumpleCache=null; if(typeof renderInicio==='function') renderInicio();
+};
 window._recHecho=function(id){
-  if(String(id).startsWith('cumple|')){   // saludo de cumpleaños: tildar = "Ya lo saludamos"; destildar = pendiente
-    const k=String(id).slice(7); const links=stor.get('auf4_hoylinks',{});
-    const cur=(links[k]||{}).saludo||'pendiente';
-    links[k]={...(links[k]||{}), saludo: cur==='saludado'?'pendiente':'saludado'};
+  if(String(id).startsWith('cumple-')){
+    const esDis=String(id).startsWith('cumple-dis|'), k=String(id).slice(String(id).indexOf('|')+1);
+    const links=stor.get('auf4_hoylinks',{}), cur=links[k]||{};
+    if(esDis){ links[k]= cur.diseno ? (()=>{const c={...cur}; delete c.diseno; delete c.disenoEn; return c;})() : {...cur, diseno:true, disenoEn:new Date().toISOString()}; }
+    else { links[k]={...cur, saludo: (cur.saludo==='saludado')?'pendiente':'saludado'}; }
     stor.set('auf4_hoylinks',links);
+    window._recCumpleCache=null;
     const n=document.getElementById('rec-noti'); if(n) n.remove();
     if(typeof renderInicio==='function') renderInicio();
     return;
