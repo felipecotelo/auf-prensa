@@ -6625,19 +6625,42 @@ function _sizeTareaTAs(){
 const KRecordatorios='auf4_recordatorios';
 function _recGet(){ const v=stor.get(KRecordatorios,[]); return Array.isArray(v)?v:[]; }
 function _recDue(r){ return new Date(r.vence+'T'+(r.hora||'09:00')+':00'); }
+// Saludos de cumpleaños de HOY y AYER: aparecen también como recordatorios mientras no estén marcados como
+// "No aplica saludo". Se derivan de los botones de saludo de "Hoy/Ayer en Selección" (misma fuente, mismo estado):
+// tildar = "Ya lo saludamos"; "No aplica saludo" los saca de la lista.
+function _recCumplesDerivados(){
+  const out=[];
+  try{
+    const links=stor.get('auf4_hoylinks',{});
+    [0,-1].forEach(off=>{
+      let html=''; try{ html=renderInicioHoySeleccion(off)||''; }catch(_){ return; }
+      if(!html) return;
+      const doc=new DOMParser().parseFromString(html,'text/html');
+      doc.querySelectorAll('button[data-k]').forEach(b=>{
+        const k=b.getAttribute('data-k')||''; const m=k.match(/^(\d{4}-\d{2}-\d{2})_(.+)$/); if(!m) return;
+        const estado=(links[k]||{}).saludo||'pendiente';
+        if(estado==='no_aplica') return;
+        const info=b.parentElement, sub=info&&info.children[1]?info.children[1].textContent.replace(/\s+/g,' ').trim():'';
+        out.push({id:'cumple|'+k,titulo:'Saludar a '+m[2],detalle:sub,vence:m[1],hora:'09:00',etiqueta:'Cumpleaños',hecho:estado==='saludado',hechoEn:estado==='saludado'?new Date().toISOString():null,derivado:true});
+      });
+    });
+  }catch(e){ console.error('recordatorios de cumpleaños:',e); }
+  return out;
+}
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados()]; }
 function _recPendientes(){
   const lim=new Date(); lim.setDate(lim.getDate()+1); lim.setHours(23,59,59,999);
-  return _recGet().filter(r=>!r.hecho && _recDue(r)<=lim).sort((a,b)=>_recDue(a)-_recDue(b));
+  return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim).sort((a,b)=>_recDue(a)-_recDue(b));
 }
 // Los que se marcaron como hechos HOY quedan a la vista con su tick (no desaparecen); se pueden destildar.
 function _recHechosHoy(){
-  return _recGet().filter(r=>r.hecho && r.hechoEn && new Date(r.hechoEn).toLocaleDateString('en-CA')===TODAY)
+  return _recTodos().filter(r=>r.hecho && r.hechoEn && new Date(r.hechoEn).toLocaleDateString('en-CA')===TODAY)
     .sort((a,b)=>String(a.hechoEn).localeCompare(String(b.hechoEn)));
 }
 function _recTick(r,hecho,oscuro){
   return hecho
-    ? `<button onclick="window._recHecho('${r.id}')" title="Hecho — tocá para destildar" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid #16A34A;background:#16A34A;color:#fff;cursor:pointer;padding:0;font-size:11px;line-height:1;font-weight:900;display:flex;align-items:center;justify-content:center">✓</button>`
-    : `<button onclick="window._recHecho('${r.id}')" title="Marcar como hecho" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid ${oscuro?'rgba(239,243,248,.35)':'#94A3B8'};background:none;cursor:pointer;padding:0"></button>`;
+    ? `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recHecho(this.dataset.id)" title="Hecho — tocá para destildar" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid #16A34A;background:#16A34A;color:#fff;cursor:pointer;padding:0;font-size:11px;line-height:1;font-weight:900;display:flex;align-items:center;justify-content:center">✓</button>`
+    : `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recHecho(this.dataset.id)" title="Marcar como hecho" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid ${oscuro?'rgba(239,243,248,.35)':'#94A3B8'};background:none;cursor:pointer;padding:0"></button>`;
 }
 function _recEtiqueta(r){
   const d=_recDue(r), hoy0=new Date(); hoy0.setHours(0,0,0,0);
@@ -6723,6 +6746,15 @@ function _recIrAlBloque(){
   },250);
 }
 window._recHecho=function(id){
+  if(String(id).startsWith('cumple|')){   // saludo de cumpleaños: tildar = "Ya lo saludamos"; destildar = pendiente
+    const k=String(id).slice(7); const links=stor.get('auf4_hoylinks',{});
+    const cur=(links[k]||{}).saludo||'pendiente';
+    links[k]={...(links[k]||{}), saludo: cur==='saludado'?'pendiente':'saludado'};
+    stor.set('auf4_hoylinks',links);
+    const n=document.getElementById('rec-noti'); if(n) n.remove();
+    if(typeof renderInicio==='function') renderInicio();
+    return;
+  }
   const l=_recGet(); const r=l.find(x=>x.id===id); if(!r) return;
   if(r.hecho){ r.hecho=false; delete r.hechoEn; }   // tocar el tick lo destilda
   else { r.hecho=true; r.hechoEn=new Date().toISOString(); }
@@ -6836,11 +6868,11 @@ function renderInicio(){
         <div style="font-size:12px;color:rgba(239,243,248,.5);margin-top:4px">TMO Interno</div>
       </div>
 
+      ${renderInicioAyerSeleccion()}
       ${renderInicioHoySeleccion()}
+      ${renderInicioMananaSeleccion()}
       ${renderInicioRecordatorios()}
       ${renderInicioTareas()}
-      ${renderInicioAyerSeleccion()}
-      ${renderInicioMananaSeleccion()}
       ${renderInicioCobertura()}
       ${renderInicioProximo()}
       ${renderInicioFutbolUY()}
@@ -6877,11 +6909,11 @@ function renderInicio(){
     ${secBtn('Links','ti-link','#64748B',"showTab('linkgen')")}
   </div>`;
   el.innerHTML=`<div style="padding:0 0 2px">
+    ${renderInicioAyerSeleccion()}
     ${renderInicioHoySeleccion()}
+    ${renderInicioMananaSeleccion()}
     ${renderInicioRecordatorios()}
     ${renderInicioTareas()}
-    ${renderInicioAyerSeleccion()}
-    ${renderInicioMananaSeleccion()}
     ${renderInicioCobertura()}
     ${renderInicioProximo()}
     ${renderInicioFutbolUY()}
