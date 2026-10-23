@@ -888,6 +888,40 @@ app.get('/api/futbol-uy', async (req, res) => {
   }
 });
 
+// Partidos de HOY de las tres competencias que se siguen (Liga AUF, Segunda y Copa AUF), con estado EN VIVO: la web lo consulta
+// cada ~30 s mientras hay un partido en juego. Cache cortito (20 s) para no pegarle a 365scores por cada pestaña abierta.
+let _hoyCache = null;
+app.get('/api/futbol-uy/hoy', async (req, res) => {
+  try {
+    if (_hoyCache && (Date.now() - _hoyCache.ts) < 20000) return res.json(_hoyCache.data);
+    const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Montevideo', day: '2-digit', month: '2-digit', year: 'numeric' }).formatToParts(new Date());
+    const g = t => p.find(x => x.type === t).value;
+    const dia = `${g('day')}/${g('month')}/${g('year')}`;
+    const raw = await fetchText(`${_365_BASE}/games/allscores/?${_365_QS}&startDate=${dia}&endDate=${dia}&sports=1&showOdds=false`);
+    const LIGA = { [FUTBOL_LEAGUES.primera]: 'primera', [FUTBOL_LEAGUES.segunda]: 'segunda', [FUTBOL_LEAGUES.copa]: 'copa' };
+    const sc = v => (v == null || v < 0) ? null : Math.round(v);
+    const partidos = (JSON.parse(raw).games || [])
+      .filter(m => LIGA[m.competitionId])
+      .map(m => {
+        const st = m.statusGroup === 3 ? 'vivo' : m.statusGroup === 2 ? 'prog' : (m.statusText === 'Aplazado' ? 'aplazado' : 'fin');
+        return {
+          id: m.id, liga: LIGA[m.competitionId],
+          home: m.homeCompetitor.shortName || m.homeCompetitor.name, homeId: m.homeCompetitor.id,
+          away: m.awayCompetitor.shortName || m.awayCompetitor.name, awayId: m.awayCompetitor.id,
+          gh: st === 'prog' ? null : sc(m.homeCompetitor.score), ga: st === 'prog' ? null : sc(m.awayCompetitor.score),
+          utcTime: m.startTime, estado: st, minuto: m.gameTimeDisplay || '', detalle: m.statusText || '',
+          round: m.roundNum, fase: m.stageName,
+        };
+      })
+      .sort((a, b) => new Date(a.utcTime) - new Date(b.utcTime));
+    const data = { ok: true, dia, partidos, updatedAt: new Date().toISOString() };
+    _hoyCache = { ts: Date.now(), data };
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // Goleadores de un partido puntual (bajo demanda, al tocar el "+" en Partidos).
 //
 // PENDIENTE (03/09/2026): esto consultaba matchDetails de FotMob por matchId. Ahora que
