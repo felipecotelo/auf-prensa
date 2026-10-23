@@ -5409,13 +5409,13 @@ function renderInicioHoySeleccion(dayOffset){
       const foto=window._getPhotoByName?.(c.nom)||JUGADORES?.[c.nom]?.foto||null;
       const initials=c.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const avatar=foto
-        ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<span style=\\'font-size:18px;flex-shrink:0\\'>🎂</span>'">`
+        ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.outerHTML='<i class=\\'ti ti-cake\\' style=\\'font-size:20px;flex-shrink:0;color:#64748B\\'></i>'">`
         :`<div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};color:${subColor};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${initials}</div>`;
       const lkey=isoHoy+'_'+c.nom;
       const saludo=(hoyLinks[lkey]||{}).saludo||'pendiente';
       // Mañana todavía no pasó: no tiene sentido trackear si se mandó saludo.
       const saludoBtn=esManana?'':`<button data-k="${String(lkey).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="event.stopPropagation();window._hoySaludoCycle(this.dataset.k)" style="margin-top:5px;border:1px solid ${_SALUDO_COLOR[saludo]}40;background:${_SALUDO_BG[saludo]};color:${_SALUDO_COLOR[saludo]};border-radius:20px;padding:2px 9px;font-size:${isMob?'10px':'9.5px'};font-weight:700;cursor:pointer">${_SALUDO_LABEL[saludo]}</button>`;
-      const leyendaBadge=c.leyenda?`<span style="font-size:8px;font-weight:800;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">⭐ LEYENDA</span>`:'';
+      const leyendaBadge=c.leyenda?`<span style="font-size:8px;font-weight:800;background:#FEF3C7;color:#92400E;border-radius:4px;padding:1px 5px;margin-left:5px;vertical-align:middle">LEYENDA</span>`:'';
       return `
       <div data-cumple="${String(lkey).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="${c.onclick}" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;${borderCss}">
         ${avatar}
@@ -5438,7 +5438,7 @@ function renderInicioHoySeleccion(dayOffset){
     });
     const cumpleCalRows=cumplesCal.map(c=>`
       <div style="display:flex;align-items:center;gap:10px;padding:6px 0;${borderCss}">
-        <div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">🎂</div>
+        <div style="width:34px;height:34px;border-radius:50%;background:${isMob?'rgba(255,255,255,.08)':'var(--surface)'};display:flex;align-items:center;justify-content:center;font-size:18px;color:#64748B;flex-shrink:0"><i class="ti ti-cake"></i></div>
         <div style="flex:1;min-width:0">
           <div style="font-size:${isMob?'13px':'12.5px'};font-weight:700;color:${rowColor}">${c.txt}</div>
           <div style="font-size:${isMob?'11px':'10.5px'};color:${subColor}">Cumpleaños ${rel} · según el calendario</div>
@@ -5448,11 +5448,11 @@ function renderInicioHoySeleccion(dayOffset){
     const actividades=calendarioSel.filter(c=>c.tipo==='actividad'&&(c.fecha||'').slice(5,10)===mmdd);
     const rowHtml=(icon,txt)=>`
       <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
-        <span style="font-size:15px;flex-shrink:0">${icon}</span>
+        <i class="ti ${icon}" style="font-size:16px;flex-shrink:0;width:18px;text-align:center;color:${isMob?'rgba(239,243,248,.5)':'#64748B'}"></i>
         <span style="font-size:${isMob?'12.5px':'12px'};font-weight:600;color:${rowColor}">${txt}</span>
       </div>`;
-    const aniversarioRows=aniversarios.map(c=>rowHtml('🏆',c.txt)).join('');
-    const actividadRows=actividades.map(c=>rowHtml('⚽',c.txt)).join('');
+    const aniversarioRows=aniversarios.map(c=>rowHtml('ti-trophy',c.txt)).join('');
+    const actividadRows=actividades.map(c=>rowHtml('ti-ball-football',c.txt)).join('');
 
     // ── Partidos de hoy (Mayor + Juveniles) ─────────────────────────────────
     // Antes este widget no miraba partidos en absoluto: un día con un partido
@@ -5507,15 +5507,15 @@ function renderInicioHoySeleccion(dayOffset){
         const day=[...FIFASEP26_CAL_DAYS, ...(typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[])].find(d=>d.date===isoHoy);
         // tipo 'tbd' (día por definir de una Fecha FIFA sin confirmar) no se muestra
         if(day && day.tipo!=='partido' && day.tipo!=='tbd' && day.tipo!=='previo'){
-          const FSH_ICON={viaje:'✈️',llegada:'🛬',entreno:'🏃',descanso:'😌'};
+          const FSH_ICON={viaje:'ti-plane',llegada:'ti-plane-arrival',entreno:'ti-run',descanso:'ti-moon'};
           const FSH_LABEL={viaje:'Viaje de la Mayor',llegada:'Llegada de la Mayor',entreno:'Entrenamiento de la Mayor',descanso:'Día libre — Mayor'};
-          fifaSepHoy.push({icon:FSH_ICON[day.tipo]||'📅', txt:`${FSH_LABEL[day.tipo]||'Mayor'}${day.lugar?' · '+day.lugar:''}`, onclick:`showSection('mayor')`});
+          fifaSepHoy.push({icon:FSH_ICON[day.tipo]||'ti-calendar', txt:`${FSH_LABEL[day.tipo]||'Mayor'}${day.lugar?' · '+day.lugar:''}`, onclick:`showSection('mayor')`});
         }
       }
     }catch(_){}
     const fifaSepRows=fifaSepHoy.map(e=>`
       <div onclick="${e.onclick||''}" style="display:flex;align-items:center;gap:8px;padding:5px 0;${e.onclick?'cursor:pointer':''}">
-        <span style="font-size:15px;flex-shrink:0">${e.icon}</span>
+        <i class="ti ${e.icon}" style="font-size:16px;flex-shrink:0;width:18px;text-align:center;color:${isMob?'rgba(239,243,248,.5)':'#64748B'}"></i>
         <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${e.txt}</span>
       </div>`).join('');
 
@@ -5565,20 +5565,20 @@ function renderInicioHoySeleccion(dayOffset){
           if(!range) return;
           if(isoHoy>=range.from && isoHoy<=range.to){
             const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[catKey]?.label)||catKey;
-            entrenoHoy.push({icon:'🏃', txt:`${catLbl} ${verboEntrena} · ${ultima.fecha.split('·')[0].trim()}`, onclick:`showSection('juveniles')`});
+            entrenoHoy.push({icon:'ti-run', txt:`${catLbl} ${verboEntrena} · ${ultima.fecha.split('·')[0].trim()}`, onclick:`showSection('juveniles')`});
           }
         });
       }
     }catch(_){}
     const entrenoRows=entrenoHoy.map(e=>`
       <div onclick="${e.onclick||''}" style="display:flex;align-items:center;gap:8px;padding:5px 0;${e.onclick?'cursor:pointer':''}">
-        <span style="font-size:15px;flex-shrink:0">${e.icon||'🏃'}</span>
+        <i class="ti ${e.icon||'ti-run'}" style="font-size:16px;flex-shrink:0;width:18px;text-align:center;color:${isMob?'rgba(239,243,248,.5)':'#64748B'}"></i>
         <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${e.txt}</span>
       </div>`).join('');
 
     const partidoRows=partidosHoy.map(p=>`
       <div onclick="${p.onclick||''}" style="display:flex;align-items:center;gap:8px;padding:5px 0;${p.onclick?'cursor:pointer':''}">
-        <span style="font-size:15px;flex-shrink:0">🏟️</span>
+        <i class="ti ti-ball-football" style="font-size:16px;flex-shrink:0;width:18px;text-align:center;color:${isMob?'rgba(239,243,248,.5)':'#64748B'}"></i>
         <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${p.txt}</span>
       </div>`).join('');
 
@@ -5597,7 +5597,7 @@ function renderInicioHoySeleccion(dayOffset){
     }
     const planRows=planHoy.map(h=>`
       <div onclick="showSection('planificador');window._planOpen('${h.evId}')" style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer${h.done?';opacity:.5':''}">
-        <span style="font-size:14px;flex-shrink:0">${h.esPosteo?'📣':'📌'}</span>
+        <i class="ti ${h.esPosteo?'ti-speakerphone':'ti-pin'}" style="font-size:16px;flex-shrink:0;width:18px;text-align:center;color:${isMob?'rgba(239,243,248,.5)':'#64748B'}"></i>
         <div style="flex:1;min-width:0">
           <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}${h.done?';text-decoration:line-through':''}">${h.hora?`${h.hora} · `:''}${h.txt}</span>
           <span style="font-size:11px;color:${subColor}"> · ${h.evTitulo}</span>
@@ -5613,13 +5613,13 @@ function renderInicioHoySeleccion(dayOffset){
     const planLabel=esAyer?'Planificador · ayer':esManana?'Planificador · mañana':'Planificador';
     const body=vacio
       ? `<div style="font-size:${isMob?'12.5px':'12px'};color:${subColor}">No hay nada específico para hoy — revisá las tareas.</div>`
-      : (partidoRows?subHdr('🏟️ Partidos')+partidoRows:'')
+      : (partidoRows?subHdr('Partidos')+partidoRows:'')
       +(fifaSepRows?subHdr('🇺🇾 Fecha FIFA — Selección Mayor')+fifaSepRows:'')
-      +(entrenoRows?subHdr('🏃 Entrenamientos y cobertura')+entrenoRows:'')
-      +((cumples.length||cumplesCal.length)?subHdr('🎂 Cumpleaños')+cumpleRows+cumpleCalRows:'')
-      +(cumpleEstructuraRows?subHdr('🎂 Cumpleaños · Estructura')+cumpleEstructuraRows:'')
-      +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
-      +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
+      +(entrenoRows?subHdr('Entrenamientos y cobertura')+entrenoRows:'')
+      +((cumples.length||cumplesCal.length)?subHdr('Cumpleaños')+cumpleRows+cumpleCalRows:'')
+      +(cumpleEstructuraRows?subHdr('Cumpleaños · Estructura')+cumpleEstructuraRows:'')
+      +(aniversarioRows?subHdr('Aniversarios')+aniversarioRows:'')
+      +(actividadRows?subHdr('Actividades')+actividadRows:'')
       +(planHoy.length?subHdr(planLabel)+planRows:'');
     return _inicioBox(tituloBox, body, colorBox, isMob, esAyer||esManana);
   }catch(_){ return ''; }
@@ -5910,7 +5910,7 @@ function _futbolFilaPro(m,liga,esResultado,isMob){
     </div>`;
   const toggle=(m.finalizado&&m.id)?`<button onclick="_futGoles('${m.id}')" title="Ver goles" style="border:none;background:none;color:${mu};cursor:pointer;font-size:18px;font-weight:800;flex-shrink:0;width:30px;line-height:1;padding:0">+</button>`:'';
   const panel=(m.finalizado&&m.id)?`<div data-fut-goles="${m.id}" style="display:none;padding:0 18px 10px 92px;font-size:11px;color:${mu}"></div>`:'';
-  return `<div style="border-top:1px solid ${bd};background:rgba(${liga.bg||'148,163,184'},${isMob?.1:.07})">
+  return `<div style="border-top:1px solid ${bd};background:rgba(${liga.bg||'148,163,184'},${liga.a?(isMob?liga.a+.04:liga.a):(isMob?.1:.07)})">
     <div style="display:flex;align-items:stretch">
       <div style="width:78px;flex-shrink:0;padding:12px 6px;text-align:center;border-right:1px solid ${bd};display:flex;flex-direction:column;justify-content:center;gap:4px">
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${mu};line-height:1.2">${liga.logo?`<img src="${liga.logo}" alt="" loading="lazy" style="width:32px;height:32px;object-fit:cover;border-radius:9px;box-shadow:0 1px 4px rgba(15,23,42,.18)" onerror="this.outerHTML='<span style=&quot;width:8px;height:8px;border-radius:50%;background:${liga.color}&quot;></span>'">`:`<span style="width:6px;height:6px;border-radius:50%;background:${liga.color}"></span>`}<span>${liga.corto}</span></div>
@@ -6041,7 +6041,7 @@ function renderInicioFutbolUY(){
   const lblCol=isMob?'rgba(239,243,248,.5)':'var(--muted)';
   const tabBtn=(id,label,active)=>`<button onclick="_futTab('${id}')" data-fut-tab="${id}" style="border:1px solid #059669;background:${active?'#059669':'transparent'};color:${active?'#fff':'#059669'};font-weight:700;font-size:10px;letter-spacing:.12em;text-transform:uppercase;border-radius:999px;padding:4px 13px;cursor:pointer;font-family:inherit">${label}</button>`;
   setTimeout(window._loadFutbolUY,0);
-  let fc=null; try{ fc=JSON.parse(localStorage.getItem('inicio-fut-cache')||'null'); }catch(_){}
+  let fc=null; try{ fc=JSON.parse(localStorage.getItem('inicio-fut-cache2')||'null'); }catch(_){}
   if(!(fc&&fc.fecha===TODAY)) fc=null;
   return `<div style="margin-bottom:16px">
     <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:0 2px 10px">
@@ -6074,7 +6074,7 @@ window._loadFutbolUY = async function(){
     let descensoFilas=[];
     try{ if(rDesc&&rDesc.ok) descensoFilas=(await rDesc.json()).filas||[]; }catch(_){}
     const isMobF=window.innerWidth<=600;
-    const LIGAS=[{k:'primera',corto:'Liga AUF',color:'#059669',bg:'5,150,105',logo:'./ligas/liga_auf.jpg'},{k:'segunda',corto:'Segunda',color:'#1E40AF',bg:'30,64,175',logo:'./ligas/segunda.jpg'},{k:'copa',corto:'Copa AUF',color:'#EA580C',bg:'234,88,12',logo:'./ligas/copa_auf.jpg'}];
+    const LIGAS=[{k:'primera',corto:'Liga AUF',color:'#1E3A8A',bg:'30,58,138',a:.14,logo:'./ligas/liga_auf.jpg'},{k:'segunda',corto:'Segunda',color:'#0EA5E9',bg:'14,165,233',a:.1,logo:'./ligas/segunda.jpg'},{k:'copa',corto:'Copa AUF',color:'#38BDF8',bg:'125,211,252',a:.2,logo:'./ligas/copa_auf.jpg'}];
     const resultados=[], agenda=[];
     LIGAS.forEach(L=>{
       (d[L.k]?.ultimos||[]).forEach(m=>resultados.push({m:{...m,finalizado:true},L}));
@@ -6098,7 +6098,7 @@ window._loadFutbolUY = async function(){
     if(d.primera?.tablas?.length) d.primera.tablas.push({nombre:'Descenso', esDescenso:true, filas:descensoFilas});
     const htmlTablas=_futbolTablaHTML('Liga AUF Uruguaya','primera',d.primera)+_futbolTablaHTML('Segunda Profesional AUF','segunda',d.segunda);
     document.querySelectorAll('.fut-tablas').forEach(e=>e.innerHTML=htmlTablas||'Sin datos disponibles.');
-    try{ localStorage.setItem('inicio-fut-cache',JSON.stringify({fecha:TODAY,html:window._futHtmlCache.html,tablas:htmlTablas||''})); }catch(_){}
+    try{ localStorage.setItem('inicio-fut-cache2',JSON.stringify({fecha:TODAY,html:window._futHtmlCache.html,tablas:htmlTablas||''})); }catch(_){}
   }catch(_){
     document.querySelectorAll('.fut-body').forEach(e=>e.textContent='No se pudo leer el fixture ahora.');
     document.querySelectorAll('.fut-tablas').forEach(e=>e.textContent='No se pudo leer la tabla ahora.');
