@@ -5620,8 +5620,34 @@ function renderInicioHoySeleccion(dayOffset){
     return _inicioBox(tituloBox, body, colorBox, isMob, esAyer);
   }catch(_){ return ''; }
 }
-function renderInicioAyerSeleccion(){ return renderInicioHoySeleccion(-1); }
-function renderInicioMananaSeleccion(){ return renderInicioHoySeleccion(1); }
+// "Ayer" y "Mañana en Selección" van minimizados (una barra chica con botón para ampliar); el foco de Inicio es
+// "Hoy en Selección" y las Tareas. Se recuerda en este dispositivo si quedaron abiertos.
+function _inicioColapsable(key,titulo,color,html){
+  if(!html) return '';
+  const isMob=window.innerWidth<=600;
+  let abierto=false; try{ abierto=localStorage.getItem('inicio-abierto-'+key)==='1'; }catch(_){}
+  const barBg=isMob?'rgba(255,255,255,.04)':'#fff', barBorde=isMob?'1px solid rgba(255,255,255,.08)':'1px solid var(--border)';
+  const txt=isMob?'rgba(239,243,248,.7)':'var(--muted)';
+  return `<div data-colap="${key}" style="margin-bottom:${abierto?'0':'12px'}">
+    <button data-colap-bar="${key}" onclick="window._inicioToggleColap('${key}')" style="display:${abierto?'none':'flex'};align-items:center;justify-content:space-between;width:100%;background:${barBg};border:${barBorde};border-left:3px solid ${color};border-radius:10px;padding:8px 14px;cursor:pointer;color:${txt};font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-family:inherit">
+      <span>${titulo}</span><span style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0">Ampliar <i class="ti ti-chevron-down"></i></span>
+    </button>
+    <div data-colap-body="${key}" style="display:${abierto?'block':'none'}">
+      ${html}
+      <div style="text-align:right;margin:-8px 0 14px"><button onclick="window._inicioToggleColap('${key}')" style="background:none;border:none;color:${txt};font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit">Minimizar <i class="ti ti-chevron-up"></i></button></div>
+    </div>
+  </div>`;
+}
+window._inicioToggleColap=function(key){
+  const bar=document.querySelector(`[data-colap-bar="${key}"]`), body=document.querySelector(`[data-colap-body="${key}"]`), wrap=document.querySelector(`[data-colap="${key}"]`);
+  if(!bar||!body) return;
+  const abrir=body.style.display==='none';
+  body.style.display=abrir?'block':'none'; bar.style.display=abrir?'none':'flex';
+  if(wrap) wrap.style.marginBottom=abrir?'0':'12px';
+  try{ localStorage.setItem('inicio-abierto-'+key,abrir?'1':'0'); }catch(_){}
+};
+function renderInicioAyerSeleccion(){ return _inicioColapsable('ayer','Ayer en Selección','#94A3B8',renderInicioHoySeleccion(-1)); }
+function renderInicioMananaSeleccion(){ return _inicioColapsable('manana','Mañana en Selección','#8B5CF6',renderInicioHoySeleccion(1)); }
 function _inicioBox(title,bodyHtml,color,isMob,grisado){
   return isMob
     ? `<div style="background:${grisado?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)'};border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;margin-bottom:16px${grisado?';opacity:.8':''}">
@@ -6804,11 +6830,11 @@ function renderInicio(){
         <div style="font-size:12px;color:rgba(239,243,248,.5);margin-top:4px">TMO Interno</div>
       </div>
 
-      ${renderInicioAyerSeleccion()}
       ${renderInicioHoySeleccion()}
-      ${renderInicioMananaSeleccion()}
       ${renderInicioRecordatorios()}
       ${renderInicioTareas()}
+      ${renderInicioAyerSeleccion()}
+      ${renderInicioMananaSeleccion()}
       ${renderInicioCobertura()}
       ${renderInicioProximo()}
       ${renderInicioFutbolUY()}
@@ -6845,11 +6871,11 @@ function renderInicio(){
     ${secBtn('Links','ti-link','#8B5CF6',"showTab('linkgen')")}
   </div>`;
   el.innerHTML=`<div style="padding:0 0 2px">
-    ${renderInicioAyerSeleccion()}
     ${renderInicioHoySeleccion()}
-    ${renderInicioMananaSeleccion()}
     ${renderInicioRecordatorios()}
     ${renderInicioTareas()}
+    ${renderInicioAyerSeleccion()}
+    ${renderInicioMananaSeleccion()}
     ${renderInicioCobertura()}
     ${renderInicioProximo()}
     ${renderInicioFutbolUY()}
