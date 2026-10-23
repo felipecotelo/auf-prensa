@@ -5286,7 +5286,7 @@ function renderInicioHoySeleccion(dayOffset){
     const esAyer=dayOffset<0, esManana=dayOffset>0;
     const rel=esAyer?'ayer':esManana?'mañana':'hoy';
     const verboCumple=esAyer?'cumplió':'cumple';
-    const tituloBox=esAyer?'⏪ Ayer en Selección':esManana?'⏩ Mañana en Selección':'📍 Hoy en Selección';
+    const tituloBox=esAyer?'Ayer en Selección':esManana?'Mañana en Selección':'Hoy en Selección';
     const colorBox=esAyer?'#94A3B8':esManana?'#F59E0B':'#EC4899';
     // Ayer se ve apagado (ya pasó); Hoy y Mañana mantienen el look normal del box.
     const rowColor=isMob?(esAyer?'rgba(239,243,248,.65)':'#EFF3F8'):(esAyer?'var(--muted)':'var(--text)');
@@ -5625,20 +5625,21 @@ function renderInicioHoySeleccion(dayOffset){
 // "Hoy en Selección" y las Tareas. Se recuerda en este dispositivo si quedaron abiertos.
 function _inicioColapsable(key,titulo,color,html){
   if(!html) return '';
-  const isMob=window.innerWidth<=600;
+  const isMob=window.innerWidth<=600, h=_inicioHead(titulo);
   let abierto=false; try{ abierto=localStorage.getItem('inicio-abierto-'+key)==='1'; }catch(_){}
   const barBg=isMob?'rgba(255,255,255,.04)':'#fff', barBorde=isMob?'1px solid rgba(255,255,255,.08)':'1px solid var(--border)';
-  const txt=isMob?'rgba(239,243,248,.7)':'var(--muted)';
+  const txt=isMob?'#EFF3F8':'var(--text)', sub=isMob?'rgba(239,243,248,.45)':'var(--muted)';
   // Aviso en la barra: cumpleaños que todavía no se saludaron (están adentro y minimizados).
   const sinSaludar=(html.match(/No lo saludamos todav/g)||[]).length;
-  const aviso=sinSaludar?`<span style="background:${isMob?'rgba(245,158,11,.18)':'#FEF3C7'};color:${isMob?'#FBBF24':'#92400E'};border:1px solid ${isMob?'rgba(245,158,11,.4)':'#FDE68A'};border-radius:7px;padding:1px 8px;font-size:10px;font-weight:800;text-transform:none;letter-spacing:0;margin-left:10px">🎂 ${sinSaludar} sin saludar</span>`:'';
+  const aviso=sinSaludar?`<span style="background:${isMob?'rgba(245,158,11,.18)':'#FEF3C7'};color:${isMob?'#FBBF24':'#92400E'};border:1px solid ${isMob?'rgba(245,158,11,.4)':'#FDE68A'};border-radius:999px;padding:1px 9px;font-size:10px;font-weight:700;margin-left:6px">${sinSaludar} sin saludar</span>`:'';
   return `<div data-colap="${key}" style="margin-bottom:${abierto?'0':'12px'}">
-    <button data-colap-bar="${key}" onclick="window._inicioToggleColap('${key}')" style="display:${abierto?'none':'flex'};align-items:center;justify-content:space-between;width:100%;background:${color}${isMob?'26':'14'};border:${barBorde};border-left:3px solid ${color};border-radius:10px;padding:10px 14px;cursor:pointer;color:${color};font-size:12.5px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;font-family:inherit">
-      <span style="display:flex;align-items:center">${titulo}${aviso}</span><span style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0">Ampliar <i class="ti ti-chevron-down"></i></span>
+    <button data-colap-bar="${key}" onclick="window._inicioToggleColap('${key}')" style="display:${abierto?'none':'flex'};align-items:center;justify-content:space-between;width:100%;background:${barBg};border:${barBorde};border-radius:14px;padding:11px 18px;cursor:pointer;font-family:inherit;text-align:left">
+      <span style="display:flex;align-items:center;gap:9px;min-width:0;flex-wrap:wrap"><span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span><span style="font-size:14px;font-weight:800;color:${txt}">${h.titulo}</span><span style="font-size:11px;color:${sub}">${h.eyebrow}</span>${aviso}</span>
+      <span style="display:flex;align-items:center;gap:5px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${color};border:1px solid ${color}66;border-radius:999px;padding:3px 11px">Ampliar <i class="ti ti-chevron-down"></i></span>
     </button>
     <div data-colap-body="${key}" style="display:${abierto?'block':'none'};position:relative">
       ${html}
-      <button onclick="window._inicioToggleColap('${key}')" style="position:absolute;top:12px;right:16px;display:flex;align-items:center;gap:5px;background:none;border:none;color:${color};font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;padding:0">Minimizar <i class="ti ti-chevron-up"></i></button>
+      <button onclick="window._inicioToggleColap('${key}')" style="position:absolute;top:14px;right:18px;display:flex;align-items:center;gap:5px;background:none;border:1px solid ${color}66;border-radius:999px;padding:3px 11px;color:${color};font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;font-family:inherit">Minimizar <i class="ti ti-chevron-up"></i></button>
     </div>
   </div>`;
 }
@@ -5650,20 +5651,40 @@ window._inicioToggleColap=function(key){
   if(wrap) wrap.style.marginBottom=abrir?'0':'12px';
   try{ localStorage.setItem('inicio-abierto-'+key,abrir?'1':'0'); }catch(_){}
 };
-function renderInicioAyerSeleccion(){ return _inicioColapsable('ayer','⏪ Ayer en Selección','#94A3B8',renderInicioHoySeleccion(-1)); }
-function renderInicioMananaSeleccion(){ return _inicioColapsable('manana','⏩ Mañana en Selección','#F59E0B',renderInicioHoySeleccion(1)); }
+function renderInicioAyerSeleccion(){ return _inicioColapsable('ayer','Ayer en Selección','#94A3B8',renderInicioHoySeleccion(-1)); }
+function renderInicioMananaSeleccion(){ return _inicioColapsable('manana','Mañana en Selección','#F59E0B',renderInicioHoySeleccion(1)); }
+// Encabezado de las cajas de Inicio en dos niveles, a lo soyjuvenil.uy: arriba una etiqueta chica en mayúsculas espaciadas
+// (con un punto del color de la caja) y debajo el título grande; una línea fina lo separa del contenido. Sin emoji.
+function _inicioHead(title){
+  const limpio=String(title).replace(/^[^\p{L}\p{N}]+/u,'').trim();
+  const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fecha=off=>{ const d=new Date(); d.setDate(d.getDate()+off); const w=DIAS[d.getDay()]; return w.charAt(0).toUpperCase()+w.slice(1)+' '+d.getDate()+' de '+MESES[d.getMonth()]; };
+  if(/^Hoy en Selección/.test(limpio))    return {eyebrow:fecha(0), titulo:'Hoy en Selección'};
+  if(/^Ayer en Selección/.test(limpio))   return {eyebrow:fecha(-1), titulo:'Ayer en Selección'};
+  if(/^Mañana en Selección/.test(limpio)) return {eyebrow:fecha(1), titulo:'Mañana en Selección'};
+  if(/^Recordatorios/.test(limpio))       return {eyebrow:'Avisos', titulo:'Recordatorios'};
+  if(/^Tareas de hoy/.test(limpio))       return {eyebrow:'Pendientes', titulo:'Tareas de hoy'};
+  if(/^Cobertura fotográfica semanal/.test(limpio)) return {eyebrow:'Juveniles', titulo:'Cobertura fotográfica semanal'};
+  if(/^Se viene/.test(limpio))            return {eyebrow:'Agenda', titulo:'Se viene'};
+  if(/^Partidos/.test(limpio))            return {eyebrow:'Fútbol uruguayo', titulo:'Partidos'};
+  if(/^Mis idas/.test(limpio))            return {eyebrow:String(new Date().getFullYear()), titulo:'Mis idas'};
+  if(/^Fotos faltantes/.test(limpio))     return {eyebrow:'Pendientes', titulo:'Fotos faltantes'};
+  if(/^Redes/.test(limpio))               return {eyebrow:'Mensual', titulo:'Redes'};
+  return {eyebrow:'', titulo:limpio};
+}
 function _inicioBox(title,bodyHtml,color,isMob,grisado){
-  // Título destacado: más grande y sobre una franja con el color de la caja ("Hoy en Selección" un talle más, es el foco).
-  const grande=/Hoy en Selección/.test(title);
-  const fs=grande?15:12.5;
+  const h=_inicioHead(title), grande=h.titulo==='Hoy en Selección';
+  const eb=h.eyebrow?`<div style="display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}"><span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>${h.eyebrow}</div>`:'';
+  const head=`<div style="padding:14px 18px 12px;border-bottom:1px solid ${isMob?'rgba(255,255,255,.08)':'var(--border)'}">${eb}<div style="font-size:${grande?22:18}px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:${h.eyebrow?4:0}px;color:${isMob?'#EFF3F8':'var(--text)'}">${h.titulo}</div></div>`;
   return isMob
-    ? `<div style="background:${grisado?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)'};border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;margin-bottom:16px${grisado?';opacity:.8':''}">
-        <div style="margin:-14px -16px 10px;padding:${grande?11:9}px 16px;background:${color}2B;border-radius:15px 15px 0 0;font-size:${fs}px;font-weight:900;color:${color};text-transform:uppercase;letter-spacing:.07em">${title}</div>
-        <div style="font-size:12.5px;color:rgba(239,243,248,.75);line-height:1.5">${bodyHtml}</div>
+    ? `<div style="background:${grisado?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)'};border:1px solid rgba(255,255,255,.08);border-radius:16px;margin-bottom:16px;overflow:hidden${grisado?';opacity:.8':''}">
+        ${head}
+        <div style="padding:10px 18px 14px;font-size:12.5px;color:rgba(239,243,248,.75);line-height:1.5">${bodyHtml}</div>
       </div>`
-    : `<div style="background:${grisado?'var(--surface2,#F3F4F6)':'#fff'};border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;border-left:3px solid ${color}">
-        <div style="margin:-14px -16px 10px;padding:${grande?11:9}px 16px;background:${color}${grande?'22':'16'};border-radius:0 11px 0 0;font-size:${fs}px;font-weight:900;color:${color};text-transform:uppercase;letter-spacing:.07em">${title}</div>
-        <div style="font-size:12.5px;color:var(--text);line-height:1.5">${bodyHtml}</div>
+    : `<div style="background:${grisado?'var(--surface2,#F3F4F6)':'#fff'};border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden">
+        ${head}
+        <div style="padding:10px 18px 14px;font-size:12.5px;color:var(--text);line-height:1.5">${bodyHtml}</div>
       </div>`;
 }
 // "Otras idas" — eventos puntuales que no vienen del Google Calendar (partidos/actos
@@ -5792,7 +5813,7 @@ function renderInicioMisIdas(){
   <div id="mi-resumen" style="font-size:11px;font-weight:700;color:#EA580C;background:#EA580C14;border-radius:8px;padding:6px 10px;margin-top:10px;text-align:center">Van ${diasAno} días del ${ty} (${habiles} hábiles)</div>
   <div id="mi-idas-err" style="display:none;font-size:11px;color:${lblCol};margin-top:8px">No se pudo leer el calendario ahora.</div>`;
   setTimeout(window._loadMisIdas,0);
-  return _inicioBox('🚗 Mis idas', body, '#EA580C', isMob);
+  return _inicioBox('Mis idas', body, '#EA580C', isMob);
 }
 window._loadMisIdas = async function(){
   try{
@@ -5838,8 +5859,9 @@ function _futbolDiaLabel(utcTime){
   if(diff===1) return 'Mañana';
   return new Date(utcTime).toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Montevideo'}).replace(/^\w/,c=>c.toUpperCase());
 }
-function _futbolEscudo(id){
-  return `<img src="https://imagecache.365scores.com/image/upload/f_png,w_40,h_40,c_limit,q_auto:eco,dpr_2,d_Competitors:default1.png/v2/Competitors/${id}" style="width:20px;height:20px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
+function _futbolEscudo(id,sz){
+  sz=sz||20;
+  return `<img src="https://imagecache.365scores.com/image/upload/f_png,w_${sz*2},h_${sz*2},c_limit,q_auto:eco,dpr_2,d_Competitors:default1.png/v2/Competitors/${id}" style="width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
 }
 // Ronda → torneo. Antes esto tenía que ADIVINAR la fase cruzando ronda+fecha (FotMob no
 // la exponía directo, y el número de ronda ni siquiera reseteaba entre fases) — eso
@@ -5852,27 +5874,46 @@ function _futbolRondaLabel(round, fase){
   if(String(round).toLowerCase()==='final') return {texto:`FINAL TORNEO ${faseUpper}`, esFinal:true};
   return {texto:faseUpper?`TORNEO ${faseUpper} · FECHA ${round}`:`FECHA ${round}`, esFinal:false};
 }
-function _futbolFila(m){
-  const toggle=(m.finalizado&&m.id)?`<button onclick="_futGoles('${m.id}')" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;font-weight:800;flex-shrink:0;width:22px;line-height:1;padding:0">+</button>`:`<span style="width:22px;flex-shrink:0"></span>`;
-  const panel=(m.finalizado&&m.id)?`<div data-fut-goles="${m.id}" style="display:none;padding:0 10px 8px 10px;font-size:11px;color:var(--muted)"></div>`:'';
+// Fila de partido al estilo soyjuvenil.uy: a la izquierda el bloque de liga + hora (o FT), después los dos equipos apilados
+// (escudo, nombre y marcador; el ganador resalta) y debajo una línea chica con el día y la fecha del torneo.
+function _futbolFilaPro(m,liga,esResultado,isMob){
   const ronda=_futbolRondaLabel(m.round, m.fase);
-  return `<div style="${ronda.esFinal?'background:#F59E0B14':''}">
-    <div style="display:flex;align-items:center;padding:7px 10px;border-bottom:0.5px solid var(--border)">
-      <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:7px;text-align:right">
-        <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.home}</span>
-        ${_futbolEscudo(m.homeId)}
+  const mm=String(m.score||'').match(/(\d+)\s*[-–]\s*(\d+)/);
+  const gh=mm?+mm[1]:null, ga=mm?+mm[2]:null;
+  const winH=esResultado&&gh!=null&&gh>ga, winA=esResultado&&ga!=null&&ga>gh;
+  const tx=isMob?'#EFF3F8':'var(--text)', mu=isMob?'rgba(239,243,248,.5)':'var(--muted)', bd=isMob?'rgba(255,255,255,.08)':'var(--border)';
+  const team=(id,name,goles,gana)=>`<div style="display:flex;align-items:center;gap:10px;padding:3px 0">
+      ${_futbolEscudo(id,26)}
+      <span style="flex:1;min-width:0;font-size:14px;font-weight:${gana?700:500};color:${esResultado&&!gana&&gh!==ga?mu:tx};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</span>
+      <span style="font-size:16px;font-weight:${gana?800:500};color:${esResultado?(gana||gh===ga?tx:mu):mu};min-width:16px;text-align:right">${esResultado&&goles!=null?goles:'–'}</span>
+    </div>`;
+  const toggle=(m.finalizado&&m.id)?`<button onclick="_futGoles('${m.id}')" title="Ver goles" style="border:none;background:none;color:${mu};cursor:pointer;font-size:18px;font-weight:800;flex-shrink:0;width:30px;line-height:1;padding:0">+</button>`:'';
+  const panel=(m.finalizado&&m.id)?`<div data-fut-goles="${m.id}" style="display:none;padding:0 18px 10px 92px;font-size:11px;color:${mu}"></div>`:'';
+  return `<div style="border-top:1px solid ${bd};${ronda.esFinal?'background:rgba(245,158,11,.08)':''}">
+    <div style="display:flex;align-items:stretch">
+      <div style="width:78px;flex-shrink:0;padding:12px 6px;text-align:center;border-right:1px solid ${bd};display:flex;flex-direction:column;justify-content:center;gap:4px">
+        <div style="display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${mu}"><span style="width:6px;height:6px;border-radius:50%;background:${liga.color};flex-shrink:0"></span>${liga.corto}</div>
+        <div style="font-size:${esResultado?12:15}px;font-weight:${esResultado?700:800};color:${esResultado?mu:tx};letter-spacing:${esResultado?'.1em':'0'}">${esResultado?'FT':_fmtFutbolHora(m.utcTime)}</div>
       </div>
-      <div style="flex-shrink:0;width:60px;text-align:center;white-space:nowrap">
-        ${m.finalizado?`<span style="font-size:13px;font-weight:800;color:var(--text)">${m.score}</span>`:`<span style="font-size:12px;font-weight:700;color:var(--muted)">${_fmtFutbolHora(m.utcTime)}</span>`}
+      <div style="flex:1;min-width:0;padding:10px 6px 10px 14px">
+        ${team(m.homeId,m.home,gh,winH)}
+        ${team(m.awayId,m.away,ga,winA)}
+        <div style="margin-top:5px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${ronda.esFinal?'#D97706':mu}">${_futbolDiaLabel(m.utcTime)}${ronda.texto?` · ${ronda.texto}`:''}</div>
       </div>
-      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:7px">
-        ${_futbolEscudo(m.awayId)}
-        <span style="font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.away}</span>
-      </div>
-      <span style="flex-shrink:0;max-width:90px;text-align:right;font-size:8px;font-weight:800;color:${ronda.esFinal?'#D97706':'var(--muted)'};letter-spacing:.02em;line-height:1.3">${ronda.esFinal?'🏆 ':''}${ronda.texto}</span>
-      ${toggle}
+      <div style="display:flex;align-items:center;padding-right:8px">${toggle}</div>
     </div>
     ${panel}
+  </div>`;
+}
+function _futCard(eyebrow,titulo,derecha,filas,isMob){
+  const bd=isMob?'rgba(255,255,255,.08)':'var(--border)';
+  return `<div style="background:${isMob?'rgba(255,255,255,.04)':'#fff'};border:1px solid ${bd};border-radius:14px;overflow:hidden">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:14px 18px 12px">
+      <div><div style="font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}">${eyebrow}</div>
+      <div style="font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:4px;color:${isMob?'#EFF3F8':'var(--text)'}">${titulo}</div></div>
+      ${derecha||''}
+    </div>
+    ${filas||`<div style="border-top:1px solid ${bd};padding:14px 18px;font-size:12px;color:${isMob?'rgba(239,243,248,.5)':'var(--muted)'}">Todavía no hay partidos para mostrar.</div>`}
   </div>`;
 }
 window._futGoles = async function(id){
@@ -5977,15 +6018,17 @@ window._futFase = function(key,idx){
 function renderInicioFutbolUY(){
   const isMob=window.innerWidth<=600;
   const lblCol=isMob?'rgba(239,243,248,.5)':'var(--muted)';
-  const tabBtn=(id,label,active)=>`<button onclick="_futTab('${id}')" data-fut-tab="${id}" style="border:none;background:${active?'#059669':'transparent'};color:${active?'#fff':'#059669'};font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.03em;padding:5px 12px;border-radius:7px;cursor:pointer">${label}</button>`;
-  const body=`<div style="display:flex;gap:6px;margin-bottom:10px">
-      ${tabBtn('partidos','Partidos',true)}
-      ${tabBtn('tablas','Tablas',false)}
+  const tabBtn=(id,label,active)=>`<button onclick="_futTab('${id}')" data-fut-tab="${id}" style="border:1px solid #059669;background:${active?'#059669':'transparent'};color:${active?'#fff':'#059669'};font-weight:700;font-size:10px;letter-spacing:.12em;text-transform:uppercase;border-radius:999px;padding:4px 13px;cursor:pointer;font-family:inherit">${label}</button>`;
+  setTimeout(window._loadFutbolUY,0);
+  return `<div style="margin-bottom:16px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:0 2px 10px">
+      <div><div style="display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}"><span style="width:7px;height:7px;border-radius:50%;background:#059669"></span>Fútbol uruguayo</div>
+      <div style="font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:4px;color:${isMob?'#EFF3F8':'var(--text)'}">Partidos</div></div>
+      <div style="display:flex;gap:6px">${tabBtn('partidos','Partidos',true)}${tabBtn('tablas','Tablas',false)}</div>
     </div>
     <div class="fut-panel" data-fut-panel="partidos" style="font-size:12.5px;color:${lblCol}"><div class="fut-body">Cargando…</div></div>
-    <div class="fut-panel" data-fut-panel="tablas" style="display:none;font-size:12.5px;color:${lblCol}"><div class="fut-tablas">Cargando…</div></div>`;
-  setTimeout(window._loadFutbolUY,0);
-  return _inicioBox('⚽ Partidos', body, '#059669', isMob);
+    <div class="fut-panel" data-fut-panel="tablas" style="display:none;font-size:12.5px;color:${lblCol}"><div class="fut-tablas">Cargando…</div></div>
+  </div>`;
 }
 window._futTab = function(tab){
   document.querySelectorAll('[data-fut-tab]').forEach(b=>{
@@ -6007,31 +6050,25 @@ window._loadFutbolUY = async function(){
     const d = await r.json();
     let descensoFilas=[];
     try{ if(rDesc&&rDesc.ok) descensoFilas=(await rDesc.json()).filas||[]; }catch(_){}
-    const div=(nombre,liga)=>{
-      if(!liga.proximos?.length && !liga.ultimos?.length && !liga.tablas?.length) return '';
-      const lider=liga.tablas?.find(t=>t.nombre==='Anual')?.filas?.[0] || liga.tablas?.[0]?.filas?.[0];
-      const combo=[
-        ...(liga.ultimos||[]).map(m=>({...m,finalizado:true})),
-        ...(liga.proximos||[]).map(m=>({...m,finalizado:false})),
-      ].sort((a,b)=>new Date(a.utcTime)-new Date(b.utcTime));
-      let lastLabel=null, rows='';
-      combo.forEach(m=>{
-        const label=_futbolDiaLabel(m.utcTime);
-        if(label!==lastLabel){
-          rows+=`<div style="background:var(--bg);padding:5px 10px;font-size:11px;font-weight:800;color:var(--text)">${label}</div>`;
-          lastLabel=label;
-        }
-        rows+=_futbolFila(m);
-      });
-      return `<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(5,150,105,.1)">
-          <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.03em">${nombre}</span>
-          ${lider?`<span style="font-size:10.5px;color:var(--muted)">🥇 ${lider.name} lidera la Tabla Anual con ${lider.pts} puntos</span>`:''}
-        </div>
-        ${rows||`<div style="font-size:11.5px;color:var(--muted);padding:8px 10px">Sin próxima fecha confirmada todavía.</div>`}
-      </div>`;
-    };
-    const html=div('Liga AUF Uruguaya',d.primera)+div('Segunda Profesional AUF',d.segunda);
+    const isMobF=window.innerWidth<=600;
+    const LIGAS=[{k:'primera',corto:'Liga AUF',color:'#059669'},{k:'segunda',corto:'Segunda',color:'#0EA5E9'}];
+    const resultados=[], agenda=[];
+    LIGAS.forEach(L=>{
+      (d[L.k]?.ultimos||[]).forEach(m=>resultados.push({m:{...m,finalizado:true},L}));
+      (d[L.k]?.proximos||[]).forEach(m=>agenda.push({m:{...m,finalizado:false},L}));
+    });
+    resultados.sort((a,b)=>new Date(b.m.utcTime)-new Date(a.m.utcTime));
+    agenda.sort((a,b)=>new Date(a.m.utcTime)-new Date(b.m.utcTime));
+    const chip=(t)=>`<span style="flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#059669;border:1px solid #05966966;border-radius:999px;padding:3px 11px;margin-top:2px">${t}</span>`;
+    const verTablas=`<button onclick="_futTab('tablas')" style="flex-shrink:0;border:none;background:none;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${isMobF?'rgba(239,243,248,.6)':'var(--muted)'};cursor:pointer;margin-top:4px">Ver tablas →</button>`;
+    const filasR=resultados.slice(0,8).map(x=>_futbolFilaPro(x.m,x.L,true,isMobF)).join('');
+    const filasA=agenda.slice(0,8).map(x=>_futbolFilaPro(x.m,x.L,false,isMobF)).join('');
+    const html=(resultados.length||agenda.length)
+      ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">
+          ${_futCard('Resultados','Últimos confirmados',chip('Recientes'),filasR,isMobF)}
+          ${_futCard('Agenda','Próximos partidos',verTablas,filasA,isMobF)}
+        </div>`
+      : '';
     document.querySelectorAll('.fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
     // La tabla de descenso (promedios) no la da FotMob — se agrega como pestaña extra fija.
     if(d.primera?.tablas?.length) d.primera.tablas.push({nombre:'Descenso', esDescenso:true, filas:descensoFilas});
@@ -6288,7 +6325,7 @@ function renderInicioProximo(){
         ${faltan}
       </div>`;
     }).join('');
-    return _inicioBox('⏳ Se viene',rows,'#0EA5E9',isMob);
+    return _inicioBox('Se viene',rows,'#0EA5E9',isMob);
   }catch(_){ return ''; }
 }
 // Cobertura semanal de entrenamientos Juveniles — un registro por semana (lunes de esa
@@ -6654,6 +6691,22 @@ function _recCumplesDerivados(){
         }
       });
     });
+    // Fechas históricas (aniversarios del Google Calendar, ej. "Uruguay Campeón de América 1926"): lo mismo —diseño 2 días antes,
+    // publicar el día—; "no aplica" los saca (se guarda en hoylinks con clave 'ani:FECHA_TEXTO').
+    const links2=stor.get('auf4_hoylinks',{});
+    const aniv=(typeof getCalendarioSeleccion==='function'?getCalendarioSeleccion():[]).filter(c=>c.tipo==='aniversario'&&c.mmdd);
+    [-1,0,1,2,3].forEach(off=>{
+      const D=_recSumarDias(TODAY,off), mmdd=D.slice(5);
+      aniv.filter(c=>c.mmdd===mmdd).forEach(c=>{
+        const k='ani:'+D+'_'+c.txt, st=links2[k]||{}, estado=st.saludo||'pendiente';
+        if(estado==='no_aplica') return;
+        if(off>0){
+          out.push({id:'ani-dis|'+k,titulo:'Mandar a hacer diseño por aniversario: '+c.txt,detalle:'Fecha histórica · '+D.split('-').reverse().join('/'),vence:_recSumarDias(D,-2),hora:'10:00',etiqueta:'Fecha histórica',hecho:!!st.diseno,hechoEn:st.diseno?(st.disenoEn||new Date().toISOString()):null,derivado:true});
+        } else {
+          out.push({id:'ani-pub|'+k,titulo:'Publicar aniversario: '+c.txt,detalle:'Fecha histórica · '+D.split('-').reverse().join('/'),vence:D,hora:'09:00',etiqueta:'Fecha histórica',hecho:estado==='saludado',hechoEn:estado==='saludado'?new Date().toISOString():null,derivado:true});
+        }
+      });
+    });
   }catch(e){ console.error('recordatorios de cumpleaños:',e); }
   window._recCumpleCache={t:Date.now(),v:out};
   return out;
@@ -6722,7 +6775,7 @@ function _recDockRender(){
     d.innerHTML=`🔔<span style="position:absolute;top:-4px;right:-4px;background:#0EA5E9;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${pend.length||'✓'}</span>`;
     d.onclick=()=>{ try{ localStorage.setItem('rec-dock-min-'+TODAY,'0'); }catch(_){} _recDockRender(); };
   } else {
-    d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:300px;max-height:calc(100vh - 160px);overflow-y:auto;background:#fff;border:1px solid var(--border);border-left:3px solid #0EA5E9;border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:10px 12px';
+    d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:300px;max-height:calc(100vh - 160px);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 14px';
     d.title=''; d.onclick=null;
     const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recDue(x[0])-_recDue(y[0])).map(([r,hecho])=>{
       const e=_recEtiqueta(r);
@@ -6739,9 +6792,13 @@ function _recDockRender(){
         </div>
       </div>`;
     }).join('');
-    d.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-      <div style="font-size:9.5px;font-weight:800;color:#0EA5E9;text-transform:uppercase;letter-spacing:.08em">🔔 Recordatorios · ${pend.length}${hechos.length?` <span style="color:#16A34A">(${hechos.length} ✓)</span>`:''}</div>
-      <button onclick="try{localStorage.setItem('rec-dock-min-'+TODAY,'1')}catch(_){};_recDockRender()" title="Minimizar" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:13px;padding:0 2px">—</button>
+    d.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:2px 0 8px">
+      <div><div style="display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)"><span style="width:7px;height:7px;border-radius:50%;background:#0EA5E9"></span>Avisos</div>
+      <div style="font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:3px;color:var(--text)">Recordatorios</div></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#0369A1;border:1px solid #0EA5E966;border-radius:999px;padding:2px 9px">${pend.length}${hechos.length?` · ${hechos.length} ✓`:''}</span>
+        <button onclick="try{localStorage.setItem('rec-dock-min-'+TODAY,'1')}catch(_){};_recDockRender()" title="Minimizar" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:14px;padding:0 2px">—</button>
+      </div>
     </div>${filas}`;
   }
   if(!old) document.body.appendChild(d);
@@ -6769,8 +6826,8 @@ window._recNoAplica=function(id){
   window._recCumpleCache=null; if(typeof renderInicio==='function') renderInicio();
 };
 window._recHecho=function(id){
-  if(String(id).startsWith('cumple-')){
-    const esDis=String(id).startsWith('cumple-dis|'), k=String(id).slice(String(id).indexOf('|')+1);
+  if(/^(cumple|ani)-/.test(String(id))){
+    const esDis=/^(cumple|ani)-dis\|/.test(String(id)), k=String(id).slice(String(id).indexOf('|')+1);
     const links=stor.get('auf4_hoylinks',{}), cur=links[k]||{};
     if(esDis){ links[k]= cur.diseno ? (()=>{const c={...cur}; delete c.diseno; delete c.disenoEn; return c;})() : {...cur, diseno:true, disenoEn:new Date().toISOString()}; }
     else { links[k]={...cur, saludo: (cur.saludo==='saludado')?'pendiente':'saludado'}; }
