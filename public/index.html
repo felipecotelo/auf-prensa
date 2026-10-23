@@ -5288,8 +5288,8 @@ function renderInicioHoySeleccion(dayOffset){
     const verboCumple=esAyer?'cumplió':'cumple';
     const tituloBox=esAyer?'Ayer en Selección':esManana?'Mañana en Selección':'Hoy en Selección';
     const colorBox=esAyer?'#94A3B8':esManana?'#F59E0B':'#EC4899';
-    // Ayer se ve apagado (ya pasó); Hoy y Mañana mantienen el look normal del box.
-    const rowColor=isMob?(esAyer?'rgba(239,243,248,.65)':'#EFF3F8'):(esAyer?'var(--muted)':'var(--text)');
+    // Ayer y Mañana van en gris (apagados frente a Hoy, que mantiene el look normal del box); el punto de color distingue a cada uno.
+    const rowColor=isMob?((esAyer||esManana)?'rgba(239,243,248,.65)':'#EFF3F8'):((esAyer||esManana)?'var(--muted)':'var(--text)');
     const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
     const borderCss=isMob?'border-bottom:1px solid rgba(255,255,255,.06)':'border-bottom:1px solid var(--border)';
     const subHdr=t=>`<div style="font-size:9px;font-weight:800;color:${subColor};text-transform:uppercase;letter-spacing:.07em;margin:10px 0 4px">${t}</div>`;
@@ -5618,7 +5618,7 @@ function renderInicioHoySeleccion(dayOffset){
       +(aniversarioRows?subHdr('🏆 Aniversarios')+aniversarioRows:'')
       +(actividadRows?subHdr('⚽ Actividades')+actividadRows:'')
       +(planHoy.length?subHdr(planLabel)+planRows:'');
-    return _inicioBox(tituloBox, body, colorBox, isMob, esAyer, esManana?'#FFF8E8':undefined);
+    return _inicioBox(tituloBox, body, colorBox, isMob, esAyer||esManana);
   }catch(_){ return ''; }
 }
 // "Ayer" y "Mañana en Selección" van minimizados (una barra chica con botón para ampliar); el foco de Inicio es
@@ -5627,7 +5627,7 @@ function _inicioColapsable(key,titulo,color,html){
   if(!html) return '';
   const isMob=window.innerWidth<=600, h=_inicioHead(titulo);
   let abierto=false; try{ abierto=localStorage.getItem('inicio-abierto-'+key)==='1'; }catch(_){}
-  const barBg=isMob?(key==='ayer'?'rgba(255,255,255,.07)':'rgba(245,158,11,.08)'):(key==='ayer'?'#E9ECF1':'#FFF8E8'), barBorde=isMob?'1px solid rgba(255,255,255,.08)':(key==='ayer'?'1px solid #D5DAE2':'1px solid #F0DDB0');
+  const barBg=isMob?'rgba(255,255,255,.07)':'#E9ECF1', barBorde=isMob?'1px solid rgba(255,255,255,.08)':'1px solid #D5DAE2';
   const txt=isMob?'#EFF3F8':'var(--text)', sub=isMob?'rgba(239,243,248,.45)':'var(--muted)';
   // Aviso en la barra: cumpleaños que todavía no se saludaron (están adentro y minimizados).
   const sinSaludar=(html.match(/No lo saludamos todav/g)||[]).length;
@@ -5676,8 +5676,8 @@ function _inicioHead(title){
 function _inicioBox(title,bodyHtml,color,isMob,grisado,fondo){
   const h=_inicioHead(title);
   const eb=h.eyebrow?`<div style="display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${isMob?'rgba(239,243,248,.45)':'var(--muted)'}"><span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>${h.eyebrow}</div>`:'';
-  const bdc=isMob?'rgba(255,255,255,.08)':(grisado?'#D5DAE2':(fondo?'#F0DDB0':'var(--border)'));
-  const head=`<div style="padding:14px 18px 12px;border-bottom:1px solid ${isMob?'rgba(255,255,255,.08)':(grisado?'#D5DAE2':(fondo?'#F0DDB0':'var(--border)'))}">${eb}<div style="font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:${h.eyebrow?4:0}px;color:${isMob?'#EFF3F8':'var(--text)'}">${h.titulo}</div></div>`;
+  const bdc=isMob?'rgba(255,255,255,.08)':(grisado?'#D5DAE2':(fondo?'#EEE6D2':'var(--border)'));
+  const head=`<div style="padding:14px 18px 12px;border-bottom:1px solid ${isMob?'rgba(255,255,255,.08)':(grisado?'#D5DAE2':(fondo?'#EEE6D2':'var(--border)'))}">${eb}<div style="font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:${h.eyebrow?4:0}px;color:${isMob?'#EFF3F8':'var(--text)'}">${h.titulo}</div></div>`;
   return isMob
     ? `<div style="background:${grisado?'rgba(255,255,255,.07)':(fondo?'rgba(245,158,11,.08)':'rgba(255,255,255,.04)')};border:1px solid ${fondo?'rgba(245,158,11,.25)':'rgba(255,255,255,.08)'};border-radius:16px;margin-bottom:16px;overflow:hidden">
         ${head}
