@@ -324,7 +324,7 @@ app.post('/api/redes-tips', async (req, res) => {
     const clave = hoy + ':' + crypto.createHash('sha1').update(JSON.stringify(resumen)).digest('hex');
     const hit = _tipsCache.get(clave);
     if (hit && Date.now() - hit.ts < 12 * 3600 * 1000) { res.json({ ok: true, ...hit.v, cache: true }); return; }
-    const prompt = `Sos el analista de redes sociales de la Selección Uruguaya de Fútbol (AUF). Hoy es ${hoy}. Escribí EXACTAMENTE 5 tips breves y accionables para Comunicación, en español rioplatense, tono neutro y constructivo, en impersonal ("conviene", "una idea es") y sin segunda persona del plural. Cada tip en una línea, con formato "Etiqueta: texto" donde Etiqueta es la red (Instagram, TikTok, YouTube, Facebook, X) o "General"; máximo 30 palabras por tip; sin viñetas ni numeración.
+    const prompt = `Sos el analista de redes sociales de la Selección Uruguaya de Fútbol (AUF). Hoy es ${hoy}. Escribí EXACTAMENTE 5 tips breves y accionables para Comunicación, en español rioplatense, tono neutro y constructivo, en impersonal ("conviene", "una idea es") y sin segunda persona del plural. Cada tip en una línea, con formato "Etiqueta: texto" donde Etiqueta es la red (Instagram, TikTok, YouTube, Facebook, X) o "General"; máximo 30 palabras por tip; sin viñetas ni numeración, sin introducción ni cierre: tu respuesta final son solo esas 5 líneas.
 
 Combiná dos fuentes:
 1) Los datos de abajo (métricas de las redes de la Selección: seguidores actuales y ventanas de medición con cifras POR DÍA). Usá solo cifras presentes; comparalas siempre por ritmo diario. No tenés fechas de las últimas publicaciones: no afirmes hace cuánto no se publica.
@@ -337,22 +337,22 @@ ${JSON.stringify(resumen)}`;
     const intentos = [
       { model: 'claude-sonnet-5-5', web: true }, { model: 'claude-haiku-4-5-20251001', web: true }, { model: 'claude-haiku-4-5-20251001', web: false },
     ];
-    let ultimoError = null;
+    let ultimoError = null; const fallos = [];
     for (const it of intentos) {
       try {
         const body = { model: it.model, max_tokens: 1200, messages: [{ role: 'user', content: prompt }] };
         if (it.web) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }];
         const out = await anthropicCall(body);
         const texto = (out.content || []).filter(b => b.type === 'text').map(b => b.text || '').join('\n').trim();
-        const tips = texto.split('\n').map(l => l.replace(/^[-•*\d.)\s]+/, '').trim()).filter(l => l.includes(':') && l.length > 20).slice(0, 5);
-        if (!tips.length) throw new Error('sin tips en la respuesta');
-        const v = { tips, modelo: it.model, buscoWeb: it.web && (out.content || []).some(b => b.type === 'web_search_tool_result' || b.type === 'server_tool_use'), generado: new Date().toISOString() };
+        const tips = texto.split('\n').map(l => l.replace(/^[-•*\d.)\s]+/, '').replace(/\*\*/g, '').trim()).filter(l => /^(Instagram|TikTok|YouTube|Facebook|X|General)\s*:/i.test(l) && l.length > 25).slice(0, 5);
+        if (tips.length < 3) throw new Error('tips insuficientes (' + tips.length + ')');
+        const v = { tips, fallos, modelo: it.model, buscoWeb: it.web && (out.content || []).some(b => b.type === 'web_search_tool_result' || b.type === 'server_tool_use'), generado: new Date().toISOString() };
         _tipsCache.set(clave, { ts: Date.now(), v });
         res.json({ ok: true, ...v });
         return;
-      } catch (e) { ultimoError = e; }
+      } catch (e) { ultimoError = e; console.error('[redes-tips]', it.model, it.web, e.message); fallos.push(it.model + (it.web ? '+web' : '') + ': ' + e.message); }
     }
-    res.status(502).json({ ok: false, error: ultimoError ? ultimoError.message : 'sin respuesta' });
+    res.status(502).json({ ok: false, error: ultimoError ? ultimoError.message : 'sin respuesta', fallos });
   } catch (e) {
     res.status(501).json({ ok: false, error: e.message });
   }
