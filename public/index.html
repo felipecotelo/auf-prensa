@@ -6597,6 +6597,16 @@ function _recPendientes(){
   const lim=new Date(); lim.setDate(lim.getDate()+1); lim.setHours(23,59,59,999);
   return _recGet().filter(r=>!r.hecho && _recDue(r)<=lim).sort((a,b)=>_recDue(a)-_recDue(b));
 }
+// Los que se marcaron como hechos HOY quedan a la vista con su tick (no desaparecen); se pueden destildar.
+function _recHechosHoy(){
+  return _recGet().filter(r=>r.hecho && r.hechoEn && new Date(r.hechoEn).toLocaleDateString('en-CA')===TODAY)
+    .sort((a,b)=>String(a.hechoEn).localeCompare(String(b.hechoEn)));
+}
+function _recTick(r,hecho,oscuro){
+  return hecho
+    ? `<button onclick="window._recHecho('${r.id}')" title="Hecho — tocá para destildar" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid #16A34A;background:#16A34A;color:#fff;cursor:pointer;padding:0;font-size:11px;line-height:1;font-weight:900;display:flex;align-items:center;justify-content:center">✓</button>`
+    : `<button onclick="window._recHecho('${r.id}')" title="Marcar como hecho" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid ${oscuro?'rgba(239,243,248,.35)':'#94A3B8'};background:none;cursor:pointer;padding:0"></button>`;
+}
 function _recEtiqueta(r){
   const d=_recDue(r), hoy0=new Date(); hoy0.setHours(0,0,0,0);
   const dias=Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-hoy0)/86400000);
@@ -6608,18 +6618,18 @@ function _recEtiqueta(r){
 const _recEsc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 function renderInicioRecordatorios(){
   if(_recWide()) return ''; // en pantallas anchas va la tarjeta fija del borde derecho (_recDockRender)
-  const pend=_recPendientes();
-  if(!pend.length) return '';
+  const pend=_recPendientes(), hechos=_recHechosHoy();
+  if(!pend.length && !hechos.length) return '';
   const isMob=window.innerWidth<=600;
-  const rows=pend.map(r=>{
+  const rows=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recDue(x[0])-_recDue(y[0])).map(([r,hecho])=>{
     const e=_recEtiqueta(r);
-    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px 0">
-      <button onclick="window._recHecho('${r.id}')" title="Marcar como hecho" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid ${isMob?'rgba(239,243,248,.35)':'#94A3B8'};background:none;cursor:pointer;padding:0"></button>
+    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px 0;${hecho?'opacity:.55':''}">
+      ${_recTick(r,hecho,isMob)}
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:600;color:${isMob?'#EFF3F8':'var(--text)'}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
+        <div style="font-size:12.5px;font-weight:600;color:${isMob?'#EFF3F8':'var(--text)'};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
         ${r.detalle?`<div style="font-size:11px;color:${isMob?'rgba(239,243,248,.5)':'var(--muted)'};margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
       </div>
-      <span style="font-size:10px;font-weight:700;color:${e.c};background:${isMob?'rgba(255,255,255,.08)':e.bg};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${e.t}</span>
+      <span style="font-size:10px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?(isMob?'rgba(22,163,74,.18)':'#DCFCE7'):(isMob?'rgba(255,255,255,.08)':e.bg)};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${hecho?'hecho':e.t}</span>
     </div>`;
   }).join('');
   return `<div id="rec-box" style="scroll-margin-top:96px">${_inicioBox('🔔 Recordatorios', rows, '#0EA5E9', isMob)}</div>`;
@@ -6630,35 +6640,35 @@ function _recWide(){ return window.innerWidth>=1100; }
 function _recDockRender(){
   const old=document.getElementById('rec-dock');
   const enInicio=document.getElementById('inicio')?.classList.contains('active');
-  const pend=_recPendientes();
+  const pend=_recPendientes(), hechos=_recHechosHoy();
   const ib=document.getElementById('inicio-body');
-  if(!_recWide()||!enInicio||!pend.length){ old&&old.remove(); if(ib) ib.style.paddingRight=''; return; }
+  if(!_recWide()||!enInicio||(!pend.length&&!hechos.length)){ old&&old.remove(); if(ib) ib.style.paddingRight=''; return; }
   let min=false; try{ min=localStorage.getItem('rec-dock-min-'+TODAY)==='1'; }catch(_){}
   const d=old||document.createElement('div'); d.id='rec-dock';
   if(min){
     d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:42px;height:42px;border-radius:50%;background:#fff;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px';
     d.title='Recordatorios pendientes';
-    d.innerHTML=`🔔<span style="position:absolute;top:-4px;right:-4px;background:#0EA5E9;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${pend.length}</span>`;
+    d.innerHTML=`🔔<span style="position:absolute;top:-4px;right:-4px;background:#0EA5E9;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${pend.length||'✓'}</span>`;
     d.onclick=()=>{ try{ localStorage.setItem('rec-dock-min-'+TODAY,'0'); }catch(_){} _recDockRender(); };
   } else {
     d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:300px;max-height:calc(100vh - 160px);overflow-y:auto;background:#fff;border:1px solid var(--border);border-left:3px solid #0EA5E9;border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:10px 12px';
     d.title=''; d.onclick=null;
-    const filas=pend.map(r=>{
+    const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recDue(x[0])-_recDue(y[0])).map(([r,hecho])=>{
       const e=_recEtiqueta(r);
-      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-top:1px solid var(--border)">
-        <button onclick="window._recHecho('${r.id}')" title="Marcar como hecho" style="flex-shrink:0;width:16px;height:16px;margin-top:2px;border-radius:50%;border:1.5px solid #94A3B8;background:none;cursor:pointer;padding:0"></button>
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-top:1px solid var(--border);${hecho?'opacity:.55':''}">
+        ${_recTick(r,hecho,false)}
         <div style="flex:1;min-width:0">
-          <div style="font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3">${_recEsc(r.titulo)}</div>
+          <div style="font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3;${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}</div>
           ${r.detalle?`<div style="font-size:10.5px;color:var(--muted);margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
           <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
-            <span style="font-size:9.5px;font-weight:700;color:${e.c};background:${e.bg};border-radius:5px;padding:1px 6px">${e.t}</span>
+            <span style="font-size:9.5px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?'#DCFCE7':e.bg};border-radius:5px;padding:1px 6px">${hecho?'hecho':e.t}</span>
             ${r.etiqueta?`<span style="font-size:9.5px;font-weight:700;color:#0369A1;background:#E0F2FE;border-radius:5px;padding:1px 6px">#${_recEsc(r.etiqueta)}</span>`:''}
           </div>
         </div>
       </div>`;
     }).join('');
     d.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-      <div style="font-size:9.5px;font-weight:800;color:#0EA5E9;text-transform:uppercase;letter-spacing:.08em">🔔 Recordatorios · ${pend.length}</div>
+      <div style="font-size:9.5px;font-weight:800;color:#0EA5E9;text-transform:uppercase;letter-spacing:.08em">🔔 Recordatorios · ${pend.length}${hechos.length?` <span style="color:#16A34A">(${hechos.length} ✓)</span>`:''}</div>
       <button onclick="try{localStorage.setItem('rec-dock-min-'+TODAY,'1')}catch(_){};_recDockRender()" title="Minimizar" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:13px;padding:0 2px">—</button>
     </div>${filas}`;
   }
@@ -6682,7 +6692,8 @@ function _recIrAlBloque(){
 }
 window._recHecho=function(id){
   const l=_recGet(); const r=l.find(x=>x.id===id); if(!r) return;
-  r.hecho=true; r.hechoEn=new Date().toISOString();
+  if(r.hecho){ r.hecho=false; delete r.hechoEn; }   // tocar el tick lo destilda
+  else { r.hecho=true; r.hechoEn=new Date().toISOString(); }
   stor.set(KRecordatorios,l);
   const n=document.getElementById('rec-noti'); if(n) n.remove();
   if(typeof renderInicio==='function') renderInicio();
