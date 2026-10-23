@@ -343,7 +343,7 @@ ${JSON.stringify(resumen)}`;
         const body = { model: it.model, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] };
         if (it.web) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }];
         const out = await anthropicCall(body);
-        const texto = (out.content || []).filter(b => b.type === 'text').map(b => b.text || '').join('\n').trim();
+        const texto = (out.content || []).filter(b => b.type === 'text').map(b => b.text || '').join('').trim();
         const tips = texto.split('\n').map(l => l.replace(/^[-•*\d.)\s]+/, '').replace(/\*\*/g, '').trim()).filter(l => /^(Instagram|TikTok|YouTube|Facebook|X|General)\s*:/i.test(l) && l.length > 25).slice(0, 5);
         if (tips.length < 3) throw new Error('tips insuficientes (' + tips.length + ') stop=' + out.stop_reason + ' texto=' + JSON.stringify(texto.slice(-300)));
         const v = { tips, fallos, modelo: it.model, buscoWeb: it.web && (out.content || []).some(b => b.type === 'web_search_tool_result' || b.type === 'server_tool_use'), generado: new Date().toISOString() };
