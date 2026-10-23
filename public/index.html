@@ -6977,7 +6977,22 @@ function renderInicioTareas(){
   </div>`;
   return _inicioBox('Tareas', rows+inputRow, '#0D9488', isMob);
 }
-function renderInicio(){
+// Inicio se arma varias veces mientras terminan de llegar los datos (convocatorias, fotos, calendario, etc.): para que
+// no se vea "moverse", en la carga inicial queda invisible hasta que pasan 450 ms sin un nuevo armado (tope 2,5 s) y
+// recién ahí aparece con un fundido corto. Después de esa primera vez, cada armado es inmediato como siempre.
+function _inicioSettle(){
+  if(window._inicioReveal==='ok') return;
+  const el=document.getElementById('inicio-body'); if(!el) return;
+  const dock=()=>document.getElementById('rec-dock');
+  const mostrar=()=>{ clearTimeout(window._inicioRevT); clearTimeout(window._inicioRevMax); window._inicioReveal='ok';
+    [el,dock()].forEach(n=>{ if(n){ n.style.transition='opacity .25s ease'; n.style.opacity='1'; } }); };
+  window._inicioReveal='pend';
+  el.style.opacity='0'; if(dock()) dock().style.opacity='0';
+  clearTimeout(window._inicioRevT); window._inicioRevT=setTimeout(mostrar,450);
+  if(!window._inicioRevMax) window._inicioRevMax=setTimeout(mostrar,2500);
+}
+function renderInicio(){ const r=_renderInicioBase.apply(this,arguments); try{ _inicioSettle(); }catch(_){} return r; }
+function _renderInicioBase(){
   const el=document.getElementById('inicio-body');
   if(!el)return;
   window._inicioListo=true;
