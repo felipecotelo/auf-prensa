@@ -6688,14 +6688,55 @@ window._inicioTareaAdd=function(){
   stor.set(KTareasLog,list);
   renderInicio();
 };
+// Recordatorio de una tarea: se guarda como un recordatorio común (auf4_recordatorios, tareaRef) enlazado por recId.
+function _tareaRecSync(recId,cambios){
+  if(!recId) return;
+  const l=_recGet(), r=l.find(x=>x.id===recId); if(!r) return;
+  Object.assign(r,cambios); if(r.hecho&&!r.hechoEn) r.hechoEn=new Date().toISOString(); if(!r.hecho) delete r.hechoEn;
+  stor.set(KRecordatorios,l);
+}
+window._tareaRecAbrir=function(idx){
+  document.querySelectorAll('.tarea-rec-form').forEach(e=>e.remove());
+  const list=_tareasLog(), t=list[idx]; if(!t) return;
+  const row=document.querySelector(`[data-tarea-idx="${idx}"]`); if(!row) return;
+  const rc=t.recId?_recGet().find(x=>x.id===t.recId):null;
+  const man=_recSumarDias(TODAY,1);
+  const f=document.createElement('div'); f.className='tarea-rec-form';
+  f.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px 23px;padding:8px 10px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;font-size:11.5px;color:#0369A1';
+  f.innerHTML=`<span style="font-weight:700">🔔 Recordarme el</span>
+    <input type="date" id="tarea-rec-f-${idx}" value="${rc&&!rc.hecho?rc.vence:man}" min="${TODAY}" style="padding:4px 6px;border:1px solid #BAE6FD;border-radius:6px;font-size:11.5px;font-family:inherit">
+    <input type="time" id="tarea-rec-h-${idx}" value="${rc&&!rc.hecho&&!rc.sinHora?(rc.hora||''):''}" title="Hora (opcional)" style="padding:4px 6px;border:1px solid #BAE6FD;border-radius:6px;font-size:11.5px;font-family:inherit">
+    <button onclick="window._tareaRecGuardar(${idx})" style="border:none;background:#0EA5E9;color:#fff;font-weight:700;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11.5px">Guardar</button>
+    ${rc&&!rc.hecho?`<button onclick="window._tareaRecQuitar(${idx})" style="border:none;background:none;color:#DC2626;font-weight:700;cursor:pointer;font-size:11.5px;text-decoration:underline">Quitar</button>`:''}
+    <button onclick="this.parentNode.remove()" style="border:none;background:none;color:#64748B;cursor:pointer;font-size:11.5px">Cancelar</button>`;
+  row.insertAdjacentElement('afterend',f);
+};
+window._tareaRecGuardar=function(idx){
+  const list=_tareasLog(), t=list[idx]; if(!t) return;
+  const fecha=document.getElementById('tarea-rec-f-'+idx)?.value; if(!fecha) return;
+  const hora=document.getElementById('tarea-rec-h-'+idx)?.value||'';
+  const l=_recGet(); let r=t.recId?l.find(x=>x.id===t.recId):null;
+  if(!r){ r={id:'tarea-'+Date.now(),tareaRef:true,etiqueta:'Tarea',hecho:false}; l.push(r); t.recId=r.id; }
+  Object.assign(r,{titulo:t.txt,detalle:'De tu lista de tareas',vence:fecha,hora:hora||'09:00',hecho:false}); delete r.hechoEn;
+  if(hora){ delete r.sinHora; } else { r.sinHora=true; }
+  stor.set(KRecordatorios,l); stor.set(KTareasLog,list);
+  renderInicio();
+};
+window._tareaRecQuitar=function(idx){
+  const list=_tareasLog(), t=list[idx]; if(!t||!t.recId) return;
+  const l=_recGet().filter(x=>x.id!==t.recId); stor.set(KRecordatorios,l,{allowShrink:true});
+  delete t.recId; stor.set(KTareasLog,list);
+  renderInicio();
+};
 window._inicioTareaToggle=function(idx){
   const list=_tareasLog();
-  if(list[idx]) list[idx].done=!list[idx].done;
+  if(list[idx]){ list[idx].done=!list[idx].done; _tareaRecSync(list[idx].recId,{hecho:list[idx].done}); }
   stor.set(KTareasLog,list);
   renderInicio();
 };
 window._inicioTareaDel=function(idx){
   const list=_tareasLog();
+  if(list[idx]&&list[idx].recId){ stor.set(KRecordatorios,_recGet().filter(x=>x.id!==list[idx].recId),{allowShrink:true}); }
   list.splice(idx,1);
   stor.set(KTareasLog,list,{allowShrink:true});
   renderInicio();
@@ -6705,6 +6746,7 @@ window._inicioTareaEdit=function(idx,value){
   const txt=(value||'').trim();
   if(!txt || !list[idx]) return;
   list[idx].txt=txt;
+  _tareaRecSync(list[idx].recId,{titulo:txt});
   stor.set(KTareasLog,list);
 };
 // Ajusta la altura de los <textarea> de tareas al contenido real. NO usamos
@@ -6736,7 +6778,9 @@ function _sizeTareaTAs(){
 // sutil con los que vencen hoy, mañana o ya vencieron, y un aviso discreto al abrir la app.
 const KRecordatorios='auf4_recordatorios';
 function _recGet(){ const v=stor.get(KRecordatorios,[]); return Array.isArray(v)?v:[]; }
-function _recDue(r){ return new Date(r.vence+'T'+(r.hora||'09:00')+':00'); }
+function _recDue(r){ return new Date(r.vence+'T'+(r.sinHora?'00:00':(r.hora||'09:00'))+':00'); }
+// Orden: lo importante (rojo) primero; después por vencimiento; y entre los de un mismo grupo, por paso (orden 1, 2, 3…).
+function _recCmp(a,b){ return ((b.importante?1:0)-(a.importante?1:0)) || (_recDue(a)-_recDue(b)) || ((a.orden||0)-(b.orden||0)); }
 // Cumpleaños como recordatorios: "Mandar a hacer diseño por cumpleaños de X" (el día antes, 10:00; si cae sábado/domingo, 2 días antes)
 // y "Publicar saludo de cumpleaños de X" (el día del cumpleaños, 09:00; sigue hasta el día siguiente si quedó pendiente).
 // Se derivan de las filas de cumpleaños de "Hoy/Ayer/Mañana en Selección" (misma fuente y mismo estado). Si el saludo
@@ -6792,10 +6836,47 @@ function _recCumplesDerivados(){
   window._recCumpleCache={t:Date.now(),v:out};
   return out;
 }
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados()]; }
+// Partidos como recordatorios (se derivan de los partidos cargados en cada categoría, no se escriben a mano):
+//  · "Conseguir la alineación de X vs. Y y cargarla en la app": el día antes del partido (10:00); se da por hecho solo cuando
+//    la alineación ya está cargada (11 titulares). Desaparece pasado el partido.
+//  · "Completar la ficha de X vs. Y" (solo Juveniles): después del partido, hasta que estén resultado, titulares, capitán, DT,
+//    ingresos y goles —los minutos de goles e ingresos NO se exigen—.
+// Tildar uno a mano también lo da por hecho (se guarda en auf4_rec_manual).
+function _recPartidosDerivados(){
+  const out=[];
+  try{
+    const manual=stor.get('auf4_rec_manual',{});
+    const metaCat=c=>c==='fifamayor'?'Mayor':((typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[c]?.label)||c);
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i); if(!k||!k.startsWith('auf4_amist_juv_')) continue;
+      const cat=(k.slice('auf4_amist_juv_'.length).match(/^([a-z0-9]+)_/)||[])[1]||''; if(!cat) continue;
+      let list=[]; try{ list=JSON.parse(localStorage.getItem(k)||'[]'); }catch(_){}
+      if(!Array.isArray(list)) continue;
+      list.forEach(m=>{
+        const D=(m.fecha||'').slice(0,10); if(!D||!m.rival) return;
+        const lbl=metaCat(cat)+' vs. '+m.rival, uid=(m.id||(k+D+m.rival));
+        const nStart=Object.values((m.lineup||{}).starters||{}).filter(Boolean).length;
+        const hora=m.hora?' · '+String(m.hora).replace(/h+$/,'')+'h':'';
+        if(D>=TODAY && D<=_recSumarDias(TODAY,10)){
+          const id='alin|'+uid, mn=manual[id]||{};
+          out.push({id,titulo:'Conseguir la alineación de '+lbl+' y cargarla en la app',detalle:'Partido '+D.split('-').reverse().join('/')+hora+' · se la pedimos al CT',vence:_recSumarDias(D,-1),hora:'10:00',etiqueta:metaCat(cat),
+            hecho:nStart>=11||!!mn.hecho,hechoEn:(nStart<11&&mn.hecho)?mn.hechoEn:null});
+        }
+        if(cat!=='fifamayor' && D<=TODAY && D>=_recSumarDias(TODAY,-10)){
+          const completa=m.gLocal!=null&&m.gRival!=null&&nStart>=11&&!!(m.lineup||{}).captain&&!!m.dtPartido&&Array.isArray(m.subs)&&m.subs.length>0;
+          const id='ficha|'+uid, mn=manual[id]||{};
+          out.push({id,titulo:'Completar la ficha de '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · resultado, titulares, capitán, DT, ingresos y goles',vence:_recSumarDias(D,1),hora:'10:00',etiqueta:metaCat(cat),
+            hecho:completa||!!mn.hecho,hechoEn:(!completa&&mn.hecho)?mn.hechoEn:null});
+        }
+      });
+    }
+  }catch(e){ console.error('recordatorios de partidos:',e); }
+  return out;
+}
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados()]; }
 function _recPendientes(){
   const lim=new Date(); lim.setDate(lim.getDate()+1); lim.setHours(23,59,59,999);
-  return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim).sort((a,b)=>_recDue(a)-_recDue(b));
+  return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim).sort(_recCmp);
 }
 // Los que se marcaron como hechos HOY quedan a la vista con su tick (no desaparecen); se pueden destildar.
 function _recHechosHoy(){
@@ -6815,6 +6896,12 @@ function _recEtiqueta(r){
   const d=_recDue(r), hoy0=new Date(); hoy0.setHours(0,0,0,0);
   const dias=Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-hoy0)/86400000);
   const hh=(r.hora||'09:00');
+  if(r.sinHora){ // sin horario (depende de otro área): solo el día; si es importante va en rojo
+    const rojo=!!r.importante;
+    if(dias<0) return {t:`vencido ${-dias===1?'ayer':'hace '+(-dias)+' días'}`,c:rojo?'#DC2626':'#D97706',bg:rojo?'#FEE2E2':'#FEF3C7'};
+    if(dias===0) return {t:'hoy',c:rojo?'#DC2626':'#0369A1',bg:rojo?'#FEE2E2':'#E0F2FE'};
+    return {t:'mañana',c:rojo?'#DC2626':'#64748B',bg:rojo?'#FEE2E2':'#F1F5F9'};
+  }
   if(dias<0) return {t:`vencido ${-dias===1?'ayer':'hace '+(-dias)+' días'}`,c:'#D97706',bg:'#FEF3C7'};
   if(dias===0) return {t:d<new Date()?`hoy ${hh} · ya es hora`:`hoy ${hh}`,c:d<new Date()?'#DC2626':'#0369A1',bg:d<new Date()?'#FEE2E2':'#E0F2FE'};
   return {t:`mañana ${hh}`,c:'#64748B',bg:'#F1F5F9'};
@@ -6825,12 +6912,12 @@ function renderInicioRecordatorios(){
   const pend=_recPendientes(), hechos=_recHechosHoy();
   if(!pend.length && !hechos.length) return '';
   const isMob=window.innerWidth<=600;
-  const rows=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recDue(x[0])-_recDue(y[0])).map(([r,hecho])=>{
+  const rows=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
     const e=_recEtiqueta(r);
     return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px 0;${hecho?'opacity:.55':''}">
       ${_recTick(r,hecho,isMob)}
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:600;color:${isMob?'#EFF3F8':'var(--text)'};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
+        <div style="font-size:12.5px;font-weight:${r.importante&&!hecho?800:600};color:${r.importante&&!hecho?'#DC2626':(isMob?'#EFF3F8':'var(--text)')};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
         ${r.detalle?`<div style="font-size:11px;color:${isMob?'rgba(239,243,248,.5)':'var(--muted)'};margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
       </div>
       <span style="font-size:10px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?(isMob?'rgba(22,163,74,.18)':'#DCFCE7'):(isMob?'rgba(255,255,255,.08)':e.bg)};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${hecho?'hecho':e.t}</span>
@@ -6858,12 +6945,13 @@ function _recDockRender(){
   } else {
     d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:300px;max-height:calc(100vh - 160px);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 14px';
     d.title=''; d.onclick=null;
-    const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recDue(x[0])-_recDue(y[0])).map(([r,hecho])=>{
+    const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
       const e=_recEtiqueta(r);
-      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-top:1px solid var(--border);${hecho?'opacity:.55':''}">
+      const rojo=!!r.importante&&!hecho;
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px ${rojo?'6px':'0'};border-top:1px solid var(--border);${rojo?'background:#FEF2F2;border-left:3px solid #DC2626;border-radius:6px;margin:2px 0;':''}${hecho?'opacity:.55':''}">
         ${_recTick(r,hecho,false)}
         <div style="flex:1;min-width:0">
-          <div style="font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3;${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}</div>
+          <div style="font-size:11.5px;font-weight:${rojo?800:700};color:${rojo?'#B91C1C':'var(--text)'};line-height:1.3;${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}</div>
           ${r.detalle?`<div style="font-size:10.5px;color:var(--muted);margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
           <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
             <span style="font-size:9.5px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?'#DCFCE7':e.bg};border-radius:5px;padding:1px 6px">${hecho?'hecho':e.t}</span>
@@ -6907,6 +6995,14 @@ window._recNoAplica=function(id){
   window._recCumpleCache=null; if(typeof renderInicio==='function') renderInicio();
 };
 window._recHecho=function(id){
+  if(/^(alin|ficha)\|/.test(String(id))){
+    const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
+    man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
+    stor.set('auf4_rec_manual',man);
+    const n=document.getElementById('rec-noti'); if(n) n.remove();
+    if(typeof renderInicio==='function') renderInicio();
+    return;
+  }
   if(/^(cumple|ani)-/.test(String(id))){
     const esDis=/^(cumple|ani)-dis\|/.test(String(id)), k=String(id).slice(String(id).indexOf('|')+1);
     const links=stor.get('auf4_hoylinks',{}), cur=links[k]||{};
@@ -6922,6 +7018,7 @@ window._recHecho=function(id){
   if(r.hecho){ r.hecho=false; delete r.hechoEn; }   // tocar el tick lo destilda
   else { r.hecho=true; r.hechoEn=new Date().toISOString(); }
   stor.set(KRecordatorios,l);
+  if(r.tareaRef){ const tl=_tareasLog(); const t=tl.find(x=>x.recId===id); if(t){ t.done=!!r.hecho; stor.set(KTareasLog,tl); } } // un recordatorio de tarea tildado da por hecha la tarea
   const n=document.getElementById('rec-noti'); if(n) n.remove();
   if(typeof renderInicio==='function') renderInicio();
 };
@@ -6963,10 +7060,13 @@ function renderInicioTareas(){
     const tagVieja=esVieja?`<span style="font-size:10px;font-weight:700;color:#F59E0B;background:${isMob?'rgba(245,158,11,.15)':'#FEF3C7'};border-radius:5px;padding:1px 5px;flex-shrink:0">pend. ${d}/${mo}</span>`:'';
     const taTxt=t.txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return `
-    <div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0">
+    <div data-tarea-idx="${t.idx}" style="display:flex;align-items:flex-start;gap:8px;padding:4px 0">
       <input type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx})" style="width:15px;height:15px;flex-shrink:0;cursor:pointer;margin-top:2px">
       <textarea rows="1" class="tarea-txt" onblur="window._inicioTareaEdit(${t.idx},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" oninput="_sizeTareaTAs()" style="flex:1;min-width:0;min-height:0;border:none;background:transparent;outline:none;padding:2px 0;font-size:12.5px;font-family:inherit;line-height:1.35;resize:none;overflow:hidden;word-break:break-word;${t.done?'text-decoration:line-through;opacity:.5;':''}color:${rowColor}">${taTxt}</textarea>
       ${tagVieja}
+      ${(()=>{ const rc=t.recId?_recGet().find(x=>x.id===t.recId):null; const act=!!rc&&!rc.hecho;
+        const tip=act?`Recordatorio: ${rc.vence.split('-').reverse().join('/')}${rc.sinHora?'':' '+(rc.hora||'')} — tocá para cambiarlo`:'Ponerle recordatorio';
+        return `<button onclick="window._tareaRecAbrir(${t.idx})" title="${tip}" style="border:none;background:none;cursor:pointer;font-size:13px;padding:1px 3px;flex-shrink:0;line-height:1;${act?'color:#0EA5E9':'color:'+(isMob?'rgba(239,243,248,.3)':'var(--hint)')}"><i class="ti ${act?'ti-bell-ringing':'ti-bell'}"></i></button>`; })()}
       <button onclick="window._inicioTareaDel(${t.idx})" style="border:none;background:none;color:${isMob?'rgba(239,243,248,.3)':'var(--hint)'};cursor:pointer;font-size:12px;padding:2px 4px;flex-shrink:0">✕</button>
     </div>`;}).join('');
   const borderCol=isMob?'rgba(255,255,255,.15)':'var(--border)';
