@@ -1564,6 +1564,19 @@ html.auf-gate body { display:none !important }
   .juv-cat-sticky{top:0!important}
 }
 @media(min-width:601px){#mob-hdr{display:none!important}}
+/* Encabezado sobrio (escritorio), como Soy Juvenil: escudo + "Mi plataforma / Selección Uruguaya" a la izquierda, sin el logo del medio,
+   mismo azul que la barra de pestañas y una línea fina de separación. Encabezado y primera fila de pestañas van centrados en una columna de hasta 1440 px. */
+@media(min-width:601px){
+  .nav{background:#1a3a6b;border-bottom:1px solid rgba(255,255,255,.1);height:64px;padding-left:max(1.5rem,calc((100% - 1440px)/2));padding-right:max(1.5rem,calc((100% - 1440px)/2))}
+  .nav-l0{padding-left:max(1.5rem,calc((100% - 1440px)/2));padding-right:max(1.5rem,calc((100% - 1440px)/2))}
+  .nav-center{display:none!important}
+  .nav-brand{gap:13px}
+  .nav-logo-badge{width:42px;height:42px;border-radius:12px;box-shadow:none;background:none}
+  .nav-divider{display:none}
+  .nav-text h1{font-size:17px;font-weight:700;letter-spacing:-.005em;line-height:1.15}
+  .nav-text p{font-size:11.5px;color:rgba(255,255,255,.55);font-weight:500;margin-top:1px}
+  #tabs-bar{top:calc(64px + env(safe-area-inset-top))}
+}
 </style>
 <script>
 (function(){
@@ -6941,9 +6954,15 @@ function renderInicioRecordatorios(){
       ${r.derivado&&!hecho?`<span style="align-self:center">${_recNoAplicaBtn(r,hecho)}</span>`:''}
     </div>`;
   }).join('');
-  return `<div id="rec-box" style="scroll-margin-top:96px">${_inicioBox('🔔 Recordatorios', rows, '#0EA5E9', isMob)}</div>`;
+  return `<div id="rec-box" style="scroll-margin-top:150px">${_inicioBox('🔔 Recordatorios', rows, '#0EA5E9', isMob)}</div>`;
 }
 function _recWide(){ return window.innerWidth>=1100; }
+// Alto real de encabezado + barra de pestañas (cambia según la sección): lo usan los elementos pegajosos de más abajo.
+function _syncStickTop(){
+  const n=document.querySelector('nav.nav'), t=document.getElementById('tabs-bar'); if(!n||!t) return;
+  document.documentElement.style.setProperty('--stick-top',Math.round(n.getBoundingClientRect().height+t.getBoundingClientRect().height)+'px');
+}
+try{ window.addEventListener('resize',_syncStickTop); window.addEventListener('load',()=>{ _syncStickTop(); if(window.ResizeObserver){ const ro=new ResizeObserver(_syncStickTop); const n=document.querySelector('nav.nav'),t=document.getElementById('tabs-bar'); n&&ro.observe(n); t&&ro.observe(t); } }); }catch(_){}
 // Tarjeta fija, sutil, al borde derecho (pantallas anchas, solo en Inicio): lista de pendientes de hoy/vencidos/mañana.
 // Se puede minimizar a una campanita con el número (se recuerda durante el día). El centro de Inicio queda para Tareas.
 function _recDockRender(){
@@ -6955,12 +6974,12 @@ function _recDockRender(){
   let min=false; try{ min=localStorage.getItem('rec-dock-min-'+TODAY)==='1'; }catch(_){}
   const d=old||document.createElement('div'); d.id='rec-dock';
   if(min){
-    d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:42px;height:42px;border-radius:50%;background:#fff;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px';
+    d.style.cssText='position:fixed;right:14px;top:150px;z-index:8000;width:42px;height:42px;border-radius:50%;background:#fff;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px';
     d.title='Recordatorios pendientes';
     d.innerHTML=`🔔<span style="position:absolute;top:-4px;right:-4px;background:#0EA5E9;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${pend.length||'✓'}</span>`;
     d.onclick=()=>{ try{ localStorage.setItem('rec-dock-min-'+TODAY,'0'); }catch(_){} _recDockRender(); };
   } else {
-    d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:300px;max-height:calc(100vh - 160px);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 14px';
+    d.style.cssText='position:fixed;right:14px;top:150px;z-index:8000;width:300px;max-height:calc(100vh - 160px);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 14px';
     d.title=''; d.onclick=null;
     const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
       const e=_recEtiqueta(r);
@@ -33374,7 +33393,7 @@ function _renderJuvenilesSafe(el){
 
   _syncJuvNavButtons();
   el.innerHTML = `
-    <div class="juv-cat-sticky" style="background:var(--surface);position:sticky;top:calc(98px + env(safe-area-inset-top));z-index:100;border-bottom:1px solid var(--border)">
+    <div class="juv-cat-sticky" style="background:var(--surface);position:sticky;top:calc(var(--stick-top,98px) + env(safe-area-inset-top));z-index:100;border-bottom:1px solid var(--border)">
       <div style="padding:10px 16px 8px;display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;align-items:center;gap:5px">
           <div style="display:flex;gap:5px;flex:1">${catPills}</div>
