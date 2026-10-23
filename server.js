@@ -836,6 +836,19 @@ async function fetchLigaUY(leagueId, sinTablas) {
       utcTime: m.startTime, round: m.roundNum, fase: m.stageName,
     }));
 
+  // Partidos del día (hora de Montevideo), jugados o por jugar: para la tarjeta "Hoy · Fútbol uruguayo" de Inicio.
+  const _hoyKey = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+  const _delDia = g => new Date(g.startTime).toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' }) === _hoyKey;
+  const _mapHoy = (m, fin) => ({
+    id: m.id,
+    home: shortName(m.homeCompetitor), homeId: m.homeCompetitor.id,
+    away: shortName(m.awayCompetitor), awayId: m.awayCompetitor.id,
+    score: fin ? `${m.homeCompetitor.score} - ${m.awayCompetitor.score}` : undefined,
+    finalizado: fin, utcTime: m.startTime, round: m.roundNum, fase: m.stageName,
+  });
+  const hoy = [...fixtures.filter(_delDia).map(m => _mapHoy(m, false)), ...results.filter(_delDia).map(m => _mapHoy(m, true))]
+    .sort((a, b) => new Date(a.utcTime) - new Date(b.utcTime));
+
   const tablas = [];
   if (leagueId === FUTBOL_LEAGUES.primera) {
     tablas.push({ nombre: 'Apertura', filas: APERTURA_2026_TABLA });
@@ -854,7 +867,7 @@ async function fetchLigaUY(leagueId, sinTablas) {
     const nombre = (s.displayName || '').split(' - ').pop() || 'Actual';
     if (filas.length) tablas.push({ nombre, filas });
   }
-  return { proximos, ultimos, tablas };
+  return { proximos, ultimos, hoy, tablas };
 }
 
 app.get('/api/futbol-uy', async (req, res) => {

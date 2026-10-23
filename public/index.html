@@ -5118,7 +5118,7 @@ function showTab(id){
   _updateNavState(id);
   renderClosedBanner();
   window.scrollTo({top:0,behavior:'smooth'});
-  if(id!=='inicio'){ document.getElementById('rec-dock')?.remove(); const _ib=document.getElementById('inicio-body'); if(_ib) _ib.style.paddingRight=''; }
+  if(id!=='inicio'){ document.getElementById('rec-dock')?.remove(); document.getElementById('fut-dock')?.remove(); const _ib=document.getElementById('inicio-body'); if(_ib) _ib.style.paddingRight=''; }
   if(id==='inicio'){renderInicio()}
   if(id==='disponibilidad'){renderDisponibilidad()}
   if(id==='calendario'){renderCal()}
@@ -6095,6 +6095,14 @@ window._loadFutbolUY = async function(){
     try{ if(rDesc&&rDesc.ok) descensoFilas=(await rDesc.json()).filas||[]; }catch(_){}
     const isMobF=window.innerWidth<=600;
     const LIGAS=[{k:'primera',corto:'Liga AUF',color:'#1E3A8A',bg:'30,58,138',a:.14,logo:'./ligas/liga_auf.jpg'},{k:'segunda',corto:'Segunda',color:'#0EA5E9',bg:'14,165,233',a:.1,logo:'./ligas/segunda.jpg'},{k:'copa',corto:'Copa AUF',color:'#38BDF8',bg:'125,211,252',a:.2,logo:'./ligas/copa_auf.jpg'}];
+    // Partidos de HOY (cualquiera de las 3 competencias) para la tarjeta de la izquierda de Inicio; se guardan para el primer pintado.
+    try{
+      const hoyL=[]; LIGAS.forEach(L=>{ (d[L.k]?.hoy||[]).forEach(m=>{ if(_futbolDiaKey(m.utcTime)===TODAY) hoyL.push({m,L:{k:L.k,corto:L.corto,logo:L.logo,color:L.color}}); }); });
+      hoyL.sort((a,b)=>new Date(a.m.utcTime)-new Date(b.m.utcTime));
+      window._futHoy={fecha:TODAY,list:hoyL};
+      try{ localStorage.setItem('inicio-fut-hoy',JSON.stringify(window._futHoy)); }catch(_){}
+      if(typeof _futDockRender==='function') _futDockRender();
+    }catch(_){}
     const resultados=[], agenda=[];
     LIGAS.forEach(L=>{
       (d[L.k]?.ultimos||[]).forEach(m=>resultados.push({m:{...m,finalizado:true},L}));
@@ -7020,6 +7028,47 @@ function _recDockRender(){
     if(!min){ const libre=window.innerWidth-ib.getBoundingClientRect().right; if(libre<326) ib.style.paddingRight=(326-libre)+'px'; }
   }
 }
+// Tarjeta fija a la izquierda (espejo de Recordatorios): partidos del fútbol uruguayo de HOY (Liga AUF, Segunda y Copa AUF).
+// Solo aparece si hay partidos ese día, en pantallas anchas y solo en Inicio; se puede minimizar (se recuerda durante el día).
+function _futDockRender(){
+  const old=document.getElementById('fut-dock');
+  const enInicio=document.getElementById('inicio')?.classList.contains('active');
+  const ib=document.getElementById('inicio-body');
+  let hoy=[]; try{ const c=(window._futHoy&&window._futHoy.fecha===TODAY)?window._futHoy:JSON.parse(localStorage.getItem('inicio-fut-hoy')||'null'); if(c&&c.fecha===TODAY) hoy=c.list||[]; }catch(_){}
+  const libre=ib?ib.getBoundingClientRect().left:0;
+  if(!enInicio||!hoy.length||window.innerWidth<1400||libre<330){ old&&old.remove(); return; }
+  let min=false; try{ min=localStorage.getItem('fut-dock-min-'+TODAY)==='1'; }catch(_){}
+  const d=old||document.createElement('div'); d.id='fut-dock';
+  if(min){
+    d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:42px;height:42px;border-radius:50%;background:#fff;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:19px;color:#0F2547';
+    d.title='Fútbol uruguayo de hoy';
+    d.innerHTML=`<i class="ti ti-ball-football"></i><span style="position:absolute;top:-4px;right:-4px;background:#0EA5E9;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${hoy.length}</span>`;
+    d.onclick=()=>{ try{ localStorage.setItem('fut-dock-min-'+TODAY,'0'); }catch(_){} _futDockRender(); };
+  } else {
+    d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:300px;max-height:calc(100vh - 170px);overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 14px';
+    d.title=''; d.onclick=null;
+    const filas=hoy.map(({m,L})=>{
+      const mm=String(m.score||'').match(/(\d+)\s*[-–]\s*(\d+)/), gh=mm?+mm[1]:null, ga=mm?+mm[2]:null;
+      const fin=!!m.finalizado;
+      const eq=(id,nom,g,gana)=>`<div style="display:flex;align-items:center;gap:7px;padding:2px 0"><span style="flex-shrink:0;display:flex">${_futbolEscudo(id,18,nom)}</span><span style="flex:1;min-width:0;font-size:12px;font-weight:${gana?700:500};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${fin&&!gana&&gh!==ga?'var(--muted)':'var(--text)'}">${nom}</span>${fin&&g!=null?`<span style="font-size:13px;font-weight:${gana?800:500}">${g}</span>`:''}</div>`;
+      const lado=fin?`<span style="font-size:17px;color:#16A34A;line-height:1" title="Partido finalizado"><i class="ti ti-circle-check"></i></span>`:`<span style="font-size:12.5px;font-weight:800;color:var(--text);white-space:nowrap">${_fmtFutbolHoraCorta(m.utcTime)}</span>`;
+      return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--border)">
+        ${L.logo?`<img src="${L.logo}" alt="${L.corto}" title="${L.corto}" style="width:26px;height:26px;border-radius:7px;object-fit:cover;flex-shrink:0;box-shadow:0 1px 3px rgba(15,23,42,.18)" onerror="this.style.display='none'">`:''}
+        <div style="flex:1;min-width:0">${eq(m.homeId,m.home,gh,fin&&gh>ga)}${eq(m.awayId,m.away,ga,fin&&ga>gh)}</div>
+        <div style="flex-shrink:0;text-align:right">${lado}</div>
+      </div>`;
+    }).join('');
+    d.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:2px 0 8px">
+      <div><div style="display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)"><span style="width:7px;height:7px;border-radius:50%;background:#0EA5E9"></span>Hoy</div>
+      <div style="font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:3px;color:var(--text)">Fútbol uruguayo</div></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#0369A1;border:1px solid #0EA5E966;border-radius:999px;padding:2px 9px">${hoy.length}</span>
+        <button onclick="try{localStorage.setItem('fut-dock-min-'+TODAY,'1')}catch(_){};_futDockRender()" title="Minimizar" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:14px;padding:0 2px">—</button>
+      </div>
+    </div>${filas}`;
+  }
+  if(!old) document.body.appendChild(d);
+}
 // Lleva a Inicio y deja a la vista el bloque de recordatorios, con un destello breve para que se vea cuál es.
 function _recIrAlBloque(){
   try{ showTab('inicio'); }catch(_){}
@@ -7249,6 +7298,7 @@ function _renderInicioBase(){
   _sizeTareaTAs();
   setTimeout(_recAvisoSutil,900);
   _recDockRender();
+  try{ _futDockRender(); }catch(_){}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -39266,6 +39316,7 @@ window.showSection=function(sec){
 // Re-render inicio on resize
 let _mobLastW=window.innerWidth;
 window.addEventListener('resize',()=>{
+  try{ _futDockRender(); }catch(_){}
   const w=window.innerWidth;
   if((w<=600)!==(_mobLastW<=600)){
     _mobLastW=w;
