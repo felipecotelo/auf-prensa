@@ -5100,6 +5100,7 @@ function showTab(id){
   _updateNavState(id);
   renderClosedBanner();
   window.scrollTo({top:0,behavior:'smooth'});
+  if(id!=='inicio'){ document.getElementById('rec-dock')?.remove(); const _ib=document.getElementById('inicio-body'); if(_ib) _ib.style.paddingRight=''; }
   if(id==='inicio'){renderInicio()}
   if(id==='disponibilidad'){renderDisponibilidad()}
   if(id==='calendario'){renderCal()}
@@ -6606,6 +6607,7 @@ function _recEtiqueta(r){
 }
 const _recEsc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 function renderInicioRecordatorios(){
+  if(_recWide()) return ''; // en pantallas anchas va la tarjeta fija del borde derecho (_recDockRender)
   const pend=_recPendientes();
   if(!pend.length) return '';
   const isMob=window.innerWidth<=600;
@@ -6621,6 +6623,51 @@ function renderInicioRecordatorios(){
     </div>`;
   }).join('');
   return `<div id="rec-box" style="scroll-margin-top:96px">${_inicioBox('🔔 Recordatorios', rows, '#0EA5E9', isMob)}</div>`;
+}
+function _recWide(){ return window.innerWidth>=1100; }
+// Tarjeta fija, sutil, al borde derecho (pantallas anchas, solo en Inicio): lista de pendientes de hoy/vencidos/mañana.
+// Se puede minimizar a una campanita con el número (se recuerda durante el día). El centro de Inicio queda para Tareas.
+function _recDockRender(){
+  const old=document.getElementById('rec-dock');
+  const enInicio=document.getElementById('inicio')?.classList.contains('active');
+  const pend=_recPendientes();
+  const ib=document.getElementById('inicio-body');
+  if(!_recWide()||!enInicio||!pend.length){ old&&old.remove(); if(ib) ib.style.paddingRight=''; return; }
+  let min=false; try{ min=localStorage.getItem('rec-dock-min-'+TODAY)==='1'; }catch(_){}
+  const d=old||document.createElement('div'); d.id='rec-dock';
+  if(min){
+    d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:42px;height:42px;border-radius:50%;background:#fff;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px';
+    d.title='Recordatorios pendientes';
+    d.innerHTML=`🔔<span style="position:absolute;top:-4px;right:-4px;background:#0EA5E9;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${pend.length}</span>`;
+    d.onclick=()=>{ try{ localStorage.setItem('rec-dock-min-'+TODAY,'0'); }catch(_){} _recDockRender(); };
+  } else {
+    d.style.cssText='position:fixed;right:14px;top:128px;z-index:8000;width:300px;max-height:calc(100vh - 160px);overflow-y:auto;background:#fff;border:1px solid var(--border);border-left:3px solid #0EA5E9;border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:10px 12px';
+    d.title=''; d.onclick=null;
+    const filas=pend.map(r=>{
+      const e=_recEtiqueta(r);
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-top:1px solid var(--border)">
+        <button onclick="window._recHecho('${r.id}')" title="Marcar como hecho" style="flex-shrink:0;width:16px;height:16px;margin-top:2px;border-radius:50%;border:1.5px solid #94A3B8;background:none;cursor:pointer;padding:0"></button>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3">${_recEsc(r.titulo)}</div>
+          ${r.detalle?`<div style="font-size:10.5px;color:var(--muted);margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
+          <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
+            <span style="font-size:9.5px;font-weight:700;color:${e.c};background:${e.bg};border-radius:5px;padding:1px 6px">${e.t}</span>
+            ${r.etiqueta?`<span style="font-size:9.5px;font-weight:700;color:#0369A1;background:#E0F2FE;border-radius:5px;padding:1px 6px">#${_recEsc(r.etiqueta)}</span>`:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    d.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div style="font-size:9.5px;font-weight:800;color:#0EA5E9;text-transform:uppercase;letter-spacing:.08em">🔔 Recordatorios · ${pend.length}</div>
+      <button onclick="try{localStorage.setItem('rec-dock-min-'+TODAY,'1')}catch(_){};_recDockRender()" title="Minimizar" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:13px;padding:0 2px">—</button>
+    </div>${filas}`;
+  }
+  if(!old) document.body.appendChild(d);
+  // Si el contenido de Inicio llega hasta donde está la tarjeta, se corre a la izquierda para no taparlo.
+  if(ib){
+    ib.style.paddingRight='';
+    if(!min){ const libre=window.innerWidth-ib.getBoundingClientRect().right; if(libre<326) ib.style.paddingRight=(326-libre)+'px'; }
+  }
 }
 // Lleva a Inicio y deja a la vista el bloque de recordatorios, con un destello breve para que se vea cuál es.
 function _recIrAlBloque(){
@@ -6643,6 +6690,7 @@ window._recHecho=function(id){
 // Aviso sutil (una vez por día y dispositivo) cuando hay recordatorios que ya vencieron o son de hoy.
 function _recAvisoSutil(){
   try{
+    if(_recWide()) return; // con la tarjeta del borde derecho no hace falta el aviso
     const ahora=new Date();
     const hoy=_recPendientes().filter(r=>_recDue(r)<=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate(),23,59,59));
     if(!hoy.length) return;
@@ -6802,6 +6850,7 @@ function renderInicio(){
   </div>`;
   _sizeTareaTAs();
   setTimeout(_recAvisoSutil,900);
+  _recDockRender();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
