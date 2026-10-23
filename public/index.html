@@ -5859,6 +5859,11 @@ window._loadMisIdas = async function(){
 // Fútbol Uruguayo (Primera y Segunda) — lee /api/futbol-uy (datos en vivo de FotMob,
 // del lado del servidor). Si la AUF todavía no confirmó fecha/hora de una fecha, esa
 // fecha simplemente no aparece en el fixture — no inventamos placeholders.
+// Hora en formato corto: 16h, 15:40h, 20:30h (sin ceros de más ni AM/PM).
+function _fmtFutbolHoraCorta(utcTime){
+  const t=_fmtFutbolHora(utcTime), m=String(t).match(/^(\d{1,2}):(\d{2})/); if(!m) return t;
+  const h=String(parseInt(m[1],10)); return m[2]==='00' ? h+'h' : h+':'+m[2]+'h';
+}
 function _fmtFutbolHora(utcTime){
   return new Date(utcTime).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Montevideo'});
 }
@@ -5926,8 +5931,8 @@ function _futbolFilaPro(m,liga,esResultado,isMob){
   return `<div style="border-top:1px solid ${bd};background:rgba(${liga.bg||'148,163,184'},${liga.a?(isMob?liga.a+.04:liga.a):(isMob?.1:.07)})">
     <div style="display:flex;align-items:stretch">
       <div style="width:78px;flex-shrink:0;padding:12px 6px;text-align:center;border-right:1px solid ${bd};display:flex;flex-direction:column;justify-content:center;gap:4px">
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${mu};line-height:1.2">${liga.logo?`<img src="${liga.logo}" alt="" loading="lazy" style="width:32px;height:32px;object-fit:cover;border-radius:9px;box-shadow:0 1px 4px rgba(15,23,42,.18)" onerror="this.outerHTML='<span style=&quot;width:8px;height:8px;border-radius:50%;background:${liga.color}&quot;></span>'">`:`<span style="width:6px;height:6px;border-radius:50%;background:${liga.color}"></span>`}<span>${liga.corto}</span></div>
-        <div style="font-size:${esResultado?12:15}px;font-weight:${esResultado?700:800};color:${esResultado?mu:tx};letter-spacing:${esResultado?'.1em':'0'}">${esResultado?'FT':_fmtFutbolHora(m.utcTime)}</div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:8.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${mu};line-height:1.2">${liga.logo?`<img src="${liga.logo}" alt="${liga.corto}" title="${liga.corto}" loading="lazy" style="width:32px;height:32px;object-fit:cover;border-radius:9px;box-shadow:0 1px 4px rgba(15,23,42,.18)" onerror="this.outerHTML='<span style=&quot;width:8px;height:8px;border-radius:50%;background:${liga.color}&quot;></span>'">`:`<span style="width:6px;height:6px;border-radius:50%;background:${liga.color}"></span>`}</div>
+        <div style="font-size:${esResultado?18:14.5}px;font-weight:${esResultado?700:800};color:${esResultado?'#16A34A':tx};line-height:1.2;white-space:nowrap" title="${esResultado?'Partido finalizado':''}">${esResultado?'<i class="ti ti-circle-check"></i>':_fmtFutbolHoraCorta(m.utcTime)}</div>
       </div>
       <div style="flex:1;min-width:0;padding:10px 6px 10px 14px">
         ${team(m.homeId,m.home,gh,winH)}
