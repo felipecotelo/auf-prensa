@@ -6620,7 +6620,18 @@ function renderInicioRecordatorios(){
       <span style="font-size:10px;font-weight:700;color:${e.c};background:${isMob?'rgba(255,255,255,.08)':e.bg};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${e.t}</span>
     </div>`;
   }).join('');
-  return _inicioBox('🔔 Recordatorios', rows, '#0EA5E9', isMob);
+  return `<div id="rec-box" style="scroll-margin-top:96px">${_inicioBox('🔔 Recordatorios', rows, '#0EA5E9', isMob)}</div>`;
+}
+// Lleva a Inicio y deja a la vista el bloque de recordatorios, con un destello breve para que se vea cuál es.
+function _recIrAlBloque(){
+  try{ showTab('inicio'); }catch(_){}
+  setTimeout(()=>{
+    const b=document.getElementById('rec-box'); if(!b) return;
+    b.scrollIntoView({block:'start'});
+    b.style.transition='box-shadow .5s'; b.style.borderRadius='12px';
+    b.style.boxShadow='0 0 0 3px rgba(14,165,233,.55)';
+    setTimeout(()=>{ b.style.boxShadow='none'; },2200);
+  },250);
 }
 window._recHecho=function(id){
   const l=_recGet(); const r=l.find(x=>x.id===id); if(!r) return;
@@ -6642,10 +6653,13 @@ function _recAvisoSutil(){
     const primero=hoy[0];
     d.style.cssText='position:fixed;right:18px;bottom:18px;z-index:9000;max-width:330px;background:#0F2347;color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.28);border-left:4px solid #0EA5E9;font-size:12.5px;line-height:1.4;display:flex;gap:10px;align-items:flex-start;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s;cursor:pointer';
     d.innerHTML=`<span style="font-size:17px;line-height:1">🔔</span><div style="flex:1;min-width:0"><div style="font-weight:800;margin-bottom:2px">${hoy.length===1?'Recordatorio para hoy':hoy.length+' recordatorios para hoy'}</div><div style="opacity:.85">${_recEsc(primero.titulo)}${hoy.length>1?' y '+(hoy.length-1)+' más':''}</div></div><button onclick="event.stopPropagation();this.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,.55);cursor:pointer;font-size:14px;padding:0 2px">✕</button>`;
-    d.onclick=()=>{ d.remove(); try{ showTab('inicio'); }catch(_){} };
+    d.onclick=()=>{ d.remove(); _recIrAlBloque(); };
     document.body.appendChild(d);
     requestAnimationFrame(()=>{ d.style.opacity='1'; d.style.transform='translateY(0)'; });
-    setTimeout(()=>{ if(d.parentNode){ d.style.opacity='0'; d.style.transform='translateY(8px)'; setTimeout(()=>d.remove(),400); } },9000);
+    // Se queda 25 s y NO se va mientras tenga el mouse encima.
+    let hover=false; d.onmouseenter=()=>{hover=true;}; d.onmouseleave=()=>{hover=false;};
+    const cerrar=()=>{ if(!d.parentNode) return; if(hover){ setTimeout(cerrar,2000); return; } d.style.opacity='0'; d.style.transform='translateY(8px)'; setTimeout(()=>d.remove(),400); };
+    setTimeout(cerrar,25000);
   }catch(e){ console.error('aviso recordatorios:',e); }
 }
 
