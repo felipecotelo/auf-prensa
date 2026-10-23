@@ -5628,9 +5628,12 @@ function _inicioColapsable(key,titulo,color,html){
   let abierto=false; try{ abierto=localStorage.getItem('inicio-abierto-'+key)==='1'; }catch(_){}
   const barBg=isMob?'rgba(255,255,255,.04)':'#fff', barBorde=isMob?'1px solid rgba(255,255,255,.08)':'1px solid var(--border)';
   const txt=isMob?'rgba(239,243,248,.7)':'var(--muted)';
+  // Aviso en la barra: cumpleaños que todavía no se saludaron (están adentro y minimizados).
+  const sinSaludar=(html.match(/No lo saludamos todav/g)||[]).length;
+  const aviso=sinSaludar?`<span style="background:${isMob?'rgba(245,158,11,.18)':'#FEF3C7'};color:${isMob?'#FBBF24':'#92400E'};border:1px solid ${isMob?'rgba(245,158,11,.4)':'#FDE68A'};border-radius:7px;padding:1px 8px;font-size:10px;font-weight:800;text-transform:none;letter-spacing:0;margin-left:10px">🎂 ${sinSaludar} sin saludar</span>`:'';
   return `<div data-colap="${key}" style="margin-bottom:${abierto?'0':'12px'}">
-    <button data-colap-bar="${key}" onclick="window._inicioToggleColap('${key}')" style="display:${abierto?'none':'flex'};align-items:center;justify-content:space-between;width:100%;background:${barBg};border:${barBorde};border-left:3px solid ${color};border-radius:10px;padding:8px 14px;cursor:pointer;color:${txt};font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-family:inherit">
-      <span>${titulo}</span><span style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0">Ampliar <i class="ti ti-chevron-down"></i></span>
+    <button data-colap-bar="${key}" onclick="window._inicioToggleColap('${key}')" style="display:${abierto?'none':'flex'};align-items:center;justify-content:space-between;width:100%;background:${color}${isMob?'26':'14'};border:${barBorde};border-left:3px solid ${color};border-radius:10px;padding:10px 14px;cursor:pointer;color:${color};font-size:12.5px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;font-family:inherit">
+      <span style="display:flex;align-items:center">${titulo}${aviso}</span><span style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0">Ampliar <i class="ti ti-chevron-down"></i></span>
     </button>
     <div data-colap-body="${key}" style="display:${abierto?'block':'none'}">
       ${html}
@@ -5649,13 +5652,16 @@ window._inicioToggleColap=function(key){
 function renderInicioAyerSeleccion(){ return _inicioColapsable('ayer','Ayer en Selección','#94A3B8',renderInicioHoySeleccion(-1)); }
 function renderInicioMananaSeleccion(){ return _inicioColapsable('manana','Mañana en Selección','#8B5CF6',renderInicioHoySeleccion(1)); }
 function _inicioBox(title,bodyHtml,color,isMob,grisado){
+  // Título destacado: más grande y sobre una franja con el color de la caja ("Hoy en Selección" un talle más, es el foco).
+  const grande=/^Hoy en Selección/.test(title);
+  const fs=grande?15:12.5;
   return isMob
     ? `<div style="background:${grisado?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)'};border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;margin-bottom:16px${grisado?';opacity:.8':''}">
-        <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${title}</div>
+        <div style="margin:-14px -16px 10px;padding:${grande?11:9}px 16px;background:${color}2B;border-radius:15px 15px 0 0;font-size:${fs}px;font-weight:900;color:${color};text-transform:uppercase;letter-spacing:.07em">${title}</div>
         <div style="font-size:12.5px;color:rgba(239,243,248,.75);line-height:1.5">${bodyHtml}</div>
       </div>`
     : `<div style="background:${grisado?'var(--surface2,#F3F4F6)':'#fff'};border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px;border-left:3px solid ${color}">
-        <div style="font-size:9.5px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${title}</div>
+        <div style="margin:-14px -16px 10px;padding:${grande?11:9}px 16px;background:${color}${grande?'22':'16'};border-radius:0 11px 0 0;font-size:${fs}px;font-weight:900;color:${color};text-transform:uppercase;letter-spacing:.07em">${title}</div>
         <div style="font-size:12.5px;color:var(--text);line-height:1.5">${bodyHtml}</div>
       </div>`;
 }
