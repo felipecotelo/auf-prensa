@@ -1654,6 +1654,13 @@ html.auf-gate body { display:none !important }
   body:not(:has(#sec-juveniles.active)) #nav-l2.tabs{background-color:#14234A;justify-content:center}
   .cal-day.tipo-previo{border-color:rgba(255,255,255,.28)!important}
   button{color:var(--text)}
+  /* Barra de pestañas propia de una sección (Prensa, etc.): misma franja escalonada y centrada que Mayor y Juveniles, de borde a borde */
+  #app-content:has(#sec-prensa.active),#app-content:has(#sec-estructura.active){padding-top:0}
+  .sj-band{display:flex;justify-content:center;flex-wrap:wrap;gap:4px;padding:7px 1rem 8px;margin-bottom:26px;background:#14234A;box-shadow:0 0 0 100vmax #14234A;clip-path:inset(0 -100vmax)}
+  .sj-pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border:1px solid transparent;border-radius:8px;font-family:inherit;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.52);background:none;cursor:pointer;white-space:nowrap}
+  .sj-pill:hover:not(.active){color:#fff;background:rgba(255,255,255,.06)}
+  .sj-pill.active{color:#8AD8FF;background:rgba(0,157,216,.14);font-weight:700}
+  .sj-pill i{font-size:12.5px;opacity:.7}
   /* clases con fondo claro */
   .cb-llegada,.att-zm,.att-cf,.p-act-chip.conf,.p-ms.cap,.tag-auf,.cal-ev.cat-dt,.cal-ev.cat-partido,.cb-entreno,.cal-ev.cat-auf,.st2 .uru-row td{background:rgba(0,157,216,.14)}
   .cb-viaje,.inj-yellow,.inj-toggle.yellow,.p-act-chip.flash,.ev-pair-bar.partial,.cal-ev.cat-viaje,.cal-ev.cat-crono,.cal-day-note.has-note,.chk-note.has-note,.p-note.has-note,.ev-note-field.has-note{background:rgba(245,158,11,.14)}
@@ -38095,8 +38102,8 @@ function _pwSetTab(tab){
   renderPrensa(); _pwInitSync();
 }
 function _pwTabsHtml(active){
-  const tab=(id,icon,label)=>`<button onclick="_pwSetTab('${id}')" style="padding:10px 20px;border:none;border-bottom:2.5px solid ${active===id?'var(--cel)':'transparent'};margin-bottom:-2px;background:none;font-size:.88em;font-weight:800;cursor:pointer;color:${active===id?'var(--cel)':'var(--muted)'};display:flex;align-items:center;gap:6px"><i class="ti ${icon}" style="font-size:.95em"></i>${label}</button>`;
-  return `<div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:24px;gap:0">
+  const tab=(id,icon,label)=>`<button onclick="_pwSetTab('${id}')" class="sj-pill${active===id?' active':''}"><i class="ti ${icon}"></i>${label}</button>`;
+  return `<div class="sj-band">
     ${tab('list','ti-microphone-2','Ventanas de prensa')}
     ${tab('medios','ti-device-tv','Medios y programas')}
   </div>`;
@@ -39392,9 +39399,9 @@ function _renderEstLista(){
   const cache=window._estPhotoCache||{};
   const sections=_estBuildAllSections();
 
-  const tabs=`<div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:20px">
-    <button onclick="_estSetTab('activos')" style="padding:8px 16px 10px;border:none;background:none;cursor:pointer;font-size:.82em;font-weight:800;color:${_estTab==='activos'?'var(--cel)':'var(--muted)'};border-bottom:2.5px solid ${_estTab==='activos'?'var(--cel)':'transparent'};margin-bottom:-2px;transition:color .15s"><i class="ti ti-users" style="margin-right:5px"></i>Integrantes activos</button>
-    <button onclick="_estSetTab('ex')" style="padding:8px 16px 10px;border:none;background:none;cursor:pointer;font-size:.82em;font-weight:800;color:${_estTab==='ex'?'var(--cel)':'var(--muted)'};border-bottom:2.5px solid ${_estTab==='ex'?'var(--cel)':'transparent'};margin-bottom:-2px;transition:color .15s"><i class="ti ti-history" style="margin-right:5px"></i>Ex integrantes</button>
+  const tabs=`<div class="sj-band">
+    <button onclick="_estSetTab('activos')" class="sj-pill${_estTab==='activos'?' active':''}"><i class="ti ti-users"></i>Integrantes activos</button>
+    <button onclick="_estSetTab('ex')" class="sj-pill${_estTab==='ex'?' active':''}"><i class="ti ti-history"></i>Ex integrantes</button>
   </div>`;
 
   let blocks='', total=0;
@@ -39475,13 +39482,12 @@ function _renderEstLista(){
     ?`${total} integrantes activos · ${sections.filter(d=>d.personas.some(p=>(contracts[p.key]||_estDefaultContrato(p))==='activo')).length} áreas`
     :`${total} ex integrante${total!==1?'s':''}`;
 
-  el.innerHTML=`
-    <div style="max-width:700px;margin:0 auto;padding:16px">
+  el.innerHTML=`${tabs}
+    <div style="max-width:700px;margin:0 auto;padding:0 16px 16px">
       <div style="margin-bottom:16px">
         <div style="font-size:1.1em;font-weight:900;color:var(--text)">Estructura de Selección</div>
         <div style="font-size:.78em;color:var(--muted);margin-top:2px">${subtitle}</div>
       </div>
-      ${tabs}
       ${blocks}
     </div>`;
 }
