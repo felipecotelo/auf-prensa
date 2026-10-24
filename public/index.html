@@ -6923,15 +6923,15 @@ function _recPartidosDerivados(){
       list.forEach(m=>{
         const D=(m.fecha||'').slice(0,10); if(!D||!m.rival) return;
         const lbl=metaCat(cat)+' vs. '+m.rival, uid=(m.id||(k+D+m.rival));
-        const nStart=Object.values((m.lineup||{}).starters||{}).filter(Boolean).length;
+        const nStart=Object.values((m.lineup||{}).starters||{}).filter(Boolean).length, nMax=(m.compId==='mundial-sub15-2026')?8:11;
         const hora=m.hora?' · '+String(m.hora).replace(/h+$/,'')+'h':'';
         if(D>=TODAY && D<=_recSumarDias(TODAY,10)){
           const id='alin|'+uid, mn=manual[id]||{};
           out.push({id,titulo:'Conseguir la alineación de '+lbl+' y cargarla en la app',detalle:'Partido '+D.split('-').reverse().join('/')+hora+' · se la pedimos al CT',vence:_recSumarDias(D,-1),hora:'10:00',etiqueta:metaCat(cat),
-            hecho:nStart>=11||!!mn.hecho,hechoEn:(nStart<11&&mn.hecho)?mn.hechoEn:null});
+            hecho:nStart>=nMax||!!mn.hecho,hechoEn:(nStart<nMax&&mn.hecho)?mn.hechoEn:null});
         }
         if(cat!=='fifamayor' && D<=TODAY && D>=_recSumarDias(TODAY,-10)){
-          const completa=m.gLocal!=null&&m.gRival!=null&&nStart>=11&&!!(m.lineup||{}).captain&&!!m.dtPartido&&Array.isArray(m.subs)&&m.subs.length>0;
+          const completa=m.gLocal!=null&&m.gRival!=null&&nStart>=nMax&&!!(m.lineup||{}).captain&&!!m.dtPartido&&Array.isArray(m.subs)&&m.subs.length>0;
           const id='ficha|'+uid, mn=manual[id]||{};
           out.push({id,titulo:'Completar la ficha de '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · resultado, titulares, capitán, DT, ingresos y goles',vence:_recSumarDias(D,1),hora:'10:00',etiqueta:metaCat(cat),
             hecho:completa||!!mn.hecho,hechoEn:(!completa&&mn.hecho)?mn.hechoEn:null});
@@ -21650,7 +21650,7 @@ async function renderPizarra(matchId){
         <div style="margin-top:10px">
           <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Formación</div>
           <div class="form-sel-btns" style="flex-wrap:wrap">
-            ${Object.keys(FORMATIONS).map(f=>`<button class="form-btn${f===form?' active':''}" onclick="pizChangeForm('${matchId}','${f}')">${f}</button>`).join('')}
+            ${_FORM_F11_KEYS().map(f=>`<button class="form-btn${f===form?' active':''}" onclick="pizChangeForm('${matchId}','${f}')">${f}</button>`).join('')}
           </div>
           <button onclick="resetMatchSlotPos('${matchId}');_luPhotos=null;renderPizarra('${matchId}')" style="margin-top:8px;font-size:10px;padding:4px 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface);cursor:pointer;color:var(--muted);font-weight:700" title="Restablecer posiciones originales">↺ Reset pos.</button>
         </div>
@@ -21955,7 +21955,31 @@ const FORMATIONS={
     {id:'LM',pos:'MED',x:13,y:50},{id:'CM1',pos:'MED',x:36,y:47},{id:'CM2',pos:'MED',x:64,y:47},{id:'RM',pos:'MED',x:87,y:50},
     {id:'LW',pos:'DEL',x:18,y:23},{id:'ST',pos:'DEL',x:50,y:17},{id:'RW',pos:'DEL',x:82,y:23},
   ],
+  // Fútbol 8 (Mundial Sub-15): arquero + 7. Solo se ofrecen en los partidos de ese torneo (ver _juvFormKeys).
+  '3-3-1':[
+    {id:'GK',pos:'POR',x:50,y:85},{id:'CB1',pos:'DEF',x:26,y:68},{id:'CB2',pos:'DEF',x:50,y:68},{id:'CB3',pos:'DEF',x:74,y:68},
+    {id:'CM1',pos:'MED',x:22,y:46},{id:'CM2',pos:'MED',x:50,y:46},{id:'CM3',pos:'MED',x:78,y:46},
+    {id:'ST',pos:'DEL',x:50,y:20},
+  ],
+  '2-3-2':[
+    {id:'GK',pos:'POR',x:50,y:85},{id:'CB1',pos:'DEF',x:34,y:68},{id:'CB2',pos:'DEF',x:66,y:68},
+    {id:'CM1',pos:'MED',x:22,y:46},{id:'CM2',pos:'MED',x:50,y:46},{id:'CM3',pos:'MED',x:78,y:46},
+    {id:'ST1',pos:'DEL',x:36,y:21},{id:'ST2',pos:'DEL',x:64,y:21},
+  ],
+  '3-2-2':[
+    {id:'GK',pos:'POR',x:50,y:85},{id:'CB1',pos:'DEF',x:26,y:68},{id:'CB2',pos:'DEF',x:50,y:68},{id:'CB3',pos:'DEF',x:74,y:68},
+    {id:'CM1',pos:'MED',x:36,y:46},{id:'CM2',pos:'MED',x:64,y:46},
+    {id:'ST1',pos:'DEL',x:36,y:21},{id:'ST2',pos:'DEL',x:64,y:21},
+  ],
+  '2-4-1':[
+    {id:'GK',pos:'POR',x:50,y:85},{id:'CB1',pos:'DEF',x:34,y:68},{id:'CB2',pos:'DEF',x:66,y:68},
+    {id:'LM',pos:'MED',x:13,y:46},{id:'CM1',pos:'MED',x:36,y:46},{id:'CM2',pos:'MED',x:64,y:46},{id:'RM',pos:'MED',x:87,y:46},
+    {id:'ST',pos:'DEL',x:50,y:20},
+  ],
 };
+const _F8_KEYS=['3-3-1','2-3-2','3-2-2','2-4-1'];
+const _FORM_F11_KEYS=()=>Object.keys(FORMATIONS).filter(f=>!_F8_KEYS.includes(f));
+function _juvEsF8(m){ return !!m && m.compId==='mundial-sub15-2026'; }
 
 let _luPhotos=null;
 let _selSlot=null;
@@ -21981,7 +22005,7 @@ async function renderLineup(matchId){
 
     <div class="lineup-hdr">
       <div class="form-sel-btns">
-        ${Object.keys(FORMATIONS).map(f=>`<button class="form-btn${f===form?' active':''}" onclick="changeForm('${matchId}','${f}')">${f}</button>`).join('')}
+        ${_FORM_F11_KEYS().map(f=>`<button class="form-btn${f===form?' active':''}" onclick="changeForm('${matchId}','${f}')">${f}</button>`).join('')}
       </div>
       <button class="nav-btn" onclick="syncLineupESPN('${matchId}')" style="font-size:10.5px;padding:5px 10px;background:rgba(0,0,0,.06)">
         <i class="ti ti-refresh" style="font-size:11px"></i> ESPN
@@ -31048,11 +31072,18 @@ window._filterJuvSP = function(val){
 // siguen disponibles y los partidos que ya tienen formación guardada no se tocan.
 window._JUV_DEF442_DESDE = '2026-11-13'; // vs. Argentina (13/11/2026): de este partido en adelante
 window._juvDefForm = function(cat, m){
+  if(_juvEsF8(m)) return '3-3-1'; // Mundial Sub-15: fútbol 8
   return (cat==='fifamayor' && m && String(m.fecha||'')>=window._JUV_DEF442_DESDE) ? '4-4-2' : '4-3-3';
+};
+// Formación efectiva de un partido: si la guardada no corresponde a su modalidad (fútbol 8 vs. 11), se usa la de la modalidad.
+window._juvFormOf = function(cat, m, lu){
+  const f=(lu&&lu.formation)||window._juvDefForm(cat,m), f8=_juvEsF8(m), esF8=_F8_KEYS.includes(f);
+  return (f8&&!esF8)||(!f8&&esF8) ? window._juvDefForm(cat,m) : f;
 };
 // Orden de los botones de formación: en los partidos con default 4-4-2 esa opción va primero.
 window._juvFormKeys = function(cat, m){
-  const ks=Object.keys(FORMATIONS), d=window._juvDefForm(cat,m);
+  if(_juvEsF8(m)) return _F8_KEYS.slice();
+  const ks=_FORM_F11_KEYS(), d=window._juvDefForm(cat,m);
   return d==='4-3-3' ? ks : [d, ...ks.filter(k=>k!==d)];
 };
 window._assignJuvP = function(cat, year, matchId, leg, slotId, nom){
@@ -31187,7 +31218,7 @@ window._amistRemoveLesion = function(cat, year, matchId, leg, idx){
 function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, convNumMap, cat, year, lesiones){
   const sfx = leg===2?'2':'';
   const lu = m['lineup'+sfx]||{formation:_juvDefForm(cat,m),starters:{}};
-  const form = lu.formation||_juvDefForm(cat,m);
+  const form = _juvFormOf(cat,m,lu);
   const slots = FORMATIONS[form];
   const st = lu.starters||{};
   const goles = m['goles'+sfx]||{};
@@ -31961,7 +31992,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         <div style="margin-top:10px">
           <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Formación</div>
           <div class="form-sel-btns" style="flex-wrap:wrap">
-            ${_juvFormKeys(cat,m).map(f=>`<button class="form-btn${(luSfx.formation||_juvDefForm(cat,m))===f?' active':''}" onclick="_juvChangeForm('${cat}','${year}',${m.id},${leg},'${f}')">${f}</button>`).join('')}
+            ${_juvFormKeys(cat,m).map(f=>`<button class="form-btn${_juvFormOf(cat,m,luSfx)===f?' active':''}" onclick="_juvChangeForm('${cat}','${year}',${m.id},${leg},'${f}')">${f}</button>`).join('')}
           </div>
         </div>
 
