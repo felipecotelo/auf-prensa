@@ -7073,6 +7073,7 @@ function _escudoSeleccion(nombre,sz){
   if(f) return `<img src="./selecciones/${f}.png" alt="${nombre||''}" title="${nombre||''}" style="width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
   return `<span title="${nombre||''}" style="width:${sz}px;height:${sz}px;border-radius:50%;border:1px solid rgba(255,255,255,.16);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*.34)}px;font-weight:800;letter-spacing:.04em;color:rgba(239,243,248,.5)">${String(nombre||'?').slice(0,3).toUpperCase()}</span>`;
 }
+const _COMP_NOM={'mundial-sub15-2026':'Copa Mundial Sub-15','odesur-2026':'Juegos ODESUR 2026','wc17-2026':'Mundial Sub-17 Qatar 2026','torneo-desarrollo-sub15-2026':'Liga Evolución CONMEBOL Sub-15'};
 function _partidosSeleccionHoy(){
   const out=[];
   const min=h=>{ const m=String(h||'').match(/(\d{1,2})(?::(\d{2}))?/); return m?parseInt(m[1],10)*60+parseInt(m[2]||'0',10):9999; };
@@ -7082,23 +7083,26 @@ function _partidosSeleccionHoy(){
       const cat=(k.slice('auf4_amist_juv_'.length).match(/^([a-z0-9]+)_/)||[])[1]||''; if(!cat||cat==='fifamayor') continue;
       let list=[]; try{ list=JSON.parse(localStorage.getItem(k)||'[]'); }catch(_){}
       if(!Array.isArray(list)) continue;
+      const _mund=list.filter(x=>x.compId==='mundial-sub15-2026').sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
       list.forEach(m=>{ if((m.fecha||'').slice(0,10)!==TODAY||!m.rival) return;
         const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
         const fin=m.gLocal!=null&&m.gRival!=null&&(m.confirmado||m.gLocal!=='');
-        out.push({sel:true,eyebrow:'Selección '+catLbl,rival:m.rival,hora:_horaCortaTxt(m.hora),min:min(m.hora),gl:fin?+m.gLocal:null,gr:fin?+m.gRival:null,estado:fin?'fin':'prog'});
+        const nom=_COMP_NOM[m.compId]||m.torneo||('Selección '+catLbl);
+        const det=m.compId==='mundial-sub15-2026'?'Partido '+(_mund.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
+        out.push({sel:true,eyebrow:{nom,det},rival:m.rival,hora:_horaCortaTxt(m.hora),min:min(m.hora),gl:fin?+m.gLocal:null,gr:fin?+m.gRival:null,estado:fin?'fin':'prog'});
       });
     }
   }catch(_){}
   try{
     [typeof FIFASEP26!=='undefined'?FIFASEP26:null,typeof FIFANOV26!=='undefined'?FIFANOV26:null].filter(Boolean).forEach(EV=>(EV.partidosData||[]).forEach(p=>{
-      if((p.fecha||'').slice(0,10)===TODAY) out.push({sel:true,eyebrow:'Selección Mayor',rival:p.rival,hora:_horaCortaTxt(p.hora),min:min(p.hora),gl:null,gr:null,estado:'prog'});
+      if((p.fecha||'').slice(0,10)===TODAY) out.push({sel:true,eyebrow:{nom:'Selección Mayor',det:'Fecha FIFA'},rival:p.rival,hora:_horaCortaTxt(p.hora),min:min(p.hora),gl:null,gr:null,estado:'prog'});
     }));
   }catch(_){}
   return out;
 }
 // Fútbol uruguayo de hoy (Liga AUF, Segunda y Copa AUF) con estado: prog | vivo | fin | aplazado. La fuente fresca es /api/futbol-uy/hoy
 // (se consulta cada 30 s mientras hay un partido en juego o por empezar); el primer pintado sale de lo que trajo /api/futbol-uy.
-const _FUT_LIGAS={primera:{corto:'Liga AUF',logo:'./ligas/liga_auf.jpg'},segunda:{corto:'Segunda',logo:'./ligas/segunda.jpg'},copa:{corto:'Copa AUF',logo:'./ligas/copa_auf.jpg'}};
+const _FUT_LIGAS={primera:{corto:'Liga AUF',nom:'Liga AUF Uruguaya',logo:'./ligas/liga_auf.jpg'},segunda:{corto:'Segunda',nom:'Segunda Profesional AUF',logo:'./ligas/segunda.jpg'},copa:{corto:'Copa AUF',nom:'Copa AUF Uruguay',logo:'./ligas/copa_auf.jpg'}};
 function _futLigaHoy(){
   try{
     let c=(window._futVivo&&window._futVivo.fecha===TODAY)?window._futVivo:JSON.parse(localStorage.getItem('inicio-fut-vivo')||'null');
@@ -7140,6 +7144,10 @@ function _futHoyInline(n,filas,hayVivo,ROSA){
     <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#7DD3FC;border:1px solid #0EA5E966;border-radius:999px;padding:2px 9px;margin-top:2px">${n}</span>
   </div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:0 12px">${filas}</div>${hayVivo?`<div style="text-align:center;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:9px 0 1px">Se actualiza solo</div>`:''}`;
 }
+// Línea de arriba de cada tarjeta: TORNEO | detalle (fecha, partido…); si no entra en una línea, sigue en la de abajo.
+function _futEyebrow(nom,det){
+  return `<span style="flex:1;min-width:0;white-space:normal;line-height:1.4">${nom}${det?`<span style="opacity:.45;margin:0 6px">|</span><span style="text-transform:none;letter-spacing:.02em;font-weight:600">${det}</span>`:''}</span>`;
+}
 function _futDockRender(){
   const old=document.getElementById('fut-dock');
   const enInicio=document.getElementById('inicio')?.classList.contains('active');
@@ -7168,13 +7176,13 @@ function _futDockRender(){
   const filas=items.map(it=>{
     let eyebrow, esc1, esc2, n1, n2, g1, g2, hora;
     if(it.sel){
-      eyebrow=`<span style="width:6px;height:6px;border-radius:50%;background:#0EA5E9;flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis">${it.eyebrow}</span>`;
+      eyebrow=`<span style="width:6px;height:6px;border-radius:50%;background:#0EA5E9;flex-shrink:0"></span>`+_futEyebrow(it.eyebrow.nom,it.eyebrow.det);
       esc1=`<img src="./selecciones/uruguay.png" alt="Uruguay" style="width:${ESZ}px;height:${ESZ}px;object-fit:contain;flex-shrink:0">`; esc2=_escudoSeleccion(it.rival,ESZ);
       n1='Uruguay'; n2=it.rival; g1=it.gl; g2=it.gr; hora=it.hora;
     } else {
       const m=it.m, L=_FUT_LIGAS[m.liga]||{corto:'',logo:''};
-      const fase=m.liga==='copa'?String(m.fase||''):(m.round!=null&&m.round!==''?'F'+m.round:'');
-      eyebrow=(L.logo?`<img src="${L.logo}" alt="${L.corto}" style="width:16px;height:16px;border-radius:5px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'')+`<span style="overflow:hidden;text-overflow:ellipsis">${L.corto}${fase?' · '+fase:''}</span>`;
+      const fase=m.liga==='copa'?String(m.fase||''):(m.round!=null&&m.round!==''?'Fecha '+m.round:'');
+      eyebrow=(L.logo?`<img src="${L.logo}" alt="${L.corto}" style="width:16px;height:16px;border-radius:5px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'')+_futEyebrow(L.nom||L.corto,fase);
       esc1=_futbolEscudo(m.homeId,ESZ,m.home); esc2=_futbolEscudo(m.awayId,ESZ,m.away);
       n1=m.home; n2=m.away; g1=m.gh; g2=m.ga; hora=_fmtFutbolHoraCorta(m.utcTime);
     }
@@ -7182,11 +7190,11 @@ function _futDockRender(){
     const a=conMarcador&&g1!=null?+g1:null, b=conMarcador&&g2!=null?+g2:null;
     const fin=it.estado==='fin', emp=a===b;
     const w1=fin&&a>b, w2=fin&&b>a;
-    const vivo=it.estado==='vivo';
-    return `<div style="border:1px solid ${vivo?ROSA+'80':'var(--border)'};border-radius:12px;padding:9px 12px 8px;margin-top:8px;background:${vivo?'linear-gradient(100deg,'+ROSA+'29,rgba(255,255,255,.04) 62%)':'rgba(255,255,255,.04)'}">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
-        <div style="display:flex;align-items:center;gap:6px;min-width:0;font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap">${eyebrow}</div>
-        ${estadoPill(it,hora)}
+    const vivo=it.estado==='vivo', VERDE='#4ADE80';
+    return `<div style="border:1px solid ${vivo?ROSA+'80':(fin?VERDE+'4D':'var(--border)')};border-radius:12px;padding:9px 12px 8px;margin-top:8px;background:${vivo?'linear-gradient(100deg,'+ROSA+'29,rgba(255,255,255,.04) 62%)':(fin?'linear-gradient(100deg,'+VERDE+'1A,rgba(255,255,255,.03) 62%)':'rgba(255,255,255,.04)')}">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;margin-bottom:5px">
+        <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 160px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${eyebrow}</div>
+        <span style="margin-left:auto;display:flex">${estadoPill(it,hora)}</span>
       </div>
       ${fila(esc1,n1,a,it.estado,w1,fin&&!emp&&!w1)}${fila(esc2,n2,b,it.estado,w2,fin&&!emp&&!w2)}
     </div>`;
