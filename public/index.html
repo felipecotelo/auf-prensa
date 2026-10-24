@@ -7405,11 +7405,15 @@ function _recPendientes(){
   const lim=new Date(); lim.setDate(lim.getDate()+1); lim.setHours(23,59,59,999);
   return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim).sort(_recCmp);
 }
-// Los que se marcaron como hechos HOY quedan a la vista con su tick (no desaparecen); se pueden destildar.
+// Los marcados como hechos quedan a la vista con su tick durante 12 horas (se pueden destildar); pasado ese tiempo salen de la lista.
+const _REC_HECHO_HORAS=12;
 function _recHechosHoy(){
-  return _recTodos().filter(r=>r.hecho && r.hechoEn && new Date(r.hechoEn).toLocaleDateString('en-CA')===TODAY)
+  const lim=Date.now()-_REC_HECHO_HORAS*3600000;
+  return _recTodos().filter(r=>r.hecho && r.hechoEn && new Date(r.hechoEn).getTime()>lim)
     .sort((a,b)=>String(a.hechoEn).localeCompare(String(b.hechoEn)));
 }
+// Cada 5 min se vuelve a pintar el panel para que los que cumplieron las 12 h salgan solos, sin recargar.
+if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },300000);
 function _recNoAplicaBtn(r,hecho){
   if(!r.derivado||hecho) return '';
   return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoAplica(this.dataset.id)" title="No aplica saludo: lo saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no aplica</button>`;
