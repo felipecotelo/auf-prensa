@@ -1591,6 +1591,7 @@ html.auf-gate body { display:none !important }
   /* Inicio en oscuro: fondo de la página (solo mientras Inicio está activo) y paleta de variables para lo que vive en Inicio */
   body:has(#inicio.active){background:radial-gradient(900px 420px at 72% -80px,rgba(0,157,216,.13),transparent 65%),#060814}
   #inicio-body,#fut-dock{--text:#EFF3F8;--muted:rgba(239,243,248,.56);--border:rgba(255,255,255,.09);--hint:rgba(239,243,248,.38);--white:rgba(255,255,255,.04);--surface:rgba(255,255,255,.05);--surface2:rgba(255,255,255,.06);color-scheme:dark}
+  @keyframes futpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
   .nav-center{display:none!important}
   .nav-brand{gap:13px}
   .nav-logo-badge{width:42px;height:42px;border-radius:12px;box-shadow:none;background:none}
@@ -6120,10 +6121,12 @@ window._loadFutbolUY = async function(){
     const LIGAS=[{k:'primera',corto:'Liga AUF',color:'#2563EB',bg:'37,99,235',a:.13,logo:'./ligas/liga_auf.jpg'},{k:'segunda',corto:'Segunda',color:'#0EA5E9',bg:'14,165,233',a:.1,logo:'./ligas/segunda.jpg'},{k:'copa',corto:'Copa AUF',color:'#38BDF8',bg:'125,211,252',a:.12,logo:'./ligas/copa_auf.jpg'}];
     // Partidos de HOY (cualquiera de las 3 competencias) para la tarjeta de la izquierda de Inicio; se guardan para el primer pintado.
     try{
-      const hoyL=[]; LIGAS.forEach(L=>{ (d[L.k]?.hoy||[]).forEach(m=>{ if(_futbolDiaKey(m.utcTime)===TODAY) hoyL.push({m,L:{k:L.k,corto:L.corto,logo:L.logo,color:L.color}}); }); });
-      hoyL.sort((a,b)=>new Date(a.m.utcTime)-new Date(b.m.utcTime));
-      window._futHoy={fecha:TODAY,list:hoyL};
-      try{ localStorage.setItem('inicio-fut-hoy',JSON.stringify(window._futHoy)); }catch(_){}
+      const hoyL=[]; LIGAS.forEach(L=>{ (d[L.k]?.hoy||[]).forEach(m=>{ if(_futbolDiaKey(m.utcTime)!==TODAY) return;
+        const mm=String(m.score||'').match(/(\d+)\s*[-–]\s*(\d+)/);
+        hoyL.push({id:m.id,liga:L.k,home:m.home,homeId:m.homeId,away:m.away,awayId:m.awayId,gh:mm?+mm[1]:null,ga:mm?+mm[2]:null,utcTime:m.utcTime,estado:m.finalizado?'fin':'prog',minuto:'',round:m.round,fase:m.fase}); }); });
+      hoyL.sort((a,b)=>new Date(a.utcTime)-new Date(b.utcTime));
+      window._futHoy={fecha:TODAY,partidos:hoyL};
+      try{ localStorage.setItem('inicio-fut-hoy2',JSON.stringify(window._futHoy)); }catch(_){}
       if(typeof _futDockRender==='function') _futDockRender();
     }catch(_){}
     const resultados=[], agenda=[];
@@ -7058,6 +7061,18 @@ function _horaCortaTxt(h){
   const m=String(h||'').match(/(\d{1,2})(?::(\d{2}))?/); if(!m) return '';
   const hh=String(parseInt(m[1],10)); return (m[2]&&m[2]!=='00')?hh+':'+m[2]+'h':hh+'h';
 }
+// Escudos de selecciones nacionales (Escudoteca PN, /selecciones). Uruguay lleva el escudo tradicional de la AUF.
+// Si la selección no está en la carpeta no se inventa nada: va un círculo neutro con las iniciales.
+const _SEL_ARCHIVOS='albania alemania andorra arabiasaudita argelia argentina armenia australia austria bangladesh belgica bielorrusia bolivia bosnia brasil cabo_verde camerun canada chile china chipre colombia congo coreadelsur costa_de_marfil costa_rica croacia cuba curazao dinamarca ecuador egipto elsalvador emiratos_arabes_unidos escocia eslovaquia eslovenia espana estonia finlandia francia gabon gales georgia ghana gibraltar granada grecia guatemala haiti honduras hungria inglaterra irak iran irlanda irlandadelnorte islandia islas_feroe israel italia jamaica japon jordania kazakhstan kosovo letonia liechtenstein lituania luxemburgo macedonia mali malta marruecos martinica mexico moldavia montenegro nicaragua nigeria noruega nueva_caledonia nuevazelanda paisesbajos panama paraguay peru polonia portugal qatar republica_dominicana republicacheca rumania rusia san_marino senegal serbia sudafrica suecia suiza surinam tahiti tunez turquia ucrania uruguay usa uzbekistan venezuela'.split(' ');
+const _SEL_MAP=Object.fromEntries(_SEL_ARCHIVOS.map(f=>[f.replace(/_/g,''),f]));
+const _SEL_ALIAS={eeuu:'usa',estadosunidos:'usa',holanda:'paisesbajos',chequia:'republicacheca',bosniayherzegovina:'bosnia',macedoniadelnorte:'macedonia',emiratos:'emiratosarabesunidos'};
+function _escudoSeleccion(nombre,sz){
+  sz=sz||28;
+  const n=String(nombre||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z]/g,'');
+  const k=_SEL_ALIAS[n]||n, f=_SEL_MAP[k]||(_SEL_ARCHIVOS.includes(_SEL_ALIAS[n])?_SEL_ALIAS[n]:null);
+  if(f) return `<img src="./selecciones/${f}.png" alt="${nombre||''}" title="${nombre||''}" style="width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`;
+  return `<span title="${nombre||''}" style="width:${sz}px;height:${sz}px;border-radius:50%;border:1px solid rgba(255,255,255,.16);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*.34)}px;font-weight:800;letter-spacing:.04em;color:rgba(239,243,248,.5)">${String(nombre||'?').slice(0,3).toUpperCase()}</span>`;
+}
 function _partidosSeleccionHoy(){
   const out=[];
   const min=h=>{ const m=String(h||'').match(/(\d{1,2})(?::(\d{2}))?/); return m?parseInt(m[1],10)*60+parseInt(m[2]||'0',10):9999; };
@@ -7069,64 +7084,115 @@ function _partidosSeleccionHoy(){
       if(!Array.isArray(list)) continue;
       list.forEach(m=>{ if((m.fecha||'').slice(0,10)!==TODAY||!m.rival) return;
         const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
-        const fin=m.gLocal!=null&&m.gRival!=null&&(m.confirmado||m.gLocal!==''); 
-        out.push({sel:true,local:'Uruguay '+catLbl,visita:m.rival,hora:_horaCortaTxt(m.hora),min:min(m.hora),gl:fin?+m.gLocal:null,gr:fin?+m.gRival:null,fin});
+        const fin=m.gLocal!=null&&m.gRival!=null&&(m.confirmado||m.gLocal!=='');
+        out.push({sel:true,eyebrow:'Selección '+catLbl,rival:m.rival,hora:_horaCortaTxt(m.hora),min:min(m.hora),gl:fin?+m.gLocal:null,gr:fin?+m.gRival:null,estado:fin?'fin':'prog'});
       });
     }
   }catch(_){}
   try{
     [typeof FIFASEP26!=='undefined'?FIFASEP26:null,typeof FIFANOV26!=='undefined'?FIFANOV26:null].filter(Boolean).forEach(EV=>(EV.partidosData||[]).forEach(p=>{
-      if((p.fecha||'').slice(0,10)===TODAY) out.push({sel:true,local:'Uruguay',visita:p.rival,hora:_horaCortaTxt(p.hora),min:min(p.hora),gl:null,gr:null,fin:false});
+      if((p.fecha||'').slice(0,10)===TODAY) out.push({sel:true,eyebrow:'Selección Mayor',rival:p.rival,hora:_horaCortaTxt(p.hora),min:min(p.hora),gl:null,gr:null,estado:'prog'});
     }));
   }catch(_){}
   return out;
 }
+// Fútbol uruguayo de hoy (Liga AUF, Segunda y Copa AUF) con estado: prog | vivo | fin | aplazado. La fuente fresca es /api/futbol-uy/hoy
+// (se consulta cada 30 s mientras hay un partido en juego o por empezar); el primer pintado sale de lo que trajo /api/futbol-uy.
+const _FUT_LIGAS={primera:{corto:'Liga AUF',logo:'./ligas/liga_auf.jpg'},segunda:{corto:'Segunda',logo:'./ligas/segunda.jpg'},copa:{corto:'Copa AUF',logo:'./ligas/copa_auf.jpg'}};
+function _futLigaHoy(){
+  try{
+    let c=(window._futVivo&&window._futVivo.fecha===TODAY)?window._futVivo:JSON.parse(localStorage.getItem('inicio-fut-vivo')||'null');
+    if(c&&c.fecha===TODAY&&Array.isArray(c.partidos)) return c.partidos;
+    c=(window._futHoy&&window._futHoy.fecha===TODAY)?window._futHoy:JSON.parse(localStorage.getItem('inicio-fut-hoy2')||'null');
+    if(c&&c.fecha===TODAY&&Array.isArray(c.partidos)) return c.partidos;
+  }catch(_){}
+  return [];
+}
+async function _futVivoPoll(){
+  clearTimeout(window._futVivoT);
+  try{
+    if(!document.hidden){
+      const r=await fetch('/api/futbol-uy/hoy',{cache:'no-store'});
+      if(r.ok){ const d=await r.json();
+        if(d&&d.ok){ window._futVivo={fecha:TODAY,ts:Date.now(),partidos:d.partidos||[]};
+          try{ localStorage.setItem('inicio-fut-vivo',JSON.stringify(window._futVivo)); }catch(_){}
+          _futDockRender(); }
+      }
+    }
+  }catch(_){}
+  // Ritmo: 30 s con un partido en juego o por empezar (≤20 min); si no, se vuelve a mirar cuando falte ~20 min para el próximo (entre 1 y 10 min).
+  const now=Date.now(), l=_futLigaHoy();
+  const falta=l.filter(x=>x.estado==='prog').map(x=>new Date(x.utcTime)-now);
+  const activo=l.some(x=>x.estado==='vivo')||falta.some(d=>d<20*60000);
+  const prox=falta.filter(d=>d>0).sort((a,b)=>a-b)[0];
+  const delay=activo?30000:(prox!=null?Math.max(60000,Math.min(prox-19*60000,600000)):600000);
+  window._futVivoT=setTimeout(_futVivoPoll,delay);
+}
+function _futVivoStart(){ if(window._futVivoOn) return; window._futVivoOn=true; _futVivoPoll(); }
 function _futDockRender(){
   const old=document.getElementById('fut-dock');
   const enInicio=document.getElementById('inicio')?.classList.contains('active');
+  if(enInicio&&window.innerWidth>=1400) _futVivoStart();
   const ib=document.getElementById('inicio-body');
-  let liga=[]; try{ const c=(window._futHoy&&window._futHoy.fecha===TODAY)?window._futHoy:JSON.parse(localStorage.getItem('inicio-fut-hoy')||'null'); if(c&&c.fecha===TODAY) liga=c.list||[]; }catch(_){}
   const mvdMin=iso=>{ const t=_fmtFutbolHora(iso).match(/(\d{1,2}):(\d{2})/); return t?parseInt(t[1],10)*60+parseInt(t[2],10):9999; };
-  const items=[..._partidosSeleccionHoy(), ...liga.map(({m,L})=>({sel:false,m,L,min:mvdMin(m.utcTime)}))].sort((a,b)=>a.min-b.min);
+  const liga=_futLigaHoy().map(m=>({sel:false,m,min:mvdMin(m.utcTime),estado:m.estado}));
+  const items=[..._partidosSeleccionHoy(), ...liga].sort((a,b)=>a.min-b.min);
+  const hayVivo=items.some(it=>it.estado==='vivo');
   const libre=ib?ib.getBoundingClientRect().left:0;
   if(!enInicio||!items.length||window.innerWidth<1400||libre<330){ old&&old.remove(); return; }
   let min=false; try{ min=localStorage.getItem('fut-dock-min-'+TODAY)==='1'; }catch(_){}
   const d=old||document.createElement('div'); d.id='fut-dock';
+  const ROSA='#F43F5E';
   if(min){
-    d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:42px;height:42px;border-radius:50%;background:#0D1426;border:1px solid var(--border);box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:19px;color:#EFF3F8';
+    d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:42px;height:42px;border-radius:50%;background:#0D1426;border:1px solid '+(hayVivo?ROSA+'99':'var(--border)')+';box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:19px;color:#EFF3F8';
     d.title='Partidos de hoy';
-    d.innerHTML=`<i class="ti ti-ball-football"></i><span style="position:absolute;top:-4px;right:-4px;background:#0EA5E9;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${items.length}</span>`;
+    d.innerHTML=`<i class="ti ti-ball-football"></i><span style="position:absolute;top:-4px;right:-4px;background:${hayVivo?ROSA:'#0EA5E9'};color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${items.length}</span>`;
     d.onclick=()=>{ try{ localStorage.setItem('fut-dock-min-'+TODAY,'0'); }catch(_){} _futDockRender(); };
   } else {
-    d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:300px;max-height:calc(100vh - 170px);overflow-y:auto;background:#0D1426;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 14px';
+    d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:300px;max-height:calc(100vh - 170px);overflow-y:auto;background:#0D1426;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 12px 10px';
     d.title=''; d.onclick=null;
-    const badge=document.querySelector('.nav-logo-badge img')?.src||'';
-    const linea=(esc,nom,g,gana,fin,ganaFin)=>`<div style="display:flex;align-items:center;gap:7px;padding:2px 0"><span style="flex-shrink:0;display:flex;width:18px;justify-content:center">${esc}</span><span style="flex:1;min-width:0;font-size:12px;font-weight:${gana?700:500};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${fin&&!gana&&!ganaFin?'var(--muted)':'var(--text)'}">${nom}</span>${fin&&g!=null?`<span style="font-size:13px;font-weight:${gana?800:500}">${g}</span>`:''}</div>`;
-    const tick=`<span style="font-size:17px;color:#16A34A;line-height:1" title="Partido finalizado"><i class="ti ti-circle-check"></i></span>`;
+    const pill=(txt,col,extra)=>`<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:${col};border:1px solid ${col}66;background:${col}1F;border-radius:999px;padding:2px 8px;white-space:nowrap">${extra||''}${txt}</span>`;
+    const estadoPill=(it,hora)=>{
+      if(it.estado==='vivo') return pill('En vivo'+(it.m.minuto?' · '+it.m.minuto:''),ROSA,`<span style="width:6px;height:6px;border-radius:50%;background:${ROSA};box-shadow:0 0 8px ${ROSA};animation:futpulse 1.4s ease infinite"></span>`);
+      if(it.estado==='fin') return `<span title="Partido finalizado" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#4ADE80"><i class="ti ti-circle-check" style="font-size:16px"></i></span>`;
+      if(it.estado==='aplazado') return pill('Aplazado','#F59E0B');
+      return `<span style="flex-shrink:0;font-size:13px;font-weight:800;color:var(--text);white-space:nowrap">${hora||'—'}</span>`;
+    };
+    const fila=(esc,nom,g,estado,gana,pierde)=>`<div style="display:flex;align-items:center;gap:10px;padding:3px 0">${esc}<span style="flex:1;min-width:0;font-size:14px;font-weight:${gana?800:600};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${pierde?'var(--muted)':'var(--text)'}">${nom}</span>${g!=null?`<span style="font-size:22px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;min-width:20px;text-align:right;color:${estado==='vivo'?ROSA:(pierde?'var(--muted)':'var(--text)')}">${g}</span>`:''}</div>`;
     const filas=items.map(it=>{
-      let logo, l1, l2, lado;
+      let eyebrow, esc1, esc2, n1, n2, g1, g2, hora;
       if(it.sel){
-        logo=badge?`<img src="${badge}" alt="Selección" title="Selección" style="width:26px;height:26px;border-radius:7px;object-fit:cover;flex-shrink:0;box-shadow:0 1px 3px rgba(15,23,42,.18)">`:'';
-        const ue=badge?`<img src="${badge}" alt="" style="width:16px;height:16px;border-radius:4px;object-fit:cover">`:'';
-        const gana1=it.fin&&it.gl>it.gr, gana2=it.fin&&it.gr>it.gl;
-        l1=linea(ue,it.local,it.gl,gana1,it.fin,it.gl===it.gr); l2=linea('',it.visita,it.gr,gana2,it.fin,it.gl===it.gr);
-        lado=it.fin?tick:`<span style="font-size:12.5px;font-weight:800;color:var(--text);white-space:nowrap">${it.hora||'—'}</span>`;
+        eyebrow=`<span style="width:6px;height:6px;border-radius:50%;background:#0EA5E9;flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis">${it.eyebrow}</span>`;
+        esc1=`<img src="./selecciones/uruguay.png" alt="Uruguay" style="width:28px;height:28px;object-fit:contain;flex-shrink:0">`; esc2=_escudoSeleccion(it.rival,28);
+        n1='Uruguay'; n2=it.rival; g1=it.gl; g2=it.gr; hora=it.hora;
       } else {
-        const m=it.m, L=it.L, mm=String(m.score||'').match(/(\d+)\s*[-–]\s*(\d+)/), gh=mm?+mm[1]:null, ga=mm?+mm[2]:null, fin=!!m.finalizado;
-        logo=L.logo?`<img src="${L.logo}" alt="${L.corto}" title="${L.corto}" style="width:26px;height:26px;border-radius:7px;object-fit:cover;flex-shrink:0;box-shadow:0 1px 3px rgba(15,23,42,.18)" onerror="this.style.display='none'">`:'';
-        l1=linea(_futbolEscudo(m.homeId,18,m.home),m.home,gh,fin&&gh>ga,fin,gh===ga); l2=linea(_futbolEscudo(m.awayId,18,m.away),m.away,ga,fin&&ga>gh,fin,gh===ga);
-        lado=fin?tick:`<span style="font-size:12.5px;font-weight:800;color:var(--text);white-space:nowrap">${_fmtFutbolHoraCorta(m.utcTime)}</span>`;
+        const m=it.m, L=_FUT_LIGAS[m.liga]||{corto:'',logo:''};
+        const fase=m.liga==='copa'?String(m.fase||''):(m.round!=null&&m.round!==''?'F'+m.round:'');
+        eyebrow=(L.logo?`<img src="${L.logo}" alt="${L.corto}" style="width:16px;height:16px;border-radius:5px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'')+`<span style="overflow:hidden;text-overflow:ellipsis">${L.corto}${fase?' · '+fase:''}</span>`;
+        esc1=_futbolEscudo(m.homeId,28,m.home); esc2=_futbolEscudo(m.awayId,28,m.away);
+        n1=m.home; n2=m.away; g1=m.gh; g2=m.ga; hora=_fmtFutbolHoraCorta(m.utcTime);
       }
-      return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--border)">${logo}<div style="flex:1;min-width:0">${l1}${l2}</div><div style="flex-shrink:0;text-align:right">${lado}</div></div>`;
+      const conMarcador=it.estado==='vivo'||it.estado==='fin';
+      const a=conMarcador&&g1!=null?+g1:null, b=conMarcador&&g2!=null?+g2:null;
+      const fin=it.estado==='fin', emp=a===b;
+      const w1=fin&&a>b, w2=fin&&b>a;
+      const vivo=it.estado==='vivo';
+      return `<div style="border:1px solid ${vivo?ROSA+'80':'var(--border)'};border-radius:12px;padding:9px 12px 8px;margin-top:8px;background:${vivo?'linear-gradient(100deg,'+ROSA+'29,rgba(255,255,255,.04) 62%)':'rgba(255,255,255,.04)'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
+          <div style="display:flex;align-items:center;gap:6px;min-width:0;font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap">${eyebrow}</div>
+          ${estadoPill(it,hora)}
+        </div>
+        ${fila(esc1,n1,a,it.estado,w1,fin&&!emp&&!w1)}${fila(esc2,n2,b,it.estado,w2,fin&&!emp&&!w2)}
+      </div>`;
     }).join('');
-    d.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:2px 0 8px">
-      <div><div style="display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)"><span style="width:7px;height:7px;border-radius:50%;background:#0EA5E9"></span>Hoy</div>
+    d.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:2px 2px 2px">
+      <div><div style="display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)"><span style="width:7px;height:7px;border-radius:50%;background:${hayVivo?ROSA:'#0EA5E9'};${hayVivo?`box-shadow:0 0 10px ${ROSA};animation:futpulse 1.4s ease infinite`:''}"></span>${hayVivo?'En vivo':'Hoy'}</div>
       <div style="font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:3px;color:var(--text)">Partidos de hoy</div></div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-        <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#0369A1;border:1px solid #0EA5E966;border-radius:999px;padding:2px 9px">${items.length}</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#7DD3FC;border:1px solid #0EA5E966;border-radius:999px;padding:2px 9px">${items.length}</span>
         <button onclick="try{localStorage.setItem('fut-dock-min-'+TODAY,'1')}catch(_){};_futDockRender()" title="Minimizar" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:14px;padding:0 2px">—</button>
       </div>
-    </div>${filas}`;
+    </div>${filas}${hayVivo?`<div style="text-align:center;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:9px 0 1px">Se actualiza solo</div>`:''}`;
   }
   if(!old) document.body.appendChild(d);
 }
@@ -32202,7 +32268,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
       <div style="font-weight:700;margin-bottom:3px">Sin partidos${esOficial?' oficiales':' amistosos'} registrados</div>
       <div style="font-size:.78em">Creá un partido con el botón de arriba</div>
-    </div>` : (()=>{ const seenTorneos=new Set(); let _prevTorneo=null; const _mundialList=list.filter(x=>x.compId==='mundial-sub15-2026'); return list.map(m=>{
+    </div>` : (()=>{ const seenTorneos=new Set(); let _prevTorneo=null; return list.map(m=>{
       // Título de grupo — se muestra una sola vez, arriba del primer partido de
       // ese torneo (ej. "Torneo Pioneros de Albion" dentro de los amistosos de
       // preparación de esta competencia).
@@ -32237,28 +32303,25 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <div style="font-size:.78em;font-weight:900;color:${hasRes2?_rc(gl2,gr2):'var(--muted)'}">${hasRes2?`${gl2}–${gr2}`:'–'} <span style="font-size:.7em;font-weight:600;color:var(--muted)">vta</span></div>
            </div>`
         : `<div style="font-size:1.1em;font-weight:900;white-space:nowrap;color:${hasRes?_rc(gl,gr):'var(--muted)'}">${hasRes?`${penDecides?`<span style="font-size:.55em;opacity:.7">(${m.penGLocal})</span> `:''}${gl}–${gr}${penDecides?` <span style="font-size:.55em;opacity:.7">(${m.penGRival})</span>`:''}`:'–'}</div>`;
-      // Mundial Sub-15: una sola línea "N. vs. Rival (res) | día d/m, hora" — el
-      // resultado va en el título (ya no aparece aparte a la derecha).
+      // Mundial Sub-15: mismo diseño de tarjeta que el resto de Juveniles (título, resultado a la derecha con su tilde); en la segunda línea
+      // va el día de la semana y la hora completa (AZ/UY), que en un torneo con husos distintos es lo que importa.
       const _isMundial = m.compId==='mundial-sub15-2026';
-      let _mundialLine='';
-      if(_isMundial){
-        const _n=_mundialList.indexOf(m)+1;
-        const _d=m.fecha?new Date(m.fecha+'T12:00:00'):null;
-        const _dia=_d?_d.toLocaleDateString('es-UY',{weekday:'long'}):'';
-        const _dm=_d?`${_d.getDate()}/${_d.getMonth()+1}`:'';
-        _mundialLine=`<div style="font-weight:800;font-size:.9em;line-height:1.4">${_n}. vs. <span style="color:${color}">${m.rival}</span> <span style="color:${hasRes?_rc(gl,gr):'var(--muted)'}">(${hasRes?`${gl}–${gr}`:'–'})</span> <span style="font-weight:600;color:var(--muted)">| ${_dia} ${_dm}${m.hora?', '+m.hora:''}</span></div>`;
+      let _fechaTxt=fechaFmt;
+      if(_isMundial && m.fecha){
+        const _d=new Date(m.fecha+'T12:00:00');
+        _fechaTxt=`${_d.toLocaleDateString('es-UY',{weekday:'long'})} ${_d.getDate()}/${_d.getMonth()+1}`;
       }
       return `${torneoHdr}
         <div onclick="_amistOpenDetail(${m.id})"
           style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:12px">
           <div style="flex:1">
-            ${_isMundial ? _mundialLine : `<div style="font-weight:800;font-size:.9em;margin-bottom:2px">
+            <div style="font-weight:800;font-size:.9em;margin-bottom:2px">
               Uruguay vs. <span style="color:${color}">${m.rival}</span>${ivBadge}${auftvBadge}
             </div>
-            <div style="font-size:.72em;color:var(--muted)">${fechaFmt}${_amistHorasTxt(m)?' · '+_amistHorasTxt(m):(m.hora?' · '+m.hora:'')+(m.lugar?' · '+m.lugar:'')}</div>`}
+            <div style="font-size:.72em;color:var(--muted)">${_fechaTxt}${_amistHorasTxt(m)?' · '+_amistHorasTxt(m):(m.hora?' · '+m.hora:'')+(m.lugar&&!_isMundial?' · '+m.lugar:'')}</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
-            ${_isMundial?'':resHtml}
+            ${resHtml}
             <button onclick="event.stopPropagation();_amistToggleConfirmado('${cat}','${year}',${m.id})" title="${m.confirmado?'Confirmado — cuenta para las estadísticas (tocá para deshacer)':'Confirmar partido para que cuente en las estadísticas'}" style="width:26px;height:26px;border-radius:50%;border:1.5px solid ${m.confirmado?'#16a34a':'#CBD5E1'};background:${m.confirmado?'#16a34a':'transparent'};color:${m.confirmado?'#fff':'#CBD5E1'};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.85em;flex-shrink:0"><i class="ti ti-check"></i></button>
             <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.8em"></i>
           </div>
