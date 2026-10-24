@@ -894,6 +894,31 @@ app.get('/api/futbol-uy', async (req, res) => {
 
 // Partidos de HOY de las tres competencias que se siguen (Liga AUF, Segunda y Copa AUF), con estado EN VIVO: la web lo consulta
 // cada ~30 s mientras hay un partido en juego. Cache cortito (20 s) para no pegarle a 365scores por cada pestaña abierta.
+// FotMob como respaldo en vivo: 365scores a veces trae mal el horario o tarda en marcar un partido en juego (pasó con Deportivo Maldonado – Danubio, 24/10/2026).
+// Si FotMob conoce el partido, manda en el horario, el estado (en vivo / terminado), el minuto y el marcador. Si FotMob falla, quedan los datos de 365scores.
+let _fmCache = null;
+async function fotmobHoy(ymd) {
+  if (_fmCache && _fmCache.ymd === ymd && (Date.now() - _fmCache.ts) < 20000) return _fmCache.data;
+  const raw = await fetchText(`https://www.fotmob.com/api/data/matches?date=${ymd}&timezone=America%2FMontevideo&ccode3=URY`);
+  const out = [];
+  (JSON.parse(raw).leagues || []).forEach(l => {
+    if (l.ccode !== 'URU') return;
+    (l.matches || []).forEach(m => {
+      const st = m.status || {};
+      out.push({
+        home: m.home && m.home.name, away: m.away && m.away.name,
+        gh: m.home && m.home.score, ga: m.away && m.away.score,
+        utc: st.utcTime || null, started: !!st.started, finished: !!st.finished, ongoing: !!st.ongoing, cancelled: !!st.cancelled,
+        minuto: String((st.liveTime && st.liveTime.short) || '').replace(/[\u200e\u200f]/g, ''),
+      });
+    });
+  });
+  _fmCache = { ts: Date.now(), ymd, data: out };
+  return out;
+}
+const _palabrasEq = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length >= 4 && w !== 'club');
+const _mismoEquipo = (a, b) => { const A = _palabrasEq(a), B = _palabrasEq(b); return A.some(w => B.includes(w)); };
+
 let _hoyCache = null;
 app.get('/api/futbol-uy/hoy', async (req, res) => {
   try {
@@ -917,7 +942,19 @@ app.get('/api/futbol-uy/hoy', async (req, res) => {
           round: m.roundNum, fase: m.stageName,
         };
       })
-      .sort((a, b) => new Date(a.utcTime) - new Date(b.utcTime));
+      ;
+    try {
+      const fm = await fotmobHoy(`${g('year')}${g('month')}${g('day')}`);
+      partidos.forEach(pt => {
+        const f = fm.find(x => _mismoEquipo(x.home, pt.home) && _mismoEquipo(x.away, pt.away));
+        if (!f) return;
+        if (f.utc) pt.utcTime = f.utc;
+        if (f.cancelled) { pt.estado = 'aplazado'; return; }
+        if (f.finished) { pt.estado = 'fin'; pt.gh = f.gh; pt.ga = f.ga; pt.minuto = ''; pt.detalle = 'Finalizado'; }
+        else if (f.ongoing || f.started) { pt.estado = 'vivo'; pt.gh = f.gh; pt.ga = f.ga; pt.minuto = f.minuto || pt.minuto; pt.detalle = 'En juego'; }
+      });
+    } catch (e) { /* sin FotMob: quedan los datos de 365scores */ }
+    partidos.sort((a, b) => new Date(a.utcTime) - new Date(b.utcTime));
     const data = { ok: true, dia, partidos, updatedAt: new Date().toISOString() };
     _hoyCache = { ts: Date.now(), data };
     res.json(data);
