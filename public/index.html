@@ -36322,17 +36322,20 @@ function _renderListaPrensa(){
     const displayName = pw.titulo || pw.personLabel;
     const subLabel = pw.titulo ? pw.personLabel : '';
     const isCerrada = !!pw.cerrada;
+    const VERDE='#4ADE80';
+    const check=`<button onclick="event.stopPropagation();_pwToggleCerradaLista('${pw.id}')" title="${isCerrada?'Reabrir esta ventana':'Marcar la ventana como terminada'}" style="width:28px;height:28px;border-radius:50%;border:1.5px solid ${isCerrada?VERDE:'rgba(255,255,255,.28)'};background:${isCerrada?VERDE:'transparent'};color:${isCerrada?'#052E16':'var(--muted)'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:14px;padding:0"><i class="ti ti-check"></i></button>`;
     return `
-    <div onclick="_pwOpenVentana('${pw.id}')" style="background:${isCerrada?'var(--surface)':'#fff'};border:1px solid var(--border);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;opacity:${isCerrada?.6:1}">
+    <div onclick="_pwOpenVentana('${pw.id}')" style="background:${isCerrada?'linear-gradient(100deg,rgba(74,222,128,.12),rgba(255,255,255,.03) 70%)':'#fff'};border:1px solid ${isCerrada?'rgba(74,222,128,.4)':'var(--border)'};${isCerrada?'border-left:4px solid '+VERDE+';':''}border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px">
       <div style="flex:1;min-width:0">
-        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${pw.cat||''}${isCerrada?' · <span style="color:#64748B">CONCLUIDA</span>':''}</div>
-        <div style="font-size:.98em;font-weight:900;color:${isCerrada?'var(--muted)':'var(--text)'};margin-top:1px">${displayName}</div>
+        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${pw.cat||''}</div>
+        <div style="font-size:.98em;font-weight:900;color:var(--text);margin-top:1px">${displayName}</div>
         <div style="font-size:.75em;color:var(--muted);margin-top:2px">${subLabel ? subLabel+' · ' : ''}${periodo}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        ${isCerrada?`<span style="font-size:.72em;font-weight:700;background:#F1F5F9;color:#64748B;border-radius:20px;padding:2px 9px;border:1px solid #CBD5E1"><i class="ti ti-lock" style="font-size:.85em"></i> Cerrada</span>`:badge}
+        ${isCerrada?`<span style="font-size:.72em;font-weight:700;background:rgba(74,222,128,.16);color:${VERDE};border-radius:20px;padding:2px 9px;border:1px solid rgba(74,222,128,.45)"><i class="ti ti-circle-check" style="font-size:.95em"></i> Terminada</span>`:badge}
         <span style="font-size:.72em;color:var(--muted)">${countLabel}</span>
       </div>
+      ${check}
       <i class="ti ti-chevron-right" style="color:var(--muted);font-size:.9em;flex-shrink:0"></i>
     </div>`;
   }).join('')
@@ -38009,6 +38012,11 @@ window._pwShareAgendaMail=function(id){
   window.open('mailto:?subject='+encodeURIComponent(`Agenda — ${vw.personLabel}`)+'&body='+encodeURIComponent(_pwBuildAgendaText(id,false)),'_blank');
 };
 
+// Desde la lista: marca/desmarca una ventana como terminada sin entrar a ella.
+window._pwToggleCerradaLista=function(id){
+  const list=_pwGetAll(); const vw=list.find(v=>v.id===id); if(!vw) return;
+  vw.cerrada=!vw.cerrada; _pwSave(list); renderPrensa();
+};
 function _pwToggleCerrada(id){
   const list=_pwGetAll();
   const vw=list.find(v=>v.id===id);
