@@ -7151,8 +7151,12 @@ function _futDockRender(){
   const hayVivo=items.some(it=>it.estado==='vivo');
   const libre=ib?ib.getBoundingClientRect().left:0;
   const inl=document.getElementById('fut-hoy-inline');
-  if(!enInicio||!items.length){ old&&old.remove(); inl&&inl.remove(); return; }
+  if(!enInicio||!items.length){ old&&old.remove(); inl&&inl.remove(); if(ib) ib.style.paddingLeft=''; return; }
   const ROSA='#F43F5E';
+  // Espejo de Recordatorios: mismo ancho (300 px) y, si a la izquierda no queda lugar, el contenido de Inicio se corre un poco a la derecha.
+  // Solo en ventanas angostas va arriba del Inicio.
+  const lateral=window.innerWidth>=1400;
+  const W=300, ESZ=28, NF=14, GF=22;
   const pill=(txt,col,extra)=>`<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:${col};border:1px solid ${col}66;background:${col}1F;border-radius:999px;padding:2px 8px;white-space:nowrap">${extra||''}${txt}</span>`;
   const estadoPill=(it,hora)=>{
     if(it.estado==='vivo') return pill('En vivo'+(it.m.minuto?' · '+it.m.minuto:''),ROSA,`<span style="width:6px;height:6px;border-radius:50%;background:${ROSA};box-shadow:0 0 8px ${ROSA};animation:futpulse 1.4s ease infinite"></span>`);
@@ -7160,18 +7164,18 @@ function _futDockRender(){
     if(it.estado==='aplazado') return pill('Aplazado','#F59E0B');
     return `<span style="flex-shrink:0;font-size:13px;font-weight:800;color:var(--text);white-space:nowrap">${hora||'—'}</span>`;
   };
-  const fila=(esc,nom,g,estado,gana,pierde)=>`<div style="display:flex;align-items:center;gap:10px;padding:3px 0">${esc}<span style="flex:1;min-width:0;font-size:14px;font-weight:${gana?800:600};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${pierde?'var(--muted)':'var(--text)'}">${nom}</span>${g!=null?`<span style="font-size:22px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;min-width:20px;text-align:right;color:${estado==='vivo'?ROSA:(pierde?'var(--muted)':'var(--text)')}">${g}</span>`:''}</div>`;
+  const fila=(esc,nom,g,estado,gana,pierde)=>`<div style="display:flex;align-items:center;gap:10px;padding:3px 0">${esc}<span style="flex:1;min-width:0;font-size:${NF}px;font-weight:${gana?800:600};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${pierde?'var(--muted)':'var(--text)'}">${nom}</span>${g!=null?`<span style="font-size:${GF}px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;min-width:20px;text-align:right;color:${estado==='vivo'?ROSA:(pierde?'var(--muted)':'var(--text)')}">${g}</span>`:''}</div>`;
   const filas=items.map(it=>{
     let eyebrow, esc1, esc2, n1, n2, g1, g2, hora;
     if(it.sel){
       eyebrow=`<span style="width:6px;height:6px;border-radius:50%;background:#0EA5E9;flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis">${it.eyebrow}</span>`;
-      esc1=`<img src="./selecciones/uruguay.png" alt="Uruguay" style="width:28px;height:28px;object-fit:contain;flex-shrink:0">`; esc2=_escudoSeleccion(it.rival,28);
+      esc1=`<img src="./selecciones/uruguay.png" alt="Uruguay" style="width:${ESZ}px;height:${ESZ}px;object-fit:contain;flex-shrink:0">`; esc2=_escudoSeleccion(it.rival,ESZ);
       n1='Uruguay'; n2=it.rival; g1=it.gl; g2=it.gr; hora=it.hora;
     } else {
       const m=it.m, L=_FUT_LIGAS[m.liga]||{corto:'',logo:''};
       const fase=m.liga==='copa'?String(m.fase||''):(m.round!=null&&m.round!==''?'F'+m.round:'');
       eyebrow=(L.logo?`<img src="${L.logo}" alt="${L.corto}" style="width:16px;height:16px;border-radius:5px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:'')+`<span style="overflow:hidden;text-overflow:ellipsis">${L.corto}${fase?' · '+fase:''}</span>`;
-      esc1=_futbolEscudo(m.homeId,28,m.home); esc2=_futbolEscudo(m.awayId,28,m.away);
+      esc1=_futbolEscudo(m.homeId,ESZ,m.home); esc2=_futbolEscudo(m.awayId,ESZ,m.away);
       n1=m.home; n2=m.away; g1=m.gh; g2=m.ga; hora=_fmtFutbolHoraCorta(m.utcTime);
     }
     const conMarcador=it.estado==='vivo'||it.estado==='fin';
@@ -7187,10 +7191,10 @@ function _futDockRender(){
       ${fila(esc1,n1,a,it.estado,w1,fin&&!emp&&!w1)}${fila(esc2,n2,b,it.estado,w2,fin&&!emp&&!w2)}
     </div>`;
   }).join('');
-  // Si no entra al costado (pantalla angosta o poco espacio libre), la misma lista va arriba del Inicio.
-  if(window.innerWidth<1400||libre<330){ old&&old.remove(); _futHoyInline(items.length,filas,hayVivo,ROSA); return; }
+  if(!lateral){ old&&old.remove(); if(ib) ib.style.paddingLeft=''; _futHoyInline(items.length,filas,hayVivo,ROSA); return; }
   inl&&inl.remove();
   let min=false; try{ min=localStorage.getItem('fut-dock-min-'+TODAY)==='1'; }catch(_){}
+  if(ib){ const need=min?62:W+46; ib.style.paddingLeft=need>libre?Math.round(need-libre)+'px':''; }
   const d=old||document.createElement('div'); d.id='fut-dock';
   if(min){
     d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:42px;height:42px;border-radius:50%;background:#0D1426;border:1px solid '+(hayVivo?ROSA+'99':'var(--border)')+';box-shadow:0 4px 16px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:19px;color:#EFF3F8';
@@ -7198,7 +7202,7 @@ function _futDockRender(){
     d.innerHTML=`<i class="ti ti-ball-football"></i><span style="position:absolute;top:-4px;right:-4px;background:${hayVivo?ROSA:'#0EA5E9'};color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:1px 6px">${items.length}</span>`;
     d.onclick=()=>{ try{ localStorage.setItem('fut-dock-min-'+TODAY,'0'); }catch(_){} _futDockRender(); };
   } else {
-    d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:300px;max-height:calc(100vh - 170px);overflow-y:auto;background:#0D1426;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 12px 10px';
+    d.style.cssText='position:fixed;left:14px;top:150px;z-index:8000;width:'+W+'px;max-height:calc(100vh - 170px);overflow-y:auto;background:#0D1426;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.12);padding:12px 12px 10px';
     d.title=''; d.onclick=null;
     d.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:2px 2px 2px">
       <div><div style="display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)"><span style="width:7px;height:7px;border-radius:50%;background:${hayVivo?ROSA:'#0EA5E9'};${hayVivo?`box-shadow:0 0 10px ${ROSA};animation:futpulse 1.4s ease infinite`:''}"></span>${hayVivo?'En vivo':'Hoy'}</div>
