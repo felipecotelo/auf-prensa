@@ -13946,9 +13946,9 @@ function _fifaNovConfirmBtnHtml(cat,year,m){
   const delta=getFifaNovStatsDelta();
   const confirmed=!!delta[m.rival];
   const n=confirmed?Object.keys(delta[m.rival]).length:0;
-  return `<button onclick="_fifaNovConfirmStats('${cat}','${year}',${m.id})" style="width:100%;padding:9px;background:${confirmed?'#DCFCE7':'var(--cel)'};color:${confirmed?'#15803D':'#fff'};border:${confirmed?'1.5px solid #86EFAC':'none'};border-radius:10px;font-size:.82em;font-weight:800;cursor:pointer;margin-bottom:12px">
-    ${confirmed?`✅ Confirmado — ${n} jugadores +1 partido (tocar para recalcular)`:'✓ Confirmar resultado — aplicar a estadísticas'}
-  </button>`;
+  return `<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button onclick="_fifaNovConfirmStats('${cat}','${year}',${m.id})" style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;background:${confirmed?'rgba(74,222,128,.12)':'var(--cel)'};color:${confirmed?'#4ADE80':'#060814'};border:1px solid ${confirmed?'rgba(74,222,128,.5)':'transparent'};border-radius:999px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer">
+    <i class="ti ti-check"></i>${confirmed?`Confirmado · ${n} jugadores +1 partido (tocar para recalcular)`:'Confirmar resultado y aplicar a estadísticas'}
+  </button></div>`;
 }
 window._fifaNovConfirmStats=function(cat,year,matchId){
   // _getAmistosos/_amistKey viven en el closure de _buildJuvAmistosos y no
@@ -14969,7 +14969,7 @@ function renderFifaNov26(tabId){
       ${subtitulo?`<div style="font-size:.82em;max-width:340px;margin:0 auto;line-height:1.5">${subtitulo}</div>`:''}
     </div>`;
 
-  const _header = (icon, titulo, desc) => `<div class="pg-head" style="padding-left:0;padding-right:0;margin-bottom:20px"><div style="min-width:0"><div class="pg-eyebrow">Selección Mayor</div><div class="pg-title" style="font-size:28px">${titulo}</div>${desc?`<div class="pg-sub">${desc}</div>`:''}</div></div>`;
+  const _header = (icon, titulo, desc) => _pgHero('Fecha FIFA nov 2026 · Selección Mayor', String(titulo).replace(/(\S+)$/,'<span class="acc">$1</span>'), desc, '');
 
   const _fifaMatches = FIFANOV26.partidosData||[];
   const _FIFANOV_ISO=_FIFA_EV_ISO; // mapa país→bandera compartido (ver _FIFA_EV_ISO)
@@ -15275,6 +15275,8 @@ function renderFifaNov26(tabId){
     renderFifaNovGrafica();
   } else if(slug==='infogeneral'){
     renderInfoGeneral('fifanov26');
+    // Encabezado grande de la Fecha FIFA de noviembre (el contenido de abajo es el mismo componente que usan los otros eventos)
+    con.insertAdjacentHTML('afterbegin', _header('ti-info-circle','Info general','Período reglamentario FIFA: del 9 al 17 de noviembre · '+(FIFANOV26.partidosData||[]).length+' partidos'));
   }
 }
 window.renderFifaNov26Plantel = function(){ renderFifaNov26('fifanov26-plantel'); };
@@ -32633,13 +32635,18 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
           </div>
         </div>`;
 
-      const matchTabsHtml = _fifaEvOf(filterCompId) ? `
+      const matchTabsHtml = filterCompId==='fifanov26' ? `
+        <div class="sj-band" style="margin-bottom:16px">
+          ${list.map(lm=>`<button onclick="window._amistDetailOpen=${lm.id};${_fifaRenderCall(filterCompId)}" class="sj-pill${lm.id===m.id?' active':''}">vs. ${lm.rival}</button>`).join('')}
+        </div>` : _fifaEvOf(filterCompId) ? `
         <div class="tabs" style="margin-bottom:12px">
           ${list.map(lm=>`<button onclick="window._amistDetailOpen=${lm.id};${_fifaRenderCall(filterCompId)}" class="tab${lm.id===m.id?' active':''}">vs. ${lm.rival}</button>`).join('')}
         </div>` : '';
+      const _novP = filterCompId==='fifanov26' ? ((typeof FIFANOV26!=='undefined'&&FIFANOV26.partidosData)||[]).find(x=>x.rival===m.rival) : null;
+      const novHero = filterCompId==='fifanov26' ? _pgHero('Fecha FIFA nov 2026 · Pizarra', `Uruguay vs. <span class="acc">${m.rival}</span>`, `${fechaFmt} · ${_novP?(_novP.local===false?'Visitante':'Local'):catLabel}${_novP&&_novP.sede?' · '+_novP.sede:''}`, `Resultado: <b style="color:${resColor}">${resLabel}</b>`) : '';
       return `
-        ${matchTabsHtml}
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        ${novHero}${matchTabsHtml}
+        <div style="${filterCompId==='fifanov26'?'display:none':'display:flex'};align-items:center;gap:10px;margin-bottom:12px">
           ${_fifaEvOf(filterCompId)?'':`
           <button onclick="_amistCloseDetail()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700;flex-shrink:0">
             <i class="ti ti-arrow-left"></i> Volver
