@@ -803,6 +803,10 @@ const INTERMEDIO_SERIE_B_TABLA = [
 ];
 const _365_BASE = 'https://webws.365scores.com/web';
 const _365_QS = 'appTypeId=5&langId=29&timezoneName=America/Montevideo&userCountryId=111';
+// 365scores a veces trae mal el horario de algún partido (hay que contrastar siempre con la AUF / FotMob / Google). Acá se corrigen a mano, por id de partido.
+// 4876315 Deportivo Maldonado – Danubio (Clausura f.12, 24/10/2026): 365scores decía 20:30; FotMob y Sofascore dan 22:00 UTC = 19:00 en Uruguay.
+const HORA_CORREGIDA = { 4876315: '2026-10-24T19:00:00-03:00' };
+const _horaPartido = m => HORA_CORREGIDA[m.id] || m.startTime;
 
 async function fetchLigaUY(leagueId, sinTablas) {
   const qs = `${_365_QS}&competitions=${leagueId}`;
@@ -823,7 +827,7 @@ async function fetchLigaUY(leagueId, sinTablas) {
     .map(m => ({
       home: shortName(m.homeCompetitor), homeId: m.homeCompetitor.id,
       away: shortName(m.awayCompetitor), awayId: m.awayCompetitor.id,
-      utcTime: m.startTime, round: m.roundNum, fase: m.stageName,
+      utcTime: _horaPartido(m), round: m.roundNum, fase: m.stageName,
     }));
   const ultimos = results
     .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
@@ -833,7 +837,7 @@ async function fetchLigaUY(leagueId, sinTablas) {
       home: shortName(m.homeCompetitor), homeId: m.homeCompetitor.id,
       away: shortName(m.awayCompetitor), awayId: m.awayCompetitor.id,
       score: `${m.homeCompetitor.score} - ${m.awayCompetitor.score}`,
-      utcTime: m.startTime, round: m.roundNum, fase: m.stageName,
+      utcTime: _horaPartido(m), round: m.roundNum, fase: m.stageName,
     }));
 
   // Partidos del día (hora de Montevideo), jugados o por jugar: para la tarjeta "Hoy · Fútbol uruguayo" de Inicio.
@@ -844,7 +848,7 @@ async function fetchLigaUY(leagueId, sinTablas) {
     home: shortName(m.homeCompetitor), homeId: m.homeCompetitor.id,
     away: shortName(m.awayCompetitor), awayId: m.awayCompetitor.id,
     score: fin ? `${m.homeCompetitor.score} - ${m.awayCompetitor.score}` : undefined,
-    finalizado: fin, utcTime: m.startTime, round: m.roundNum, fase: m.stageName,
+    finalizado: fin, utcTime: _horaPartido(m), round: m.roundNum, fase: m.stageName,
   });
   const hoy = [...fixtures.filter(_delDia).map(m => _mapHoy(m, false)), ...results.filter(_delDia).map(m => _mapHoy(m, true))]
     .sort((a, b) => new Date(a.utcTime) - new Date(b.utcTime));
@@ -909,7 +913,7 @@ app.get('/api/futbol-uy/hoy', async (req, res) => {
           home: m.homeCompetitor.shortName || m.homeCompetitor.name, homeId: m.homeCompetitor.id,
           away: m.awayCompetitor.shortName || m.awayCompetitor.name, awayId: m.awayCompetitor.id,
           gh: st === 'prog' ? null : sc(m.homeCompetitor.score), ga: st === 'prog' ? null : sc(m.awayCompetitor.score),
-          utcTime: m.startTime, estado: st, minuto: m.gameTimeDisplay || '', detalle: m.statusText || '',
+          utcTime: _horaPartido(m), estado: st, minuto: m.gameTimeDisplay || '', detalle: m.statusText || '',
           round: m.roundNum, fase: m.stageName,
         };
       })
