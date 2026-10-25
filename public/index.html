@@ -7714,7 +7714,11 @@ function _recPartidosDerivados(){
         if(cat!=='fifamayor' && D<=TODAY && D>=_recSumarDias(TODAY,-10)){
           const completa=m.gLocal!=null&&m.gRival!=null&&nStart>=nMax&&!!(m.lineup||{}).captain&&!!m.dtPartido&&Array.isArray(m.subs)&&m.subs.length>0;
           const id='ficha|'+uid, mn=manual[id]||{};
-          out.push({id,titulo:'Cargar resultado final e informe '+lbl+' a la app',detalle:'Partido '+D.split('-').reverse().join('/')+' · resultado, titulares, capitán, DT, ingresos y goles',vence:_recSumarDias(D,1),hora:'10:00',etiqueta:metaCat(cat),
+          // Vence cuando termina el partido: hora de Uruguay del pitazo inicial + 2 h (si no hay hora cargada, a las 22:00 del mismo día)
+          const _hm=(String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/(\d{1,2}):(\d{2})/));
+          let _vF=D, _hF='22:00';
+          if(_hm){ let mins=parseInt(_hm[1],10)*60+parseInt(_hm[2],10)+120; if(mins>=1440){ mins-=1440; _vF=_recSumarDias(D,1); } _hF=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'); }
+          out.push({id,titulo:'Cargar resultado final e informe '+lbl+' a la app',detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar · resultado, titulares, capitán, DT, ingresos y goles',vence:_vF,hora:_hF,etiqueta:metaCat(cat),
             hecho:completa||!!mn.hecho,hechoEn:(!completa&&mn.hecho)?mn.hechoEn:null});
           const idp='pub|'+uid, mp=manual[idp]||{};
           out.push({id:idp,titulo:'Publicar informe de partido '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · con el resultado y la ficha ya cargados',vence:_recSumarDias(D,1),hora:'12:00',etiqueta:metaCat(cat),
