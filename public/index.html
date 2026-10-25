@@ -3054,6 +3054,20 @@ html.auf-gate body { display:none !important }
 
 // Fecha local (no UTC) — toISOString() corría un día adelantado para zonas horarias negativas (ej. UYT)
 const TODAY = (()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`})(); // se actualiza automático
+// Cambio de día con la pestaña abierta: TODAY se calcula al cargar, así que una pestaña de ayer seguía mostrando los partidos de ayer como "de hoy".
+// Cada minuto (y al volver a la pestaña) se compara con la fecha real; si cambió, se recarga sola (si estás escribiendo, espera a que termines).
+(function(){
+  const hoyReal=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+  const chk=()=>{
+    if(hoyReal()===TODAY) return;
+    const a=document.activeElement, escribiendo=a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable);
+    if(escribiendo) return;
+    location.reload();
+  };
+  setInterval(chk,60000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) chk(); });
+  window.addEventListener('focus',chk);
+})();
 
 
 // ── PDF oficial Uruguay — Team Arrival Meeting (fuente verificada de las actividades de prensa) ──
@@ -7689,7 +7703,7 @@ function _recPartidosDerivados(){
         const D=(m.fecha||'').slice(0,10); if(!D||!m.rival) return;
         const lbl=metaCat(cat)+' vs. '+m.rival, uid=(m.id||(k+D+m.rival));
         const nStart=Object.values((m.lineup||{}).starters||{}).filter(Boolean).length, nMax=(m.compId==='mundial-sub15-2026')?8:11;
-        const hora=m.hora?' · '+String(m.hora).replace(/h+$/,'')+'h':'';
+        const hora=m.hora?' · '+String(m.hora).replace(/(\d{1,2}:\d{2})(?!\d)\s*h*/g,'$1h'):'';
         if(D>=TODAY && D<=_recSumarDias(TODAY,10)){
           const id='alin|'+uid, mn=manual[id]||{};
           out.push({id,titulo:'Conseguir la alineación de '+lbl+' y cargarla en la app',detalle:'Partido '+D.split('-').reverse().join('/')+hora+' · se la pedimos al CT',vence:_recSumarDias(D,-1),hora:'10:00',etiqueta:metaCat(cat),
@@ -7698,8 +7712,11 @@ function _recPartidosDerivados(){
         if(cat!=='fifamayor' && D<=TODAY && D>=_recSumarDias(TODAY,-10)){
           const completa=m.gLocal!=null&&m.gRival!=null&&nStart>=nMax&&!!(m.lineup||{}).captain&&!!m.dtPartido&&Array.isArray(m.subs)&&m.subs.length>0;
           const id='ficha|'+uid, mn=manual[id]||{};
-          out.push({id,titulo:'Completar la ficha de '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · resultado, titulares, capitán, DT, ingresos y goles',vence:_recSumarDias(D,1),hora:'10:00',etiqueta:metaCat(cat),
+          out.push({id,titulo:'Cargar resultado final e informe '+lbl+' a la app',detalle:'Partido '+D.split('-').reverse().join('/')+' · resultado, titulares, capitán, DT, ingresos y goles',vence:_recSumarDias(D,1),hora:'10:00',etiqueta:metaCat(cat),
             hecho:completa||!!mn.hecho,hechoEn:(!completa&&mn.hecho)?mn.hechoEn:null});
+          const idp='pub|'+uid, mp=manual[idp]||{};
+          out.push({id:idp,titulo:'Publicar informe de partido '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · con el resultado y la ficha ya cargados',vence:_recSumarDias(D,1),hora:'12:00',etiqueta:metaCat(cat),
+            hecho:!!mp.hecho,hechoEn:mp.hecho?mp.hechoEn:null});
         }
       });
     }
@@ -8007,7 +8024,7 @@ window._recNoAplica=function(id){
   window._recCumpleCache=null; if(typeof renderInicio==='function') renderInicio();
 };
 window._recHecho=function(id){
-  if(/^(alin|ficha)\|/.test(String(id))){
+  if(/^(alin|ficha|pub)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
@@ -11979,10 +11996,11 @@ function _fifaSepApplyFloor(){
     if((t.g||0)<f.g) t.g=f.g;
   });
 }
-function _fifaSepConfirmBtnHtml(cat,year,m){
+function _fifaSepConfirmBtnHtml(cat,year,m,chip){
   const delta=getFifaSepStatsDelta();
   const confirmed=!!delta[m.rival];
   const n=confirmed?Object.keys(delta[m.rival]).length:0;
+  if(chip){ const hayRes=m.gLocal!=null&&m.gRival!=null&&m.gLocal!==''&&m.gRival!==''; return `<button onclick="_fifaSepConfirmStats('${cat}','${year}',${m.id})" class="pz-chip ${confirmed?'ok':hayRes?'pri':''}" title="${confirmed?n+' jugadores sumaron un partido. Tocá para recalcular.':'Suma partidos y goles a las estadísticas de los jugadores.'}"><i class="ti ti-${confirmed?'check':'circle-check'}"></i>${confirmed?'Confirmado':'Confirmar resultado'}</button>`; }
   return `<button onclick="_fifaSepConfirmStats('${cat}','${year}',${m.id})" style="width:100%;padding:9px;background:${confirmed?'#DCFCE7':'var(--cel)'};color:${confirmed?'#15803D':'#fff'};border:${confirmed?'1.5px solid #86EFAC':'none'};border-radius:10px;font-size:.82em;font-weight:800;cursor:pointer;margin-bottom:12px">
     ${confirmed?`✅ Confirmado — ${n} jugadores +1 partido (tocar para recalcular)`:'✓ Confirmar resultado — aplicar a estadísticas'}
   </button>`;
@@ -32153,7 +32171,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
   const slots = FORMATIONS[form];
   const st = lu.starters||{};
   const goles = m['goles'+sfx]||{};
-  const dtVal = m['dtPartido'+(sfx||'')]||((m.compId==='fifanov26'&&typeof FIFANOV26!=='undefined')?FIFANOV26.dt:'');
+  const dtVal = m['dtPartido'+(sfx||'')]||((typeof _fifaEvOf==='function'&&_fifaEvOf(m.compId))?_fifaEvOf(m.compId).dt:'');
   const usedNoms = new Set(Object.values(st).filter(Boolean));
   const bench = convocados.filter(n=>!usedNoms.has(n));
   const subs = m['subs'+sfx]||[];
@@ -32796,7 +32814,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       const auftvSrc = leg===2 ? m.auftvVuelta : m.auftv;
       const fechaFmt = fechaSrc ? new Date(fechaSrc+'T12:00:00').toLocaleDateString('es-UY',{day:'numeric',month:'short',year:'numeric'}) : '';
       const goles = m['goles'+sfx]||{};
-      const dtVal = m['dtPartido'+(sfx||'')]||((m.compId==='fifanov26'&&typeof FIFANOV26!=='undefined')?FIFANOV26.dt:'');
+      const dtVal = m['dtPartido'+(sfx||'')]||((typeof _fifaEvOf==='function'&&_fifaEvOf(m.compId))?_fifaEvOf(m.compId).dt:'');
       const inp = 'padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.82em;outline:none;background:var(--surface);box-sizing:border-box';
 
       const legTabs = m.esIdaYVuelta ? `
@@ -32904,7 +32922,18 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       const _sn = n=>{ const q=String(n).trim().split(/\s+/); return q.length>1?(q[0].endsWith('.')?n:q[0][0]+'. '+q.slice(1).join(' ')):n; };
       const _chip = (n,grp)=>`<button type="button" class="pz-pk" data-g="${grp}" data-n="${String(n).replace(/"/g,'&quot;')}" onclick="_pzPick(this)" title="${String(n).replace(/"/g,'&quot;')}">${_sn(n)}</button>`;
       const _incT = window._pzIncType||'gol';
-      const _novCtl = filterCompId==='fifanov26' ? `
+      const _EVx = _fifaEvOf(filterCompId);
+      const _dtRowOld = `
+          <div style="display:flex;gap:4px;align-items:center;margin-top:5px">
+            <select id="amist-dt${sfx}-${m.id}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
+              <option value="">DT del partido…</option>
+              ${dtOptions.join('')}
+            </select>
+            <button onclick="_amistSaveDT('${cat}','${year}',${m.id},${leg})"
+              style="padding:5px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:.75em;font-weight:700;cursor:pointer;flex-shrink:0">OK</button>
+          </div>
+`;
+      const _novCtl = `
           <div class="pz-ip" data-t="${_incT}" data-cat="${cat}" data-year="${year}" data-id="${m.id}" data-leg="${leg}">
             <div class="pz-it">
               <button type="button" data-t="gol" title="Gol" onclick="_pzType(this)"><i class="ti ti-ball-football"></i></button>
@@ -32919,7 +32948,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <div class="pz-ia"><div class="pz-ial">Asistencia <i>(opcional)</i></div><div class="pz-il pz-il-s" data-g="ast">${_selNoms.map(n=>_chip(n,'ast')).join('')}</div></div>
             <div class="pz-ir"><input type="text" inputmode="numeric" maxlength="3" placeholder="Min" class="pz-imin"><button type="button" class="pz-iadd" onclick="_pzAdd(this)">Agregar</button></div>
           </div>
-          <div class="pz-dt"><span>DT</span><b>${FIFANOV26.dt||'Diego Forlán'}</b></div>` : '';
+          ${_EVx?`<div class="pz-dt"><span>DT</span><b>${_EVx.dt||'Diego Forlán'}</b></div>`:_dtRowOld}`;
       // ── Columna izquierda — CSS idéntico a la Mayor ──
       const leftCol = `
         <div class="piz-info-card">
@@ -32946,12 +32975,12 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
               ${fechaFmt?`<b>${fechaFmt}</b>`:''}${leg!==2&&_amistHorasTxt(m)?` · ${_amistHorasTxt(m)}`:(horaSrc?` · ${horaSrc}`:'')}${lugarSrc&&!(leg!==2&&_amistHorasTxt(m)&&lugarSrc===m.paisSede)?`<br>${lugarSrc}`:''}
             </div>
             <div style="display:flex;gap:6px;align-items:center;margin-top:10px">
-              <input id="amist-res-gl${sfx}-${m.id}${filterCompId==='fifanov26'?'-orig':''}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+              <input id="amist-res-gl${sfx}-${m.id}-orig" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
                 value="${gl!==null?gl:''}" placeholder="–"
                 onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" onclick="this.select()"
                 style="flex:1;padding:8px 4px;font-size:1.3em;font-weight:900;text-align:center;color:#fff;background:rgba(255,255,255,.09);border:1.5px solid rgba(255,255,255,.2);border-radius:9px;outline:none">
               <span style="color:rgba(255,255,255,.3);font-size:1em;font-weight:900;flex-shrink:0">:</span>
-              <input id="amist-res-gr${sfx}-${m.id}${filterCompId==='fifanov26'?'-orig':''}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
+              <input id="amist-res-gr${sfx}-${m.id}-orig" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
                 value="${gr!==null?gr:''}" placeholder="–"
                 onchange="_amistSaveResult('${cat}','${year}',${m.id},${leg})" onclick="this.select()"
                 style="flex:1;padding:8px 4px;font-size:1.3em;font-weight:900;text-align:center;color:#fff;background:rgba(255,255,255,.09);border:1.5px solid rgba(255,255,255,.2);border-radius:9px;outline:none">
@@ -33005,58 +33034,16 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         </div>
 
         <div class="pz-sec" style="margin-top:10px">
-          <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">${filterCompId==='fifanov26'?'Incidencias del partido':'Resumen del partido'}</div>
+          <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Incidencias del partido</div>
           <div class="pz-inc" style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px">
             ${incHtml}
           </div>
-          ${filterCompId==='fifanov26'?_novCtl:`
-          ${jugaron.length?`<div style="display:flex;flex-direction:column;gap:5px">
-            <div style="display:flex;gap:4px;align-items:center">
-              <select id="amist-gol-sel-${leg}-${m.id}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
-                <option value="">⚽ Gol de…</option>
-                ${jugaron.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n.split(' ').pop()}</option>`).join('')}
-                <option value="__EC__">En contra</option>
-              </select>
-              <input id="amist-gol-min-${leg}-${m.id}" type="text" inputmode="numeric" maxlength="3" placeholder="min" style="width:38px;padding:5px 4px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
-              <button onclick="_amistAddGol('${cat}','${year}',${m.id},'amist-gol-sel-${leg}-${m.id}','amist-gol-min-${leg}-${m.id}',${leg})"
-                style="padding:5px 10px;background:var(--cel);color:#fff;border:none;border-radius:7px;font-size:.8em;font-weight:800;cursor:pointer;flex-shrink:0">+</button>
-            </div>
-            <div style="display:flex;gap:4px;align-items:center">
-              <select id="juv-card-nom-${m.id}${sfx}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
-                <option value="">🟨 Tarjeta a…</option>
-                ${jugaron.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n.split(' ').pop()}</option>`).join('')}
-              </select>
-              <select id="juv-card-col-${m.id}${sfx}" style="width:40px;padding:5px 2px;border:1px solid var(--border);border-radius:7px;font-size:.85em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
-                <option value="a">🟨</option><option value="r">🟥</option>
-              </select>
-              <input id="juv-card-min-${m.id}${sfx}" type="text" inputmode="numeric" maxlength="3" placeholder="min" style="width:38px;padding:5px 4px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
-              <button onclick="_amistAddCard('${cat}','${year}',${m.id},${leg})"
-                style="padding:5px 10px;background:#F59E0B;color:#fff;border:none;border-radius:7px;font-size:.8em;font-weight:800;cursor:pointer;flex-shrink:0">+</button>
-            </div>
-            <div style="display:flex;gap:4px;align-items:center">
-              <select id="juv-les-nom-${m.id}${sfx}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
-                <option value="">🩹 Se lesionó…</option>
-                ${jugaron.filter(n=>!lesiones.some(l=>l.nom===n)).map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n.split(' ').pop()}</option>`).join('')}
-              </select>
-              <input id="juv-les-min-${m.id}${sfx}" type="text" inputmode="numeric" maxlength="3" placeholder="min" style="width:38px;padding:5px 4px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;text-align:center;flex-shrink:0">
-              <button onclick="_amistAddLesion('${cat}','${year}',${m.id},${leg})"
-                style="padding:5px 10px;background:#DC2626;color:#fff;border:none;border-radius:7px;font-size:.8em;font-weight:800;cursor:pointer;flex-shrink:0">+</button>
-            </div>
-          </div>`:''}
-          <div style="display:flex;gap:4px;align-items:center;margin-top:5px">
-            <select id="amist-dt${sfx}-${m.id}" style="flex:1;padding:5px 7px;border:1px solid var(--border);border-radius:7px;font-size:.75em;background:var(--surface);outline:none;min-width:0">
-              <option value="">DT del partido…</option>
-              ${dtOptions.join('')}
-            </select>
-            <button onclick="_amistSaveDT('${cat}','${year}',${m.id},${leg})"
-              style="padding:5px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:.75em;font-weight:700;cursor:pointer;flex-shrink:0">OK</button>
-          </div>
-          `}
+          ${_novCtl}
         </div>`;
 
-      const _novPs = (typeof FIFANOV26!=='undefined'&&FIFANOV26.partidosData)||[];
+      const _novPs = ((typeof _fifaEvOf==='function'&&_fifaEvOf(filterCompId))||{}).partidosData||[];
       const _MES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-      const matchTabsHtml = filterCompId==='fifanov26' ? `
+      const matchTabsHtml = _EVx ? `
         <div class="pz-sw">
           ${list.map(lm=>{
             const pp=_novPs.find(x=>x.rival===lm.rival)||{};
@@ -33070,11 +33057,9 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
               <span class="pz-m"><b>Uruguay vs. ${lm.rival}</b><span>${pp.sede||''}</span></span>
               <span class="pz-r"><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em><strong style="${jugado?'color:'+rc:''}">${jugado?lm.gLocal+' – '+lm.gRival:(pp.hora?pp.hora+'h':'Por confirmar')}</strong></span>
             </button>`;}).join('')}
-        </div>` : _fifaEvOf(filterCompId) ? `
-        <div class="tabs" style="margin-bottom:12px">
-          ${list.map(lm=>`<button onclick="window._amistDetailOpen=${lm.id};${_fifaRenderCall(filterCompId)}" class="tab${lm.id===m.id?' active':''}">vs. ${lm.rival}</button>`).join('')}
         </div>` : '';
-      const _novP2 = _novPs.find(x=>x.rival===m.rival)||{};
+      const _novP2 = _novPs.find(x=>x.rival===m.rival)||{hora:(leg===2?(m.horaVuelta||m.hora):m.hora)||'', sede:[...new Set([leg===2?(m.lugarVuelta||m.lugar):m.lugar, m.paisSede].filter(Boolean))].join(', ')||({'mundial-sub15-2026':'Bakú, Azerbaiyán'}[m.compId]||''), confirmado:true};
+      const _horaTxt = _EVx ? (_novP2.hora?_novP2.hora+'h':'') : ((leg!==2&&_amistHorasTxt(m))||_novP2.hora||'');
       const _WD=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'], _MN=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
       const _fd=m.fecha?new Date(String(m.fecha).slice(0,10)+'T12:00:00'):null;
       const _fechaLarga=_fd?`${_WD[_fd.getDay()].charAt(0).toUpperCase()+_WD[_fd.getDay()].slice(1)}, ${_fd.getDate()} de ${_MN[_fd.getMonth()]}`:'';
@@ -33087,16 +33072,16 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       const _veredicto=hasResult?(penDecides?(penGl>penGr?['Victoria','#86EFAC']:['Derrota','#FCA5A5']):(gl>gr?['Victoria','#86EFAC']:gl===gr?['Empate','#FCD34D']:['Derrota','#FCA5A5'])):null;
       const _rowM=(esU)=>{ const nom=esU?'Uruguay':m.rival, id=esU?_idU:_idR, v=esU?gl:gr, ico=esU?'<img src="./selecciones/uruguay.png" alt="Uruguay">':_escudoSeleccion(m.rival,26);
         return `<div class="pz-mini-row"><span class="pz-mini-cr">${ico}</span><span class="pz-mini-nm${esU?' uy':''}">${nom}</span>${_inp(id,v)}</div>`; };
-      const novMini = filterCompId==='fifanov26' ? `
+      const novMini = `
         <div class="pz-mini">
           <div class="pz-mini-top">${hasResult?'<span class="pz-sb-st fin">Final</span>':(()=>{const e=_fifaNovEstado(_novP2);return `<span class="pz-sb-st" style="color:${e[1]};border-color:${e[1]}66">${e[0]}</span>`;})()}${_veredicto?`<span class="pz-sb-ver" style="color:${_veredicto[1]};border-color:${_veredicto[1]}66">${_veredicto[0]}</span>`:''}</div>
           ${_uruHome?_rowM(true)+_rowM(false):_rowM(false)+_rowM(true)}
-          <div class="pz-mini-foot"><b>${_fechaLarga.replace(/^(\S+), /,'$1 ')}${_novP2.hora?` · ${_novP2.hora}h`:''}</b><span>${_novP2.sede||''}</span>${_fifaNovConfirmBtnHtml(cat,year,m)}</div>
-        </div>` : '';
-      const novHero = filterCompId==='fifanov26' ? _pgHero('Fecha FIFA nov 2026 · Selección Mayor', 'Planillas de <span class="acc">partido</span>', `Formación, goles y tarjetas de los amistosos vs. ${_novPs.map(x=>`<b class="acc">${x.rival} (${x.local===false?'V':'L'})</b>`).join(' y ')}.`, '') : '';
-      return `
+          <div class="pz-mini-foot"><b>${_fechaLarga.replace(/^(\S+), /,'$1 ')}${_horaTxt?` · ${_horaTxt}`:''}</b><span>${_novP2.sede||''}</span>${filterCompId==='fifanov26'?_fifaNovConfirmBtnHtml(cat,year,m):filterCompId==='fifasep26'?_fifaSepConfirmBtnHtml(cat,year,m,true):`<button class="pz-chip ${m.confirmado?'ok':hasResult?'pri':''}" onclick="_amistToggleConfirmado('${cat}','${year}',${m.id})" title="${m.confirmado?'Confirmado — cuenta para las estadísticas (tocá para deshacer)':'Confirmar partido para que cuente en las estadísticas'}"><i class="ti ti-${m.confirmado?'check':'circle-check'}"></i>${m.confirmado?'Confirmado':'Confirmar partido'}</button>`}</div>
+        </div>`;
+      const novHero = _EVx ? _pgHero(`${_EVx.label} · Selección Mayor`, 'Planillas de <span class="acc">partido</span>', `Formación, goles y tarjetas de los amistosos vs. ${_novPs.map(x=>`<b class="acc">${x.rival} (${x.local===false?'V':'L'})</b>`).join(' y ')}.`, '') : '';
+      return `<div class="pz-pro">
         ${novHero}${matchTabsHtml}
-        <div style="${filterCompId==='fifanov26'?'display:none':'display:flex'};align-items:center;gap:10px;margin-bottom:12px">
+        <div style="${_EVx?'display:none':'display:flex'};align-items:center;gap:10px;margin-bottom:12px">
           ${_fifaEvOf(filterCompId)?'':`
           <button onclick="_amistCloseDetail()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700;flex-shrink:0">
             <i class="ti ti-arrow-left"></i> Volver
@@ -33107,10 +33092,9 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
           </div>
           <div style="font-size:1.3em;font-weight:900;color:${resColor};flex-shrink:0">${resLabel}</div>
         </div>
-        ${filterCompId==='fifasep26'?_fifaSepConfirmBtnHtml(cat,year,m):''}
         ${legTabs}
         <div class="piz-3col">
-          <div class="piz-col-left">${filterCompId==='fifanov26'?leftCol.replace('<div class="piz-info-card">','<div class="piz-info-card">'+novMini):leftCol}</div>
+          <div class="piz-col-left">${leftCol.replace('<div class="piz-info-card">','<div class="piz-info-card">'+novMini)}</div>
           <div class="piz-col-center">${pitchHtml}</div>
           <div class="piz-col-right" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px">${benchHtml}</div>
         </div>
@@ -33118,7 +33102,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         <button onclick="_amistDeleteMatch('${cat}','${year}',${m.id})"
           style="width:100%;padding:8px;background:var(--card);border:1.5px solid #fca5a5;color:#dc2626;border-radius:10px;font-size:.78em;font-weight:700;cursor:pointer;margin-top:12px">
           <i class="ti ti-trash"></i> Eliminar partido
-        </button>`}`;
+        </button>`}</div>`;
     }
   }
 
