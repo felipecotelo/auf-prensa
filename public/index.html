@@ -762,6 +762,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .jm-ch{color:rgba(239,243,248,.35);font-size:14px;flex-shrink:0}
 .jm-th{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(239,243,248,.6);margin:18px 0 10px}
 @media(max-width:600px){.jm-card{gap:10px;padding:12px 12px}.jm-esc{display:none}.jm-mt b{font-size:14.5px}.jm-sc b{font-size:20px}.jm-card .pz-d b{font-size:20px}}
+/* Encabezados de sección con acciones (botón a la derecha del texto) */
+.pg-hero-act{margin-top:12px;display:flex;justify-content:flex-end}
 /* Pizarra nov: botonera de incidencias */
 .pz-pro .pz-sec .pz-inc button{height:22px!important;min-width:22px!important;width:22px;padding:0!important;font-size:10px!important;border-radius:50%!important}
 .pz-pro .piz-3col{grid-template-columns:224px 1fr 220px}
@@ -38636,10 +38638,30 @@ function _pwSetTab(tab){
   renderPrensa(); _pwInitSync();
 }
 // Encabezado único de pantalla: etiqueta arriba, título grande, subtítulo y, a la derecha, la acción principal.
+function _pgAccentLast(t){ t=String(t||'').trim(); return /<[a-z]/i.test(t)?t:t.replace(/(\S+)$/,'<span class="acc">$1</span>'); }
 function _pgHead(eyebrow,title,sub,actionHtml){
-  return `<div class="pg-head"><div style="min-width:0"><div class="pg-eyebrow">${eyebrow}</div><div class="pg-title">${title}</div>${sub?`<div class="pg-sub">${sub}</div>`:''}</div>${actionHtml||''}</div>`;
+  // Encabezado de sección: mismo diseño grande que el resto (pastilla, título con la última palabra en celeste, texto a la derecha)
+  return `<div class="pg-hero"><div class="pg-hero-l"><span class="pg-hero-pill">${eyebrow}</span><h1 class="pg-hero-t">${_pgAccentLast(title)}</h1></div><div class="pg-hero-r">${sub?`<p>${sub}</p>`:''}${actionHtml?`<div class="pg-hero-act">${actionHtml}</div>`:''}</div></div>`;
 }
 window._pgHead=_pgHead;
+// Encabezados estáticos viejos (Jugadores, Técnicos, Calendario Mayor, Estadísticas, Links…) → mismo diseño de encabezado grande.
+// Las pestañas de la Copa Mundial 2026 se dejan como están.
+(function(){
+  const conv=()=>{
+    ['calendariomayor','jugadores','tecnicos'].forEach(id=>{
+      const h=document.querySelector('#'+id+' > .sec-hdr'); if(!h) return;
+      const t=(h.querySelector('.sec-title')?.textContent||'').trim(), d=(h.querySelector('.sec-desc,.sec-sub')?.textContent||'').trim();
+      h.outerHTML=_pgHead('Selección Mayor',t,d);
+    });
+    document.querySelectorAll('.section > .pg-head').forEach(h=>{
+      const eb=h.querySelector('.pg-eyebrow')?.textContent||'', t=h.querySelector('.pg-title')?.textContent||'', sb=h.querySelector('.pg-sub')?.innerHTML||'';
+      const act=[...h.children].slice(1).map(e=>e.outerHTML).join('');
+      h.outerHTML=_pgHead(eb,t,sb,act);
+    });
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',conv); else conv();
+})();
+
 // Encabezado grande, estilo panel de Suárez: recuadro redondeado con brillo, etiqueta en pastilla, título con una parte en color y texto de apoyo a la derecha.
 function _pgHero(pill,titleHtml,descHtml,metaHtml){
   return `<div class="pg-hero"><div class="pg-hero-l"><span class="pg-hero-pill">${pill}</span><h1 class="pg-hero-t">${titleHtml}</h1></div><div class="pg-hero-r"><p>${descHtml}</p>${metaHtml?`<small>${metaHtml}</small>`:''}</div></div>`;
