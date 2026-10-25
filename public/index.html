@@ -2450,12 +2450,8 @@ html.auf-gate body { display:none !important }
     <button onclick="serverSave()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:none;color:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ti ti-cloud-upload" style="font-size:16px"></i></button>
   </div>
 </div>
-<div class="mob-quickbar" id="mob-quickbar">
-  <button class="mob-qbtn" id="mqb-prensa" onclick="showSection('prensa')"><i class="ti ti-microphone-2"></i>Prensa</button>
-  <button class="mob-qbtn" id="mqb-redes" onclick="showSection('redes')"><i class="ti ti-chart-arrows-vertical"></i>Redes</button>
-  <button class="mob-qbtn" id="mqb-estr" onclick="showSection('estructura')"><i class="ti ti-sitemap"></i>Estructura</button>
-  <button class="mob-qbtn" id="mqb-plan" onclick="showSection('planificador')"><i class="ti ti-clipboard-list"></i>Planificador</button>
-</div>
+<!-- Mobile simplificado: se eliminó el quickbar (Prensa/Redes/Estructura/Planificador),
+     esas secciones ya no son parte del mobile reemplazado por las 3 pestañas simples. -->
 
 <div id="tabs-bar" style="opacity:0">
   <!-- L0: secciones globales -->
@@ -2588,6 +2584,11 @@ html.auf-gate body { display:none !important }
 <!-- ═══════════ INICIO ═══════════ -->
 <div id="inicio" class="section active">
   <div id="inicio-body" style="padding:0 0 2rem"></div>
+  <!-- Mobile simplificado: pestañas Buscar/Stats viven acá adentro (hijas de #inicio) para no
+       pelear con el sistema de .section/.active de escritorio — _mobSimpleGo() solo alterna
+       cuál de las 3 (inicio-body/mob-buscar-body/mob-stats-body) está visible. -->
+  <div id="mob-buscar-body" style="display:none;padding:0 0 2rem"></div>
+  <div id="mob-stats-body" style="display:none;padding:0 0 2rem"></div>
 </div>
 
 <!-- ═══════════ CALENDARIO ═══════════ -->
@@ -8126,7 +8127,18 @@ function _inicioSettle(){
   clearTimeout(window._inicioRevT); window._inicioRevT=setTimeout(mostrar,450);
   if(!window._inicioRevMax) window._inicioRevMax=setTimeout(mostrar,2500);
 }
-function renderInicio(){ const r=_renderInicioBase.apply(this,arguments); try{ _inicioSettle(); }catch(_){} return r; }
+// Versión mobile simplificada: Inicio = solo Recordatorios + Tareas de hoy (sin los widgets
+// de escritorio: Ayer/Mañana en Selección, Cobertura, Próximo hito, Fútbol UY, Mis idas, Fotos, Redes).
+function _renderMobSimpleHoy(){
+  const el=document.getElementById('inicio-body');
+  if(!el) return;
+  el.innerHTML = renderInicioRecordatorios() + renderInicioTareas();
+  _sizeTareaTAs();
+}
+function renderInicio(){
+  if(window.innerWidth<=600) return _renderMobSimpleHoy();
+  const r=_renderInicioBase.apply(this,arguments); try{ _inicioSettle(); }catch(_){} return r;
+}
 function _renderInicioBase(){
   const el=document.getElementById('inicio-body');
   if(!el)return;
@@ -24158,6 +24170,9 @@ function lgCopy(i,url){
     // la navegación de arriba queda mostrando el torneo equivocado).
     (function _restoreLastTab(){
       try{
+        // Mobile simplificado: siempre arranca en Inicio (las 3 pestañas simples viven ahí
+        // adentro) — nunca restaura Mayor/Local/Juveniles/Prensa/etc. en el celular.
+        if(window.innerWidth<=600) return;
         const last=stor.get('auf4_lastTab',null);
         if(!last || last==='inicio') return;
         if(!document.getElementById(last)) return;
@@ -34746,6 +34761,8 @@ function _buildJuvStatsView(){
     </div>
   `;
 }
+// Expuesta a window: el mobile simplificado (pestaña Stats, fuera de este módulo) la reusa.
+window._buildJuvStatsView = _buildJuvStatsView;
 
 // ── Vista global: todos los jugadores de Juveniles, cruzando categorías ────
 // Cada jugador tiene una sola ficha que persiste a medida que asciende de categoría.
@@ -34904,6 +34921,8 @@ function _juvCompAllPlayers(compId){
   });
   return Object.values(out);
 }
+// Expuesta a window: el mobile simplificado (plantel por categoría) la reusa.
+window._juvCompAllPlayers = _juvCompAllPlayers;
 // Ficha de jugador de una competencia (la de la pestaña Jugadores): foto, posición, stats, historial y botonera.
 function _juvCompCardHtml(p, dimmed, isConv, cc){
       const nomEnc = encodeURIComponent(p.nom).replace(/'/g,'%27');
@@ -40422,20 +40441,14 @@ async function exportarFotosIDB(){
   <button class="mob-more-item" onclick="_mobCloseMore();exportData()"><i class="ti ti-download"></i>Backup local</button>
 </div>
 <nav class="mob-tab-bar" id="mob-tab-bar">
-  <button class="mob-tab active" id="mobt-inicio" onclick="showSection('inicio')">
-    <i class="ti ti-layout-grid"></i><span>Inicio</span>
+  <button class="mob-tab active" id="mobt-hoy" onclick="_mobSimpleGo('hoy')">
+    <i class="ti ti-list-check"></i><span>Hoy</span>
   </button>
-  <button class="mob-tab" id="mobt-mayor" onclick="showSection('mayor')">
-    <i class="ti ti-shield"></i><span>Mayor</span>
-  </button>
-  <button class="mob-tab" id="mobt-local" onclick="showSection('local')">
-    <i class="ti ti-home-shield"></i><span>Local</span>
-  </button>
-  <button class="mob-tab" id="mobt-juveniles" onclick="showSection('juveniles')">
-    <i class="ti ti-users-group"></i><span>Juveniles</span>
-  </button>
-  <button class="mob-tab mob-tab-lupa" id="mobt-search" onclick="_mobOpenUnifiedSearch()">
+  <button class="mob-tab" id="mobt-buscar" onclick="_mobSimpleGo('buscar')">
     <i class="ti ti-search"></i><span>Buscar</span>
+  </button>
+  <button class="mob-tab" id="mobt-stats" onclick="_mobSimpleGo('stats')">
+    <i class="ti ti-chart-bar"></i><span>Stats</span>
   </button>
 </nav>
 <script>
@@ -40443,6 +40456,166 @@ async function exportarFotosIDB(){
 function _mobCloseMore(){
   document.getElementById('mob-more-sheet')?.classList.remove('open');
   document.getElementById('mob-overlay')?.classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOBILE SIMPLIFICADO — 3 pestañas: Hoy / Buscar / Stats. Reemplaza por completo
+// la navegación mobile anterior (quickbar + Mayor/Local/Juveniles/Prensa/Redes/
+// Estructura/Planificador completos). Todo vive dentro de la sección #inicio,
+// que es la que queda siempre activa en mobile — _mobSimpleGo() solo alterna
+// cuál de los 3 contenedores (inicio-body / mob-buscar-body / mob-stats-body)
+// está visible, sin tocar el sistema .section/.active de escritorio.
+// ═══════════════════════════════════════════════════════════════════════════
+let _mobSimpleTab='hoy';
+function _mobSimpleGo(tab){
+  _mobSimpleTab=tab;
+  document.querySelectorAll('#mob-tab-bar .mob-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('mobt-'+tab)?.classList.add('active');
+  const ids={hoy:'inicio-body',buscar:'mob-buscar-body',stats:'mob-stats-body'};
+  Object.entries(ids).forEach(([t,id])=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=(t===tab)?'':'none';
+  });
+  if(tab==='hoy') _renderMobSimpleHoy();
+  else if(tab==='buscar') _mobBuscarRender();
+  else if(tab==='stats') _mobStatsRender();
+  window.scrollTo({top:0});
+}
+
+// ── Pestaña Buscar: categorías juveniles (plantel actual) + buscador unificado ──
+function _mobJuvRosterHTML(catKey){
+  const catData=JUVENILES[catKey];
+  if(!catData) return '';
+  const anos=Object.keys(catData.anos||{}).sort((a,b)=>parseInt(b)-parseInt(a));
+  const yr=anos[0];
+  const anoData=catData.anos[yr]||{};
+  // Plantel ACTUAL = la convocatoria/competencia más reciente del ciclo, no todo lo acumulado
+  // en él (un ciclo de 2-3 años puede tener muchas convocatorias distintas con el tiempo).
+  const convs=anoData.convocatorias||[];
+  const comps=anoData.competencias||[];
+  let raw=[], fuente='';
+  if(convs.length){ const last=convs[convs.length-1]; raw=last.jugadores||[]; fuente=last.fecha||''; }
+  else if(comps.length){ const last=comps[comps.length-1]; try{ raw=_juvCompAllPlayers?.(last.id)||[]; }catch(_){ raw=[]; } fuente=last.label||last.titulo||''; }
+  else raw=anoData.lista||[];
+  const all={};
+  raw.forEach(j=>{ if(!j?.nom) return; if(!all[j.nom]) all[j.nom]={nom:j.nom,club:j.club||''}; });
+  const players=Object.values(all).sort((a,b)=>a.nom.localeCompare(b.nom));
+  const header=`<div style="padding:10px 14px 6px;font-size:11px;font-weight:800;color:rgba(239,243,248,.45);text-transform:uppercase;letter-spacing:.07em">${catData.label} · ${fuente||yr||''} · ${players.length} jugador${players.length===1?'':'es'}</div>`;
+  if(!players.length) return header+`<div style="text-align:center;padding:24px 16px;color:rgba(239,243,248,.35);font-size:13px">Sin plantel cargado todavía</div>`;
+  const rows=players.map(p=>{
+    const closeCall=`_openJuvDetail('${_encJs(p.nom)}')`;
+    return _mobRenderRow({nom:p.nom,sub:p.club||catData.label,section:'juveniles'},closeCall);
+  }).join('');
+  return header+rows;
+}
+function _mobBuscarRoster(catKey){
+  document.querySelectorAll('#mob-buscar-cats button').forEach(b=>b.classList.remove('mob-buscar-cat-active'));
+  document.getElementById('mob-buscar-cat-'+catKey)?.classList.add('mob-buscar-cat-active');
+  const res=document.getElementById('mob-buscar-results');
+  if(res) res.innerHTML=_mobJuvRosterHTML(catKey);
+  const inp=document.getElementById('mob-buscar-inp');
+  if(inp) inp.value='';
+}
+function _mobBuscarRender(){
+  const el=document.getElementById('mob-buscar-body');
+  if(!el) return;
+  const cats=Object.entries(JUVENILES||{}).filter(([,d])=>d.activa).map(([k,d])=>({key:k,label:d.label}));
+  const catPills=cats.map(c=>`<button id="mob-buscar-cat-${c.key}" onclick="_mobBuscarRoster('${c.key}')" style="padding:7px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#EFF3F8;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">${c.label}</button>`).join('');
+  el.innerHTML=`
+    <div style="padding:14px 14px 4px;font-size:11px;font-weight:800;color:rgba(239,243,248,.45);text-transform:uppercase;letter-spacing:.07em">Plantel de una juvenil</div>
+    <div id="mob-buscar-cats" style="display:flex;gap:8px;overflow-x:auto;padding:4px 14px 14px;scrollbar-width:none">${catPills}</div>
+    <div style="padding:0 14px 10px">
+      <input id="mob-buscar-inp" type="search" autocomplete="off" spellcheck="false" placeholder="O buscá un jugador o DT/staff…"
+        oninput="_mobBuscarInput(this.value)"
+        style="width:100%;padding:11px 14px;border-radius:11px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;font-size:14.5px;outline:none;box-sizing:border-box">
+    </div>
+    <div id="mob-buscar-results"></div>
+  `;
+}
+function _mobBuscarInput(val){
+  const res=document.getElementById('mob-buscar-results');
+  if(!res) return;
+  const q=(val||'').trim();
+  if(!q){ res.innerHTML=''; return; }
+  const qn=_mobNorm(q);
+  const jugadores=[],ct=[],seen=new Set(),seenCT=new Set();
+  try{Object.entries(JUGADORES).forEach(([nom,d])=>{if(!seen.has(nom)&&_mobNorm(nom).includes(qn)){seen.add(nom);jugadores.push({nom,sub:'Mayor · '+(d.pos||''),section:'mayor'});}});}catch(_){}
+  try{const juvAll={};Object.entries(JUVENILES||{}).forEach(([catKey,catData])=>{const lbl=catData.label||catKey;Object.values(catData.anos||{}).forEach(a=>{(a.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{if(!juvAll[j.nom])juvAll[j.nom]=new Set();juvAll[j.nom].add(lbl);}));(a.lista||[]).forEach(j=>{if(!juvAll[j.nom])juvAll[j.nom]=new Set();juvAll[j.nom].add(lbl);});});});Object.entries(juvAll).forEach(([nom,cats])=>{if(!seen.has(nom)&&_mobNorm(nom).includes(qn)){seen.add(nom);jugadores.push({nom,sub:[...cats].join(' · '),section:'juveniles'});}});}catch(_){}
+  jugadores.sort((a,b)=>a.nom.localeCompare(b.nom));
+  const nr=r=>(typeof _normRol==='function'?_normRol(r):null)||r;
+  const addCT=(nom,sub,section,extra)=>{if(!seenCT.has(nom)&&_mobNorm(nom).includes(qn)){seenCT.add(nom);ct.push({nom,sub,section,extra:extra||null});}};
+  try{(ESTRUCTURA_PERSONAS||[]).forEach(dept=>{dept.personas.forEach(p=>addCT(p.label,dept.dept+' · '+nr(p.rol),'estructura',{key:p.key}));});}catch(_){}
+  try{Object.entries(JUVENILES||{}).forEach(([catKey,catData])=>{Object.entries(catData.anos||{}).forEach(([anoKey,anoData])=>{(anoData.ct||[]).forEach(m=>addCT(m.name,(catData.label||catKey)+' '+anoKey+' · '+nr(m.rol),'juv_ct',{}));});});}catch(_){}
+  try{if(typeof BIELSA_CONVOCATORIAS!=='undefined')BIELSA_CONVOCATORIAS.forEach(c=>{(c.ct||[]).forEach(m=>addCT(m.name,'Mayor · '+(c.titulo||c.competencia||'')+' · '+nr(m.rol),'estructura',{}));});}catch(_){}
+  ct.sort((a,b)=>a.nom.localeCompare(b.nom));
+  const allResults=[...jugadores,...ct];
+  if(!allResults.length){res.innerHTML='<div style="text-align:center;padding:24px 16px;color:rgba(239,243,248,.35);font-size:13px">Sin resultados</div>';return;}
+  const rows=allResults.slice(0,30).map(r=>{
+    const isJug=jugadores.includes(r);
+    let closeCall;
+    if(isJug && r.section==='mayor') closeCall=`showJugador('${r.nom.replace(/'/g,"\\'")}')`;
+    else if(isJug) closeCall=`_openJuvDetail('${_encJs(r.nom)}')`;
+    else closeCall=`window._openCTFicha('${r.nom.replace(/'/g,"\\'")}')`;
+    return _mobRenderRow(r,closeCall);
+  });
+  res.innerHTML=rows.join('')+(allResults.length>30?`<div style="text-align:center;padding:14px;font-size:12px;color:rgba(239,243,248,.3)">+${allResults.length-30} más resultados</div>`:'');
+}
+
+// ── Pestaña Stats: rankings Mayor/Juveniles, cada fila lleva a la ficha ──
+let _mobStatsTab='mayor', _mobStatsSort='caps';
+function _mobStatsSetTab(t){ _mobStatsTab=t; _mobStatsRender(); }
+function _mobStatsSetSort(s){ _mobStatsSort=s; _mobStatsRender(); }
+function _mobStatsMayorHTML(sort){
+  const rows=[...PLAYERS].map(p=>({p,s:effectiveStats(p)})).filter(r=>r.s.caps>0)
+    .sort((a,b)=> sort==='goals' ? (b.s.goals-a.s.goals||b.s.caps-a.s.caps) : (b.s.caps-a.s.caps||b.s.goals-a.s.goals));
+  if(!rows.length) return `<div style="text-align:center;padding:24px 16px;color:rgba(239,243,248,.35);font-size:13px">Sin datos</div>`;
+  return rows.map((r,i)=>{
+    const nom=r.p.name;
+    const foto=_mobGetPhoto(nom)||r.p.photo||null;
+    const ini=nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const av=foto
+      ?`<img src="${foto}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+      :`<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#152845,#0D1F38);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#5BB8FF;flex-shrink:0">${ini}</div>`;
+    return `<div onclick="showJugador('${nom.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer">
+      <span style="font-size:11px;font-weight:800;color:rgba(239,243,248,.4);width:18px;text-align:right;flex-shrink:0">${i+1}</span>
+      ${av}
+      <span style="flex:1;font-size:13.5px;font-weight:700;color:#EFF3F8;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nom}</span>
+      <span style="font-size:13px;font-weight:800;color:${sort==='caps'?'#5BB8FF':'rgba(239,243,248,.5)'};min-width:42px;text-align:right">${r.s.caps} PJ</span>
+      <span style="font-size:13px;font-weight:800;color:${sort==='goals'?'#F59E0B':'rgba(239,243,248,.5)'};min-width:46px;text-align:right">${r.s.goals} ⚽</span>
+    </div>`;
+  }).join('');
+}
+// Las pills de categoría/orden de _buildJuvStatsView() llaman a _setJuvStatsCat/_setJuvStatsSort,
+// que a su vez llaman a window.renderJuveniles() (apunta a #juveniles-body, inexistente acá) —
+// así que estas pisan el valor correcto pero no refrescan nada visible. Las redirigimos a estos
+// wrappers, que aplican el cambio y refrescan #mob-stats-body.
+function _mobJuvStatsSetCat(cat){ window._setJuvStatsCat(cat); _mobStatsRender(); }
+function _mobJuvStatsSetSort(sort){ window._setJuvStatsSort(sort); _mobStatsRender(); }
+function _mobStatsJuvHTML(){
+  // Reusa _buildJuvStatsView() (datos/orden/categorías ya hechos) pero corrige la navegación
+  // de cada fila y de las pills (que hoy apuntan a la grilla completa de Juveniles, que no
+  // existe en este modo) y saca el botón "Volver" (acá no hay a dónde volver, es pestaña fija).
+  let html='';
+  try{ html=_buildJuvStatsView(); }catch(_){ return '<div style="text-align:center;padding:24px 16px;color:rgba(239,243,248,.35);font-size:13px">Sin datos</div>'; }
+  html=html.replace(/_juvStatsGoToFicha\(/g,'_openJuvDetail(');
+  html=html.replace(/_setJuvStatsCat\(/g,'_mobJuvStatsSetCat(');
+  html=html.replace(/_setJuvStatsSort\(/g,'_mobJuvStatsSetSort(');
+  html=html.replace(/<button onclick="_toggleJuvStats\(\)"[^<]*>[\s\S]*?<\/button>/,'');
+  return html;
+}
+function _mobStatsRender(){
+  const el=document.getElementById('mob-stats-body');
+  if(!el) return;
+  const pill=(active,label,onclick)=>`<button onclick="${onclick}" style="padding:7px 15px;border-radius:10px;border:1px solid ${active?'#0D9488':'rgba(255,255,255,.15)'};background:${active?'#0D9488':'transparent'};color:${active?'#fff':'rgba(239,243,248,.6)'};font-size:12.5px;font-weight:700;cursor:pointer">${label}</button>`;
+  const tabsRow=`<div style="display:flex;gap:8px;padding:14px 14px 4px">${pill(_mobStatsTab==='mayor','Mayor',"_mobStatsSetTab('mayor')")}${pill(_mobStatsTab==='juveniles','Juveniles',"_mobStatsSetTab('juveniles')")}</div>`;
+  let body;
+  if(_mobStatsTab==='mayor'){
+    const sortRow=`<div style="display:flex;gap:8px;padding:6px 14px 10px">${pill(_mobStatsSort==='caps','Más partidos',"_mobStatsSetSort('caps')")}${pill(_mobStatsSort==='goals','Más goles',"_mobStatsSetSort('goals')")}</div>`;
+    body=sortRow+_mobStatsMayorHTML(_mobStatsSort);
+  } else {
+    body=_mobStatsJuvHTML();
+  }
+  el.innerHTML=tabsRow+body;
 }
 
 // Sync bottom tabs + quickbar when showSection is called
@@ -40591,6 +40764,9 @@ function _mobUSearchInput(val){
 }
 // backward compat alias
 window._mobSearchInput=_mobUSearchInput;
+
+// Boot del mobile simplificado: arranca siempre en "Hoy" (oculta Buscar/Stats).
+if(window.innerWidth<=600){ try{ _mobSimpleGo('hoy'); }catch(_){} }
 </script>
 
 <!-- Mobile search overlay -->
