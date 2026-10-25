@@ -8080,8 +8080,10 @@ function _recDockRender(){
 // Tarjeta fija a la izquierda (espejo de Recordatorios): los partidos de HOY — los de las selecciones (Mayor y Juveniles, ya cargados en la web)
 // y los del fútbol uruguayo (Liga AUF, Segunda y Copa AUF). Solo aparece si hay partidos ese día, en pantallas anchas y solo en Inicio;
 // se puede minimizar (se recuerda durante el día).
+// Si la hora viene con varios husos ("18:15 (AZ) / 11:15 (UY)") se usa la de Uruguay; si no, la que haya
+function _horaUY(h){ const t=String(h||''); const m=t.match(/(\d{1,2}:\d{2})\s*h?\s*\(UY\)/i); return m?m[1]:t; }
 function _horaCortaTxt(h){
-  const m=String(h||'').match(/(\d{1,2})(?::(\d{2}))?/); if(!m) return '';
+  const m=_horaUY(h).match(/(\d{1,2})(?::(\d{2}))?/); if(!m) return '';
   const hh=String(parseInt(m[1],10)); return (m[2]&&m[2]!=='00')?hh+':'+m[2]+'h':hh+'h';
 }
 // Escudos de selecciones nacionales (Escudoteca PN, /selecciones). Uruguay lleva el escudo tradicional de la AUF.
@@ -8099,7 +8101,7 @@ function _escudoSeleccion(nombre,sz){
 const _COMP_NOM={'mundial-sub15-2026':'Copa Mundial Sub-15','odesur-2026':'Juegos ODESUR 2026','wc17-2026':'Mundial Sub-17 Qatar 2026','torneo-desarrollo-sub15-2026':'Liga Evolución CONMEBOL Sub-15'};
 function _partidosSeleccionHoy(){
   const out=[];
-  const min=h=>{ const m=String(h||'').match(/(\d{1,2})(?::(\d{2}))?/); return m?parseInt(m[1],10)*60+parseInt(m[2]||'0',10):9999; };
+  const min=h=>{ const m=_horaUY(h).match(/(\d{1,2})(?::(\d{2}))?/); return m?parseInt(m[1],10)*60+parseInt(m[2]||'0',10):9999; };
   try{
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i); if(!k||!k.startsWith('auf4_amist_juv_')) continue;
