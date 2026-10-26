@@ -893,6 +893,13 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .dz-us i{font-style:normal;padding:1px 7px;border-radius:999px;background:rgba(56,189,248,.14);color:#BFE9FB;font-size:9.5px;font-weight:700;letter-spacing:.04em}
 .dz-us i.inf{background:rgba(134,239,172,.14);color:#86EFAC}
 .dz-us em{font-style:normal;font-size:10px;color:#FCD34D;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+/* Diseño: OK para cerrar y "No hubo" */
+.dz-acts{display:flex;flex-wrap:wrap;gap:6px}
+.dz-open.dz-no{border-style:dashed}
+.dz-open.dz-no.on{border-style:solid;border-color:rgba(252,211,77,.6);background:rgba(252,211,77,.1);color:#FCD34D}
+.dz-pill.no{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.2);color:rgba(239,243,248,.6);font-style:italic}
+.dz-ok{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;height:34px;margin-top:10px;border-radius:999px;border:1px solid #38BDF8;background:#38BDF8;color:#060814;font-family:inherit;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.dz-ok:hover{background:#7DD3FC;border-color:#7DD3FC}
 /* Pizarra nov: botonera de incidencias */
 .pz-pro .pz-sec-h{display:flex!important;align-items:center;justify-content:space-between;gap:8px;letter-spacing:.2em!important;margin-bottom:10px!important}
 .pz-pro .pz-sec-n{font-style:normal;font-family:'Space Grotesk','Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:0;min-width:20px;height:20px;padding:0 7px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.3);color:#7DD3FC}
@@ -32315,7 +32322,12 @@ window._mun15DisToggle=function(key,stage,nomEnc){
   const nom=decodeURIComponent(nomEnc), d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''});
   const max=stage==='md1'?2:1; let a=e[stage]||[];
   if(a.includes(nom)) a=a.filter(x=>x!==nom); else { a=[...a,nom]; if(a.length>max) a=a.slice(a.length-max); }
-  e[stage]=a; _mun15DisSet(d); window.renderJuveniles?.();
+  e[stage]=a; if(a.length) e[stage==='md1'?'noMd1':'noInf']=false; _mun15DisSet(d); window.renderJuveniles?.();
+};
+// "No hubo": no se hizo esa pieza (por el resultado o por otro motivo). Vacía la selección y no cuenta en el uso.
+window._mun15DisNo=function(key,stage){
+  const d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''}); const f=stage==='md1'?'noMd1':'noInf';
+  e[f]=!e[f]; if(e[f]){ e[stage]=[]; window._mun15DisExp.delete(key+'_'+stage); } _mun15DisSet(d); window.renderJuveniles?.();
 };
 window._mun15DisExpand=function(key){ if(window._mun15DisExp.has(key)) window._mun15DisExp.delete(key); else window._mun15DisExp.add(key); window.renderJuveniles?.(); };
 window._mun15DisLink=function(key,stage,inp){
@@ -32339,14 +32351,14 @@ window._mun15DisenoHtml=function(){
   dias.forEach(g=>{ md1Of(g).md1.forEach(n=>U(n).md1.push(g.ms.map(m=>ab(m.rival)).join('+'))); g.ms.forEach(m=>((d[m.id]||{}).inf||[]).forEach(n=>U(n).inf.push(ab(m.rival)))); });
   const usoCount=n=>uso[n]?uso[n].md1.length+uso[n].inf.length:0;
   const chip=(key,stage,p,sel)=>{ const u=usoCount(p.nom); return `<button type="button" class="dz-ch${sel?' on':''}" onclick="_mun15DisToggle('${key}','${stage}','${encodeURIComponent(p.nom)}')" title="${p.nom} · ${p.club||''}"><b>${p.num??''}</b>${sh(p.nom)}${u?`<i>×${u}</i>`:''}</button>`; };
-  const block=(key,stage,label,max,sel,lnk,extra)=>{
+  const block=(key,stage,label,max,sel,lnk,extra,no)=>{
     const ek=key+'_'+stage, open=window._mun15DisExp.has(ek);
     return `<div class="dz-bk">
-      <div class="dz-bt"><span>${label}</span><em>${sel.length} de ${max}</em></div>
+      <div class="dz-bt"><span>${label}</span><em>${no?'—':sel.length+' de '+max}</em></div>
       ${extra||''}
-      <div class="dz-sel">${sel.length?sel.map(n=>`<span class="dz-pill">${sh(n)}</span>`).join(''):'<span class="dz-none">Sin elegir</span>'}</div>
-      <button type="button" class="dz-open" onclick="_mun15DisExpand('${ek}')"><i class="ti ti-${open?'chevron-up':'users'}"></i>${open?'Cerrar':'Elegir jugadores'}</button>
-      ${open?`<div class="dz-grid">${pool.map(p=>chip(key,stage,p,sel.includes(p.nom))).join('')}</div>`:''}
+      <div class="dz-sel">${no?'<span class="dz-pill no">No hubo</span>':sel.length?sel.map(n=>`<span class="dz-pill">${sh(n)}</span>`).join(''):'<span class="dz-none">Sin elegir</span>'}</div>
+      <div class="dz-acts"><button type="button" class="dz-open" onclick="_mun15DisExpand('${ek}')"><i class="ti ti-${open?'chevron-up':'users'}"></i>${open?'Cerrar':'Elegir jugadores'}</button><button type="button" class="dz-open dz-no${no?' on':''}" onclick="_mun15DisNo('${key}','${stage}')"><i class="ti ti-${no?'check':'ban'}"></i>No hubo</button></div>
+      ${open?`<div class="dz-grid">${pool.map(p=>chip(key,stage,p,sel.includes(p.nom))).join('')}</div><button type="button" class="dz-ok" onclick="_mun15DisExpand('${ek}')"><i class="ti ti-check"></i>OK</button>`:''}
       <input type="text" class="dz-lnk" value="${(lnk||'').replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)" onchange="_mun15DisLink('${key}','${stage}',this)">
     </div>`; };
   const cards=dias.map(g=>{
@@ -32357,9 +32369,9 @@ window._mun15DisenoHtml=function(){
     const informes=g.ms.map(m=>{
       const fin=m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='', win=fin&&m.gLocal>m.gRival, e=d[m.id]||{inf:[],l2:''};
       const nota=!fin?'Se habilita con el resultado':win?'Victoria: va informe':'Informe solo si se gana';
-      return block(String(m.id),'inf',`Informe vs. ${m.rival}`,1,e.inf||[],e.l2,`<div class="dz-note${win?' ok':''}">${nota}</div>`); }).join('');
+      return block(String(m.id),'inf',`Informe vs. ${m.rival}`,1,e.inf||[],e.l2,`<div class="dz-note${win?' ok':''}">${nota}</div>`,!!e.noInf); }).join('');
     return `<div class="dz-card"><div class="dz-top"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span><div class="dz-tt"><b>Uruguay vs. ${rivales}</b><span>Partido${nums.length>1?'s':''} ${nums.join(' y ')} ${cfg.faseTxt}</span></div>${resumen?`<span class="dz-res">${resumen}</span>`:''}</div>
-      <div class="dz-bks">${block(key1,'md1',`MD-1 vs. ${rivales}`,2,e1.md1||[],e1.l1,'')}${informes}</div></div>`; }).join('');
+      <div class="dz-bks">${block(key1,'md1',`MD-1 vs. ${rivales}`,2,e1.md1||[],e1.l1,'',!!e1.noMd1)}${informes}</div></div>`; }).join('');
   const orden=[...pool].sort((a,b)=>usoCount(a.nom)-usoCount(b.nom)||(a.num||0)-(b.num||0));
   const lista=orden.map(p=>{ const u=uso[p.nom]||{md1:[],inf:[]}, n=u.md1.length+u.inf.length;
     return `<div class="dz-pl${n?'':' libre'}"><span class="dz-n">${p.num??''}</span><span class="dz-nm">${p.nom}<small>${p.club||''}</small></span><span class="dz-us">${n?[...u.md1.map(r=>`<i>MD-1 ${r}</i>`),...u.inf.map(r=>`<i class="inf">Inf ${r}</i>`)].join(''):'<em>Sin usar</em>'}</span></div>`; }).join('');
