@@ -32242,9 +32242,15 @@ function _defaultJuvCompTab(id){
 
 // ── Mundial Sub-15: tabla del grupo de Uruguay en vivo, desde la API pública de FIFA ──
 // Los resultados salen de api.fifa.com (la misma que usa fifa.com; permite CORS). Se calcula la tabla con los partidos terminados del grupo.
-const _MUN15={season:'293575',stage:'294099',group:'294123',label:'Grupo X'};
-const _MUN15_ES={Comoros:'Comoras',Moldova:'Moldavia'};
-window._mun15Data=null;
+// Torneos de selecciones juveniles con tabla y Diseño. Para sumar uno: season/stage/group salen de la API de FIFA (calendar/matches) y la competencia debe tener `convocados`.
+const _MUND_CFG={
+  'mundial-sub15-2026':{season:'293575',stage:'294099',group:'294123',label:'Grupo X',fase:'Fase de clasificación · 5 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-15'},
+  'wc17-2026':{season:'292937',stage:'292938',group:'292942',label:'Grupo D',fase:'Primera fase · 3 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-17'},
+};
+window._mundCur=window._mundCur||'mundial-sub15-2026';
+function _mundCfg(){ return _MUND_CFG[window._mundCur]||_MUND_CFG['mundial-sub15-2026']; }
+window._mundData=window._mundData||{};
+const _MUN15_ES={Comoros:'Comoras',Moldova:'Moldavia',Haiti:'Haití',France:'Francia','Saudi Arabia':'Arabia Saudita','Côte d\'Ivoire':'Costa de Marfil',USA:'Estados Unidos','Korea Republic':'Corea del Sur','China PR':'China','Republic of Ireland':'Irlanda',Egypt:'Egipto',Greece:'Grecia',Panama:'Panamá','New Caledonia':'Nueva Caledonia',Denmark:'Dinamarca',Mozambique:'Mozambique',Italy:'Italia',Jamaica:'Jamaica',Uzbekistan:'Uzbekistán',Croatia:'Croacia',Senegal:'Senegal',Tajikistan:'Tayikistán',Belgium:'Bélgica','New Zealand':'Nueva Zelanda',Vietnam:'Vietnam',Morocco:'Marruecos',Spain:'España',Brazil:'Brasil','Costa Rica':'Costa Rica',Algeria:'Argelia',Montenegro:'Montenegro',Cameroon:'Camerún',Mexico:'México',Romania:'Rumania',Venezuela:'Venezuela',Colombia:'Colombia',Honduras:'Honduras',Japan:'Japón',Serbia:'Serbia'};
 function _mun15Tabla(ms){
   const T={};
   const get=n=>T[n]||(T[n]={n,pj:0,g:0,e:0,p:0,gf:0,gc:0});
@@ -32259,8 +32265,9 @@ function _mun15Tabla(ms){
   return Object.values(T).map(t=>({...t,dg:t.gf-t.gc,pts:t.g*3+t.e})).sort((x,y)=>y.pts-x.pts||y.dg-x.dg||y.gf-x.gf||x.n.localeCompare(y.n));
 }
 function _mun15Html(d){
-  if(!d) return `<div class="gt-card"><div class="gt-eb">${_MUN15.label} · tabla de posiciones</div><div class="gt-msg">Cargando desde FIFA…</div></div>`;
-  if(d.error&&!d.ms) return `<div class="gt-card"><div class="gt-eb">${_MUN15.label} · tabla de posiciones</div><div class="gt-msg">No se pudo leer la tabla de FIFA ahora. Se reintenta sola.</div></div>`;
+  const cfg=_mundCfg();
+  if(!d) return `<div class="gt-card"><div class="gt-eb">${_mundCfg().label} · tabla de posiciones</div><div class="gt-msg">Cargando desde FIFA…</div></div>`;
+  if(d.error&&!d.ms) return `<div class="gt-card"><div class="gt-eb">${_mundCfg().label} · tabla de posiciones</div><div class="gt-msg">No se pudo leer la tabla de FIFA ahora. Se reintenta sola.</div></div>`;
   const rows=_mun15Tabla(d.ms);
   const fmtT=iso=>{ try{ return new Date(iso).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',timeZone:'America/Montevideo',hour12:false}); }catch(_){ return ''; } };
   const fmtD=iso=>{ try{ return new Date(iso).toLocaleDateString('es-UY',{day:'numeric',month:'short',timeZone:'America/Montevideo'}); }catch(_){ return ''; } };
@@ -32273,35 +32280,37 @@ function _mun15Html(d){
     return `<div class="gt-ch${uy?' uy':''}"><span class="gt-d">${fmtD(m.Date)}</span><span class="gt-t">${nm(m.Home)}</span><b>${fin||live?m.HomeTeamScore+' – '+m.AwayTeamScore:fmtT(m.Date)+'h'}</b><span class="gt-t r">${nm(m.Away)}</span>${live?'<i class="gt-live">En vivo</i>':''}</div>`;
   }).join('');
   const hora=d.ts?new Date(d.ts).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
-  return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">${_MUN15.label}<em>|</em><u>Fase de clasificación · 5 partidos por equipo</u></span><span class="gt-upd">FIFA · actualizado ${hora}h</span></div>
+  return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">${_mundCfg().label}<em>|</em><u>${_mundCfg().fase}</u></span><span class="gt-upd">FIFA · actualizado ${hora}h</span></div>
     <table class="gt"><thead><tr><th></th><th class="l">Selección</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead><tbody>${tb}</tbody></table>
     <div class="gt-sub">Partidos del grupo</div><div class="gt-ms">${chips}</div>
     <div class="gt-nota">Orden por puntos, diferencia de gol y goles a favor. Los desempates oficiales los define FIFA.</div></div>`;
 }
 window._mun15Mount=function(){
   const el=document.getElementById('mun15-grupo'); if(!el) return;
-  el.innerHTML=_mun15Html(window._mun15Data);
-  const viejo=!window._mun15Data||(Date.now()-window._mun15Data.ts)>45000;
+  const D=window._mundData[window._mundCur];
+  el.innerHTML=_mun15Html(D);
+  const viejo=!D||(Date.now()-D.ts)>45000;
   if(viejo) window._mun15Refresh();
   if(!window._mun15Timer) window._mun15Timer=setInterval(()=>{ if(document.getElementById('mun15-grupo')) window._mun15Refresh(); },60000);
 };
 window._mun15Refresh=async function(){
   if(window._mun15Busy) return; window._mun15Busy=true;
+  const cid=window._mundCur, cfg=_mundCfg();
   try{
-    const u=`https://api.fifa.com/api/v3/calendar/matches?language=es&count=100&idSeason=${_MUN15.season}&idStage=${_MUN15.stage}&idGroup=${_MUN15.group}`;
+    const u=`https://api.fifa.com/api/v3/calendar/matches?language=es&count=100&idSeason=${cfg.season}&idStage=${cfg.stage}&idGroup=${cfg.group}`;
     const r=await fetch(u,{cache:'no-store'}); const j=await r.json();
     if(!j||!Array.isArray(j.Results)||!j.Results.length) throw new Error('sin datos');
-    window._mun15Data={ts:Date.now(),ms:j.Results};
-  }catch(e){ window._mun15Data=window._mun15Data?{...window._mun15Data,error:true}:{error:true}; }
+    window._mundData[cid]={ts:Date.now(),ms:j.Results};
+  }catch(e){ window._mundData[cid]=window._mundData[cid]?{...window._mundData[cid],error:true}:{error:true}; }
   window._mun15Busy=false;
-  const el=document.getElementById('mun15-grupo'); if(el) el.innerHTML=_mun15Html(window._mun15Data);
+  const el=document.getElementById('mun15-grupo'); if(el&&window._mundCur===cid) el.innerHTML=_mun15Html(window._mundData[cid]);
 };
 
 // ── Mundial Sub-15 · Diseño: a quién se usa en cada pieza (2 jugadores para el MD-1 + 1 para el informe si se ganó) y cuántas veces se usó cada uno ──
 const _MUN15_DIS_KEY='auf4_juv_diseno';
 window._mun15DisExp=window._mun15DisExp||new Set();
-function _mun15DisGet(){ const o=stor.get(_MUN15_DIS_KEY,{}); return (o&&o['mundial-sub15-2026'])||{}; }
-function _mun15DisSet(d){ const o=stor.get(_MUN15_DIS_KEY,{})||{}; o['mundial-sub15-2026']=d; stor.set(_MUN15_DIS_KEY,o); }
+function _mun15DisGet(){ const o=stor.get(_MUN15_DIS_KEY,{}); return (o&&o[window._mundCur])||{}; }
+function _mun15DisSet(d){ const o=stor.get(_MUN15_DIS_KEY,{})||{}; o[window._mundCur]=d; stor.set(_MUN15_DIS_KEY,o); }
 window._mun15DisToggle=function(key,stage,nomEnc){
   const nom=decodeURIComponent(nomEnc), d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''});
   const max=stage==='md1'?2:1; let a=e[stage]||[];
@@ -32314,8 +32323,8 @@ window._mun15DisLink=function(key,stage,inp){
 };
 // El MD-1 es uno por día de partidos (si hay dos partidos el mismo día, la pieza del MD-1 es una sola); el informe de victoria es uno por partido.
 window._mun15DisenoHtml=function(){
-  const comp=COMP_DATA['mundial-sub15-2026']; const pool=(comp&&comp.convocados)||[];
-  let ms=[]; try{ ms=JSON.parse(localStorage.getItem('auf4_amist_juv_sub15_2026')||'[]').filter(m=>m.compId==='mundial-sub15-2026'); }catch(_){}
+  const cid=window._mundCur, cfg=_mundCfg(), comp=COMP_DATA[cid]; const pool=(comp&&comp.convocados)||[];
+  let ms=[]; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!k.startsWith('auf4_amist_juv_')) continue; const l=JSON.parse(localStorage.getItem(k)||'[]'); if(Array.isArray(l)) l.forEach(m=>{ if(m&&m.compId===cid) ms.push(m); }); } }catch(_){}
   ms.sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
   const d=_mun15DisGet();
   const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -32349,12 +32358,12 @@ window._mun15DisenoHtml=function(){
       const fin=m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='', win=fin&&m.gLocal>m.gRival, e=d[m.id]||{inf:[],l2:''};
       const nota=!fin?'Se habilita con el resultado':win?'Victoria: va informe':'Informe solo si se gana';
       return block(String(m.id),'inf',`Informe vs. ${m.rival}`,1,e.inf||[],e.l2,`<div class="dz-note${win?' ok':''}">${nota}</div>`); }).join('');
-    return `<div class="dz-card"><div class="dz-top"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span><div class="dz-tt"><b>Uruguay vs. ${rivales}</b><span>Partido${nums.length>1?'s':''} ${nums.join(' y ')} de la fase de grupos</span></div>${resumen?`<span class="dz-res">${resumen}</span>`:''}</div>
+    return `<div class="dz-card"><div class="dz-top"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span><div class="dz-tt"><b>Uruguay vs. ${rivales}</b><span>Partido${nums.length>1?'s':''} ${nums.join(' y ')} ${cfg.faseTxt}</span></div>${resumen?`<span class="dz-res">${resumen}</span>`:''}</div>
       <div class="dz-bks">${block(key1,'md1',`MD-1 vs. ${rivales}`,2,e1.md1||[],e1.l1,'')}${informes}</div></div>`; }).join('');
   const orden=[...pool].sort((a,b)=>usoCount(a.nom)-usoCount(b.nom)||(a.num||0)-(b.num||0));
   const lista=orden.map(p=>{ const u=uso[p.nom]||{md1:[],inf:[]}, n=u.md1.length+u.inf.length;
     return `<div class="dz-pl${n?'':' libre'}"><span class="dz-n">${p.num??''}</span><span class="dz-nm">${p.nom}<small>${p.club||''}</small></span><span class="dz-us">${n?[...u.md1.map(r=>`<i>MD-1 ${r}</i>`),...u.inf.map(r=>`<i class="inf">Inf ${r}</i>`)].join(''):'<em>Sin usar</em>'}</span></div>`; }).join('');
-  if(!ms.length) return `<div class="gt-card"><div class="gt-eb">Diseño · Mundial Sub-15</div><div class="gt-msg">Todavía no hay partidos cargados del Mundial.</div></div>`;
+  if(!ms.length) return `<div class="gt-card"><div class="gt-eb">Diseño · ${cfg.titulo}</div><div class="gt-msg">Todavía no hay partidos cargados del Mundial.</div></div>`;
   return `<div class="dz-wrap"><div class="dz-main"><div class="gt-eb" style="margin-bottom:10px">Diseño · 2 jugadores para el MD-1 de cada día y 1 para el informe de cada victoria</div>${cards}</div>
     <aside class="dz-side"><div class="gt-eb" style="margin-bottom:10px">Uso por jugador<em>|</em><u>primero los menos usados</u></div>${lista}</aside></div>`;
 };
@@ -34684,6 +34693,7 @@ function _renderJuvenilesSafe(el){
         ];
         if(comp.infoGeneral||comp.grupos) CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
         if(comp.estiloMundial) CTABS = _juvCompTabsMundial(comp);
+        else if(_MUND_CFG[_juvComp]) CTABS.push({id:'posiciones',label:'Posiciones',icon:'ti-list-numbers'},{id:'diseno',label:'Diseño',icon:'ti-photo'});
         // Orden fijo en todas las categorías (la memoria muscular no cambia según el torneo); lo que no aplica a una competencia simplemente no aparece
         const _CT_ORD=['convocados','jugadores','fixture','posiciones','diseno','goleadores','ct_del','amistosos','info'];
         const _ctPos=id=>{ const i=_CT_ORD.indexOf(id); return i<0?(id==='info'?60:50):i; };
@@ -35384,7 +35394,7 @@ function _juvCompTabsMundial(comp){
     {id:'amistosos',label:'Amistosos prep.',icon:'ti-ball-football'},
   ];
   if(comp.infoGeneral||comp.grupos) t.push({id:'info',label:'Info general',icon:'ti-info-circle'});
-  if(comp===COMP_DATA['mundial-sub15-2026']){ t.push({id:'posiciones',label:'Posiciones',icon:'ti-list-numbers'},{id:'diseno',label:'Diseño',icon:'ti-photo'}); }
+  if(_MUND_CFG[_juvComp]){ t.push({id:'posiciones',label:'Posiciones',icon:'ti-list-numbers'},{id:'diseno',label:'Diseño',icon:'ti-photo'}); }
   return t;
 }
 
@@ -35497,12 +35507,14 @@ function _buildJuvCompBody(compId, color, catData){
    }
   }
 
-  else if(_juvCompTab==='posiciones' && comp===COMP_DATA['mundial-sub15-2026']){
+  else if(_juvCompTab==='posiciones' && _MUND_CFG[compId]){
+    window._mundCur=compId;
     content = '<div id="mun15-grupo"></div>';
     setTimeout(()=>window._mun15Mount&&window._mun15Mount(),0);
   }
 
-  else if(_juvCompTab==='diseno' && comp===COMP_DATA['mundial-sub15-2026']){
+  else if(_juvCompTab==='diseno' && _MUND_CFG[compId]){
+    window._mundCur=compId;
     content = window._mun15DisenoHtml();
   }
 
