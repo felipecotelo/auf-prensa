@@ -823,6 +823,10 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
   body:has(.juv-cat-sticky) #nav-l1-juv{padding-top:3px!important;padding-bottom:3px!important}
   #nav-l1-juv .nav-l1-btn{height:22px;padding:0 9px;font-size:10.5px}
 }
+/* Inicio: actividades del Calendar con su horario */
+.ih-act .ih-at{flex:1;min-width:0}
+.ih-act .ih-at b{font-weight:700;color:#F4F7FB;margin-right:7px}
+.ih-row>span.ih-ah{flex-shrink:0;font-family:'Space Grotesk','Inter',sans-serif;font-size:11.5px!important;font-weight:500!important;letter-spacing:.01em;color:rgba(239,243,248,.55)!important;white-space:nowrap}
 /* Pizarra nov: botonera de incidencias */
 .pz-pro .pz-sec-h{display:flex!important;align-items:center;justify-content:space-between;gap:8px;letter-spacing:.2em!important;margin-bottom:10px!important}
 .pz-pro .pz-sec-n{font-style:normal;font-family:'Space Grotesk','Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:0;min-width:20px;height:20px;padding:0 7px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.3);color:#7DD3FC}
@@ -6488,7 +6492,15 @@ function renderInicioHoySeleccion(dayOffset){
         <span style="font-size:${isMob?'12.5px':'12px'};font-weight:600;color:${rowColor}">${txt}</span>
       </div>`;
     const aniversarioRows=aniversarios.map(c=>rowHtml('ti-trophy',c.txt)).join('');
-    const actividadRows=actividades.map(c=>rowHtml('ti-ball-football',c.txt)).join('');
+    // Actividades del Calendar (entrenamientos, viajes…): "Sub-20 | Entrenamiento" → categoría en negrita + actividad, con el horario (si se conoce) a la derecha
+    const _hh=t=>{ const m=String(t||'').match(/(\d{1,2}):(\d{2})/); return m?String(parseInt(m[1],10)).padStart(2,'0')+':'+m[2]:''; };
+    const actividadRows=actividades.map(c=>{
+      const parts=String(c.txt||'').split('|').map(x=>x.trim()), cat=parts.length>1?parts[0]:'', act=parts.length>1?parts.slice(1).join(' | '):parts[0];
+      const ic=/entren/i.test(act)?'ti-run':/viaje|vuelta/i.test(act)?'ti-plane':/concentr/i.test(act)?'ti-home':'ti-ball-football';
+      const h1=_hh(c.hora), h2=_hh(c.fin);
+      const hr=h1?(h2?`${h1} – ${h2}h`:`${h1}h`):'';
+      return `<div class="ih-row ih-act"><i class="ti ${ic}"></i><span class="ih-at">${cat?`<b>${cat}</b>`:''}${act}</span>${hr?`<span class="ih-ah">${hr}</span>`:''}</div>`;
+    }).join('');
 
     // ── Partidos de hoy (Mayor + Juveniles) ─────────────────────────────────
     // Antes este widget no miraba partidos en absoluto: un día con un partido
