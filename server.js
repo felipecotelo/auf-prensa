@@ -47,7 +47,12 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Imágenes (escudos, fotos, íconos): caché de 1 día en el navegador (antes revalidaba cada una en cada visita). El HTML sigue sin caché.
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (/\.(png|jpe?g|webp|svg|gif)$/i.test(filePath)) res.setHeader('Cache-Control', 'public, max-age=86400');
+  }
+}));
 
 // ── Config ────────────────────────────────────────────
 const GH_TOKEN  = process.env.GH_TOKEN || '';
