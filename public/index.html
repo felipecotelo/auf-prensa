@@ -381,6 +381,8 @@ body{background:var(--surface);color:var(--text);font-size:14px;line-height:1.5;
   transition:background .15s,border-color .15s;
 }
 .mob-tab-lupa:active i{background:rgba(0,157,216,.3)!important;transform:scale(.9)!important}
+/* Pestaña Buscar del mobile simplificado: pill de categoría/ciclo seleccionada */
+.mob-buscar-cat-active{background:#0D9488!important;border-color:#0D9488!important;color:#fff!important}
 /* Unified search screen */
 .mob-usearch{
   display:none;position:fixed;inset:0;z-index:1200;
@@ -41245,13 +41247,11 @@ function _mobSimpleGo(tab){
 }
 
 // ── Pestaña Buscar: categorías juveniles (plantel actual) + buscador unificado ──
-function _mobJuvRosterHTML(catKey){
+function _mobJuvRosterHTML(catKey,yr){
   const catData=JUVENILES[catKey];
   if(!catData) return '';
-  const anos=Object.keys(catData.anos||{}).sort((a,b)=>parseInt(b)-parseInt(a));
-  const yr=anos[0];
-  const anoData=catData.anos[yr]||{};
-  // Plantel ACTUAL = la convocatoria/competencia más reciente del ciclo, no todo lo acumulado
+  const anoData=catData.anos?.[yr]||{};
+  // Plantel de ESE ciclo/año = su convocatoria/competencia más reciente, no todo lo acumulado
   // en él (un ciclo de 2-3 años puede tener muchas convocatorias distintas con el tiempo).
   const convs=anoData.convocatorias||[];
   const comps=anoData.competencias||[];
@@ -41270,13 +41270,32 @@ function _mobJuvRosterHTML(catKey){
   }).join('');
   return header+rows;
 }
+// Paso 1: elegir categoría → paso 2: elegir ciclo/año de esa categoría (ej. "revisar la Sub-20
+// de 2022") → recién ahí el plantel. Antes saltaba directo al ciclo más reciente sin dejar
+// elegir otro, que era justo lo que el usuario pedía poder hacer.
 function _mobBuscarRoster(catKey){
   document.querySelectorAll('#mob-buscar-cats button').forEach(b=>b.classList.remove('mob-buscar-cat-active'));
   document.getElementById('mob-buscar-cat-'+catKey)?.classList.add('mob-buscar-cat-active');
+  const catData=JUVENILES[catKey];
   const res=document.getElementById('mob-buscar-results');
-  if(res) res.innerHTML=_mobJuvRosterHTML(catKey);
+  if(!res||!catData) return;
+  const anos=Object.keys(catData.anos||{}).sort((a,b)=>parseInt(b)-parseInt(a));
+  if(!anos.length){ res.innerHTML='<div style="text-align:center;padding:24px 16px;color:rgba(239,243,248,.35);font-size:13px">Sin ciclos cargados todavía</div>'; return; }
+  const yrPills=anos.map((yr,i)=>`<button id="mob-buscar-yr-${i}" onclick="_mobBuscarRosterYear('${catKey}','${yr}',${i})" style="padding:7px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#EFF3F8;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">${yr}</button>`).join('');
+  res.innerHTML=`
+    <div style="padding:8px 14px 6px;font-size:11px;font-weight:800;color:rgba(239,243,248,.45);text-transform:uppercase;letter-spacing:.07em">${catData.label} · elegí el ciclo</div>
+    <div id="mob-buscar-yrs" style="display:flex;gap:8px;overflow-x:auto;padding:0 14px 10px;scrollbar-width:none">${yrPills}</div>
+    <div id="mob-buscar-roster"></div>
+  `;
+  _mobBuscarRosterYear(catKey,anos[0],0);
   const inp=document.getElementById('mob-buscar-inp');
   if(inp) inp.value='';
+}
+function _mobBuscarRosterYear(catKey,yr,idx){
+  document.querySelectorAll('#mob-buscar-yrs button').forEach(b=>b.classList.remove('mob-buscar-cat-active'));
+  document.getElementById('mob-buscar-yr-'+idx)?.classList.add('mob-buscar-cat-active');
+  const el=document.getElementById('mob-buscar-roster');
+  if(el) el.innerHTML=_mobJuvRosterHTML(catKey,yr);
 }
 function _mobBuscarRender(){
   const el=document.getElementById('mob-buscar-body');
@@ -41284,7 +41303,7 @@ function _mobBuscarRender(){
   const cats=Object.entries(JUVENILES||{}).filter(([,d])=>d.activa).map(([k,d])=>({key:k,label:d.label}));
   const catPills=cats.map(c=>`<button id="mob-buscar-cat-${c.key}" onclick="_mobBuscarRoster('${c.key}')" style="padding:7px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#EFF3F8;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">${c.label}</button>`).join('');
   el.innerHTML=`
-    <div style="padding:14px 14px 4px;font-size:11px;font-weight:800;color:rgba(239,243,248,.45);text-transform:uppercase;letter-spacing:.07em">Plantel de una juvenil</div>
+    <div style="padding:14px 14px 4px;font-size:11px;font-weight:800;color:rgba(239,243,248,.45);text-transform:uppercase;letter-spacing:.07em">Ver plantel por categoría y ciclo</div>
     <div id="mob-buscar-cats" style="display:flex;gap:8px;overflow-x:auto;padding:4px 14px 14px;scrollbar-width:none">${catPills}</div>
     <div style="padding:0 14px 10px">
       <input id="mob-buscar-inp" type="search" autocomplete="off" spellcheck="false" placeholder="O buscá un jugador o DT/staff…"
@@ -41347,35 +41366,38 @@ function _mobStatsMayorHTML(sort){
     </div>`;
   }).join('');
 }
-// Las pills de categoría/orden de _buildJuvStatsView() llaman a _setJuvStatsCat/_setJuvStatsSort,
-// que a su vez llaman a window.renderJuveniles() (apunta a #juveniles-body, inexistente acá) —
-// así que estas pisan el valor correcto pero no refrescan nada visible. Las redirigimos a estos
-// wrappers, que aplican el cambio y refrescan #mob-stats-body.
+// _setJuvStatsCat/_setJuvStatsSort llaman a window.renderJuveniles() (apunta a #juveniles-body,
+// inexistente acá) — así que pisan el valor correcto pero no refrescan nada visible. Las pills
+// de categoría/orden de ESTA pestaña son propias (mismo estilo que el resto de Stats), no las
+// que trae _buildJuvStatsView() — así queda un solo lenguaje visual en vez de 3 colores de pill
+// distintos apilados (lo que hacía que se viera recargado).
+const _MOB_JUV_STATS_CATS=[{key:'total',label:'Total'},{key:'sub23',label:'Sub-23'},{key:'sub20',label:'Sub-20'},{key:'sub18',label:'Sub-18'},{key:'sub17',label:'Sub-17'},{key:'sub16',label:'Sub-16'},{key:'sub15',label:'Sub-15'}];
 function _mobJuvStatsSetCat(cat){ window._setJuvStatsCat(cat); _mobStatsRender(); }
 function _mobJuvStatsSetSort(sort){ window._setJuvStatsSort(sort); _mobStatsRender(); }
 function _mobStatsJuvHTML(){
-  // Reusa _buildJuvStatsView() (datos/orden/categorías ya hechos) pero corrige la navegación
-  // de cada fila y de las pills (que hoy apuntan a la grilla completa de Juveniles, que no
-  // existe en este modo) y saca el botón "Volver" (acá no hay a dónde volver, es pestaña fija).
+  // Reusa _buildJuvStatsView() solo por los datos/orden ya calculados — se le saca el encabezado
+  // entero (título, Volver, pills propias) porque acá se arma uno propio más abajo, y se corrige
+  // la navegación de cada fila (apuntaba a la grilla completa de Juveniles, inexistente acá).
   let html='';
   try{ html=_buildJuvStatsView(); }catch(_){ return '<div style="text-align:center;padding:24px 16px;color:rgba(239,243,248,.35);font-size:13px">Sin datos</div>'; }
+  html=html.replace(/<div style="background:var\(--bg\);position:sticky[\s\S]*?\n    <\/div>\n/,'');
   html=html.replace(/_juvStatsGoToFicha\(/g,'_openJuvDetail(');
-  html=html.replace(/_setJuvStatsCat\(/g,'_mobJuvStatsSetCat(');
-  html=html.replace(/_setJuvStatsSort\(/g,'_mobJuvStatsSetSort(');
-  html=html.replace(/<button onclick="_toggleJuvStats\(\)"[^<]*>[\s\S]*?<\/button>/,'');
   return html;
 }
 function _mobStatsRender(){
   const el=document.getElementById('mob-stats-body');
   if(!el) return;
-  const pill=(active,label,onclick)=>`<button onclick="${onclick}" style="padding:7px 15px;border-radius:10px;border:1px solid ${active?'#0D9488':'rgba(255,255,255,.15)'};background:${active?'#0D9488':'transparent'};color:${active?'#fff':'rgba(239,243,248,.6)'};font-size:12.5px;font-weight:700;cursor:pointer">${label}</button>`;
+  const pill=(active,label,onclick)=>`<button onclick="${onclick}" style="padding:7px 15px;border-radius:10px;border:1px solid ${active?'#0D9488':'rgba(255,255,255,.15)'};background:${active?'#0D9488':'transparent'};color:${active?'#fff':'rgba(239,243,248,.6)'};font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">${label}</button>`;
   const tabsRow=`<div style="display:flex;gap:8px;padding:14px 14px 4px">${pill(_mobStatsTab==='mayor','Mayor',"_mobStatsSetTab('mayor')")}${pill(_mobStatsTab==='juveniles','Juveniles',"_mobStatsSetTab('juveniles')")}</div>`;
   let body;
   if(_mobStatsTab==='mayor'){
     const sortRow=`<div style="display:flex;gap:8px;padding:6px 14px 10px">${pill(_mobStatsSort==='caps','Más partidos',"_mobStatsSetSort('caps')")}${pill(_mobStatsSort==='goals','Más goles',"_mobStatsSetSort('goals')")}</div>`;
     body=sortRow+_mobStatsMayorHTML(_mobStatsSort);
   } else {
-    body=_mobStatsJuvHTML();
+    const st=window.__vsJuv?.get?.()||{};
+    const juvCatRow=`<div style="display:flex;gap:8px;overflow-x:auto;padding:6px 14px 4px;scrollbar-width:none">${_MOB_JUV_STATS_CATS.map(c=>pill(st.sc===c.key||(!st.sc&&c.key==='total'),c.label,`_mobJuvStatsSetCat('${c.key}')`)).join('')}</div>`;
+    const juvSortRow=`<div style="display:flex;gap:8px;padding:4px 14px 10px">${pill(st.ss!=='g','Más partidos',"_mobJuvStatsSetSort('pj')")}${pill(st.ss==='g','Más goles',"_mobJuvStatsSetSort('g')")}</div>`;
+    body=juvCatRow+juvSortRow+_mobStatsJuvHTML();
   }
   el.innerHTML=tabsRow+body;
 }
