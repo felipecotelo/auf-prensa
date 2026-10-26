@@ -32071,9 +32071,19 @@ window._gnavMenuSearch = function(v){
   res.innerHTML = shown.map(r=>_gnavRowHTML(r, r._isJug, 'dark')).join('')
     + (all.length>60?`<div style="text-align:center;padding:12px;font-size:11.5px;color:rgba(239,243,248,.3)">+${all.length-60} más resultados</div>`:'');
 };
+window._jgCat=''; window._jgYrOn=false; window._jgYr='';
+window._jgSetCat=function(k){ window._jgCat=k||''; if(!k) window._jgYrOn=false; window.renderJuveniles(); };
+window._jgToggleYr=function(){ window._jgYrOn=!window._jgYrOn; window._jgYr=_juvYear; window.renderJuveniles(); };
+function _jgPreset(){ window._jgCat=_juvCat; window._jgYr=_juvYear; window._jgYrOn=true; }
+// Barra de filtros (categoría + ciclo) de las vistas globales Jugadores / Técnicos
+function _jgChips(){
+  const _ord=['sub23','sub20','sub18','sub17','sub16','sub15','sub13']; const cats=Object.entries(JUVENILES).filter(([k])=>k!=='mayor').sort((x,y)=>(_ord.indexOf(x[0])+99)%99-(_ord.indexOf(y[0])+99)%99);
+  const lab=k=>(JUVENILES[k]&&JUVENILES[k].label)||k;
+  return `<div class="fu-pills" style="padding:8px 0 0"><button class="${window._jgCat?'':'on'}" onclick="_jgSetCat('')">Todas</button>${cats.map(([k])=>`<button class="${window._jgCat===k?'on':''}" onclick="_jgSetCat('${k}')">${lab(k)}</button>`).join('')}${window._jgCat?`<button class="${window._jgYrOn?'on':''}" onclick="_jgToggleYr()" title="Solo el ciclo ${_juvYear}">Ciclo ${window._jgYr||_juvYear}</button>`:''}</div>`;
+}
 window._toggleJuvGlobal = function(){
   _juvGlobalPlayers = !_juvGlobalPlayers;
-  if(_juvGlobalPlayers){ _juvGlobalStats=false; _juvGlobalCT=false; _juvGlobalCal=false; }
+  if(_juvGlobalPlayers){ _juvGlobalStats=false; _juvGlobalCT=false; _juvGlobalCal=false; _jgPreset(); }
   window.renderJuveniles();
 };
 window._toggleJuvStats = function(){
@@ -32083,7 +32093,7 @@ window._toggleJuvStats = function(){
 };
 window._toggleJuvCT = function(){
   _juvGlobalCT = !_juvGlobalCT;
-  if(_juvGlobalCT){ _juvGlobalStats=false; _juvGlobalCal=false; }
+  if(_juvGlobalCT){ _juvGlobalStats=false; _juvGlobalCal=false; _jgPreset(); }
   window.renderJuveniles();
 };
 window._toggleJuvCal = function(){
@@ -32113,6 +32123,7 @@ window._jgFilt = function(){
   var v=0;
   cards.forEach(function(c){
     var match=!q||_norm(c.dataset.n).includes(q)||_norm(c.dataset.c).includes(q);
+    var cat=window._jgCat; if(match&&cat){ var ks=(c.dataset.k||'').split(' '); match=window._jgYrOn?ks.indexOf(cat+':'+window._jgYr)>=0:ks.some(function(k){return k.indexOf(cat+':')===0;}); }
     c.style.display=match?'':'none';
     if(match) v++;
   });
@@ -34697,9 +34708,6 @@ function _renderJuvenilesSafe(el){
           <div id="juv-nav-scroll" style="flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;touch-action:pan-x;scrollbar-width:none;display:flex;align-items:center;gap:4px;padding:4px 0">
             ${yrBtns}
           </div>
-          <div style="flex-shrink:0;display:flex;align-items:center;gap:2px;padding-left:6px;border-left:1px solid var(--border);margin:4px 0">
-            ${utilLinks}
-          </div>
         </div>
         ${evtPills ? `<div style="display:flex;align-items:center;min-height:32px;border-top:1px solid var(--border)">
           <span class="nav-l1-label" style="flex-shrink:0;padding-left:0">Competencias</span>
@@ -35103,11 +35111,11 @@ function _buildJuvGlobalCT(){
       (anoData.ct||[]).forEach(m=>{
         if(!m.name) return;
         if(!byName[m.name]) byName[m.name] = {name:m.name, iso:m.iso, entries:[]};
-        byName[m.name].entries.push({label:`${catData.label} ${yr}`, rol:m.rol, dt:!!m.dt});
+        byName[m.name].entries.push({label:`${catData.label} ${yr}`, rol:m.rol, dt:!!m.dt, cat:catKey, yr});
       });
     });
   });
-  const list = Object.values(byName).sort((a,b)=>{
+  const list = Object.values(byName).filter(p=>!window._jgCat||p.entries.some(e=>e.cat===window._jgCat&&(!window._jgYrOn||e.yr===window._jgYr))).sort((a,b)=>{
     const aDt = a.entries.some(e=>e.dt), bDt = b.entries.some(e=>e.dt);
     if(aDt!==bDt) return aDt?-1:1;
     return a.name.localeCompare(b.name);
@@ -35125,7 +35133,8 @@ function _buildJuvGlobalCT(){
   return `
     <div style="background:var(--bg);position:sticky;top:0;z-index:10;padding:10px 16px;border-bottom:1px solid var(--border)">
       <button onclick="_toggleJuvCT()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.85em;font-weight:700"><i class="ti ti-arrow-left"></i> Volver</button>
-      <div style="font-weight:800;font-size:.9em;color:var(--text);margin-top:6px">🧠 Técnicos de Juveniles</div>
+      <div style="font-weight:800;font-size:.9em;color:var(--text);margin-top:6px">Técnicos de Juveniles</div>
+      ${_jgChips()}
     </div>
     <div>${rows || `<div style="text-align:center;padding:48px 16px;color:var(--muted)">Sin datos de cuerpo técnico cargados.</div>`}</div>
   `;
@@ -35210,22 +35219,26 @@ window._buildJuvStatsView = _buildJuvStatsView;
 // Cada jugador tiene una sola ficha que persiste a medida que asciende de categoría.
 function _buildJuvGlobalPlayers(){
   const allPlayers = {};
+  const _tok = (nom,catKey,yr)=>{ const p=allPlayers[nom]; if(p){ (p.k=p.k||new Set()).add(catKey+':'+yr); } };
   Object.entries(JUVENILES).forEach(([catKey,catData])=>{
     Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
       if(parseInt(yr)>=2000)(anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
         if(!allPlayers[j.nom]) allPlayers[j.nom]={nom:j.nom,club:j.club||'',fechaNac:j.fechaNac||'',tmId:j.tmId||null,paisSec:j.paisSec||null,paisSecLabel:j.paisSecLabel||null};
+        _tok(j.nom,catKey,yr);
         if(j.club) allPlayers[j.nom].club=j.club;
         if(j.paisSec){ allPlayers[j.nom].paisSec=j.paisSec; allPlayers[j.nom].paisSecLabel=j.paisSecLabel||null; }
       }));
       if(parseInt(yr)>=2005)(anoData.competencias||[]).forEach(c=>{
         _juvCompAllPlayers(c.id).forEach(j=>{
           if(!allPlayers[j.nom]) allPlayers[j.nom]={nom:j.nom,club:j.club||'',fechaNac:j.fechaNac||'',tmId:j.tmId||null,paisSec:j.paisSec||null,paisSecLabel:j.paisSecLabel||null};
+          _tok(j.nom,catKey,yr);
           if(j.club) allPlayers[j.nom].club=j.club;
           if(j.paisSec){ allPlayers[j.nom].paisSec=j.paisSec; allPlayers[j.nom].paisSecLabel=j.paisSecLabel||null; }
         });
       });
       (anoData.lista||[]).forEach(j=>{
         if(!allPlayers[j.nom]) allPlayers[j.nom]={nom:j.nom,club:j.club||'',fechaNac:j.fechaNac||'',tmId:j.tmId||null,paisSec:j.paisSec||null,paisSecLabel:j.paisSecLabel||null};
+        _tok(j.nom,catKey,yr);
         if(j.club) allPlayers[j.nom].club=j.club;
         if(j.paisSec){ allPlayers[j.nom].paisSec=j.paisSec; allPlayers[j.nom].paisSecLabel=j.paisSecLabel||null; }
       });
@@ -35257,6 +35270,7 @@ function _buildJuvGlobalPlayers(){
       </div>
       <span id="jgc" style="font-size:.72em;color:var(--muted);white-space:nowrap">${fichas.length} fichas</span>
     </div>
+    <div style="padding:0 16px">${_jgChips()}</div>
     <div style="padding:16px">
       <div id="jgg" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
         ${fichas.map(p=>{
@@ -35266,7 +35280,7 @@ function _buildJuvGlobalPlayers(){
           const card = _juvFichaCard(p, hist, off, ascendio);
           const safeNom = p.nom.toLowerCase().replace(/&/g,'').replace(/</g,'').replace(/>/g,'');
           const safeClub = (p.club||'').toLowerCase().replace(/&/g,'').replace(/</g,'').replace(/>/g,'');
-          return '<div data-n="'+safeNom+'" data-c="'+safeClub+'">'+card+'</div>';
+          return '<div data-n="'+safeNom+'" data-c="'+safeClub+'" data-k="'+[...(p.k||[])].join(' ')+'">'+card+'</div>';
         }).join('')}
       </div>
     </div>`;
