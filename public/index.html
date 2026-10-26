@@ -886,6 +886,7 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .dz-lnk{width:100%;margin-top:8px;height:28px;padding:0 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:rgba(239,243,248,.7);font-family:inherit;font-size:11px;outline:none}
 .dz-pl{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px}
 .dz-pl.libre .dz-nm{color:#F4F7FB}
+.dz-nm small{display:block;margin-top:1px;font-size:10px;font-weight:500;color:rgba(239,243,248,.4)}
 .dz-n{flex:0 0 22px;font-family:'Space Grotesk','Inter',sans-serif;font-weight:700;color:rgba(239,243,248,.45);text-align:center}
 .dz-nm{flex:1 1 auto;min-width:0;font-weight:600;color:rgba(239,243,248,.8)}
 .dz-us{display:flex;flex-wrap:wrap;gap:3px;justify-content:flex-end}
@@ -32301,16 +32302,17 @@ const _MUN15_DIS_KEY='auf4_juv_diseno';
 window._mun15DisExp=window._mun15DisExp||new Set();
 function _mun15DisGet(){ const o=stor.get(_MUN15_DIS_KEY,{}); return (o&&o['mundial-sub15-2026'])||{}; }
 function _mun15DisSet(d){ const o=stor.get(_MUN15_DIS_KEY,{})||{}; o['mundial-sub15-2026']=d; stor.set(_MUN15_DIS_KEY,o); }
-window._mun15DisToggle=function(mid,stage,nomEnc){
-  const nom=decodeURIComponent(nomEnc), d=_mun15DisGet(); const e=d[mid]||(d[mid]={md1:[],inf:[],l1:'',l2:''});
+window._mun15DisToggle=function(key,stage,nomEnc){
+  const nom=decodeURIComponent(nomEnc), d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''});
   const max=stage==='md1'?2:1; let a=e[stage]||[];
   if(a.includes(nom)) a=a.filter(x=>x!==nom); else { a=[...a,nom]; if(a.length>max) a=a.slice(a.length-max); }
   e[stage]=a; _mun15DisSet(d); window.renderJuveniles?.();
 };
 window._mun15DisExpand=function(key){ if(window._mun15DisExp.has(key)) window._mun15DisExp.delete(key); else window._mun15DisExp.add(key); window.renderJuveniles?.(); };
-window._mun15DisLink=function(mid,stage,inp){
-  const d=_mun15DisGet(); const e=d[mid]||(d[mid]={md1:[],inf:[],l1:'',l2:''}); e[stage==='md1'?'l1':'l2']=inp.value.trim(); _mun15DisSet(d);
+window._mun15DisLink=function(key,stage,inp){
+  const d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''}); e[stage==='md1'?'l1':'l2']=inp.value.trim(); _mun15DisSet(d);
 };
+// El MD-1 es uno por día de partidos (si hay dos partidos el mismo día, la pieza del MD-1 es una sola); el informe de victoria es uno por partido.
 window._mun15DisenoHtml=function(){
   const comp=COMP_DATA['mundial-sub15-2026']; const pool=(comp&&comp.convocados)||[];
   let ms=[]; try{ ms=JSON.parse(localStorage.getItem('auf4_amist_juv_sub15_2026')||'[]').filter(m=>m.compId==='mundial-sub15-2026'); }catch(_){}
@@ -32319,33 +32321,41 @@ window._mun15DisenoHtml=function(){
   const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const dm=f=>{ const x=String(f||'').slice(0,10).split('-'); return x.length===3?[parseInt(x[2],10),MES[parseInt(x[1],10)-1]]:['','']; };
   const sh=n=>{ const q=String(n).trim().split(/\s+/); return q.length>1?q[0][0]+'. '+q.slice(1).join(' '):n; };
+  const ab=r=>String(r).slice(0,3).toUpperCase();
+  const dias=[]; ms.forEach((m,i)=>{ const f=String(m.fecha).slice(0,10); let g=dias.find(x=>x.f===f); if(!g){ g={f,ms:[]}; dias.push(g); } g.ms.push({...m,_n:i+1}); });
+  const md1Of=g=>{ const e=d['d_'+g.f]; if(e) return e; const prev=g.ms.map(m=>d[m.id]).find(x=>x&&(x.md1||[]).length); return prev||{md1:[],inf:[],l1:'',l2:''}; };
   // uso por jugador
   const uso={}; pool.forEach(p=>uso[p.nom]={md1:[],inf:[]});
-  ms.forEach(m=>{ const e=d[m.id]; if(!e) return; const r=m.rival; (e.md1||[]).forEach(n=>{ (uso[n]||(uso[n]={md1:[],inf:[]})).md1.push(r); }); (e.inf||[]).forEach(n=>{ (uso[n]||(uso[n]={md1:[],inf:[]})).inf.push(r); }); });
-  const usoCount=n=>(uso[n]?uso[n].md1.length+uso[n].inf.length:0);
-  const chip=(m,stage,p,sel)=>{ const u=usoCount(p.nom); return `<button type="button" class="dz-ch${sel?' on':''}" onclick="_mun15DisToggle(${m.id},'${stage}','${encodeURIComponent(p.nom)}')" title="${p.nom}"><b>${p.num??''}</b>${sh(p.nom)}${u?`<i>×${u}</i>`:''}</button>`; };
-  const block=(m,stage,label,max,extra)=>{
-    const e=d[m.id]||{md1:[],inf:[],l1:'',l2:''}, sel=e[stage]||[], key=m.id+'_'+stage, open=window._mun15DisExp.has(key);
-    const lnk=stage==='md1'?e.l1:e.l2;
+  const U=n=>uso[n]||(uso[n]={md1:[],inf:[]});
+  dias.forEach(g=>{ md1Of(g).md1.forEach(n=>U(n).md1.push(g.ms.map(m=>ab(m.rival)).join('+'))); g.ms.forEach(m=>((d[m.id]||{}).inf||[]).forEach(n=>U(n).inf.push(ab(m.rival)))); });
+  const usoCount=n=>uso[n]?uso[n].md1.length+uso[n].inf.length:0;
+  const chip=(key,stage,p,sel)=>{ const u=usoCount(p.nom); return `<button type="button" class="dz-ch${sel?' on':''}" onclick="_mun15DisToggle('${key}','${stage}','${encodeURIComponent(p.nom)}')" title="${p.nom} · ${p.club||''}"><b>${p.num??''}</b>${sh(p.nom)}${u?`<i>×${u}</i>`:''}</button>`; };
+  const block=(key,stage,label,max,sel,lnk,extra)=>{
+    const ek=key+'_'+stage, open=window._mun15DisExp.has(ek);
     return `<div class="dz-bk">
       <div class="dz-bt"><span>${label}</span><em>${sel.length} de ${max}</em></div>
       ${extra||''}
       <div class="dz-sel">${sel.length?sel.map(n=>`<span class="dz-pill">${sh(n)}</span>`).join(''):'<span class="dz-none">Sin elegir</span>'}</div>
-      <button type="button" class="dz-open" onclick="_mun15DisExpand('${key}')"><i class="ti ti-${open?'chevron-up':'users'}"></i>${open?'Cerrar':'Elegir jugadores'}</button>
-      ${open?`<div class="dz-grid">${pool.map(p=>chip(m,stage,p,sel.includes(p.nom))).join('')}</div>`:''}
-      <input type="text" class="dz-lnk" value="${(lnk||'').replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)" onchange="_mun15DisLink(${m.id},'${stage}',this)">
+      <button type="button" class="dz-open" onclick="_mun15DisExpand('${ek}')"><i class="ti ti-${open?'chevron-up':'users'}"></i>${open?'Cerrar':'Elegir jugadores'}</button>
+      ${open?`<div class="dz-grid">${pool.map(p=>chip(key,stage,p,sel.includes(p.nom))).join('')}</div>`:''}
+      <input type="text" class="dz-lnk" value="${(lnk||'').replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)" onchange="_mun15DisLink('${key}','${stage}',this)">
     </div>`; };
-  const cards=ms.map((m,i)=>{
-    const f=dm(m.fecha), fin=m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='', win=fin&&m.gLocal>m.gRival;
-    const res=fin?`<span class="dz-res" style="color:${win?'#86EFAC':m.gLocal===m.gRival?'#FCD34D':'#FCA5A5'}">${m.gLocal}–${m.gRival}</span>`:'';
-    const nota=!fin?'Se habilita con el resultado':win?'Victoria: va informe':'Informe solo si se gana';
-    return `<div class="dz-card"><div class="dz-top"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span><div class="dz-tt"><b>Uruguay vs. ${m.rival}</b><span>Partido ${i+1} de la fase de grupos</span></div>${res}</div>
-      <div class="dz-bks">${block(m,'md1','MD-1',2,'')}${block(m,'inf','Informe',1,`<div class="dz-note${win?' ok':''}">${nota}</div>`)}</div></div>`; }).join('');
+  const cards=dias.map(g=>{
+    const f=dm(g.f), e1=md1Of(g), key1='d_'+g.f;
+    const rivales=g.ms.map(m=>m.rival).join(' y ');
+    const resumen=g.ms.map(m=>(m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='')?`${m.gLocal}–${m.gRival}`:'').filter(Boolean).join(' · ');
+    const nums=g.ms.map(m=>m._n);
+    const informes=g.ms.map(m=>{
+      const fin=m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='', win=fin&&m.gLocal>m.gRival, e=d[m.id]||{inf:[],l2:''};
+      const nota=!fin?'Se habilita con el resultado':win?'Victoria: va informe':'Informe solo si se gana';
+      return block(String(m.id),'inf',`Informe vs. ${m.rival}`,1,e.inf||[],e.l2,`<div class="dz-note${win?' ok':''}">${nota}</div>`); }).join('');
+    return `<div class="dz-card"><div class="dz-top"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span><div class="dz-tt"><b>Uruguay vs. ${rivales}</b><span>Partido${nums.length>1?'s':''} ${nums.join(' y ')} de la fase de grupos</span></div>${resumen?`<span class="dz-res">${resumen}</span>`:''}</div>
+      <div class="dz-bks">${block(key1,'md1',`MD-1 vs. ${rivales}`,2,e1.md1||[],e1.l1,'')}${informes}</div></div>`; }).join('');
   const orden=[...pool].sort((a,b)=>usoCount(a.nom)-usoCount(b.nom)||(a.num||0)-(b.num||0));
   const lista=orden.map(p=>{ const u=uso[p.nom]||{md1:[],inf:[]}, n=u.md1.length+u.inf.length;
-    return `<div class="dz-pl${n?'':' libre'}"><span class="dz-n">${p.num??''}</span><span class="dz-nm">${p.nom}</span><span class="dz-us">${n?[...u.md1.map(r=>`<i>MD-1 ${r.slice(0,3).toUpperCase()}</i>`),...u.inf.map(r=>`<i class="inf">Inf ${r.slice(0,3).toUpperCase()}</i>`)].join(''):'<em>Sin usar</em>'}</span></div>`; }).join('');
+    return `<div class="dz-pl${n?'':' libre'}"><span class="dz-n">${p.num??''}</span><span class="dz-nm">${p.nom}<small>${p.club||''}</small></span><span class="dz-us">${n?[...u.md1.map(r=>`<i>MD-1 ${r}</i>`),...u.inf.map(r=>`<i class="inf">Inf ${r}</i>`)].join(''):'<em>Sin usar</em>'}</span></div>`; }).join('');
   if(!ms.length) return `<div class="gt-card"><div class="gt-eb">Diseño · Mundial Sub-15</div><div class="gt-msg">Todavía no hay partidos cargados del Mundial.</div></div>`;
-  return `<div class="dz-wrap"><div class="dz-main"><div class="gt-eb" style="margin-bottom:10px">Diseño · 2 jugadores para el MD-1 y 1 para el informe si se gana</div>${cards}</div>
+  return `<div class="dz-wrap"><div class="dz-main"><div class="gt-eb" style="margin-bottom:10px">Diseño · 2 jugadores para el MD-1 de cada día y 1 para el informe de cada victoria</div>${cards}</div>
     <aside class="dz-side"><div class="gt-eb" style="margin-bottom:10px">Uso por jugador<em>|</em><u>primero los menos usados</u></div>${lista}</aside></div>`;
 };
 window._openJuvComp = function(id){
