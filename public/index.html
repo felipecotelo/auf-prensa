@@ -32504,20 +32504,21 @@ async function _mundSyncFifa(cid,force){
   let cambio=false, nuevos=0;
   const uyDia=d=>new Date(d).toLocaleDateString('en-CA',{timeZone:'America/Montevideo'});
   ms.forEach(m=>{
-    if(!m.Home||!m.Away) return;
-    const uru=m.Home.IdCountry==='URU'?m.Home:m.Away, riv=uru===m.Home?m.Away:m.Home;
-    const rival=_fifaEs(riv.ShortClubName);
+    const uru=(m.Home&&m.Home.IdCountry==='URU')?m.Home:(m.Away&&m.Away.IdCountry==='URU')?m.Away:null; if(!uru) return;
+    const riv=uru===m.Home?m.Away:m.Home;
+    const rival=(riv&&riv.ShortClubName)?_fifaEs(riv.ShortClubName):'A definir';
     const fecha=uyDia(m.Date), hUY=fmt(m.Date,'America/Montevideo');
     const loc=new Date(new Date(m.Date).getTime()+cfg.offset*3600000).toISOString().slice(11,16);
     const campoM=(((m.Stadium||{}).Name||[{}])[0].Description||'').match(/Campo\s+(\S+)/i);
     const lugar=cfg.sede?(cfg.sede+(campoM?' · cancha '+campoM[1]:'')):(((m.Stadium||{}).Name||[{}])[0].Description||'');
     const stg=((m.StageName||[{}])[0].Description||''), grp=((m.GroupName||[{}])[0].Description||'').replace(/^Group /,'Grupo ');
-    const fase=[stg,grp].filter(Boolean).join(' · ');
-    const horaTxt=cfg.tz?`${loc} (${cfg.tz}) / ${hUY} (UY)`:hUY;
+    const fase=/^Grupo /i.test(grp)?[stg,grp].filter(Boolean).join(' · '):(grp?grp.replace(/\s*\((.+)\)/,' · $1'):stg);
+    const horaTxt=cfg.tz?`${loc}h (${cfg.tz}) / ${hUY}h (UY)`:hUY+'h';
     let ex=list.find(x=>x.compId===cid&&String(x.fifaId||'')===String(m.IdMatch))||list.find(x=>x.compId===cid&&String(x.fecha).slice(0,10)===fecha&&mismo(x.rival,rival));
     if(ex){
       if(!ex.fifaId){ ex.fifaId=m.IdMatch; cambio=true; }
       if(fase&&!ex.fase){ ex.fase=fase; cambio=true; }
+      if(ex.rival==='A definir'&&rival!=='A definir'){ ex.rival=rival; cambio=true; }
       if(!ex.lugar&&lugar){ ex.lugar=lugar; cambio=true; }
       if(!ex.hora&&horaTxt){ ex.hora=horaTxt; if(cfg.pais){ ex.horaLocal=loc; ex.paisSede=cfg.pais; } cambio=true; }
       const mm=String(ex.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(ex.hora||'').match(/^\s*(\d{1,2}):(\d{2})/);
@@ -32532,7 +32533,7 @@ async function _mundSyncFifa(cid,force){
     }
   });
   // la tabla sigue al grupo actual de Uruguay (primer partido pendiente con grupo, o el último)
-  const conG=ms.filter(m=>m.IdGroup).sort((a,b)=>String(a.Date).localeCompare(String(b.Date)));
+  const conG=ms.filter(m=>m.IdGroup&&/^(Group|Grupo) /i.test((m.GroupName||[{}])[0].Description||'')).sort((a,b)=>String(a.Date).localeCompare(String(b.Date)));
   if(conG.length){ const pen=conG.find(m=>m.MatchStatus!==0)||conG[conG.length-1]; const gn=((pen.GroupName||[{}])[0].Description||'').replace(/^Group /,'Grupo ');
     window._mundDyn[cid]={stage:pen.IdStage,group:pen.IdGroup,label:gn||cfg.label}; }
   if(cambio){
