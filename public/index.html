@@ -908,6 +908,18 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
   .juv-cat-sticky>div:nth-child(2)>div>div[style*="border-left"]{position:absolute;right:16px;top:50%;transform:translateY(-50%);margin:0!important}
   .juv-cat-sticky #juv-nav-scroll,.juv-cat-sticky #juv-comp-scroll{padding-left:150px!important;padding-right:150px!important;box-sizing:border-box;width:100%}
 }
+/* Cobertura fotográfica semanal */
+.cv-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:7px 0;padding:9px 12px;border-radius:16px;border:1px solid color-mix(in srgb,var(--cat) 35%,rgba(255,255,255,.06));border-left:3px solid var(--cat);background:linear-gradient(90deg,color-mix(in srgb,var(--cat) 16%,transparent),transparent 45%),rgba(255,255,255,.02)}
+.cv-cat{flex-shrink:0;min-width:56px;text-align:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.04em;color:#060814;background:var(--cat)}
+.cv-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 11px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(239,243,248,.7);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.cv-chip.add{border-style:dashed;color:rgba(239,243,248,.5)}
+.cv-chip.ok{border-color:rgba(134,239,172,.5);background:rgba(134,239,172,.1);color:#86EFAC}
+.cv-chip.plan{border-color:rgba(252,211,77,.5);background:rgba(252,211,77,.1);color:#FCD34D}
+.cv-chip.no{border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:rgba(239,243,248,.5)}
+.cv-chip.link{border-color:rgba(56,189,248,.5);background:rgba(56,189,248,.1);color:#7DD3FC}
+.ih-row.ih-act{border:1px solid color-mix(in srgb,var(--cat,#38BDF8) 35%,rgba(255,255,255,.06));border-left:3px solid var(--cat,#38BDF8);background:linear-gradient(90deg,color-mix(in srgb,var(--cat,#38BDF8) 16%,transparent),transparent 45%),rgba(255,255,255,.02)}
+.ih-act .ih-at small{font-size:11px;font-weight:500;color:rgba(239,243,248,.55)}
+.ih-act .ih-at b{color:var(--cat,#F4F7FB)}
 /* Pizarra nov: botonera de incidencias */
 .pz-pro .pz-sec-h{display:flex!important;align-items:center;justify-content:space-between;gap:8px;letter-spacing:.2em!important;margin-bottom:10px!important}
 .pz-pro .pz-sec-n{font-style:normal;font-family:'Space Grotesk','Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:0;min-width:20px;height:20px;padding:0 7px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.3);color:#7DD3FC}
@@ -6579,13 +6591,7 @@ function renderInicioHoySeleccion(dayOffset){
     const aniversarioRows=aniversarios.map(c=>rowHtml('ti-trophy',c.txt)).join('');
     // Actividades del Calendar (entrenamientos, viajes…): "Sub-20 | Entrenamiento" → categoría en negrita + actividad, con el horario (si se conoce) a la derecha
     const _hh=t=>{ const m=String(t||'').match(/(\d{1,2}):(\d{2})/); return m?String(parseInt(m[1],10)).padStart(2,'0')+':'+m[2]:''; };
-    const actividadRows=actividades.map(c=>{
-      const parts=String(c.txt||'').split('|').map(x=>x.trim()), cat=parts.length>1?parts[0]:'', act=parts.length>1?parts.slice(1).join(' | '):parts[0];
-      const ic=/entren/i.test(act)?'ti-run':/viaje|vuelta/i.test(act)?'ti-plane':/concentr/i.test(act)?'ti-home':'ti-ball-football';
-      const h1=_hh(c.hora), h2=_hh(c.fin);
-      const hr=h1?(h2?`${h1} – ${h2}h`:`${h1}h`):'';
-      return `<div class="ih-row ih-act"><i class="ti ${ic}"></i><span class="ih-at">${cat?`<b>${cat}</b>`:''}${act}</span>${hr?`<span class="ih-ah">${hr}</span>`:''}</div>`;
-    }).join('');
+
 
     // ── Partidos de hoy (Mayor + Juveniles) ─────────────────────────────────
     // Antes este widget no miraba partidos en absoluto: un día con un partido
@@ -6707,7 +6713,19 @@ function renderInicioHoySeleccion(dayOffset){
         });
       }
     }catch(_){}
-    const entrenoRows=entrenoHoy.map(e=>`
+
+    // El microciclo ("Sub-20 entrena hoy · Microciclo 20") se suma a la actividad del Calendar del mismo día y categoría, así no sale dos veces
+    const _micro={}; (typeof entrenoHoy!=='undefined'?entrenoHoy:[]).forEach(e=>{ const ck=_catDeLabel(e.txt); const mm=String(e.txt).split('·')[1]; if(ck&&mm) _micro[ck]=mm.trim(); });
+    const _conCal=new Set(actividades.map(c=>_catDeLabel(String(c.txt).split('|')[0])));
+    const actividadRows=actividades.map(c=>{
+      const parts=String(c.txt||'').split('|').map(x=>x.trim()), cat=parts.length>1?parts[0]:'', act=parts.length>1?parts.slice(1).join(' | '):parts[0];
+      const ic=/entren/i.test(act)?'ti-run':/viaje|vuelta/i.test(act)?'ti-plane':/concentr/i.test(act)?'ti-home':'ti-ball-football';
+      const h1=_hh(c.hora), h2=_hh(c.fin);
+      const hr=h1?(h2?`${h1} – ${h2}h`:`${h1}h`):'';
+      const ck=_catDeLabel(cat), mic=(/entren/i.test(act)&&_micro[ck])?` <small>· ${_micro[ck]}</small>`:'';
+      return `<div class="ih-row ih-act" style="--cat:${_catCol(ck)}"><i class="ti ${ic}"></i><span class="ih-at">${cat?`<b>${cat}</b>`:''}${act}${mic}</span>${hr?`<span class="ih-ah">${hr}</span>`:''}</div>`;
+    }).join('');
+    const entrenoRows=entrenoHoy.filter(e=>!_conCal.has(_catDeLabel(e.txt))).map(e=>`
       <div onclick="${e.onclick||''}" class="ih-row" style="${e.onclick?'cursor:pointer':''}">
         <i class="ti ${e.icon||'ti-run'}" style="font-size:16px;flex-shrink:0;width:18px;text-align:center;color:${isMob?'rgba(239,243,248,.5)':'#64748B'}"></i>
         <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${e.txt}</span>
@@ -7737,22 +7755,22 @@ function renderInicioCobertura(){
   const subColor=isMob?'rgba(239,243,248,.45)':'var(--muted)';
   const rowBorder=isMob?'1px solid rgba(255,255,255,.08)':'1px solid var(--border)';
 
+  // Estados: "a cubrir/publicar" (fecha futura, ya acordada), "cubierto/publicado" (la fecha ya llegó), "no se cubre/no se publica" (decisión, p. ej. viaje al exterior sin fotógrafo)
+  const _ddmm=val=>{ const [,m,d]=String(val).split('-'); return `${parseInt(d,10)}/${parseInt(m,10)}`; };
+  const _fut=val=>String(val)>TODAY;
+  const cvChip=(cls,ic,txt,onclick,title)=>`<button class="cv-chip ${cls}" onclick="${onclick}"${title?` title="${title}"`:''}><i class="ti ${ic}"></i>${txt}</button>`;
   const fechaBadge=(label,val,wk,cat,field)=>{
-    if(val==='no'){
-      return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="display:flex;align-items:center;gap:4px;border:1px solid #DC262640;background:${isMob?'rgba(220,38,38,.15)':'#FEE2E2'};color:#DC2626;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-x" style="font-size:11px"></i>No ${label.toLowerCase()}</button>`;
-    }
-    if(val){
-      const [,m,d]=val.split('-');
-      return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="display:flex;align-items:center;gap:4px;border:1px solid #16A34A40;background:${isMob?'rgba(22,163,74,.15)':'#DCFCE7'};color:#16A34A;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-check" style="font-size:11px"></i>${label} ${parseInt(d)}/${parseInt(m)}</button>`;
-    }
-    return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}')" style="border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ ${label}</button>`;
+    const oc=`window._covEditFecha('${wk}','${cat}','${field}')`, pub=field==='publicado';
+    if(val==='no') return cvChip('no','ti-ban',pub?'No se publica':'No se cubre',oc,'Tocá para cambiarlo');
+    if(val){ const f=_fut(val); return cvChip(f?'plan':'ok',f?'ti-calendar-event':'ti-check',`${f?(pub?'A publicar':'A cubrir'):(pub?'Publicado':'Cubierto')} ${_ddmm(val)}`,oc); }
+    return cvChip('add','ti-plus',pub?'Publicado':'A cubrir',oc);
   };
   const extraBadge=(label,val,wk,cat,field,idx)=>{
-    const [,m,d]=val.split('-');
-    return `<button onclick="window._covEditFecha('${wk}','${cat}','${field}',${idx})" style="display:flex;align-items:center;gap:4px;border:1px solid #16A34A40;background:${isMob?'rgba(22,163,74,.15)':'#DCFCE7'};color:#16A34A;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ti-check" style="font-size:11px"></i>${label} ${parseInt(d)}/${parseInt(m)}</button>`;
+    const pub=field==='publicado', f=_fut(val);
+    return cvChip(f?'plan':'ok',f?'ti-calendar-event':'ti-check',`${f?(pub?'A publicar':'A cubrir'):(pub?'Publicado':'Cubierto')} ${_ddmm(val)}`,`window._covEditFecha('${wk}','${cat}','${field}',${idx})`);
   };
-  const addExtraBtn=(wk,cat,field)=>`<button onclick="window._covEditFecha('${wk}','${cat}','${field}','new')" title="Agregar otra cobertura esta semana" style="display:flex;align-items:center;justify-content:center;border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;width:22px;height:22px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">+</button>`;
-  const linkBadge=(val,onclick)=>`<button onclick="${onclick}" style="display:flex;align-items:center;gap:4px;border:1px solid ${val?'#1A56C440':(isMob?'rgba(255,255,255,.2)':'var(--border)')};background:${val?(isMob?'rgba(26,86,196,.18)':'#EFF6FF'):'transparent'};color:${val?'#1A56C4':subColor};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap"><i class="ti ${val?'ti-send':'ti-send-off'}" style="font-size:11px"></i>Link ${val?'enviado':'sin enviar'}</button>`;
+  const addExtraBtn=(wk,cat,field)=>`<button onclick="window._covEditFecha('${wk}','${cat}','${field}','new')" title="Agregar otra cobertura esta semana" class="cv-plus" style="display:flex;align-items:center;justify-content:center;border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;width:22px;height:22px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">+</button>`;
+  const linkBadge=(val,onclick)=>`<button class="cv-chip ${val?'link':'add'}" onclick="${onclick}"><i class="ti ${val?'ti-send':'ti-send-off'}"></i>${val?'Link enviado':'Link sin enviar'}</button>`;
   const addLinkBtn=(wk,cat)=>`<button onclick="window._covToggleLinkExtra('${wk}','${cat}','new')" title="Agregar otro link enviado" style="display:flex;align-items:center;justify-content:center;border:1px dashed ${isMob?'rgba(255,255,255,.25)':'var(--border)'};background:transparent;color:${subColor};border-radius:20px;width:22px;height:22px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0">+</button>`;
   const lockBtn=(wk,cat,rec)=>{
     const locked=rec.cubierto==='no'&&rec.publicado==='no';
@@ -7771,8 +7789,8 @@ function renderInicioCobertura(){
     const cubiertoOk=rec.cubierto&&rec.cubierto!=='no';
     const publicadoOk=rec.publicado&&rec.publicado!=='no';
     return `
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:9px 0;${i<COV_CATS.length-1?'border-bottom:'+rowBorder:''}">
-      <span style="font-size:11px;font-weight:800;color:#fff;background:${c.color};border-radius:6px;padding:3px 9px;flex-shrink:0;min-width:50px;text-align:center">${c.label}</span>
+    <div class="cv-row" style="--cat:${_catCol(c.key)}">
+      <span class="cv-cat">${c.label}</span>
       ${fechaBadge('Cubierto',rec.cubierto,wk,c.key,'cubierto')}
       ${cubiertoExtras}
       ${cubiertoOk?addExtraBtn(wk,c.key,'cubierto'):''}
