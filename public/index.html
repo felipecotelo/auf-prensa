@@ -855,7 +855,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .jf-age b{color:rgba(239,243,248,.85);font-weight:600}
 .jf-badges{display:flex;flex-wrap:wrap;gap:5px}
 .jf-tag{font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.2);color:rgba(239,243,248,.65)}
-.jf-of{cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.06em}
+.jf-of{cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .jf-tag.gold{color:#FCD34D;border-color:rgba(252,211,77,.5)}.jf-tag.blue{color:#8AD8FF;border-color:rgba(138,216,255,.5)}.jf-tag.green{color:#4ADE80;border-color:rgba(74,222,128,.5)}
 .jf-stats{display:flex;align-items:center;gap:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)}
 .jf-pos{font-size:10.5px;font-weight:700;letter-spacing:.14em;padding:3px 11px;border-radius:999px;border:1px solid;cursor:pointer}
@@ -34726,7 +34726,6 @@ function _juvFichaCard(p, hist, off, extraIcon){
     isChamp?tag('Campeón','Campeón Mundial Sub-20 · Argentina 2023','gold'):'',
     isChamp17?tag('Campeón','Campeón Sudamericano Sub-20 · Ecuador 2017','blue'):'',
     isFinal13?tag('Finalista','Finalista Mundial Sub-20 · Turquía 2013'):'',
-    hasOficial&&off.torneos&&off.torneos.length?`<span class="jf-tag green jf-of" onclick="event.stopPropagation();_juvOficialInfo('${nomEnc}')" title="Ver torneos oficiales">${off.torneos.length===1?off.torneos[0].label:off.torneos.length+' torneos oficiales'}</span>`:'',
     isJuvFallecido?tag('Fallecido','Fallecido'):'',
     isJuvRetirado?tag('Retirado','Retirado del fútbol profesional'):'',
     p.inv?tag('Invitado','Jugador invitado (uruguayo en el exterior)','blue'):'',
@@ -34774,6 +34773,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
     ${sb?`<div class="jf-badges">${sb}</div>`:''}
     ${_juvStatsBreakdownHTML(p.nom)}
     <div class="jf-tags">
+      ${(()=>{const T=(off.torneos||[]); if(!hasOficial||!T.length) return ''; const col=t=>{const m=String(t.cat||'').toLowerCase().match(/sub-?(\d+)/); return (typeof CAT_PAL!=='undefined'&&m&&CAT_PAL['sub'+m[1]])||'#94A3B8';}; if(T.length===1){const c=col(T[0]); return `<span class="jf-h jf-of" style="color:${c};background:${c}22;border:1px solid ${c}55" onclick="event.stopPropagation();_juvOficialInfo('${nomEnc}')" title="Ver torneos oficiales">${T[0].label}</span>`;} return `<span class="jf-h jf-hj jf-of" onclick="event.stopPropagation();_juvOficialInfo('${nomEnc}')" title="Ver torneos oficiales">${T.map(t=>`<i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col(t)};margin-right:3px"></i>`).join('')} ${T.length} torneos oficiales</span>`;})()}
       ${hist.filter(h=>/^(Mayor|Local)$/i.test(h.label)).map(h=>`<span class="jf-h" style="color:${h.color};background:${h.color}22">${h.label}</span>`).join('')}
       ${(()=>{const jh=hist.filter(h=>!/^(Mayor|Local)$/i.test(h.label)); if(!jh.length) return ''; if(jh.length===1) return `<span class="jf-h" style="color:${jh[0].color};background:${jh[0].color}22">${jh[0].label}</span>`; return `<span class="jf-h jf-hj" onclick="event.stopPropagation();_juvHistInfo('${nomEnc}')" title="Ver procesos en juveniles">${jh.map(h=>`<i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${h.color};margin-right:3px"></i>`).join('')} Juveniles · ${jh.length} procesos</span>`;})()}
       <span class="jf-add" onclick="_juvHistEdit('${nomEnc}')" title="Agregar historial en otras selecciones juveniles">+ sel.</span>
@@ -34800,7 +34800,8 @@ window._juvHistInfo = function(nomEnc){
 window._juvOficialInfo = function(nomEnc){
   const nom=decodeURIComponent(nomEnc); const off=_juvOfficialStats(nom);
   document.getElementById('jf-of-pop')?.remove(); document.getElementById('jf-of-bg')?.remove();
-  const rows=(off.torneos||[]).map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)"><div><div style="font-size:14px;font-weight:600;color:#F4F7FB">${t.label}</div><div style="font-size:11px;color:rgba(239,243,248,.5);margin-top:2px">${t.cat}</div></div><span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${t.pj?'#4ADE80':'rgba(239,243,248,.5)'};white-space:nowrap">${t.pj?t.pj+(t.pj===1?' partido':' partidos'):'Sin partidos aún'}</span></div>`).join('');
+  const _c=t=>{const m=String(t.cat||'').toLowerCase().match(/sub-?(\d+)/); return (typeof CAT_PAL!=='undefined'&&m&&CAT_PAL['sub'+m[1]])||'#F4F7FB';};
+  const rows=(off.torneos||[]).map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)"><div><div style="font-size:14px;font-weight:600;color:${_c(t)}">${t.label}</div><div style="font-size:11px;color:rgba(239,243,248,.5);margin-top:2px">${t.cat}</div></div><span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${t.pj?'#F4F7FB':'rgba(239,243,248,.45)'};white-space:nowrap">${t.pj?t.pj+(t.pj===1?' partido':' partidos'):'Sin partidos aún'}</span></div>`).join('');
   document.body.insertAdjacentHTML('beforeend',`<div id="jf-of-bg" onclick="document.getElementById('jf-of-pop').remove();this.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55)"></div><div id="jf-of-pop" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:min(420px,92vw);border-radius:22px;border:1px solid rgba(255,255,255,.16);padding:18px 20px 12px;background:linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 20px 60px rgba(0,0,0,.6)"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.55)">Torneos oficiales</div><div style="font-family:'Space Grotesk','Inter',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;margin:4px 0 8px">${nom}</div>${rows}<div style="text-align:right;padding-top:10px"><button onclick="document.getElementById('jf-of-pop').remove();document.getElementById('jf-of-bg').remove()" style="height:28px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#8AD8FF;font:700 10px inherit;font-family:inherit;letter-spacing:.14em;text-transform:uppercase;cursor:pointer">Cerrar</button></div></div>`);
 };
 window._juvPlayerHistory = function(nom){return _juvPlayerHistory(nom);};
