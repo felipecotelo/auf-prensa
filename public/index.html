@@ -8037,6 +8037,30 @@ function _recPartidosDerivados(){
         const lbl=metaCat(cat)+' vs. '+m.rival, uid=(m.id||(k+D+m.rival));
         const nStart=Object.values((m.lineup||{}).starters||{}).filter(Boolean).length, nMax=(m.compId==='mundial-sub15-2026')?8:11;
         const hora=m.hora?' · '+String(m.hora).replace(/(\d{1,2}:\d{2})(?!\d)\s*h*/g,'$1h'):'';
+        // Partidos que van por AUFtv: circuito completo de seis recordatorios (clave), en lugar de los genéricos de alineación / ficha / informe
+        if(m.auftv){
+          const _tm=(String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/(\d{1,2}):(\d{2})/));
+          const HH=_tm?String(parseInt(_tm[1],10)).padStart(2,'0')+':'+_tm[2]:'12:00';
+          const T=new Date(D+'T'+HH+':00');
+          const en=min=>{ const d=new Date(T.getTime()+min*60000); return {vence:d.toLocaleDateString('en-CA'),hora:String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}; };
+          const fD=D.split('-').reverse().join('/')+' · '+HH+'h';
+          const resultadoCargado=m.gLocal!=null&&m.gRival!=null&&Array.isArray(m.subs)&&m.subs.length>0;
+          const pasos=[
+            ['tv1',-1440,'Conseguir la alineación de '+lbl+' (AUFtv)','Partido '+fD+' · 24 horas antes del partido',false,true],
+            ['tv2',-1380,'Cargar en la app la alineación de '+lbl,'Partido '+fD+' · apenas la tengamos',nStart>=nMax,true],
+            ['tv3',-1260,'Mandar a diseñar la alineación de '+lbl,'Partido '+fD+' · unas horas después de conseguirla',false,true],
+            ['tv4',-90,'Publicar la alineación de '+lbl,'Partido '+fD+' · 1:30 h antes del inicio',false,true],
+            ['tv5',120,'Cargar en la app resultado, goles e ingresos de '+lbl,'Partido '+fD+' · al terminar',resultadoCargado,false],
+            ['tv6',150,'Publicar informe post-partido de '+lbl,'Partido '+fD+' · después de cargar el resultado',false,false],
+          ];
+          pasos.forEach(([k,off,tit,det,auto,pre],i)=>{
+            if(pre ? !(D>=TODAY && D<=_recSumarDias(TODAY,10)) : !(D<=TODAY && D>=_recSumarDias(TODAY,-10))) return;
+            const id=k+'|'+uid, mn=manual[id]||{}, dt=en(off);
+            out.push({id,titulo:tit,detalle:det,vence:dt.vence,hora:dt.hora,etiqueta:metaCat(cat),importante:true,orden:i+1,
+              hecho:!!auto||!!mn.hecho,hechoEn:(!auto&&mn.hecho)?mn.hechoEn:null});
+          });
+          return;
+        }
         if(D>=TODAY && D<=_recSumarDias(TODAY,10)){
           const id='alin|'+uid, mn=manual[id]||{};
           out.push({id,titulo:'Conseguir la alineación de '+lbl+' y cargarla en la app',detalle:'Partido '+D.split('-').reverse().join('/')+hora+' · se la pedimos al CT',vence:_recSumarDias(D,-1),hora:'10:00',etiqueta:metaCat(cat),
@@ -8382,7 +8406,7 @@ window._recNoAplica=function(id){
   window._recCumpleCache=null; if(typeof renderInicio==='function') renderInicio();
 };
 window._recHecho=function(id){
-  if(/^(alin|ficha|pub|sem)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|tv[1-6])\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
@@ -27133,6 +27157,29 @@ const JUVENILES = {
           desc:'Uruguay disputó el Sudamericano Sub-17 en Paraguay (3–19 de abril) y se clasificó al Mundial Sub-17 Qatar 2026.',
         },
         convocatorias: [
+          {fecha:'Viajeros a Chile · 27 oct-1 nov 2026', jugadores:[
+            {nom:'Luis Machín',             club:'Nacional', tmId:1532865, fechaNac:'2010-02-06'},
+            {nom:'Bautista Gavary',         club:'Paysandú Fútbol Club', tmId:1551423, fechaNac:'2009-12-28'},
+            {nom:'Johel Farías',            club:'Nacional', fechaNac:'2010-09-16'},
+            {nom:'Dahel Guedes',            club:'Peñarol', tmId:1532869, fechaNac:'2009-09-08'},
+            {nom:'Lautaro Muñiz',           club:'Nacional', tmId:1432157, fechaNac:'2009-03-26'},
+            {nom:'Gabriel Da Silva',        club:'Peñarol', tmId:1432152, fechaNac:'2009-01-13'},
+            {nom:'Johann Fernández',        club:'Boston River', fechaNac:'2011-02-13'},
+            {nom:'Felipe De León',          club:'Nacional', tmId:1425949, fechaNac:'2009-04-20'},
+            {nom:'Pablo Barreiro',          club:'Liverpool', tmId:1425962, fechaNac:'2009-01-07'},
+            {nom:'Dante Rodella',           club:'Nacional', tmId:1532870, fechaNac:'2010-03-05'},
+            {nom:'Facundo Rodríguez',       club:'Montevideo City Torque', tmId:1532872, fechaNac:'2010-01-12'},
+            {nom:'Ramiro García',           club:'Nacional', tmId:1532866, fechaNac:'2009-06-06'},
+            {nom:'Bruno Bueno',             club:'Nacional', tmId:1425950, fechaNac:'2009-01-03'},
+            {nom:'Nicolás Soto',            club:'Defensor Sporting', fechaNac:'2009-06-25'},
+            {nom:'Nicolás Scotti',          club:'Defensor Sporting', tmId:1425952, fechaNac:'2009-11-26'},
+            {nom:'Thiago Brizuela',         club:'Liverpool', tmId:1432158, fechaNac:'2009-02-26'},
+            {nom:'Alan Soares De Lima',     club:'Defensor Sporting', tmId:1532874, fechaNac:'2010-01-16'},
+            {nom:'Juan Gancheff',     club:'Boston River', tmId:1532867, fechaNac:'2009-04-20'},
+            {nom:'Facundo Saldaña',         club:'Boston River', tmId:1425953, fechaNac:'2009-04-04'},
+            {nom:'Vicente Pesce',           club:'Paysandú Fútbol Club', tmId:1532873, fechaNac:'2011-05-18'},
+            {nom:'Matteo Correia',          club:'Defensor Sporting', tmId:1307319, fechaNac:'2009-01-09', paisSec:'🇲🇽', paisSecLabel:'México'},
+          ]},
           {fecha:'Preparación Mundial · lunes a sábado · 19-24 oct 2026', jugadores:[
             {nom:'Luis Machín',             club:'Nacional', tmId:1532865, fechaNac:'2010-02-06'},
             {nom:'Mateo Díaz',              club:'Peñarol', tmId:1425945, fechaNac:'2009-07-12'},
@@ -28647,36 +28694,28 @@ const WC17_2026 = {
   // Se actualiza semana a semana junto con la convocatoria del ciclo
   // (JUVENILES.sub17.anos['2025-2026'].convocatorias[0]) — se pisa la lista
   // anterior, no se acumula histórico acá.
-  convocadosFecha:'Preparación Mundial · lunes a sábado · 19-24 oct 2026',
+  convocadosFecha:'Viajeros a Chile · 27 oct-1 nov 2026',
   convocados:[
     {nom:'Luis Machín',             club:'Nacional', tmId:1532865, fechaNac:'2010-02-06'},
-    {nom:'Mateo Díaz',              club:'Peñarol', tmId:1425945, fechaNac:'2009-07-12'},
-    {nom:'Augusto Sánchez',         club:'Nacional', tmId:1425958, fechaNac:'2009-02-08'},
     {nom:'Bautista Gavary',         club:'Paysandú Fútbol Club', tmId:1551423, fechaNac:'2009-12-28'},
-    {nom:'Gabriel Da Silva',        club:'Peñarol', tmId:1432152, fechaNac:'2009-01-13'},
+    {nom:'Johel Farías',            club:'Nacional', fechaNac:'2010-09-16'},
+    {nom:'Dahel Guedes',            club:'Peñarol', tmId:1532869, fechaNac:'2009-09-08'},
     {nom:'Lautaro Muñiz',           club:'Nacional', tmId:1432157, fechaNac:'2009-03-26'},
-    {nom:'Dylan Mora',              club:'Nacional', tmId:1532868, fechaNac:'2010-05-22'},
-    {nom:'Ezequiel Fernández',      club:'Peñarol', tmId:1532871, fechaNac:'2010-10-31'},
+    {nom:'Gabriel Da Silva',        club:'Peñarol', tmId:1432152, fechaNac:'2009-01-13'},
     {nom:'Johann Fernández',        club:'Boston River', fechaNac:'2011-02-13'},
     {nom:'Felipe De León',          club:'Nacional', tmId:1425949, fechaNac:'2009-04-20'},
-    {nom:'Dante Rodella',           club:'Nacional', tmId:1532870, fechaNac:'2010-03-05'},
-    {nom:'Dahel Guedes',            club:'Peñarol', tmId:1532869, fechaNac:'2009-09-08'},
-    {nom:'Johel Farías',            club:'Nacional', fechaNac:'2010-09-16'},
-    {nom:'Lucas Aragonés',          club:'Racing', tmId:1566721, fechaNac:'2009-06-13'},
-    {nom:'Bruno Bueno',             club:'Nacional', tmId:1425950, fechaNac:'2009-01-03'},
     {nom:'Pablo Barreiro',          club:'Liverpool', tmId:1425962, fechaNac:'2009-01-07'},
+    {nom:'Dante Rodella',           club:'Nacional', tmId:1532870, fechaNac:'2010-03-05'},
     {nom:'Facundo Rodríguez',       club:'Montevideo City Torque', tmId:1532872, fechaNac:'2010-01-12'},
     {nom:'Ramiro García',           club:'Nacional', tmId:1532866, fechaNac:'2009-06-06'},
-    {nom:'Thiago Brizuela',         club:'Liverpool', tmId:1432158, fechaNac:'2009-02-26'},
-    {nom:'Maximiliano Cabrera',     club:'River Plate', tmId:1479792, fechaNac:'2009-01-12'},
+    {nom:'Bruno Bueno',             club:'Nacional', tmId:1425950, fechaNac:'2009-01-03'},
     {nom:'Nicolás Soto',            club:'Defensor Sporting', fechaNac:'2009-06-25'},
-    {nom:'Alan Soares De Lima',     club:'Defensor Sporting', tmId:1532874, fechaNac:'2010-01-16'},
-    {nom:'Ignacio Cardozo',         club:'Peñarol', fechaNac:'2010-03-18'},
     {nom:'Nicolás Scotti',          club:'Defensor Sporting', tmId:1425952, fechaNac:'2009-11-26'},
-    {nom:'Emiliano Haller',         club:'Montevideo City Torque', fechaNac:'2009-05-20'},
+    {nom:'Thiago Brizuela',         club:'Liverpool', tmId:1432158, fechaNac:'2009-02-26'},
+    {nom:'Alan Soares De Lima',     club:'Defensor Sporting', tmId:1532874, fechaNac:'2010-01-16'},
+    {nom:'Juan Gancheff',     club:'Boston River', tmId:1532867, fechaNac:'2009-04-20'},
     {nom:'Facundo Saldaña',         club:'Boston River', tmId:1425953, fechaNac:'2009-04-04'},
     {nom:'Vicente Pesce',           club:'Paysandú Fútbol Club', tmId:1532873, fechaNac:'2011-05-18'},
-    {nom:'Juan Gancheff',     club:'Boston River', tmId:1532867, fechaNac:'2009-04-20'},
     {nom:'Matteo Correia',          club:'Defensor Sporting', tmId:1307319, fechaNac:'2009-01-09', paisSec:'🇲🇽', paisSecLabel:'México'},
   ],
   diseno:{},
