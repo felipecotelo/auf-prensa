@@ -34771,7 +34771,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
     ${_juvStatsBreakdownHTML(p.nom)}
     <div class="jf-tags">
       ${hist.filter(h=>/^(Mayor|Local)$/i.test(h.label)).map(h=>`<span class="jf-h" style="color:${h.color};background:${h.color}22">${h.label}</span>`).join('')}
-      ${(()=>{const jh=hist.filter(h=>!/^(Mayor|Local)$/i.test(h.label)); if(!jh.length) return ''; if(jh.length===1) return `<span class="jf-h" style="color:${jh[0].color};background:${jh[0].color}22">${jh[0].label}</span>`; return `<span class="jf-h jf-hj" onclick="event.stopPropagation();_juvHistInfo('${nomEnc}')" title="Ver procesos en juveniles">Juveniles · ${jh.length} procesos</span>`;})()}
+      ${(()=>{const jh=hist.filter(h=>!/^(Mayor|Local)$/i.test(h.label)); if(!jh.length) return ''; if(jh.length===1) return `<span class="jf-h" style="color:${jh[0].color};background:${jh[0].color}22">${jh[0].label}</span>`; return `<span class="jf-h jf-hj" onclick="event.stopPropagation();_juvHistInfo('${nomEnc}')" title="Ver procesos en juveniles">${jh.map(h=>`<i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${h.color};margin-right:3px"></i>`).join('')} Juveniles · ${jh.length} procesos</span>`;})()}
       <span class="jf-add" onclick="_juvHistEdit('${nomEnc}')" title="Agregar historial en otras selecciones juveniles">+ sel.</span>
       ${sparringEvts.length?`<span class="jf-sp" onclick="_sparringEdit('${nomEnc}')" title="${sparringEvts.join(', ')}">Sparring Mayor · ${sparringEvts.length===1?sparringEvts[0].replace(/^Sparring Mayor\s*/i,''):sparringEvts.length+' veces'}</span>`:''}
       <span class="jf-add" onclick="_sparringEdit('${nomEnc}')" title="Agregar sparring con la Mayor">+ ${sparringEvts.length?'':'Sparring'}</span>
@@ -34790,7 +34790,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
 window._juvHistInfo = function(nomEnc){
   const nom=decodeURIComponent(nomEnc); const jh=_juvPlayerHistory(nom).filter(h=>!/^(Mayor|Local)$/i.test(h.label));
   document.getElementById('jf-of-pop')?.remove(); document.getElementById('jf-of-bg')?.remove();
-  const rows=jh.map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)"><i style="width:8px;height:8px;border-radius:50%;background:${h.color};flex-shrink:0"></i><span style="font-size:14px;font-weight:600;color:#F4F7FB">${h.label}</span></div>`).join('');
+  const rows=jh.map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)"><i style="width:8px;height:8px;border-radius:50%;background:${h.color};flex-shrink:0"></i><span style="font-size:14px;font-weight:600;color:${h.color}">${h.label}</span></div>`).join('');
   document.body.insertAdjacentHTML('beforeend',`<div id="jf-of-bg" onclick="document.getElementById('jf-of-pop').remove();this.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55)"></div><div id="jf-of-pop" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:min(380px,92vw);border-radius:22px;border:1px solid rgba(255,255,255,.16);padding:18px 20px 12px;background:linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 20px 60px rgba(0,0,0,.6)"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.55)">Procesos en juveniles</div><div style="font-family:'Space Grotesk','Inter',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;margin:4px 0 8px">${nom}</div>${rows}<div style="text-align:right;padding-top:10px"><button onclick="document.getElementById('jf-of-pop').remove();document.getElementById('jf-of-bg').remove()" style="height:28px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#8AD8FF;font:700 10px inherit;font-family:inherit;letter-spacing:.14em;text-transform:uppercase;cursor:pointer">Cerrar</button></div></div>`);
 };
 window._juvOficialInfo = function(nomEnc){
@@ -34801,14 +34801,14 @@ window._juvOficialInfo = function(nomEnc){
 };
 window._juvPlayerHistory = function(nom){return _juvPlayerHistory(nom);};
 function _juvPlayerHistory(nom){
-  const catColor = {sub20:'#1D4ED8',sub18:'#0891B2',sub17:'#15803d',sub16:'#B45309',sub15:'#9A3412',sub13:'#DC2626'};
+  const catColor = (typeof CAT_PAL!=='undefined')?CAT_PAL:{sub20:'#FB923C',sub18:'#94A3B8',sub17:'#FACC15',sub16:'#B388EB',sub15:'#7C9BFF',sub13:'#94A3B8'};
   const seen = new Set();
   const out = [];
   if(typeof BIELSA_CONVOCATORIAS!=='undefined'){
     const foundMayor = BIELSA_CONVOCATORIAS.some(c=>(c.jugadores||[]).some(j=>j.nom===nom && !j.noVino));
     if(foundMayor){
       seen.add('mayor');
-      out.push({label:'Mayor', color:'#0F766E'});
+      out.push({label:'Mayor', color:(typeof CAT_PAL!=='undefined'&&CAT_PAL.mayor)||'#22D3EE'});
     }
   }
   if(typeof SELECCION_LOCAL!=='undefined'){
@@ -34827,7 +34827,7 @@ function _juvPlayerHistory(nom){
         const key = catKey+yr;
         if(!seen.has(key)){
           seen.add(key);
-          out.push({label:`${catData.label} ${yr}`, color: catColor[catKey]||'#1D4ED8'});
+          out.push({label:`${catData.label} ${yr}`, color: catColor[catKey]||'#94A3B8'});
         }
       }
     });
