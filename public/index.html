@@ -760,6 +760,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .jm-ck{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:transparent;color:rgba(239,243,248,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;padding:0}
 .jm-ck.on{border-color:#4ADE80;background:#16A34A;color:#fff}
 .jm-ch{color:rgba(239,243,248,.35);font-size:14px;flex-shrink:0}
+.jm-fd{margin-left:8px;padding:1px 8px;border-radius:999px;border:1px solid rgba(252,211,77,.5);background:rgba(252,211,77,.1);color:#FCD34D;font-size:10px;font-weight:700;letter-spacing:.04em}
 .jm-th{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(239,243,248,.6);margin:18px 0 10px}
 @media(max-width:600px){.jm-card{gap:10px;padding:12px 12px}.jm-esc{display:none}.jm-mt b{font-size:14.5px}.jm-sc b{font-size:20px}.jm-card .pz-d b{font-size:20px}}
 /* Encabezados de sección con acciones (botón a la derecha del texto) */
@@ -6606,7 +6607,7 @@ function renderInicioHoySeleccion(dayOffset){
           if((m.fecha||'').slice(0,10)===isoHoy){
             const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
             const ebNom=(typeof _COMP_NOM!=='undefined'&&_COMP_NOM[m.compId])||m.torneo||('Selección '+catLbl);
-            const ebDet=m.compId==='mundial-sub15-2026'?'Partido '+(_mundI.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
+            const ebDet=(m.compId==='mundial-sub15-2026'&&(!m.fase||/clasific|grupo/i.test(m.fase)))?'Partido '+(_mundI.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
             const sede=[...new Set([m.lugar,m.paisSede].filter(Boolean))].join(', ')||({'mundial-sub15-2026':'Bakú, Azerbaiyán'}[m.compId]||'');
             partidosHoy.push({txt:`${catLbl} vs. ${m.rival}${m.hora?' · '+m.hora+'h':''}`, cat:catLbl, rival:m.rival, hora:m.hora||'', eb:{nom:ebNom,det:ebDet}, sede, onclick:`showSection('juveniles')`});
           }
@@ -8198,7 +8199,7 @@ function _partidosSeleccionHoy(){
         const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
         const fin=m.gLocal!=null&&m.gRival!=null&&(m.confirmado||m.gLocal!=='');
         const nom=_COMP_NOM[m.compId]||m.torneo||('Selección '+catLbl);
-        const det=m.compId==='mundial-sub15-2026'?'Partido '+(_mund.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
+        const det=(m.compId==='mundial-sub15-2026'&&(!m.fase||/clasific|grupo/i.test(m.fase)))?'Partido '+(_mund.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
         out.push({sel:true,eyebrow:{nom,det},rival:m.rival,hora:_horaCortaTxt(m.hora),min:min(m.hora),gl:fin?+m.gLocal:null,gr:fin?+m.gRival:null,estado:fin?'fin':'prog'});
       });
     }
@@ -32251,13 +32252,14 @@ function _defaultJuvCompTab(id){
 // Los resultados salen de api.fifa.com (la misma que usa fifa.com; permite CORS). Se calcula la tabla con los partidos terminados del grupo.
 // Torneos de selecciones juveniles con tabla y Diseño. Para sumar uno: season/stage/group salen de la API de FIFA (calendar/matches) y la competencia debe tener `convocados`.
 const _MUND_CFG={
-  'mundial-sub15-2026':{season:'293575',stage:'294099',group:'294123',label:'Grupo X',fase:'Fase de clasificación · 5 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-15'},
-  'wc17-2026':{season:'292937',stage:'292938',group:'292942',label:'Grupo D',fase:'Primera fase · 3 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-17'},
+  'mundial-sub15-2026':{season:'293575',stage:'294099',group:'294123',label:'Grupo X',fase:'Fase de clasificación · 5 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-15',team:'1958663',cat:'sub15',year:'2026',offset:4,tz:'AZ',sede:'Complejo de Competición Hovsan, Bakú'},
+  'wc17-2026':{season:'292937',stage:'292938',group:'292942',label:'Grupo D',fase:'Primera fase · 3 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-17',team:'1882395',cat:'sub17',year:'2025-2026',offset:3,pais:'Qatar'},
 };
 window._mundCur=window._mundCur||'mundial-sub15-2026';
-function _mundCfg(){ return _MUND_CFG[window._mundCur]||_MUND_CFG['mundial-sub15-2026']; }
+function _mundCfg(){ const c=_MUND_CFG[window._mundCur]||_MUND_CFG['mundial-sub15-2026']; const dyn=(window._mundDyn||{})[window._mundCur]; return dyn?{...c,stage:dyn.stage,group:dyn.group,label:dyn.label}:c; }
 window._mundData=window._mundData||{};
-const _MUN15_ES={Comoros:'Comoras',Moldova:'Moldavia',Haiti:'Haití',France:'Francia','Saudi Arabia':'Arabia Saudita','Côte d\'Ivoire':'Costa de Marfil',USA:'Estados Unidos','Korea Republic':'Corea del Sur','China PR':'China','Republic of Ireland':'Irlanda',Egypt:'Egipto',Greece:'Grecia',Panama:'Panamá','New Caledonia':'Nueva Caledonia',Denmark:'Dinamarca',Mozambique:'Mozambique',Italy:'Italia',Jamaica:'Jamaica',Uzbekistan:'Uzbekistán',Croatia:'Croacia',Senegal:'Senegal',Tajikistan:'Tayikistán',Belgium:'Bélgica','New Zealand':'Nueva Zelanda',Vietnam:'Vietnam',Morocco:'Marruecos',Spain:'España',Brazil:'Brasil','Costa Rica':'Costa Rica',Algeria:'Argelia',Montenegro:'Montenegro',Cameroon:'Camerún',Mexico:'México',Romania:'Rumania',Venezuela:'Venezuela',Colombia:'Colombia',Honduras:'Honduras',Japan:'Japón',Serbia:'Serbia'};
+const _FIFA_ES={Comoros:'Comoras',Moldova:'Moldavia',Haiti:'Haití',France:'Francia','Saudi Arabia':'Arabia Saudita',"Côte d'Ivoire":'Costa de Marfil',USA:'Estados Unidos','United States':'Estados Unidos','Korea Republic':'Corea del Sur','Korea DPR':'Corea del Norte','China PR':'China','Republic of Ireland':'Irlanda','Northern Ireland':'Irlanda del Norte',Egypt:'Egipto',Greece:'Grecia',Panama:'Panamá','New Caledonia':'Nueva Caledonia',Denmark:'Dinamarca',Italy:'Italia',Uzbekistan:'Uzbekistán',Croatia:'Croacia',Tajikistan:'Tayikistán',Belgium:'Bélgica','New Zealand':'Nueva Zelanda',Morocco:'Marruecos',Spain:'España',Brazil:'Brasil',Algeria:'Argelia',Cameroon:'Camerún',Mexico:'México',Romania:'Rumania',Japan:'Japón',Germany:'Alemania',England:'Inglaterra',Scotland:'Escocia',Wales:'Gales',Netherlands:'Países Bajos',Switzerland:'Suiza',Sweden:'Suecia',Norway:'Noruega',Poland:'Polonia',Hungary:'Hungría','Czech Republic':'República Checa',Czechia:'República Checa',Turkey:'Turquía',Türkiye:'Turquía',Ukraine:'Ucrania',Russia:'Rusia',Austria:'Austria',Finland:'Finlandia',Iceland:'Islandia',Albania:'Albania','North Macedonia':'Macedonia del Norte','Bosnia and Herzegovina':'Bosnia',Slovakia:'Eslovaquia',Slovenia:'Eslovenia',Latvia:'Letonia',Lithuania:'Lituania',Estonia:'Estonia',Belarus:'Bielorrusia',Georgia:'Georgia',Armenia:'Armenia',Azerbaijan:'Azerbaiyán',Kazakhstan:'Kazajistán',Israel:'Israel',Cyprus:'Chipre',Malta:'Malta',Luxembourg:'Luxemburgo','Faroe Islands':'Islas Feroe',Gibraltar:'Gibraltar','San Marino':'San Marino',Andorra:'Andorra',Liechtenstein:'Liechtenstein',Kosovo:'Kosovo',Montenegro:'Montenegro',Serbia:'Serbia',Bulgaria:'Bulgaria',Portugal:'Portugal',Tunisia:'Túnez',Libya:'Libia',Nigeria:'Nigeria',Ghana:'Ghana','South Africa':'Sudáfrica',Senegal:'Senegal',Mali:'Malí','Burkina Faso':'Burkina Faso',Guinea:'Guinea','Guinea-Bissau':'Guinea-Bisáu','Congo DR':'RD Congo',Congo:'Congo',Angola:'Angola',Zimbabwe:'Zimbabue',Zimbabue:'Zimbabue',Kenya:'Kenia',Uganda:'Uganda',Tanzania:'Tanzania',Mozambique:'Mozambique',Zambia:'Zambia',Malawi:'Malaui',Ethiopia:'Etiopía',Gabon:'Gabón',Burundi:'Burundi',Rwanda:'Ruanda',Lesotho:'Lesoto',Liberia:'Liberia','Cabo Verde':'Cabo Verde','Cape Verde':'Cabo Verde',Mauritania:'Mauritania',Niger:'Níger',Chad:'Chad',Botswana:'Botsuana',Namibia:'Namibia',Madagascar:'Madagascar',Mauritius:'Mauricio',Seychelles:'Seychelles',Sudan:'Sudán','South Sudan':'Sudán del Sur','Equatorial Guinea':'Guinea Ecuatorial',Benin:'Benín',Togo:'Togo','Sierra Leone':'Sierra Leona',Gambia:'Gambia',Eritrea:'Eritrea',Somalia:'Somalia',Djibouti:'Yibuti',Iran:'Irán','IR Iran':'Irán',Iraq:'Irak',Jordan:'Jordania',Lebanon:'Líbano',Syria:'Siria',Palestine:'Palestina',Qatar:'Catar','United Arab Emirates':'Emiratos Árabes Unidos',Kuwait:'Kuwait',Oman:'Omán',Bahrain:'Baréin',Yemen:'Yemen',Afghanistan:'Afganistán',Pakistan:'Pakistán',India:'India',Bangladesh:'Bangladés','Sri Lanka':'Sri Lanka',Nepal:'Nepal',Bhutan:'Bután',Maldives:'Maldivas',Thailand:'Tailandia',Vietnam:'Vietnam',Indonesia:'Indonesia',Malaysia:'Malasia',Singapore:'Singapur',Philippines:'Filipinas',Cambodia:'Camboya',Laos:'Laos',Myanmar:'Birmania','Hong Kong':'Hong Kong','Chinese Taipei':'Taiwán',Mongolia:'Mongolia',Kyrgyzstan:'Kirguistán',Turkmenistan:'Turkmenistán',Australia:'Australia',Fiji:'Fiyi','Papua New Guinea':'Papúa Nueva Guinea','Solomon Islands':'Islas Salomón',Vanuatu:'Vanuatu',Tahiti:'Tahití',Samoa:'Samoa',Tonga:'Tonga',Guam:'Guam',Canada:'Canadá','Costa Rica':'Costa Rica','El Salvador':'El Salvador',Guatemala:'Guatemala',Honduras:'Honduras',Nicaragua:'Nicaragua',Belize:'Belice',Jamaica:'Jamaica',Cuba:'Cuba','Dominican Republic':'República Dominicana','Trinidad and Tobago':'Trinidad y Tobago',Barbados:'Barbados',Dominica:'Dominica',Grenada:'Granada','Curaçao':'Curazao',Suriname:'Surinam',Guyana:'Guyana','Puerto Rico':'Puerto Rico',Bermuda:'Bermudas',Anguilla:'Anguila','Turks and Caicos Islands':'Islas Turcas y Caicos','Saint Lucia':'Santa Lucía','St. Lucia':'Santa Lucía',Argentina:'Argentina',Bolivia:'Bolivia',Chile:'Chile',Colombia:'Colombia',Ecuador:'Ecuador',Paraguay:'Paraguay',Peru:'Perú',Venezuela:'Venezuela',Uruguay:'Uruguay'};
+const _MUN15_ES=_FIFA_ES; function _fifaEs(n){ return _FIFA_ES[n]||n; }
 function _mun15Tabla(ms){
   const T={};
   const get=n=>T[n]||(T[n]={n,pj:0,g:0,e:0,p:0,gf:0,gc:0});
@@ -32292,6 +32294,70 @@ function _mun15Html(d){
     <div class="gt-sub">Partidos del grupo</div><div class="gt-ms">${chips}</div>
     <div class="gt-nota">Orden por puntos, diferencia de gol y goles a favor. Los desempates oficiales los define FIFA.</div></div>`;
 }
+
+// ── Partidos de Uruguay leídos de FIFA: se crean solos en la app (con su Pizarra y su Diseño) y la tabla sigue al grupo actual de Uruguay ──
+// Solo CREA partidos que faltan (y completa hora/lugar si están vacíos); nunca pisa lo que cargaste a mano. Si la hora de FIFA difiere de la cargada, deja el aviso `fifaDif`.
+window._mundDyn=window._mundDyn||{};
+const _SYNC_MIN=10*60000;
+async function _mundSyncFifa(cid,force){
+  const cfg=_MUND_CFG[cid]; if(!cfg||!cfg.team) return;
+  const tsk='auf4_mund_sync_'+cid;
+  try{ if(!force&&Date.now()-(parseInt(localStorage.getItem(tsk)||'0',10))<_SYNC_MIN) return; }catch(_){}
+  let ms=[];
+  try{
+    const r=await fetch(`https://api.fifa.com/api/v3/calendar/matches?language=es&count=100&idSeason=${cfg.season}&idTeam=${cfg.team}`,{cache:'no-store'});
+    const j=await r.json(); ms=(j&&j.Results)||[];
+    if(!ms.length) return;
+    localStorage.setItem(tsk,String(Date.now()));
+  }catch(_){ return; }
+  const key='auf4_amist_juv_'+cfg.cat+'_'+cfg.year;
+  let list=[]; try{ list=JSON.parse(localStorage.getItem(key)||'[]'); if(!Array.isArray(list)) list=[]; }catch(_){ list=[]; }
+  const nrm=x=>String(x||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z]/g,'');
+  const mismo=(a,b)=>{ a=nrm(a); b=nrm(b); return a===b||(a.length>=4&&b.length>=4&&a.slice(0,4)===b.slice(0,4)); };
+  const fmt=(d,tz,opt)=>new Date(d).toLocaleTimeString('es-UY',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:false});
+  let cambio=false, nuevos=0;
+  const uyDia=d=>new Date(d).toLocaleDateString('en-CA',{timeZone:'America/Montevideo'});
+  ms.forEach(m=>{
+    if(!m.Home||!m.Away) return;
+    const uru=m.Home.IdCountry==='URU'?m.Home:m.Away, riv=uru===m.Home?m.Away:m.Home;
+    const rival=_fifaEs(riv.ShortClubName);
+    const fecha=uyDia(m.Date), hUY=fmt(m.Date,'America/Montevideo');
+    const loc=new Date(new Date(m.Date).getTime()+cfg.offset*3600000).toISOString().slice(11,16);
+    const campoM=(((m.Stadium||{}).Name||[{}])[0].Description||'').match(/Campo\s+(\S+)/i);
+    const lugar=cfg.sede?(cfg.sede+(campoM?' · cancha '+campoM[1]:'')):(((m.Stadium||{}).Name||[{}])[0].Description||'');
+    const stg=((m.StageName||[{}])[0].Description||''), grp=((m.GroupName||[{}])[0].Description||'').replace(/^Group /,'Grupo ');
+    const fase=[stg,grp].filter(Boolean).join(' · ');
+    const horaTxt=cfg.tz?`${loc} (${cfg.tz}) / ${hUY} (UY)`:hUY;
+    let ex=list.find(x=>x.compId===cid&&String(x.fifaId||'')===String(m.IdMatch))||list.find(x=>x.compId===cid&&String(x.fecha).slice(0,10)===fecha&&mismo(x.rival,rival));
+    if(ex){
+      if(!ex.fifaId){ ex.fifaId=m.IdMatch; cambio=true; }
+      if(fase&&!ex.fase){ ex.fase=fase; cambio=true; }
+      if(!ex.lugar&&lugar){ ex.lugar=lugar; cambio=true; }
+      if(!ex.hora&&horaTxt){ ex.hora=horaTxt; if(cfg.pais){ ex.horaLocal=loc; ex.paisSede=cfg.pais; } cambio=true; }
+      const mm=String(ex.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(ex.hora||'').match(/^\s*(\d{1,2}):(\d{2})/);
+      const exUY=mm?String(parseInt(mm[1],10)).padStart(2,'0')+':'+mm[2]:'';
+      const dif=(exUY&&exUY!==hUY)?hUY:'';
+      if((ex.fifaDif||'')!==dif){ if(dif) ex.fifaDif=dif; else delete ex.fifaDif; cambio=true; }
+    } else {
+      const n={id:Number(m.IdMatch)||Date.now(),fifaId:m.IdMatch,rival,fecha,hora:horaTxt,lugar,compId:cid,oficial:true,fase,
+        gLocal:null,gRival:null,titulares:[],subs:[],goles:{},dtPartido:'',gLocal2:null,gRival2:null,titulares2:[],subs2:[],goles2:{},dt2:''};
+      if(cfg.pais){ n.horaLocal=loc; n.paisSede=cfg.pais; }
+      list.push(n); cambio=true; nuevos++;
+    }
+  });
+  // la tabla sigue al grupo actual de Uruguay (primer partido pendiente con grupo, o el último)
+  const conG=ms.filter(m=>m.IdGroup).sort((a,b)=>String(a.Date).localeCompare(String(b.Date)));
+  if(conG.length){ const pen=conG.find(m=>m.MatchStatus!==0)||conG[conG.length-1]; const gn=((pen.GroupName||[{}])[0].Description||'').replace(/^Group /,'Grupo ');
+    window._mundDyn[cid]={stage:pen.IdStage,group:pen.IdGroup,label:gn||cfg.label}; }
+  if(cambio){
+    try{ stor.set(key,list); }catch(_){ try{ localStorage.setItem(key,JSON.stringify(list)); }catch(__){} }
+    if(nuevos&&typeof toast==='function') toast(`FIFA: ${nuevos} partido${nuevos>1?'s':''} nuevo${nuevos>1?'s':''} de Uruguay en ${cfg.titulo}`);
+    if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles?.();
+  }
+}
+window._mundSyncFifa=_mundSyncFifa;
+setTimeout(()=>Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)),7000);
+setInterval(()=>Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)),_SYNC_MIN);
 window._mun15Mount=function(){
   const el=document.getElementById('mun15-grupo'); if(!el) return;
   const D=window._mundData[window._mundCur];
@@ -32370,7 +32436,7 @@ window._mun15DisenoHtml=function(){
       const fin=m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='', win=fin&&m.gLocal>m.gRival, e=d[m.id]||{inf:[],l2:''};
       const nota=!fin?'Se habilita con el resultado':win?'Victoria: va informe':'Informe solo si se gana';
       return block(String(m.id),'inf',`Informe vs. ${m.rival}`,1,e.inf||[],e.l2,`<div class="dz-note${win?' ok':''}">${nota}</div>`,!!e.noInf); }).join('');
-    return `<div class="dz-card"><div class="dz-top"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span><div class="dz-tt"><b>Uruguay vs. ${rivales}</b><span>Partido${nums.length>1?'s':''} ${nums.join(' y ')} ${cfg.faseTxt}</span></div>${resumen?`<span class="dz-res">${resumen}</span>`:''}</div>
+    return `<div class="dz-card"><div class="dz-top"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span><div class="dz-tt"><b>Uruguay vs. ${rivales}</b><span>Partido${nums.length>1?'s':''} ${nums.join(' y ')} ${(g.ms[0].fase&&!/clasific|primera fase|grupo/i.test(g.ms[0].fase))?'· '+g.ms[0].fase:cfg.faseTxt}</span></div>${resumen?`<span class="dz-res">${resumen}</span>`:''}</div>
       <div class="dz-bks">${block(key1,'md1',`MD-1 vs. ${rivales}`,2,e1.md1||[],e1.l1,'',!!e1.noMd1)}${informes}</div></div>`; }).join('');
   const orden=[...pool].sort((a,b)=>usoCount(a.nom)-usoCount(b.nom)||(a.num||0)-(b.num||0));
   const lista=orden.map(p=>{ const u=uso[p.nom]||{md1:[],inf:[]}, n=u.md1.length+u.inf.length;
@@ -33771,11 +33837,12 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       const _subJ=_isMundial
         ? `${_fechaTxt.split(' ')[0]}${_amistHorasTxt(m)?' · '+_amistHorasTxt(m):''}`
         : `${_amistHorasTxt(m)?_amistHorasTxt(m):(m.hora?m.hora:'')}${m.lugar?(_amistHorasTxt(m)||m.hora?' · ':'')+m.lugar:''}` ;
+      const _fdif=m.fifaDif?` <span class="jm-fd" title="La hora cargada difiere de la que publica FIFA">FIFA indica ${m.fifaDif}h</span>`:'';
       return `${torneoHdr}
         <div class="jm-card" onclick="_amistOpenDetail(${m.id})">
           <span class="pz-d"><b>${_dayJ}</b><span>${_mesJ}</span></span>
           <span class="jm-esc">${_escudoSeleccion(m.rival,30)}</span>
-          <span class="jm-mt"><b>Uruguay vs. <em>${m.rival}</em>${ivBadge}${auftvBadge}</b><span>${_subJ||'&nbsp;'}</span></span>
+          <span class="jm-mt"><b>Uruguay vs. <em>${m.rival}</em>${ivBadge}${auftvBadge}</b><span>${_subJ||'&nbsp;'}${_fdif}</span></span>
           ${_rightJ}
           <button class="jm-ck${m.confirmado?' on':''}" onclick="event.stopPropagation();_amistToggleConfirmado('${cat}','${year}',${m.id})" title="${m.confirmado?'Confirmado — cuenta para las estadísticas (tocá para deshacer)':'Confirmar partido para que cuente en las estadísticas'}"><i class="ti ti-check"></i></button>
           <i class="ti ti-chevron-right jm-ch"></i>
