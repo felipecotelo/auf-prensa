@@ -808,6 +808,28 @@ const _365_QS = 'appTypeId=5&langId=29&timezoneName=America/Montevideo&userCount
 const HORA_CORREGIDA = { 4876315: '2026-10-24T19:00:00-03:00' };
 const _horaPartido = m => HORA_CORREGIDA[m.id] || m.startTime;
 
+// Copa AUF 2026 – Octavos de final: fijaciones oficiales (posteo de @CopaAUFUruguay, 22/10/2026). 365scores y FotMob todavía no los traen
+// (solo tienen Peñarol – City Torque de los 16avos). Se suman a la agenda hasta que aparezcan en 365scores; los que ya vengan de allá no se duplican.
+const COPA_AUF_OCTAVOS = [
+  { h: ['Nacional Florida', 97806], a: ['Juventud', 10192],        t: '2026-10-28T16:00:00-03:00' },
+  { h: ['Porongos', 70852],         a: ['Dep. Maldonado', 14062], t: '2026-10-28T20:30:00-03:00' },
+  { h: ['Wanderers Durazno', 76743], a: ['Danubio', 8611],        t: '2026-10-29T20:30:00-03:00' },
+  { h: ['Lito', 76737],             a: ['Wanderers', 8614],       t: '2026-11-04T15:00:00-03:00' },
+  { h: ['San Carlos', 82382],       a: ['Boston River', 12673],   t: '2026-11-04T18:00:00-03:00' },
+  { h: ['Ferro Carril', 76741],     a: ['Nacional', 7478],        t: '2026-11-04T21:00:00-03:00' },
+  { h: ['Gladiador', 97807],        a: ['Liverpool', 8358],       t: '2026-11-05T18:00:00-03:00' },
+  { h: ['Libertad', 76747],         a: ['Peñarol / City Torque', null], t: '2026-11-05T21:00:00-03:00' },
+];
+function _sumarOctavosCopa(proximos) {
+  const ahora = Date.now() - 3 * 3600 * 1000;
+  const norm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const yaEsta = o => proximos.some(m => norm(m.home).includes(norm(o.h[0]).split(' ')[0]) && Math.abs(new Date(m.utcTime) - new Date(o.t)) < 36e5);
+  const extra = COPA_AUF_OCTAVOS.filter(o => new Date(o.t).getTime() > ahora && !yaEsta(o)).map(o => ({
+    home: o.h[0], homeId: o.h[1], away: o.a[0], awayId: o.a[1], utcTime: o.t, round: null, fase: 'Octavos de final',
+  }));
+  return [...proximos, ...extra].sort((x, y) => new Date(x.utcTime) - new Date(y.utcTime));
+}
+
 async function fetchLigaUY(leagueId, sinTablas) {
   const qs = `${_365_QS}&competitions=${leagueId}`;
   const [fixturesRaw, resultsRaw, standingsRaw] = await Promise.all([
@@ -871,7 +893,7 @@ async function fetchLigaUY(leagueId, sinTablas) {
     const nombre = (s.displayName || '').split(' - ').pop() || 'Actual';
     if (filas.length) tablas.push({ nombre, filas });
   }
-  return { proximos, ultimos, hoy, tablas };
+  return { proximos: leagueId === FUTBOL_LEAGUES.copa ? _sumarOctavosCopa(proximos) : proximos, ultimos, hoy, tablas };
 }
 
 app.get('/api/futbol-uy', async (req, res) => {
