@@ -920,6 +920,8 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ih-row.ih-act{border:1px solid color-mix(in srgb,var(--cat,#38BDF8) 35%,rgba(255,255,255,.06));border-left:3px solid var(--cat,#38BDF8);background:linear-gradient(90deg,color-mix(in srgb,var(--cat,#38BDF8) 16%,transparent),transparent 45%),rgba(255,255,255,.02)}
 .ih-act .ih-at small{font-size:11px;font-weight:500;color:rgba(239,243,248,.55)}
 .ih-act .ih-at b{color:var(--cat,#F4F7FB)}
+.ih-act .ih-cov{display:inline-flex;align-items:center;gap:4px;margin-left:9px;padding:1px 8px;border-radius:999px;border:1px solid rgba(134,239,172,.45);background:rgba(134,239,172,.1);color:#86EFAC;font-size:10px;font-weight:700;letter-spacing:.04em;vertical-align:1px}
+.ih-act .ih-cov i{font-size:11px}
 /* Pizarra nov: botonera de incidencias */
 .pz-pro .pz-sec-h{display:flex!important;align-items:center;justify-content:space-between;gap:8px;letter-spacing:.2em!important;margin-bottom:10px!important}
 .pz-pro .pz-sec-n{font-style:normal;font-family:'Space Grotesk','Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:0;min-width:20px;height:20px;padding:0 7px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.3);color:#7DD3FC}
@@ -6723,7 +6725,10 @@ function renderInicioHoySeleccion(dayOffset){
       const h1=_hh(c.hora), h2=_hh(c.fin);
       const hr=h1?(h2?`${h1} – ${h2}h`:`${h1}h`):'';
       const ck=_catDeLabel(cat), mic=(/entren/i.test(act)&&_micro[ck])?` <small>· ${_micro[ck]}</small>`:'';
-      return `<div class="ih-row ih-act" style="--cat:${_catCol(ck)}"><i class="ti ${ic}"></i><span class="ih-at">${cat?`<b>${cat}</b>`:''}${act}${mic}</span>${hr?`<span class="ih-ah">${hr}</span>`:''}</div>`;
+      // Si ese día hay cobertura fotográfica anotada para la categoría (Cobertura fotográfica semanal), se marca
+      let cov='';
+      try{ if(ck){ const rc=_covGetRec(_covWeekKey(isoHoy),ck); const dias=[rc.cubierto,...(rc.cubiertoExtra||[])].filter(v=>v&&v!=='no'); if(dias.includes(isoHoy)) cov=`<span class="ih-cov"><i class="ti ti-camera"></i>${isoHoy<TODAY?'Cubierto':'Se cubre'}</span>`; } }catch(_){}
+      return `<div class="ih-row ih-act" style="--cat:${_catCol(ck)}"><i class="ti ${ic}"></i><span class="ih-at">${cat?`<b>${cat}</b>`:''}${act}${mic}${cov}</span>${hr?`<span class="ih-ah">${hr}</span>`:''}</div>`;
     }).join('');
     const entrenoRows=entrenoHoy.filter(e=>!_conCal.has(_catDeLabel(e.txt))).map(e=>`
       <div onclick="${e.onclick||''}" class="ih-row" style="${e.onclick?'cursor:pointer':''}">
