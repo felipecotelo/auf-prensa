@@ -11552,27 +11552,6 @@ function removeMatchEvent(mId, pizMatchId, evId){
 // Trae goles, tarjetas y cambios desde la API pública de ESPN y reemplaza las incidencias del partido
 // ── Sync completo partido: ESPN (goles/cambios/tarjetas + XI) + FotMob (calificaciones) ──
 // Sync solo el marcador desde ESPN (no bloquea por candado — el resultado siempre debe reflejarse)
-async function syncMatchScore(matchId){
-  const PIZ_TO_FIX_=Object.fromEntries(Object.entries(FIX_TO_PIZ).map(([f,p])=>[p,f]));
-  const fixId=PIZ_TO_FIX_[matchId];
-  const matchIsoDate=GROUP_H.matches.find(m=>m.id===fixId)?.isoDate;
-  if(!matchIsoDate) return;
-  try{
-    const dateStr=matchIsoDate.replace(/-/g,'');
-    const sc=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`).then(r=>r.json());
-    const uruEv=(sc.events||[]).find(ev=>ev.competitions?.[0]?.competitors?.some(c=>c.team?.id===String(URU_ESPN_ID)));
-    if(!uruEv) return;
-    const comp=uruEv.competitions?.[0];
-    if(!comp?.status?.type?.completed) return;
-    const home=comp.competitors.find(c=>c.homeAway==='home');
-    const away=comp.competitors.find(c=>c.homeAway==='away');
-    const fixMatch=GROUP_H.matches.find(m=>m.id===fixId);
-    if(!fixMatch) return;
-    const fix=getFixture();
-    fix[fixMatch.id]={h:parseInt(home.score)||0,a:parseInt(away.score)||0};
-    setFixture(fix);
-  }catch(_){}
-}
 
 async function syncMatchFull(matchId, silent){
   if(isMatchLocked(matchId)){ if(!silent) toast('🔒 Partido cerrado con formulario oficial — desbloqueá para sincronizar ESPN'); return; }
@@ -20833,122 +20812,6 @@ const legendStar=(name,editMode=false)=>{
 };
 
 // Datos históricos AUF (fuente: auf.org.uy/historico-jugadores)
-const AUF_HIST_CAPS=[
-  // Top 3
-  {n:'Diego Godín',c:161},{n:'Luis Suárez',c:143},{n:'Edinson Cavani',c:136},
-  // Top 10
-  {n:'Fernando Muslera',c:135},{n:'Maximiliano Pereira Páez',c:125},{n:'Martín Cáceres',c:116},
-  {n:'Diego Forlán',c:112},{n:'Cristian Rodríguez',c:110},{n:'José María Giménez',c:99},
-  {n:'Diego Lugano',c:95},
-  // +80
-  {n:'Egidio Arévalo Ríos',c:90},{n:'Diego Pérez',c:89},{n:'Álvaro Pereira',c:83},
-  {n:'Rodolfo Rodríguez',c:78},
-  // +70
-  {n:'Rodrigo Bentancur',c:75},{n:'Federico Valverde',c:74},{n:'Fabián Carini',c:74},
-  {n:'Álvaro González',c:72},{n:'Nahitan Nández',c:72},
-  // +60
-  {n:'Ángel Romano',c:70},{n:'Sebastián Abreu',c:70},{n:'Matías Vecino',c:70},
-  {n:'Álvaro Recoba',c:68},{n:'Pablo García Pérez',c:65},{n:'Walter Gargano',c:64},
-  {n:'Carlos Aguilera',c:64},
-  // +55
-  {n:'Pablo Montero',c:60},{n:'Jorge Barrios',c:60},{n:'Nicolás Lodeiro',c:60},
-  {n:'Giorgian De Arrascaeta',c:60},{n:'Nelson Gutiérrez',c:57},{n:'José Herrera',c:57},
-  {n:'Cayetano Saporiti',c:56},
-  // +50
-  {n:'Washington Martínez',c:54},{n:'Sebastián Eguren',c:54},{n:'Fernando Morena',c:53},
-  {n:'Pedro Rocha',c:52},{n:'Alfredo Foglino',c:51},{n:'Héctor Scarone',c:51},
-  {n:'Sebastián Coates',c:51},{n:'Néstor Goncalves',c:50},{n:'Darío Rodríguez',c:50},
-  {n:'Cristhian Stuani',c:50},
-  // +40
-  {n:'Jorge Fucile',c:49},{n:'Darío Silva',c:49},{n:'Santiago De León',c:48},
-  {n:'Eber Moas',c:48},{n:'Rubén Sosa',c:46},{n:'Gustavo Méndez',c:45},
-  {n:'Roque Pérez',c:45},{n:'Obdulio Varela',c:45},{n:'José Piendibene',c:43},
-  {n:'Santiago Ostolaza',c:43},{n:'José Sasía',c:43},{n:'Jorge Bengoechea',c:43},
-  {n:'Gastón Ramírez',c:43},{n:'Matías Viña',c:44},
-  {n:'José María Castillo',c:42},{n:'Víctor Rodríguez Andrade',c:42},
-  {n:'José Benincasa',c:41},{n:'Pascual Somma',c:41},{n:'Eduardo Acevedo',c:41},
-  {n:'Víctor Espárrago',c:41},{n:'Venancio Ramos',c:41},{n:'Fabián Álvez',c:40},
-  {n:'José Nasazzi',c:40},{n:'Gianni Guigou',c:40},{n:'Andrés Scotti',c:40},
-  {n:'Lucas Torreira',c:40},{n:'Roque Gastón Máspoli',c:40},
-  // +35
-  {n:'Facundo Pellistri',c:39},{n:'Óscar Míguez',c:39},{n:'Diego López',c:39},
-  {n:'José Vanzzino',c:38},{n:'Alfredo Zibechi',c:38},{n:'Alejandro Lembo',c:38},
-  {n:'Julio Cubilla',c:38},{n:'Álvaro Gutiérrez',c:38},{n:'Carlos Sánchez Arcosa',c:38},
-  {n:'Ladislao Mazurkiewicz',c:37},{n:'Néstor Montelongo',c:36},
-  {n:'Sergio Gambetta',c:36},{n:'Manuel Ugarte',c:37},
-  {n:'Carlos Borges',c:35},{n:'Sergio Martínez',c:35},{n:'Sergio Rochet',c:35},
-  {n:'Darwin Núñez',c:36},{n:'Mathías Olivera',c:36},
-  // +30
-  {n:'Robert Siboldi',c:34},{n:'Nelson Agresta',c:34},{n:'Roberto Porta',c:34},
-  {n:'Vladas Douksas',c:34},{n:'Nicolás De La Cruz',c:35},
-  {n:'Brian Rodríguez',c:34},
-  {n:'Antonio Pacheco',c:11},{n:'José Andrade',c:33},{n:'Luis Ubiña',c:33},
-  {n:'Matías González',c:33},{n:'Ildo Maneiro',c:33},{n:'Mauricio Victorino',c:33},
-  {n:'Darío Pereyra',c:33},{n:'Gabriel De Los Santos',c:33},{n:'Víctor Hugo Diogo',c:33},
-  {n:'Mario Saralegui',c:33},{n:'Guillermo Varela',c:29},{n:'Maximiliano Araújo',c:29},
-  {n:'Ronald Araujo',c:27},{n:'Sebastián Cáceres',c:25},{n:'Facundo Torres',c:20},
-  // +10
-  {n:'Guillermo González',c:17},{n:'José Luis Piquerez',c:17},{n:'Agustín Canobbio',c:16},
-  {n:'Cristian Olivera',c:13},{n:'Mathías Saracchi',c:11},{n:'Federico Viñas',c:12},
-  {n:'Rodrigo Aguirre',c:11},{n:'Emiliano Martínez',c:10},
-  // +5
-  {n:'Rodrigo Zalazar',c:8},{n:'Diego Suárez',c:7},{n:'Sebastian Rossi',c:7},
-  {n:'Néstor Carballo',c:18},{n:'Brian Méndez',c:7},{n:'Emiliano Olaza',c:7},
-  {n:'Santiago Mele',c:7},{n:'Agustín Álvarez Martínez',c:6},{n:'Nicolás Fonseca',c:6},
-  {n:'Ignacio Marichal',c:5},{n:'José Luis Rodríguez',c:5},{n:'Juan Manuel Sanabria',c:6},
-  {n:'Leandro Rodríguez',c:4},{n:'Santiago Bueno',c:4},{n:'Sebastián Lemos',c:3},
-  {n:'Matías Arezo',c:3},{n:'Leandro Israel',c:3},{n:'Kevin Amaro',c:3},
-  {n:'Ignacio Laquintana',c:2},{n:'Thiago Borbas',c:1},{n:'Sebastián Sosa',c:1},
-  {n:'Maximiliano Ocampo',c:1},{n:'Agustín Rogel',c:1},{n:'Martín Satriano',c:1},
-  {n:'César Araújo',c:1},{n:'Santiago Merentiel',c:1},{n:'Julio Daguer',c:1},
-];
-const AUF_HIST_GOALS=[
-  // Top 3
-  {n:'Luis Suárez',c:69},{n:'Edinson Cavani',c:58},{n:'Diego Forlán',c:36},
-  // +30
-  {n:'Héctor Scarone',c:31},
-  // +20
-  {n:'Ángel Romano',c:28},{n:'Óscar Míguez',c:27},{n:'Sebastián Abreu',c:26},
-  {n:'Pedro Petrone',c:24},{n:'Carlos Aguilera',c:22},{n:'Fernando Morena',c:22},
-  {n:'José Piendibene',c:22},
-  // +15
-  {n:'Severino Varela',c:19},{n:'Carlos Scarone',c:18},{n:'Javier Ambrois',c:17},
-  {n:'Enzo Francescoli',c:17},{n:'Pedro Rocha',c:17},{n:'Héctor Castro',c:15},
-  {n:'Rubén Sosa',c:15},{n:'Mauricio Victorino',c:15},
-  // +10
-  {n:'Juan Carlos Abbadie',c:14},{n:'Roberto Porta',c:14},{n:'Darío Silva',c:14},
-  {n:'Carlos Bueno',c:13},{n:'Pedro Cea',c:13},{n:'Darwin Núñez',c:13},
-  {n:'Giorgian De Arrascaeta',c:13},{n:'José Sasía',c:12},{n:'Julio Cubilla',c:11},
-  {n:'Guillermo Escalada',c:11},{n:'Nicolás Falero',c:11},{n:'Abel Hernández',c:11},
-  {n:'Juan Manuel Medina',c:11},{n:'Juan Carlos Morales',c:11},{n:'Cristian Rodríguez',c:11},
-  {n:'Carlos Borges',c:10},{n:'Daniel Fonseca',c:10},{n:'Diego Godín',c:10},
-  {n:'Amaro Nadal',c:10},{n:'Marcelo Otero',c:10},{n:'Álvaro Recoba',c:10},{n:'Marcelo Zalayeta',c:10},
-  // +7
-  {n:'Diego Lugano',c:9},{n:'Juan Schiaffino',c:9},{n:'Obdulio Varela',c:9},
-  {n:'Federico Valverde',c:9},{n:'Nicolás Olivera',c:8},{n:'Rodrigo Pérez',c:8},
-  {n:'Julio Pérez',c:8},{n:'Cristhian Stuani',c:8},{n:'José Urruzmendi',c:8},
-  {n:'Javier Chevantón',c:7},{n:'Pablo Dacal',c:7},{n:'Sebastián Eguren',c:7},
-  {n:'Martín Ligüera',c:7},{n:'Álvaro Pereira',c:7},{n:'Héctor Silva',c:7},
-  {n:'Antonio Alzamendi',c:7},
-  // +5
-  {n:'Raúl Bastos',c:6},{n:'Jorge Bengoechea',c:6},{n:'Matías Vecino',c:6},
-  {n:'Nicolás De La Cruz',c:5},{n:'Mario Gómez',c:5},
-  // +3
-  {n:'Martín Cáceres',c:4},{n:'Brian Rodríguez',c:4},{n:'Maximiliano Araújo',c:4},
-  {n:'Rodrigo Aguirre',c:3},{n:'Jonathan Rodríguez',c:3},{n:'Rodrigo Bentancur',c:3},
-  // +1
-  {n:'Sebastián Coates',c:2},{n:'Rodrigo Zalazar',c:2},{n:'Mathías Olivera',c:2},
-  {n:'Facundo Pellistri',c:2},{n:'Federico Viñas',c:2},{n:'Facundo Torres',c:2},
-  {n:'Sebastian Rossi',c:1},{n:'Matías Arezo',c:1},{n:'Agustín Canobbio',c:1},
-  {n:'Ronald Araujo',c:1},{n:'Matías Viña',c:1},{n:'Agustín Álvarez Martínez',c:1},
-  {n:'Manuel Ugarte',c:1},{n:'Ignacio Laquintana',c:1},{n:'Juan Manuel Sanabria',c:1},
-];
-const AUF_HIST_WC=[
-  {n:'Diego Godín',c:19},{n:'Fernando Muslera',c:15},{n:'Luis Suárez',c:15},
-  {n:'Edinson Cavani',c:14},{n:'Diego Forlán',c:12},{n:'José María Giménez',c:11},
-  {n:'Rodrigo Bentancur',c:8},{n:'Federico Valverde',c:8},{n:'Sebastián Coates',c:7},
-  {n:'Maximiliano Pereira Páez',c:9},{n:'Martín Cáceres',c:12},{n:'Álvaro González',c:6},
-];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // REORDEN DE TABS
@@ -22577,34 +22440,6 @@ function buildAllHistFromJugadores(){
   `;
 }
 
-function aufHistSection(title, data, colHeader, colKey, players, isActive, activeMark, deltaField, legendStar, editMode){
-  const SHOW=20;
-  const uid='aufhist-'+title.replace(/[^a-z]/gi,'');
-  const delta=getStatsDelta();
-  const rows=data.map((r,i)=>{
-    const pMatch=players.find(p=>p.name===r.n);
-    const d=pMatch&&deltaField?(delta[pMatch.n]?.[deltaField]||0):0;
-    const total=r[colKey]+d;
-    const legs=getLegends().has(r.n);
-    const star=editMode?legendStar(r.n,true):(legs?`<span style="font-size:11px;color:var(--gold);margin-left:3px">★</span>`:'');
-    return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''} data-hist-row="${i}">
-      <td class="st-rank">${i+1}</td>
-      <td class="st-name">${aufLink(r.n)}${star} ${activeMark(r.n)}</td>
-      <td class="st-n${i<3?' top':''}">${total}</td>
-    </tr>`;
-  });
-  const visible=rows.slice(0,SHOW).join('');
-  const hidden=rows.slice(SHOW).join('');
-  return`<div class="stats-section">
-    <div class="phase">${title}</div>
-    <div style="overflow-x:auto"><table class="stats-table">
-      <thead><tr><th>#</th><th>Jugador</th><th>${colHeader}</th></tr></thead>
-      <tbody>${visible}${hidden?`<tr id="${uid}-more" style="display:none"><td colspan="3" style="padding:0"><table style="width:100%;border-collapse:collapse">${hidden}</table></td></tr>`:''}
-      </tbody>
-    </table></div>
-    ${hidden?`<button onclick="document.getElementById('${uid}-more').style.display='';this.style.display='none'" style="width:100%;margin-top:4px;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:11px;color:var(--muted);cursor:pointer">Ver todos (${data.length}) ↓</button>`:''}
-  </div>`;
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ESPN SYNC — fetches live WC 2026 results
@@ -22949,50 +22784,6 @@ async function renderPizarra(matchId){
 
 
   // Ficha de banco
-  function benchChipHtml(p){
-    const ph=_luPhotos[p.n]||p.photo||'';
-    const pts=p.name.trim().split(' ');
-    const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
-    const ms=computeMilestones(p);
-    const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
-    const inj=getPlayerInjury(p.n);
-    const injDot=inj==='red'?'<span style="width:6px;height:6px;border-radius:50%;background:#C0392B;display:inline-block;flex-shrink:0"></span>'
-                :inj==='yellow'?'<span style="width:6px;height:6px;border-radius:50%;background:#F59E0B;display:inline-block;flex-shrink:0"></span>':'';
-    const isSuspended=suspendedNums.has(p.n);
-
-    // ¿Entró desde el banco?
-    const subMin=_subInMin[p.n];
-    const didPlay=subMin!=null;
-    // Íconos de eventos (goles, tarjetas)
-    const pEvs=_evsByNum[p.n]||[];
-    const evBadges=pEvs.map(e=>{
-      if(e.type==='goal') return`<span title="Gol ${e.min}'" style="font-size:9px">⚽${e.min}'</span>`;
-      if(e.type==='card'&&e.extra==='r') return`<span title="Roja ${e.min}'" style="font-size:9px">🟥</span>`;
-      if(e.type==='card') return`<span title="Amarilla ${e.min}'" style="font-size:9px">🟨</span>`;
-      return'';
-    }).join('');
-
-    const subBadge=didPlay
-      ?`<span style="font-size:8px;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 3px;margin-left:3px;white-space:nowrap">▲ ${subMin}'</span>`
-      :'';
-    const chipStyle=isSuspended
-      ?'border-color:#DC2626;background:#FEF2F2'
-      :didPlay
-        ?'border-color:#16A34A;background:#F0FDF4'
-        :'opacity:.45;filter:grayscale(.5)';
-
-    return`<div class="piz-p-chip" id="pchip-${p.n}" data-num="${p.n}" data-match="${matchId}" draggable="true" title="${isSuspended?'SUSPENDIDO — acumulación de tarjetas':(hint||p.name)}" style="${chipStyle}">
-      <div class="piz-chip-av">
-        ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
-        <span class="piz-chip-av-num" style="${ph?'display:none':''}">${p.n}</span>
-      </div>
-      <div class="piz-chip-info">
-        <div class="piz-chip-top">${injDot}<span class="piz-chip-num">#${p.n}</span><span class="piz-chip-name">${sn}</span>${subBadge}${isSuspended?'<span style="font-size:7px;font-weight:900;background:#DC2626;color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">SUSP</span>':''}${p.captain===1?'<span style="font-size:7px;font-weight:900;background:var(--gold);color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">C</span>':''}</div>
-        ${evBadges?`<div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap">${evBadges}</div>`:''}
-      </div>
-      <div onclick="event.stopPropagation();toggleYellow(${p.n})" title="${yellows[p.n]?'Quitar amarilla':'Marcar amarilla'}" style="font-size:10px;cursor:pointer;opacity:.45;flex-shrink:0;padding:1px" draggable="false">${yellows[p.n]?'🟨':'○'}</div>
-    </div>`;
-  }
 
   // Banco agrupado por posición
   const POS_ORDER=['POR','DEF','MED','DEL'];
@@ -28666,131 +28457,7 @@ const JUVENILES = {
 window.JUVENILES = JUVENILES;
 
 // ── Listas largas ─────────────────────────────────────────────────────────
-const SUB17_LISTA_LARGA = [
-  {nom:'Facundo Bertolotti',club:'Danubio'},{nom:'Thiago Amaro',club:'Danubio'},
-  {nom:'Bruno Bueno',club:'Nacional', tmId:1425950, fechaNac:'2009-01-03'},{nom:'Ramiro García',club:'Nacional', tmId:1532866, fechaNac:'2009-06-06'},
-  {nom:'Lautaro Muñiz',club:'Nacional', tmId:1432157, fechaNac:'2009-03-26'},{nom:'Santino Rodríguez',club:'Nacional'},
-  {nom:'Dylan Mora',club:'Nacional',asc:true, tmId:1532868, fechaNac:'2010-05-22'},{nom:'Santino Cabral',club:'Nacional'},
-  {nom:'Facundo Saldaña',club:'Nacional', tmId:1425953, fechaNac:'2009-04-04'},{nom:'Anthoni Bicera',club:'Nacional'},
-  {nom:'Augusto Sánchez',club:'Nacional', tmId:1425958, fechaNac:'2009-02-08'},{nom:'Felipe De León',club:'Nacional', tmId:1425949, fechaNac:'2009-04-20'},
-  {nom:'Dante Rodella',club:'Nacional',asc:true, tmId:1532870, fechaNac:'2010-03-05'},{nom:'Ronald Tabárez',club:'Nacional'},
-  {nom:'Luis Machín',club:'Nacional',asc:true, tmId:1532865, fechaNac:'2010-02-06'},{nom:'Mateo Díaz',club:'Peñarol', tmId:1425945, fechaNac:'2009-07-12'},
-  {nom:'Ezequiel Fernández',club:'Peñarol',asc:true, tmId:1532871, fechaNac:'2010-10-31'},{nom:'Bruno La Cava',club:'Peñarol'},
-  {nom:'Facundo Martínez',club:'Peñarol', fechaNac:'2008-02-04'},{nom:'Gabriel Da Silva',club:'Peñarol', tmId:1432152, fechaNac:'2009-01-13'},
-  {nom:'Dahel Guedes',club:'Peñarol', tmId:1532869, fechaNac:'2009-09-08'},{nom:'Thiago López',club:'Peñarol'},
-  {nom:'Francisco Brenta',club:'Defensor Sporting'},{nom:'Luciano Delgado',club:'Defensor Sporting'},
-  {nom:'Ángel Lima',club:'Defensor Sporting'},{nom:'Alfonso Izuibejeres',club:'Defensor Sporting'},
-  {nom:'Braian Santa Cruz',club:'Defensor Sporting'},{nom:'Nicolás Scotti',club:'Defensor Sporting', tmId:1425952, fechaNac:'2009-11-26'},
-  {nom:'Alan Soares de Lima',club:'Defensor Sporting',asc:true, tmId:1532874, fechaNac:'2010-01-16'},{nom:'Matteo Correia',club:'Defensor Sporting', tmId:1307319, fechaNac:'2009-01-09', paisSec:'🇲🇽', paisSecLabel:'México'},
-  {nom:'Juan Bonifacio',club:'Defensor Sporting'},{nom:'Leonardo Machado',club:'Defensor Sporting'},
-  {nom:'Samuel Bisogno',club:'Defensor Sporting'},{nom:'Thiago Brizuela',club:'Liverpool', tmId:1432158, fechaNac:'2009-02-26'},
-  {nom:'Pablo Barreiro',club:'Liverpool', tmId:1425962, fechaNac:'2009-01-07'},{nom:'Lucca Rodríguez',club:'Liverpool'},
-  {nom:'Rodrigo Alzamendi',club:'Racing'},{nom:'Ramiro Bertalmio',club:'Fénix'},
-  {nom:'Facundo Bacci',club:'Fénix'},{nom:'Franco Ramos',club:'Fénix'},
-  {nom:'Antonio Caballero',club:'Montevideo Wanderers'},{nom:'Emiliano Machado',club:'Montevideo Wanderers', fechaNac:'2009-04-01'},
-  {nom:'Nicolás López',club:'Montevideo Wanderers'},{nom:'Lautaro Blengio',club:'Montevideo Wanderers', tmId:1432155, fechaNac:'2009-08-14'},
-  {nom:'Federico Cappetta',club:'Montevideo Wanderers'},{nom:'Maximiliano Cabrera',club:'River Plate'},
-  {nom:'Anderson Luz',club:'Montevideo City Torque', tmId:1425959, fechaNac:'2009-09-19'},{nom:'Imanol Miranda',club:'Montevideo City Torque'},
-  {nom:'Bruno Rosales',club:'Montevideo City Torque'},{nom:'Ignacio Melián',club:'Montevideo City Torque'},
-  {nom:'Emiliano Haller',club:'Montevideo City Torque', fechaNac:'2009-05-20'},{nom:'Facundo Rodríguez',club:'Montevideo City Torque',asc:true, tmId:1532872, fechaNac:'2010-01-12'},
-  {nom:'Thiago Castro',club:'Boston River'},{nom:'Thiago Mora',club:'Boston River', tmId:1425954, fechaNac:'2009-11-04'},
-  {nom:'Juan Manuel Barrios',club:'Boston River', fechaNac:'2009-10-27'},{nom:'Juan Piperno',club:'Boston River'},
-  {nom:'Facundo Castillo',club:'Boston River'},{nom:'Enzo Cabrera',club:'Albion'},
-  {nom:'Franco Lasalvia',club:'Albion'},{nom:'Walter Zeinal',club:'Albion'},
-  {nom:'Simón Trenskenchu',club:'Dep. Maldonado'},{nom:'Alejandro Pereira',club:'Cooper'},
-  {nom:'Ezequiel Eula',club:'Cooper'},{nom:'Bruno Acosta',club:'Cooper'},
-  {nom:'Kevin Fernández',club:'Terremoto'},{nom:'Joaquín Leites',club:'Terremoto'},
-  {nom:'Tomás Amado',club:'Terremoto'},{nom:'Ezequiel Toledo',club:'Villa Teresa'},
-  {nom:'Joaquín Vázquez',club:'Villa Teresa'},{nom:'Facundo Boudevin',club:'Oriental de la Paz'},
-  {nom:'Fabricio Resende',club:'Bella Vista'},{nom:'Mateo Méndez',club:'Cerro'},
-  {nom:'Benjamín Fernández',club:'Colón'},{nom:'Francisco Nassif',club:'Paso de la Arena'},
-  {nom:'Nicolás Villa',club:'Paso de la Arena'},{nom:'Ignacio Zinola',club:'Estudiantes del Plata'},
-  {nom:'Axel Noya',club:'Liffa'},{nom:'Thiago Mundo',club:'Liffa'},
-  {nom:'Matías Pedrozo',club:'Villa Española'},{nom:'Samuel Lima',club:'DFC'},
-  {nom:'Iker Pintos',club:'DFC'},{nom:'Luca Tettoni',club:'Bella Vista'},
-  {nom:'Ezequiel Álvarez',club:'Bella Vista', fechaNac:'2011-01-09'},{nom:'Mauricio Medeiros',club:'Juventud de las Piedras'},
-  {nom:'Thiago Martínez',club:'Juventud de las Piedras'},{nom:'Mateo Cafaya',club:'Plaza Colonia'},
-  {nom:'Francisco Morales',club:'Plaza Colonia'},{nom:'Bautista López',club:'Miramar Misiones'},
-  {nom:'Vicente Pesce',club:'Paysandú',asc:true, tmId:1532873, fechaNac:'2011-05-18'},{nom:'Luca Siri',club:'—'},
-];
 
-const SUB18_LISTA_LARGA = [
-  {nom:'Alexander E. Velázquez',club:'Danubio'},{nom:'Miguel González',club:'Danubio'},
-  {nom:'Renzo Lima',club:'Danubio'},{nom:'Emiliano Figueroa',club:'Danubio'},
-  {nom:'Pablo Rodrigo Cardozo',club:'Danubio'},{nom:'Facundo Balatti',club:'Danubio'},
-  {nom:'Santiago Sosa',club:'Danubio'},{nom:'Damián García Ferreira',club:'Danubio', fechaNac:'2008-07-02'},
-  {nom:'Mateo Pérez',club:'Danubio'},{nom:'Nicolás Azambuja',club:'Danubio'},
-  {nom:'Luciano Emanuel Rodríguez',club:'Nacional'},{nom:'Mateo Soria',club:'Nacional', fechaNac:'2007-03-14'},
-  {nom:'Mauro Martínez',club:'Nacional', fechaNac:'2007-01-19'},{nom:'Facundo Domínguez',club:'Nacional', fechaNac:'2007-07-15'},
-  {nom:'Santiago Ricca',club:'Nacional'},{nom:'Mauricio Milano',club:'Nacional'},
-  {nom:'Federico Bais',club:'Nacional'},{nom:'Juan Schneider',club:'Nacional'},
-  {nom:'Bruno Arady',club:'Nacional'},{nom:'Ezequiel Irute',club:'Nacional'},
-  {nom:'Luciano González Laureiro',club:'Nacional'},{nom:'Agustín Dos Santos',club:'Nacional'},
-  {nom:'Román Clematte',club:'Nacional', fechaNac:'2007-09-06'},{nom:'Rodrigo Martínez',club:'Nacional'},
-  {nom:'Sebastián Mysznajes',club:'Nacional'},{nom:'Rodrigo Álvez',club:'Peñarol', fechaNac:'2007-10-09'},
-  {nom:'Valentín Rivera',club:'Peñarol'},{nom:'Tiago Martinelli',club:'Peñarol'},
-  {nom:'Germán Barbas',club:'Peñarol', tmId:1268038, fechaNac:'2007-09-17'},{nom:'Gabriel Benítez',club:'Peñarol'},
-  {nom:'Brandon Álvarez',club:'Peñarol'},{nom:'Renzo Cupla',club:'Peñarol'},
-  {nom:'Julio Daguer',club:'Peñarol'},{nom:'Brian Barboza',club:'Peñarol'},
-  {nom:'Paulo Da Costa',club:'Peñarol', fechaNac:'2008-06-13'},{nom:'Alan Torterolo',club:'Defensor Sporting', fechaNac:'2008-01-03'},
-  {nom:'Nehemías González',club:'Defensor Sporting', fechaNac:'2007-08-31'},{nom:'Diego Abella',club:'Defensor Sporting', fechaNac:'2007-08-21'},
-  {nom:'Diego Toma',club:'Defensor Sporting', fechaNac:'2007-05-08'},{nom:'Jean Severo',club:'Defensor Sporting'},
-  {nom:'Kevin Suárez',club:'Defensor Sporting', fechaNac:'2007-05-31'},{nom:'Joaquín Santos',club:'Defensor Sporting'},
-  {nom:'Francisco Sorondo',club:'Defensor Sporting'},{nom:'Pedro Demichelis',club:'Defensor Sporting'},
-  {nom:'Lukas Álamo',club:'Defensor Sporting'},{nom:'Mateo Caballero',club:'Defensor Sporting', fechaNac:'2007-08-26'},
-  {nom:'Nicolás Camargo',club:'Liverpool'},{nom:'Vicenzo Macchia',club:'Liverpool', fechaNac:'2007-11-30'},
-  {nom:'Luca Fraga',club:'Liverpool'},{nom:'Santiago Burgos',club:'Liverpool'},
-  {nom:'Joaquín Pereyra',club:'Liverpool'},{nom:'Ian Colina',club:'River Plate', fechaNac:'2007-05-26'},
-  {nom:'Axell De Los Santos',club:'River Plate'},{nom:'Lucca Caula',club:'Wanderers', fechaNac:'2007-02-09'},
-  {nom:'Cristofer Marques',club:'Wanderers', fechaNac:'2007-02-19'},{nom:'Tomás Fernández',club:'Wanderers'},
-  {nom:'Roque Ricca',club:'Wanderers'},{nom:'Benjamín García',club:'City Torque', fechaNac:'2007-02-04'},
-  {nom:'Lautaro Silveira',club:'City Torque'},{nom:'Fernando Formoso',club:'City Torque'},
-  {nom:'Tobías Albanell',club:'City Torque'},{nom:'Matías Santana',club:'City Torque'},
-  {nom:'Tomás Shaw',club:'City Torque', fechaNac:'2007-08-31'},{nom:'Ramiro Lecchini',club:'City Torque', fechaNac:'2007-07-24'},
-  {nom:'Ignacio Molina',club:'City Torque'},{nom:'Facundo Martínez Borges',club:'City Torque'},
-  {nom:'Jean López',club:'City Torque'},{nom:'Felipe Suhr',club:'City Torque'},
-  {nom:'Mateo Landa',club:'Progreso'},{nom:'Nahuel López',club:'Progreso', fechaNac:'2007-01-24'},
-  {nom:'Yuri Oyarzo',club:'Racing', fechaNac:'2007-12-13'},{nom:'Mauro Marichal',club:'Racing'},
-  {nom:'Matías Hernández',club:'Racing'},{nom:'Rodrigo Dudok',club:'Estrela da Amadora', fechaNac:'2007-07-23'},
-  {nom:'Santiago Saldivia',club:'Racing'},{nom:'Samuel Gallo',club:'Racing'},
-  {nom:'Thiago Fernández',club:'Racing', fechaNac:'2007-01-23'},{nom:'Oscar Melo',club:'Boston River'},
-  {nom:'Tailer Cruz',club:'Boston River'},{nom:'Lucas Jorge',club:'Boston River'},
-  {nom:'Marcelo Hornos',club:'Boston River'},{nom:'Michael Nomdanis',club:'Boston River'},
-  {nom:'Diego Helguera',club:'Boston River'},{nom:'Ignacio Fernández',club:'Boston River'},
-  {nom:'Felipe Ortiz',club:'Dep. Maldonado', tmId:1300813, fechaNac:'2007-11-06'},{nom:'Germán Petryk',club:'Dep. Maldonado'},
-  {nom:'Federico Riverón',club:'Dep. Maldonado'},{nom:'Thiago Correa',club:'Dep. Maldonado'},
-  {nom:'Jaguer Pereira',club:'Dep. Maldonado'},{nom:'Maximiliano Laresca',club:'Rentistas'},
-  {nom:'Facundo Carámbula',club:'Rentistas', fechaNac:'2007-09-12'},{nom:'Facundo Pastorino',club:'Rentistas'},
-  {nom:'Santiago Méndez',club:'Rentistas'},{nom:'Kevin Bitancourt',club:'Albion'},
-  {nom:'Joaquín Varela',club:'Albion'},{nom:'Bautista Pérez',club:'Albion', fechaNac:'2007-06-05'},
-  {nom:'Leandro Pacheco',club:'Albion'},{nom:'Pablo Alcoba',club:'Albion'},
-  {nom:'Mateo Alcoba',club:'Albion'},{nom:'Ezequiel Amaro',club:'Paysandú', fechaNac:'2007-03-22'},
-  {nom:'Santiago Silva',club:'Paysandú'},{nom:'Gabriel López',club:'Paysandú'},
-  {nom:'Bautista Carballo',club:'Paysandú'},{nom:'Lautaro Ultra',club:'Dinamo Zagreb', fechaNac:'2007-05-21'},
-  {nom:'Alberto Medina',club:'Oriental de la Paz'},{nom:'Esteban Álvarez',club:'Oriental de la Paz'},
-  {nom:'Axell Amaral',club:'Al Ain', tmId:1426012, fechaNac:'2007-11-15'},{nom:'Ezequiel Bequio',club:'Miramar Misiones'},
-  {nom:'Joaquín Cassou',club:'Rampla Juniors'},{nom:'Mauricio Imperial',club:'Rampla Juniors'},
-  {nom:'Lucas Quimbo',club:'Juventud', fechaNac:'2007-11-13'},{nom:'Kevin Nicoletti',club:'Juventud'},
-  {nom:'Álvaro Trasante',club:'Juventud'},{nom:'Cristian Risso',club:'Juventud'},
-  {nom:'Valentín Barrios',club:'Juventud'},{nom:'Alan Álvarez',club:'Rampla Juniors'},
-  {nom:'Mateo Pisciottano',club:'Plaza Colonia'},{nom:'Juan Pablo Hernández',club:'Plaza Colonia'},
-  {nom:'Braian Sánchez',club:'Plaza Colonia'},{nom:'Juan Aristimuño',club:'Plaza Colonia'},
-  {nom:'Joaquín García',club:'Plaza Colonia'},{nom:'Valentino Würth',club:'Montevideo City Torque'},
-  {nom:'Thiago Rodríguez',club:'Plaza Colonia'},{nom:'Antony Segovia',club:'Cerrito'},
-  {nom:'Gabriel Minetti',club:'Cooper'},{nom:'Mateo Peña',club:'Bella Vista'},
-  {nom:'Tomás Rodríguez',club:'Bella Vista'},{nom:'Facundo Tucci',club:'Bella Vista'},
-  {nom:'Dylan Sosa',club:'La Luz'},{nom:'Joel Sardiña',club:'La Luz'},
-  {nom:'Mauro Álvez',club:'Colón'},{nom:'Juan Duque',club:'Villa Española'},
-  {nom:'Ignacio Méndez',club:'Miramar Misiones'},{nom:'Damián Antúnez',club:'Colón'},
-  {nom:'Nicholas Negro',club:'Fénix'},{nom:'Diego Helguera',club:'Fénix'},
-  {nom:'Thiago Fernández',club:'Fénix', fechaNac:'2007-01-23'},{nom:'Juan Nieto',club:'Fénix'},
-  {nom:'Santiago Castro',club:'Estudiantes'},{nom:'Daniel Ibarra',club:'Cerro Largo'},
-  {nom:'Axel Muniz',club:'Cerrito'},{nom:'Agustín Barrios',club:'Cerro'},
-  {nom:'Adrián Núñez',club:'Artigas SAD'},{nom:'Matías Lescano',club:'Salto'},
-  {nom:'Emiliano Sierra',club:'Paso de la Arena'},{nom:'Isaias Silva',club:'Paso de la Arena'},
-  {nom:'Ignacio Esquibel',club:'Terremoto'},{nom:'Mauro Bonilla',club:'Terremoto'},
-  {nom:'Benjamín Albermager',club:'Terremoto'},
-];
 
 // ── Mundial Sub-17 Qatar 2026 (preparación) ─────────────────────────────────
 const WC17_2026 = {
@@ -35210,7 +34877,6 @@ function _renderJuvenilesSafe(el){
     const lastNoms = new Set((lastConv?.jugadores||[]).map(j=>j.nom));
     const sinFotoUltima   = fichas.filter(p=>!window._juvGetPhoto?.(p.nom) && lastNoms.has(p.nom));
     const sinFotoPlanilla = fichas.filter(p=>!window._juvGetPhoto?.(p.nom) && !lastNoms.has(p.nom));
-    const _closBtn = (id) => `<button onclick="document.getElementById('${id}').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1.15em;flex-shrink:0;padding:0;line-height:1;opacity:.6">×</button>`;
     const bannerRojo = sinFotoUltima.length ? (()=>{
       const id='juv-foto-r-'+_juvCat+'-'+_juvYear;
       const _waMsgKey2 = 'waMsg_'+id;
@@ -35940,7 +35606,6 @@ function _buildJuvCompBody(compId, color, catData){
     // Banners fotos
     const _sinFotoActivos = activos.filter(p=>!window._juvGetPhoto?.(p.nom));
     const _sinFotoPool    = pool.filter(p=>!window._juvGetPhoto?.(p.nom));
-    const _closX = (id)=>`<button onclick="document.getElementById('${id}').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1.15em;flex-shrink:0;padding:0;line-height:1;opacity:.6">×</button>`;
     const _bannerRojo = _sinFotoActivos.length ? (()=>{
       const id='juv-foto-comp-r-'+compId;
       const _waMsgKey = 'waMsg_'+id;
@@ -41604,6 +41269,363 @@ if(window.innerWidth<=600){ try{ _mobSimpleGo('hoy'); }catch(_){} }
   new MutationObserver(ms=>{ ms.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1) q.add(n); })); if(!t) t=requestAnimationFrame(flush); }).observe(document.body,{childList:true,subtree:true});
   if(document.readyState!=='loading') fix(document.body); else document.addEventListener('DOMContentLoaded',()=>fix(document.body));
 })();
+</script>
+<script type="text/plain" id="legacy-code">
+// Código sin uso detectado en la auditoría del 26/10/2026. No se ejecuta (type=text/plain). Se mantiene acá en vez de borrarlo.
+// ---- syncMatchScore (estaba en la línea 11555) ----
+async function syncMatchScore(matchId){
+  const PIZ_TO_FIX_=Object.fromEntries(Object.entries(FIX_TO_PIZ).map(([f,p])=>[p,f]));
+  const fixId=PIZ_TO_FIX_[matchId];
+  const matchIsoDate=GROUP_H.matches.find(m=>m.id===fixId)?.isoDate;
+  if(!matchIsoDate) return;
+  try{
+    const dateStr=matchIsoDate.replace(/-/g,'');
+    const sc=await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dateStr}`).then(r=>r.json());
+    const uruEv=(sc.events||[]).find(ev=>ev.competitions?.[0]?.competitors?.some(c=>c.team?.id===String(URU_ESPN_ID)));
+    if(!uruEv) return;
+    const comp=uruEv.competitions?.[0];
+    if(!comp?.status?.type?.completed) return;
+    const home=comp.competitors.find(c=>c.homeAway==='home');
+    const away=comp.competitors.find(c=>c.homeAway==='away');
+    const fixMatch=GROUP_H.matches.find(m=>m.id===fixId);
+    if(!fixMatch) return;
+    const fix=getFixture();
+    fix[fixMatch.id]={h:parseInt(home.score)||0,a:parseInt(away.score)||0};
+    setFixture(fix);
+  }catch(_){}
+}
+
+// ---- AUF_HIST_CAPS (estaba en la línea 20836) ----
+const AUF_HIST_CAPS=[
+  // Top 3
+  {n:'Diego Godín',c:161},{n:'Luis Suárez',c:143},{n:'Edinson Cavani',c:136},
+  // Top 10
+  {n:'Fernando Muslera',c:135},{n:'Maximiliano Pereira Páez',c:125},{n:'Martín Cáceres',c:116},
+  {n:'Diego Forlán',c:112},{n:'Cristian Rodríguez',c:110},{n:'José María Giménez',c:99},
+  {n:'Diego Lugano',c:95},
+  // +80
+  {n:'Egidio Arévalo Ríos',c:90},{n:'Diego Pérez',c:89},{n:'Álvaro Pereira',c:83},
+  {n:'Rodolfo Rodríguez',c:78},
+  // +70
+  {n:'Rodrigo Bentancur',c:75},{n:'Federico Valverde',c:74},{n:'Fabián Carini',c:74},
+  {n:'Álvaro González',c:72},{n:'Nahitan Nández',c:72},
+  // +60
+  {n:'Ángel Romano',c:70},{n:'Sebastián Abreu',c:70},{n:'Matías Vecino',c:70},
+  {n:'Álvaro Recoba',c:68},{n:'Pablo García Pérez',c:65},{n:'Walter Gargano',c:64},
+  {n:'Carlos Aguilera',c:64},
+  // +55
+  {n:'Pablo Montero',c:60},{n:'Jorge Barrios',c:60},{n:'Nicolás Lodeiro',c:60},
+  {n:'Giorgian De Arrascaeta',c:60},{n:'Nelson Gutiérrez',c:57},{n:'José Herrera',c:57},
+  {n:'Cayetano Saporiti',c:56},
+  // +50
+  {n:'Washington Martínez',c:54},{n:'Sebastián Eguren',c:54},{n:'Fernando Morena',c:53},
+  {n:'Pedro Rocha',c:52},{n:'Alfredo Foglino',c:51},{n:'Héctor Scarone',c:51},
+  {n:'Sebastián Coates',c:51},{n:'Néstor Goncalves',c:50},{n:'Darío Rodríguez',c:50},
+  {n:'Cristhian Stuani',c:50},
+  // +40
+  {n:'Jorge Fucile',c:49},{n:'Darío Silva',c:49},{n:'Santiago De León',c:48},
+  {n:'Eber Moas',c:48},{n:'Rubén Sosa',c:46},{n:'Gustavo Méndez',c:45},
+  {n:'Roque Pérez',c:45},{n:'Obdulio Varela',c:45},{n:'José Piendibene',c:43},
+  {n:'Santiago Ostolaza',c:43},{n:'José Sasía',c:43},{n:'Jorge Bengoechea',c:43},
+  {n:'Gastón Ramírez',c:43},{n:'Matías Viña',c:44},
+  {n:'José María Castillo',c:42},{n:'Víctor Rodríguez Andrade',c:42},
+  {n:'José Benincasa',c:41},{n:'Pascual Somma',c:41},{n:'Eduardo Acevedo',c:41},
+  {n:'Víctor Espárrago',c:41},{n:'Venancio Ramos',c:41},{n:'Fabián Álvez',c:40},
+  {n:'José Nasazzi',c:40},{n:'Gianni Guigou',c:40},{n:'Andrés Scotti',c:40},
+  {n:'Lucas Torreira',c:40},{n:'Roque Gastón Máspoli',c:40},
+  // +35
+  {n:'Facundo Pellistri',c:39},{n:'Óscar Míguez',c:39},{n:'Diego López',c:39},
+  {n:'José Vanzzino',c:38},{n:'Alfredo Zibechi',c:38},{n:'Alejandro Lembo',c:38},
+  {n:'Julio Cubilla',c:38},{n:'Álvaro Gutiérrez',c:38},{n:'Carlos Sánchez Arcosa',c:38},
+  {n:'Ladislao Mazurkiewicz',c:37},{n:'Néstor Montelongo',c:36},
+  {n:'Sergio Gambetta',c:36},{n:'Manuel Ugarte',c:37},
+  {n:'Carlos Borges',c:35},{n:'Sergio Martínez',c:35},{n:'Sergio Rochet',c:35},
+  {n:'Darwin Núñez',c:36},{n:'Mathías Olivera',c:36},
+  // +30
+  {n:'Robert Siboldi',c:34},{n:'Nelson Agresta',c:34},{n:'Roberto Porta',c:34},
+  {n:'Vladas Douksas',c:34},{n:'Nicolás De La Cruz',c:35},
+  {n:'Brian Rodríguez',c:34},
+  {n:'Antonio Pacheco',c:11},{n:'José Andrade',c:33},{n:'Luis Ubiña',c:33},
+  {n:'Matías González',c:33},{n:'Ildo Maneiro',c:33},{n:'Mauricio Victorino',c:33},
+  {n:'Darío Pereyra',c:33},{n:'Gabriel De Los Santos',c:33},{n:'Víctor Hugo Diogo',c:33},
+  {n:'Mario Saralegui',c:33},{n:'Guillermo Varela',c:29},{n:'Maximiliano Araújo',c:29},
+  {n:'Ronald Araujo',c:27},{n:'Sebastián Cáceres',c:25},{n:'Facundo Torres',c:20},
+  // +10
+  {n:'Guillermo González',c:17},{n:'José Luis Piquerez',c:17},{n:'Agustín Canobbio',c:16},
+  {n:'Cristian Olivera',c:13},{n:'Mathías Saracchi',c:11},{n:'Federico Viñas',c:12},
+  {n:'Rodrigo Aguirre',c:11},{n:'Emiliano Martínez',c:10},
+  // +5
+  {n:'Rodrigo Zalazar',c:8},{n:'Diego Suárez',c:7},{n:'Sebastian Rossi',c:7},
+  {n:'Néstor Carballo',c:18},{n:'Brian Méndez',c:7},{n:'Emiliano Olaza',c:7},
+  {n:'Santiago Mele',c:7},{n:'Agustín Álvarez Martínez',c:6},{n:'Nicolás Fonseca',c:6},
+  {n:'Ignacio Marichal',c:5},{n:'José Luis Rodríguez',c:5},{n:'Juan Manuel Sanabria',c:6},
+  {n:'Leandro Rodríguez',c:4},{n:'Santiago Bueno',c:4},{n:'Sebastián Lemos',c:3},
+  {n:'Matías Arezo',c:3},{n:'Leandro Israel',c:3},{n:'Kevin Amaro',c:3},
+  {n:'Ignacio Laquintana',c:2},{n:'Thiago Borbas',c:1},{n:'Sebastián Sosa',c:1},
+  {n:'Maximiliano Ocampo',c:1},{n:'Agustín Rogel',c:1},{n:'Martín Satriano',c:1},
+  {n:'César Araújo',c:1},{n:'Santiago Merentiel',c:1},{n:'Julio Daguer',c:1},
+];
+
+// ---- AUF_HIST_GOALS (estaba en la línea 20905) ----
+const AUF_HIST_GOALS=[
+  // Top 3
+  {n:'Luis Suárez',c:69},{n:'Edinson Cavani',c:58},{n:'Diego Forlán',c:36},
+  // +30
+  {n:'Héctor Scarone',c:31},
+  // +20
+  {n:'Ángel Romano',c:28},{n:'Óscar Míguez',c:27},{n:'Sebastián Abreu',c:26},
+  {n:'Pedro Petrone',c:24},{n:'Carlos Aguilera',c:22},{n:'Fernando Morena',c:22},
+  {n:'José Piendibene',c:22},
+  // +15
+  {n:'Severino Varela',c:19},{n:'Carlos Scarone',c:18},{n:'Javier Ambrois',c:17},
+  {n:'Enzo Francescoli',c:17},{n:'Pedro Rocha',c:17},{n:'Héctor Castro',c:15},
+  {n:'Rubén Sosa',c:15},{n:'Mauricio Victorino',c:15},
+  // +10
+  {n:'Juan Carlos Abbadie',c:14},{n:'Roberto Porta',c:14},{n:'Darío Silva',c:14},
+  {n:'Carlos Bueno',c:13},{n:'Pedro Cea',c:13},{n:'Darwin Núñez',c:13},
+  {n:'Giorgian De Arrascaeta',c:13},{n:'José Sasía',c:12},{n:'Julio Cubilla',c:11},
+  {n:'Guillermo Escalada',c:11},{n:'Nicolás Falero',c:11},{n:'Abel Hernández',c:11},
+  {n:'Juan Manuel Medina',c:11},{n:'Juan Carlos Morales',c:11},{n:'Cristian Rodríguez',c:11},
+  {n:'Carlos Borges',c:10},{n:'Daniel Fonseca',c:10},{n:'Diego Godín',c:10},
+  {n:'Amaro Nadal',c:10},{n:'Marcelo Otero',c:10},{n:'Álvaro Recoba',c:10},{n:'Marcelo Zalayeta',c:10},
+  // +7
+  {n:'Diego Lugano',c:9},{n:'Juan Schiaffino',c:9},{n:'Obdulio Varela',c:9},
+  {n:'Federico Valverde',c:9},{n:'Nicolás Olivera',c:8},{n:'Rodrigo Pérez',c:8},
+  {n:'Julio Pérez',c:8},{n:'Cristhian Stuani',c:8},{n:'José Urruzmendi',c:8},
+  {n:'Javier Chevantón',c:7},{n:'Pablo Dacal',c:7},{n:'Sebastián Eguren',c:7},
+  {n:'Martín Ligüera',c:7},{n:'Álvaro Pereira',c:7},{n:'Héctor Silva',c:7},
+  {n:'Antonio Alzamendi',c:7},
+  // +5
+  {n:'Raúl Bastos',c:6},{n:'Jorge Bengoechea',c:6},{n:'Matías Vecino',c:6},
+  {n:'Nicolás De La Cruz',c:5},{n:'Mario Gómez',c:5},
+  // +3
+  {n:'Martín Cáceres',c:4},{n:'Brian Rodríguez',c:4},{n:'Maximiliano Araújo',c:4},
+  {n:'Rodrigo Aguirre',c:3},{n:'Jonathan Rodríguez',c:3},{n:'Rodrigo Bentancur',c:3},
+  // +1
+  {n:'Sebastián Coates',c:2},{n:'Rodrigo Zalazar',c:2},{n:'Mathías Olivera',c:2},
+  {n:'Facundo Pellistri',c:2},{n:'Federico Viñas',c:2},{n:'Facundo Torres',c:2},
+  {n:'Sebastian Rossi',c:1},{n:'Matías Arezo',c:1},{n:'Agustín Canobbio',c:1},
+  {n:'Ronald Araujo',c:1},{n:'Matías Viña',c:1},{n:'Agustín Álvarez Martínez',c:1},
+  {n:'Manuel Ugarte',c:1},{n:'Ignacio Laquintana',c:1},{n:'Juan Manuel Sanabria',c:1},
+];
+
+// ---- AUF_HIST_WC (estaba en la línea 20946) ----
+const AUF_HIST_WC=[
+  {n:'Diego Godín',c:19},{n:'Fernando Muslera',c:15},{n:'Luis Suárez',c:15},
+  {n:'Edinson Cavani',c:14},{n:'Diego Forlán',c:12},{n:'José María Giménez',c:11},
+  {n:'Rodrigo Bentancur',c:8},{n:'Federico Valverde',c:8},{n:'Sebastián Coates',c:7},
+  {n:'Maximiliano Pereira Páez',c:9},{n:'Martín Cáceres',c:12},{n:'Álvaro González',c:6},
+];
+
+// ---- aufHistSection (estaba en la línea 22580) ----
+function aufHistSection(title, data, colHeader, colKey, players, isActive, activeMark, deltaField, legendStar, editMode){
+  const SHOW=20;
+  const uid='aufhist-'+title.replace(/[^a-z]/gi,'');
+  const delta=getStatsDelta();
+  const rows=data.map((r,i)=>{
+    const pMatch=players.find(p=>p.name===r.n);
+    const d=pMatch&&deltaField?(delta[pMatch.n]?.[deltaField]||0):0;
+    const total=r[colKey]+d;
+    const legs=getLegends().has(r.n);
+    const star=editMode?legendStar(r.n,true):(legs?`<span style="font-size:11px;color:var(--gold);margin-left:3px">★</span>`:'');
+    return`<tr${isActive(r.n)?' style="background:#F0F9FF"':''} data-hist-row="${i}">
+      <td class="st-rank">${i+1}</td>
+      <td class="st-name">${aufLink(r.n)}${star} ${activeMark(r.n)}</td>
+      <td class="st-n${i<3?' top':''}">${total}</td>
+    </tr>`;
+  });
+  const visible=rows.slice(0,SHOW).join('');
+  const hidden=rows.slice(SHOW).join('');
+  return`<div class="stats-section">
+    <div class="phase">${title}</div>
+    <div style="overflow-x:auto"><table class="stats-table">
+      <thead><tr><th>#</th><th>Jugador</th><th>${colHeader}</th></tr></thead>
+      <tbody>${visible}${hidden?`<tr id="${uid}-more" style="display:none"><td colspan="3" style="padding:0"><table style="width:100%;border-collapse:collapse">${hidden}</table></td></tr>`:''}
+      </tbody>
+    </table></div>
+    ${hidden?`<button onclick="document.getElementById('${uid}-more').style.display='';this.style.display='none'" style="width:100%;margin-top:4px;padding:6px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:11px;color:var(--muted);cursor:pointer">Ver todos (${data.length}) ↓</button>`:''}
+  </div>`;
+}
+
+// ---- benchChipHtml (estaba en la línea 22952) ----
+  function benchChipHtml(p){
+    const ph=_luPhotos[p.n]||p.photo||'';
+    const pts=p.name.trim().split(' ');
+    const sn=`${pts[0][0]}. ${pts[pts.length-1]}`;
+    const ms=computeMilestones(p);
+    const hint=ms.length?ms[0].txt.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').trim():'';
+    const inj=getPlayerInjury(p.n);
+    const injDot=inj==='red'?'<span style="width:6px;height:6px;border-radius:50%;background:#C0392B;display:inline-block;flex-shrink:0"></span>'
+                :inj==='yellow'?'<span style="width:6px;height:6px;border-radius:50%;background:#F59E0B;display:inline-block;flex-shrink:0"></span>':'';
+    const isSuspended=suspendedNums.has(p.n);
+
+    // ¿Entró desde el banco?
+    const subMin=_subInMin[p.n];
+    const didPlay=subMin!=null;
+    // Íconos de eventos (goles, tarjetas)
+    const pEvs=_evsByNum[p.n]||[];
+    const evBadges=pEvs.map(e=>{
+      if(e.type==='goal') return`<span title="Gol ${e.min}'" style="font-size:9px">⚽${e.min}'</span>`;
+      if(e.type==='card'&&e.extra==='r') return`<span title="Roja ${e.min}'" style="font-size:9px">🟥</span>`;
+      if(e.type==='card') return`<span title="Amarilla ${e.min}'" style="font-size:9px">🟨</span>`;
+      return'';
+    }).join('');
+
+    const subBadge=didPlay
+      ?`<span style="font-size:8px;font-weight:800;color:#16A34A;background:#DCFCE7;border-radius:3px;padding:0 3px;margin-left:3px;white-space:nowrap">▲ ${subMin}'</span>`
+      :'';
+    const chipStyle=isSuspended
+      ?'border-color:#DC2626;background:#FEF2F2'
+      :didPlay
+        ?'border-color:#16A34A;background:#F0FDF4'
+        :'opacity:.45;filter:grayscale(.5)';
+
+    return`<div class="piz-p-chip" id="pchip-${p.n}" data-num="${p.n}" data-match="${matchId}" draggable="true" title="${isSuspended?'SUSPENDIDO — acumulación de tarjetas':(hint||p.name)}" style="${chipStyle}">
+      <div class="piz-chip-av">
+        ${ph?`<img src="${ph}" onerror="this.style.display='none'">`:''}
+        <span class="piz-chip-av-num" style="${ph?'display:none':''}">${p.n}</span>
+      </div>
+      <div class="piz-chip-info">
+        <div class="piz-chip-top">${injDot}<span class="piz-chip-num">#${p.n}</span><span class="piz-chip-name">${sn}</span>${subBadge}${isSuspended?'<span style="font-size:7px;font-weight:900;background:#DC2626;color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">SUSP</span>':''}${p.captain===1?'<span style="font-size:7px;font-weight:900;background:var(--gold);color:#fff;padding:0 3px;border-radius:3px;margin-left:2px">C</span>':''}</div>
+        ${evBadges?`<div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap">${evBadges}</div>`:''}
+      </div>
+      <div onclick="event.stopPropagation();toggleYellow(${p.n})" title="${yellows[p.n]?'Quitar amarilla':'Marcar amarilla'}" style="font-size:10px;cursor:pointer;opacity:.45;flex-shrink:0;padding:1px" draggable="false">${yellows[p.n]?'🟨':'○'}</div>
+    </div>`;
+  }
+
+// ---- SUB17_LISTA_LARGA (estaba en la línea 28669) ----
+const SUB17_LISTA_LARGA = [
+  {nom:'Facundo Bertolotti',club:'Danubio'},{nom:'Thiago Amaro',club:'Danubio'},
+  {nom:'Bruno Bueno',club:'Nacional', tmId:1425950, fechaNac:'2009-01-03'},{nom:'Ramiro García',club:'Nacional', tmId:1532866, fechaNac:'2009-06-06'},
+  {nom:'Lautaro Muñiz',club:'Nacional', tmId:1432157, fechaNac:'2009-03-26'},{nom:'Santino Rodríguez',club:'Nacional'},
+  {nom:'Dylan Mora',club:'Nacional',asc:true, tmId:1532868, fechaNac:'2010-05-22'},{nom:'Santino Cabral',club:'Nacional'},
+  {nom:'Facundo Saldaña',club:'Nacional', tmId:1425953, fechaNac:'2009-04-04'},{nom:'Anthoni Bicera',club:'Nacional'},
+  {nom:'Augusto Sánchez',club:'Nacional', tmId:1425958, fechaNac:'2009-02-08'},{nom:'Felipe De León',club:'Nacional', tmId:1425949, fechaNac:'2009-04-20'},
+  {nom:'Dante Rodella',club:'Nacional',asc:true, tmId:1532870, fechaNac:'2010-03-05'},{nom:'Ronald Tabárez',club:'Nacional'},
+  {nom:'Luis Machín',club:'Nacional',asc:true, tmId:1532865, fechaNac:'2010-02-06'},{nom:'Mateo Díaz',club:'Peñarol', tmId:1425945, fechaNac:'2009-07-12'},
+  {nom:'Ezequiel Fernández',club:'Peñarol',asc:true, tmId:1532871, fechaNac:'2010-10-31'},{nom:'Bruno La Cava',club:'Peñarol'},
+  {nom:'Facundo Martínez',club:'Peñarol', fechaNac:'2008-02-04'},{nom:'Gabriel Da Silva',club:'Peñarol', tmId:1432152, fechaNac:'2009-01-13'},
+  {nom:'Dahel Guedes',club:'Peñarol', tmId:1532869, fechaNac:'2009-09-08'},{nom:'Thiago López',club:'Peñarol'},
+  {nom:'Francisco Brenta',club:'Defensor Sporting'},{nom:'Luciano Delgado',club:'Defensor Sporting'},
+  {nom:'Ángel Lima',club:'Defensor Sporting'},{nom:'Alfonso Izuibejeres',club:'Defensor Sporting'},
+  {nom:'Braian Santa Cruz',club:'Defensor Sporting'},{nom:'Nicolás Scotti',club:'Defensor Sporting', tmId:1425952, fechaNac:'2009-11-26'},
+  {nom:'Alan Soares de Lima',club:'Defensor Sporting',asc:true, tmId:1532874, fechaNac:'2010-01-16'},{nom:'Matteo Correia',club:'Defensor Sporting', tmId:1307319, fechaNac:'2009-01-09', paisSec:'🇲🇽', paisSecLabel:'México'},
+  {nom:'Juan Bonifacio',club:'Defensor Sporting'},{nom:'Leonardo Machado',club:'Defensor Sporting'},
+  {nom:'Samuel Bisogno',club:'Defensor Sporting'},{nom:'Thiago Brizuela',club:'Liverpool', tmId:1432158, fechaNac:'2009-02-26'},
+  {nom:'Pablo Barreiro',club:'Liverpool', tmId:1425962, fechaNac:'2009-01-07'},{nom:'Lucca Rodríguez',club:'Liverpool'},
+  {nom:'Rodrigo Alzamendi',club:'Racing'},{nom:'Ramiro Bertalmio',club:'Fénix'},
+  {nom:'Facundo Bacci',club:'Fénix'},{nom:'Franco Ramos',club:'Fénix'},
+  {nom:'Antonio Caballero',club:'Montevideo Wanderers'},{nom:'Emiliano Machado',club:'Montevideo Wanderers', fechaNac:'2009-04-01'},
+  {nom:'Nicolás López',club:'Montevideo Wanderers'},{nom:'Lautaro Blengio',club:'Montevideo Wanderers', tmId:1432155, fechaNac:'2009-08-14'},
+  {nom:'Federico Cappetta',club:'Montevideo Wanderers'},{nom:'Maximiliano Cabrera',club:'River Plate'},
+  {nom:'Anderson Luz',club:'Montevideo City Torque', tmId:1425959, fechaNac:'2009-09-19'},{nom:'Imanol Miranda',club:'Montevideo City Torque'},
+  {nom:'Bruno Rosales',club:'Montevideo City Torque'},{nom:'Ignacio Melián',club:'Montevideo City Torque'},
+  {nom:'Emiliano Haller',club:'Montevideo City Torque', fechaNac:'2009-05-20'},{nom:'Facundo Rodríguez',club:'Montevideo City Torque',asc:true, tmId:1532872, fechaNac:'2010-01-12'},
+  {nom:'Thiago Castro',club:'Boston River'},{nom:'Thiago Mora',club:'Boston River', tmId:1425954, fechaNac:'2009-11-04'},
+  {nom:'Juan Manuel Barrios',club:'Boston River', fechaNac:'2009-10-27'},{nom:'Juan Piperno',club:'Boston River'},
+  {nom:'Facundo Castillo',club:'Boston River'},{nom:'Enzo Cabrera',club:'Albion'},
+  {nom:'Franco Lasalvia',club:'Albion'},{nom:'Walter Zeinal',club:'Albion'},
+  {nom:'Simón Trenskenchu',club:'Dep. Maldonado'},{nom:'Alejandro Pereira',club:'Cooper'},
+  {nom:'Ezequiel Eula',club:'Cooper'},{nom:'Bruno Acosta',club:'Cooper'},
+  {nom:'Kevin Fernández',club:'Terremoto'},{nom:'Joaquín Leites',club:'Terremoto'},
+  {nom:'Tomás Amado',club:'Terremoto'},{nom:'Ezequiel Toledo',club:'Villa Teresa'},
+  {nom:'Joaquín Vázquez',club:'Villa Teresa'},{nom:'Facundo Boudevin',club:'Oriental de la Paz'},
+  {nom:'Fabricio Resende',club:'Bella Vista'},{nom:'Mateo Méndez',club:'Cerro'},
+  {nom:'Benjamín Fernández',club:'Colón'},{nom:'Francisco Nassif',club:'Paso de la Arena'},
+  {nom:'Nicolás Villa',club:'Paso de la Arena'},{nom:'Ignacio Zinola',club:'Estudiantes del Plata'},
+  {nom:'Axel Noya',club:'Liffa'},{nom:'Thiago Mundo',club:'Liffa'},
+  {nom:'Matías Pedrozo',club:'Villa Española'},{nom:'Samuel Lima',club:'DFC'},
+  {nom:'Iker Pintos',club:'DFC'},{nom:'Luca Tettoni',club:'Bella Vista'},
+  {nom:'Ezequiel Álvarez',club:'Bella Vista', fechaNac:'2011-01-09'},{nom:'Mauricio Medeiros',club:'Juventud de las Piedras'},
+  {nom:'Thiago Martínez',club:'Juventud de las Piedras'},{nom:'Mateo Cafaya',club:'Plaza Colonia'},
+  {nom:'Francisco Morales',club:'Plaza Colonia'},{nom:'Bautista López',club:'Miramar Misiones'},
+  {nom:'Vicente Pesce',club:'Paysandú',asc:true, tmId:1532873, fechaNac:'2011-05-18'},{nom:'Luca Siri',club:'—'},
+];
+
+// ---- SUB18_LISTA_LARGA (estaba en la línea 28717) ----
+const SUB18_LISTA_LARGA = [
+  {nom:'Alexander E. Velázquez',club:'Danubio'},{nom:'Miguel González',club:'Danubio'},
+  {nom:'Renzo Lima',club:'Danubio'},{nom:'Emiliano Figueroa',club:'Danubio'},
+  {nom:'Pablo Rodrigo Cardozo',club:'Danubio'},{nom:'Facundo Balatti',club:'Danubio'},
+  {nom:'Santiago Sosa',club:'Danubio'},{nom:'Damián García Ferreira',club:'Danubio', fechaNac:'2008-07-02'},
+  {nom:'Mateo Pérez',club:'Danubio'},{nom:'Nicolás Azambuja',club:'Danubio'},
+  {nom:'Luciano Emanuel Rodríguez',club:'Nacional'},{nom:'Mateo Soria',club:'Nacional', fechaNac:'2007-03-14'},
+  {nom:'Mauro Martínez',club:'Nacional', fechaNac:'2007-01-19'},{nom:'Facundo Domínguez',club:'Nacional', fechaNac:'2007-07-15'},
+  {nom:'Santiago Ricca',club:'Nacional'},{nom:'Mauricio Milano',club:'Nacional'},
+  {nom:'Federico Bais',club:'Nacional'},{nom:'Juan Schneider',club:'Nacional'},
+  {nom:'Bruno Arady',club:'Nacional'},{nom:'Ezequiel Irute',club:'Nacional'},
+  {nom:'Luciano González Laureiro',club:'Nacional'},{nom:'Agustín Dos Santos',club:'Nacional'},
+  {nom:'Román Clematte',club:'Nacional', fechaNac:'2007-09-06'},{nom:'Rodrigo Martínez',club:'Nacional'},
+  {nom:'Sebastián Mysznajes',club:'Nacional'},{nom:'Rodrigo Álvez',club:'Peñarol', fechaNac:'2007-10-09'},
+  {nom:'Valentín Rivera',club:'Peñarol'},{nom:'Tiago Martinelli',club:'Peñarol'},
+  {nom:'Germán Barbas',club:'Peñarol', tmId:1268038, fechaNac:'2007-09-17'},{nom:'Gabriel Benítez',club:'Peñarol'},
+  {nom:'Brandon Álvarez',club:'Peñarol'},{nom:'Renzo Cupla',club:'Peñarol'},
+  {nom:'Julio Daguer',club:'Peñarol'},{nom:'Brian Barboza',club:'Peñarol'},
+  {nom:'Paulo Da Costa',club:'Peñarol', fechaNac:'2008-06-13'},{nom:'Alan Torterolo',club:'Defensor Sporting', fechaNac:'2008-01-03'},
+  {nom:'Nehemías González',club:'Defensor Sporting', fechaNac:'2007-08-31'},{nom:'Diego Abella',club:'Defensor Sporting', fechaNac:'2007-08-21'},
+  {nom:'Diego Toma',club:'Defensor Sporting', fechaNac:'2007-05-08'},{nom:'Jean Severo',club:'Defensor Sporting'},
+  {nom:'Kevin Suárez',club:'Defensor Sporting', fechaNac:'2007-05-31'},{nom:'Joaquín Santos',club:'Defensor Sporting'},
+  {nom:'Francisco Sorondo',club:'Defensor Sporting'},{nom:'Pedro Demichelis',club:'Defensor Sporting'},
+  {nom:'Lukas Álamo',club:'Defensor Sporting'},{nom:'Mateo Caballero',club:'Defensor Sporting', fechaNac:'2007-08-26'},
+  {nom:'Nicolás Camargo',club:'Liverpool'},{nom:'Vicenzo Macchia',club:'Liverpool', fechaNac:'2007-11-30'},
+  {nom:'Luca Fraga',club:'Liverpool'},{nom:'Santiago Burgos',club:'Liverpool'},
+  {nom:'Joaquín Pereyra',club:'Liverpool'},{nom:'Ian Colina',club:'River Plate', fechaNac:'2007-05-26'},
+  {nom:'Axell De Los Santos',club:'River Plate'},{nom:'Lucca Caula',club:'Wanderers', fechaNac:'2007-02-09'},
+  {nom:'Cristofer Marques',club:'Wanderers', fechaNac:'2007-02-19'},{nom:'Tomás Fernández',club:'Wanderers'},
+  {nom:'Roque Ricca',club:'Wanderers'},{nom:'Benjamín García',club:'City Torque', fechaNac:'2007-02-04'},
+  {nom:'Lautaro Silveira',club:'City Torque'},{nom:'Fernando Formoso',club:'City Torque'},
+  {nom:'Tobías Albanell',club:'City Torque'},{nom:'Matías Santana',club:'City Torque'},
+  {nom:'Tomás Shaw',club:'City Torque', fechaNac:'2007-08-31'},{nom:'Ramiro Lecchini',club:'City Torque', fechaNac:'2007-07-24'},
+  {nom:'Ignacio Molina',club:'City Torque'},{nom:'Facundo Martínez Borges',club:'City Torque'},
+  {nom:'Jean López',club:'City Torque'},{nom:'Felipe Suhr',club:'City Torque'},
+  {nom:'Mateo Landa',club:'Progreso'},{nom:'Nahuel López',club:'Progreso', fechaNac:'2007-01-24'},
+  {nom:'Yuri Oyarzo',club:'Racing', fechaNac:'2007-12-13'},{nom:'Mauro Marichal',club:'Racing'},
+  {nom:'Matías Hernández',club:'Racing'},{nom:'Rodrigo Dudok',club:'Estrela da Amadora', fechaNac:'2007-07-23'},
+  {nom:'Santiago Saldivia',club:'Racing'},{nom:'Samuel Gallo',club:'Racing'},
+  {nom:'Thiago Fernández',club:'Racing', fechaNac:'2007-01-23'},{nom:'Oscar Melo',club:'Boston River'},
+  {nom:'Tailer Cruz',club:'Boston River'},{nom:'Lucas Jorge',club:'Boston River'},
+  {nom:'Marcelo Hornos',club:'Boston River'},{nom:'Michael Nomdanis',club:'Boston River'},
+  {nom:'Diego Helguera',club:'Boston River'},{nom:'Ignacio Fernández',club:'Boston River'},
+  {nom:'Felipe Ortiz',club:'Dep. Maldonado', tmId:1300813, fechaNac:'2007-11-06'},{nom:'Germán Petryk',club:'Dep. Maldonado'},
+  {nom:'Federico Riverón',club:'Dep. Maldonado'},{nom:'Thiago Correa',club:'Dep. Maldonado'},
+  {nom:'Jaguer Pereira',club:'Dep. Maldonado'},{nom:'Maximiliano Laresca',club:'Rentistas'},
+  {nom:'Facundo Carámbula',club:'Rentistas', fechaNac:'2007-09-12'},{nom:'Facundo Pastorino',club:'Rentistas'},
+  {nom:'Santiago Méndez',club:'Rentistas'},{nom:'Kevin Bitancourt',club:'Albion'},
+  {nom:'Joaquín Varela',club:'Albion'},{nom:'Bautista Pérez',club:'Albion', fechaNac:'2007-06-05'},
+  {nom:'Leandro Pacheco',club:'Albion'},{nom:'Pablo Alcoba',club:'Albion'},
+  {nom:'Mateo Alcoba',club:'Albion'},{nom:'Ezequiel Amaro',club:'Paysandú', fechaNac:'2007-03-22'},
+  {nom:'Santiago Silva',club:'Paysandú'},{nom:'Gabriel López',club:'Paysandú'},
+  {nom:'Bautista Carballo',club:'Paysandú'},{nom:'Lautaro Ultra',club:'Dinamo Zagreb', fechaNac:'2007-05-21'},
+  {nom:'Alberto Medina',club:'Oriental de la Paz'},{nom:'Esteban Álvarez',club:'Oriental de la Paz'},
+  {nom:'Axell Amaral',club:'Al Ain', tmId:1426012, fechaNac:'2007-11-15'},{nom:'Ezequiel Bequio',club:'Miramar Misiones'},
+  {nom:'Joaquín Cassou',club:'Rampla Juniors'},{nom:'Mauricio Imperial',club:'Rampla Juniors'},
+  {nom:'Lucas Quimbo',club:'Juventud', fechaNac:'2007-11-13'},{nom:'Kevin Nicoletti',club:'Juventud'},
+  {nom:'Álvaro Trasante',club:'Juventud'},{nom:'Cristian Risso',club:'Juventud'},
+  {nom:'Valentín Barrios',club:'Juventud'},{nom:'Alan Álvarez',club:'Rampla Juniors'},
+  {nom:'Mateo Pisciottano',club:'Plaza Colonia'},{nom:'Juan Pablo Hernández',club:'Plaza Colonia'},
+  {nom:'Braian Sánchez',club:'Plaza Colonia'},{nom:'Juan Aristimuño',club:'Plaza Colonia'},
+  {nom:'Joaquín García',club:'Plaza Colonia'},{nom:'Valentino Würth',club:'Montevideo City Torque'},
+  {nom:'Thiago Rodríguez',club:'Plaza Colonia'},{nom:'Antony Segovia',club:'Cerrito'},
+  {nom:'Gabriel Minetti',club:'Cooper'},{nom:'Mateo Peña',club:'Bella Vista'},
+  {nom:'Tomás Rodríguez',club:'Bella Vista'},{nom:'Facundo Tucci',club:'Bella Vista'},
+  {nom:'Dylan Sosa',club:'La Luz'},{nom:'Joel Sardiña',club:'La Luz'},
+  {nom:'Mauro Álvez',club:'Colón'},{nom:'Juan Duque',club:'Villa Española'},
+  {nom:'Ignacio Méndez',club:'Miramar Misiones'},{nom:'Damián Antúnez',club:'Colón'},
+  {nom:'Nicholas Negro',club:'Fénix'},{nom:'Diego Helguera',club:'Fénix'},
+  {nom:'Thiago Fernández',club:'Fénix', fechaNac:'2007-01-23'},{nom:'Juan Nieto',club:'Fénix'},
+  {nom:'Santiago Castro',club:'Estudiantes'},{nom:'Daniel Ibarra',club:'Cerro Largo'},
+  {nom:'Axel Muniz',club:'Cerrito'},{nom:'Agustín Barrios',club:'Cerro'},
+  {nom:'Adrián Núñez',club:'Artigas SAD'},{nom:'Matías Lescano',club:'Salto'},
+  {nom:'Emiliano Sierra',club:'Paso de la Arena'},{nom:'Isaias Silva',club:'Paso de la Arena'},
+  {nom:'Ignacio Esquibel',club:'Terremoto'},{nom:'Mauro Bonilla',club:'Terremoto'},
+  {nom:'Benjamín Albermager',club:'Terremoto'},
+];
+
+// ---- _closBtn (estaba en la línea 35213) ----
+    const _closBtn = (id) => `<button onclick="document.getElementById('${id}').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1.15em;flex-shrink:0;padding:0;line-height:1;opacity:.6">×</button>`;
+
+// ---- _closX (estaba en la línea 35943) ----
+    const _closX = (id)=>`<button onclick="document.getElementById('${id}').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1.15em;flex-shrink:0;padding:0;line-height:1;opacity:.6">×</button>`;
 </script>
 </body>
 </html>

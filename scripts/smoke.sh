@@ -6,7 +6,7 @@ D=$(mktemp -d)
 python3 - "$F" "$D" <<'E'
 import re,sys
 T=open(sys.argv[1],encoding='utf8').read(); n=0
-for m in re.finditer(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',T,re.S):
+for m in re.finditer(r'<script(?![^>]*\bsrc=)(?![^>]*text/plain)[^>]*>(.*?)</script>',T,re.S):
     open(f'{sys.argv[2]}/s{n}.js','w').write(m.group(1)); n+=1
 print('scripts inline:',n)
 E
