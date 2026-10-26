@@ -32288,7 +32288,8 @@ async function _mundSyncFifa(cid,force){
 }
 window._mundSyncFifa=_mundSyncFifa;
 setTimeout(()=>Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)),7000);
-setInterval(()=>Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)),_SYNC_MIN);
+setInterval(()=>{ if(document.hidden) return; Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)); },_SYNC_MIN); // con la pestaña oculta no consulta a FIFA; al volver se pone al día
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)); });
 window._mun15Mount=function(){
   const el=document.getElementById('mun15-grupo'); if(!el) return;
   const D=window._mundData[window._mundCur];
@@ -33848,6 +33849,7 @@ window._autoBackupPhotosToSupabase = _autoBackupPhotosToSupabase;
 // del servidor — no depende de acordarse de actualizar un valor a mano en cada deploy.
 let _APP_LAST_MODIFIED = null;
 async function _checkForNewVersion(){
+  if(document.hidden) return; // pestaña oculta: no consulta; al volver lo hace el listener de visibilitychange
   try{
     const r = await fetch('/?_cb=' + Date.now(), { method:'HEAD', cache:'no-store' });
     const lm = r.headers.get('last-modified');
@@ -34373,6 +34375,10 @@ window._editJuvClub = function(nom, el){
   setTimeout(()=>document.getElementById(id)?.focus(),50);
 };
 
+// Aviso de fotos faltantes (un solo armado para las 3 pantallas). kind: 'r' rojo, 's' suave. waKey: nombre de la clave en window con el mensaje de WhatsApp.
+function _bnHtml(id,kind,title,names,waKey){
+  return `<div id="${id}" class="bn bn-${kind}"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">${title}</div><div class="bn-x">${names}</div></div>${waKey?`<button class="bn-wa" onclick="_copyWaFotos(this,window['${waKey}'])" title="Copiar mensaje para WhatsApp">WhatsApp</button>`:''}<button class="bn-cl" onclick="document.getElementById('${id}').style.display='none'" title="Cerrar"><i class="ti ti-x"></i></button></div>`;
+}
 // País de la bandera según el club (manda sobre el dato guardado cuando el club es claramente extranjero)
 const _CLUB_PAIS=[['es',['leganes','cadiz','albacete','reus','barcelona','atletico madrid','atletico madrileno','alcorcon','celta','getafe','real madrid','betis','espanyol','coruna','gijon','palencia','racing club santander','villarreal','valencia cf','sevilla','girona','mallorca','osasuna','rayo vallecano','athletic club','real sociedad']],
  ['it',['juventus','cagliari','napoli','napoles','torino','milan','as roma','lazio','atalanta','fiorentina','bologna','genoa','udinese','sassuolo','parma']],
@@ -34501,18 +34507,21 @@ function _juvFichaCard(p, hist, off, extraIcon){
     </div>
   </div>`;
 }
+// Ventana flotante común (Procesos en juveniles / Torneos oficiales)
+function _jfModal(eyebrow,title,rows,wide){
+  document.getElementById('jf-of-pop')?.remove(); document.getElementById('jf-of-bg')?.remove();
+  document.body.insertAdjacentHTML('beforeend',`<div id="jf-of-bg" onclick="document.getElementById('jf-of-pop').remove();this.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55)"></div><div id="jf-of-pop" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:min(${wide?420:380}px,92vw);border-radius:22px;border:1px solid rgba(255,255,255,.16);padding:18px 20px 12px;background:linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 20px 60px rgba(0,0,0,.6)"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.55)">${eyebrow}</div><div style="font-family:'Space Grotesk','Inter',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;margin:4px 0 8px">${title}</div>${rows}<div style="text-align:right;padding-top:10px"><button onclick="document.getElementById('jf-of-pop').remove();document.getElementById('jf-of-bg').remove()" style="height:28px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#8AD8FF;font:700 10px inherit;font-family:inherit;letter-spacing:.14em;text-transform:uppercase;cursor:pointer">Cerrar</button></div></div>`);
+}
 window._juvHistInfo = function(nomEnc){
   const nom=decodeURIComponent(nomEnc); const jh=_juvPlayerHistory(nom).filter(h=>!/^(Mayor|Local)$/i.test(h.label));
-  document.getElementById('jf-of-pop')?.remove(); document.getElementById('jf-of-bg')?.remove();
   const rows=jh.map(h=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)"><i style="width:8px;height:8px;border-radius:50%;background:${h.color};flex-shrink:0"></i><span style="font-size:14px;font-weight:600;color:${h.color}">${h.label}</span></div>`).join('');
-  document.body.insertAdjacentHTML('beforeend',`<div id="jf-of-bg" onclick="document.getElementById('jf-of-pop').remove();this.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55)"></div><div id="jf-of-pop" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:min(380px,92vw);border-radius:22px;border:1px solid rgba(255,255,255,.16);padding:18px 20px 12px;background:linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 20px 60px rgba(0,0,0,.6)"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.55)">Procesos en juveniles</div><div style="font-family:'Space Grotesk','Inter',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;margin:4px 0 8px">${nom}</div>${rows}<div style="text-align:right;padding-top:10px"><button onclick="document.getElementById('jf-of-pop').remove();document.getElementById('jf-of-bg').remove()" style="height:28px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#8AD8FF;font:700 10px inherit;font-family:inherit;letter-spacing:.14em;text-transform:uppercase;cursor:pointer">Cerrar</button></div></div>`);
+  _jfModal('Procesos en juveniles',nom,rows,false);
 };
 window._juvOficialInfo = function(nomEnc){
   const nom=decodeURIComponent(nomEnc); const off=_juvOfficialStats(nom);
-  document.getElementById('jf-of-pop')?.remove(); document.getElementById('jf-of-bg')?.remove();
   const _c=t=>{const m=String(t.cat||'').toLowerCase().match(/sub-?(\d+)/); return (typeof CAT_PAL!=='undefined'&&m&&CAT_PAL['sub'+m[1]])||'#F4F7FB';};
   const rows=(off.torneos||[]).map(t=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)"><div><div style="font-size:14px;font-weight:600;color:${_c(t)}">${t.label}</div><div style="font-size:11px;color:rgba(239,243,248,.5);margin-top:2px">${t.cat}</div></div><span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${t.pj?'#F4F7FB':'rgba(239,243,248,.45)'};white-space:nowrap">${t.pj?t.pj+(t.pj===1?' partido':' partidos'):'Sin partidos aún'}</span></div>`).join('');
-  document.body.insertAdjacentHTML('beforeend',`<div id="jf-of-bg" onclick="document.getElementById('jf-of-pop').remove();this.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55)"></div><div id="jf-of-pop" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;width:min(420px,92vw);border-radius:22px;border:1px solid rgba(255,255,255,.16);padding:18px 20px 12px;background:linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 20px 60px rgba(0,0,0,.6)"><div style="font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.55)">Torneos oficiales</div><div style="font-family:'Space Grotesk','Inter',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;margin:4px 0 8px">${nom}</div>${rows}<div style="text-align:right;padding-top:10px"><button onclick="document.getElementById('jf-of-pop').remove();document.getElementById('jf-of-bg').remove()" style="height:28px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#8AD8FF;font:700 10px inherit;font-family:inherit;letter-spacing:.14em;text-transform:uppercase;cursor:pointer">Cerrar</button></div></div>`);
+  _jfModal('Torneos oficiales',nom,rows,true);
 };
 window._juvPlayerHistory = function(nom){return _juvPlayerHistory(nom);};
 function _juvPlayerHistory(nom){
@@ -34804,7 +34813,7 @@ function _renderJuvenilesSafe(el){
       const sinFotoUltimaConv = (last.jugadores||[]).filter(j=>!window._juvGetPhoto?.(j.nom));
       const bannerConvRojo = sinFotoUltimaConv.length ? (()=>{
         const id='juv-foto-conv-r-'+_juvCat+'-'+_juvYear;
-        return `<div id="${id}" class="bn bn-r"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">Sin foto en la última convocatoria</div><div class="bn-x">${sinFotoUltimaConv.map(j=>j.nom).join(' · ')}</div></div><button class="bn-cl" onclick="document.getElementById('${id}').style.display='none'" title="Cerrar"><i class="ti ti-x"></i></button></div>`;
+        return _bnHtml(id,'r','Sin foto en la última convocatoria',sinFotoUltimaConv.map(j=>j.nom).join(' · '));
       })() : '';
       const lastHtml = bannerConvRojo + `
         <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px">
@@ -34889,11 +34898,11 @@ function _renderJuvenilesSafe(el){
       const id='juv-foto-r-'+_juvCat+'-'+_juvYear;
       const _waMsgKey2 = 'waMsg_'+id;
       window[_waMsgKey2] = '📸 *Faltan fotos de estos jugadores de la '+_juvCat.replace('sub','sub-').toUpperCase()+'*:\n\n'+sinFotoUltima.map(p=>'• '+p.nom).join('\n');
-      return `<div id="${id}" class="bn bn-r"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">Sin foto en la última convocatoria</div><div class="bn-x">${sinFotoUltima.map(p=>p.nom).join(' · ')}</div></div><button class="bn-wa" onclick="_copyWaFotos(this,window['${_waMsgKey2}'])" title="Copiar mensaje para WhatsApp">WhatsApp</button><button class="bn-cl" onclick="document.getElementById('${id}').style.display='none'" title="Cerrar"><i class="ti ti-x"></i></button></div>`;
+      return _bnHtml(id,'r','Sin foto en la última convocatoria',sinFotoUltima.map(p=>p.nom).join(' · '),_waMsgKey2);
     })() : '';
     const bannerSuave = sinFotoPlanilla.length ? (()=>{
       const id='juv-foto-s-'+_juvCat+'-'+_juvYear;
-      return `<div id="${id}" class="bn bn-s"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">Faltan fotos en la planilla</div><div class="bn-x">${sinFotoPlanilla.map(p=>p.nom).join(' · ')}</div></div><button class="bn-cl" onclick="document.getElementById('${id}').style.display='none'" title="Cerrar"><i class="ti ti-x"></i></button></div>`;
+      return _bnHtml(id,'s','Faltan fotos en la planilla',sinFotoPlanilla.map(p=>p.nom).join(' · '));
     })() : '';
     const fotoBanner = bannerRojo + bannerSuave;
     if(fichas.length===0){
@@ -35624,11 +35633,11 @@ function _buildJuvCompBody(compId, color, catData){
       const id='juv-foto-comp-r-'+compId;
       const _waMsgKey = 'waMsg_'+id;
       window[_waMsgKey] = `📸 *Faltan fotos de estos jugadores de la ${(catData.label||'').toLowerCase()}*:\n\n`+_sinFotoActivos.map(p=>'• '+p.nom).join('\n');
-      return `<div id="${id}" class="bn bn-r"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">Sin foto en la convocatoria</div><div class="bn-x">${_sinFotoActivos.map(p=>p.nom).join(' · ')}</div></div><button class="bn-wa" onclick="_copyWaFotos(this,window['${_waMsgKey}'])" title="Copiar mensaje para WhatsApp">WhatsApp</button><button class="bn-cl" onclick="document.getElementById('${id}').style.display='none'" title="Cerrar"><i class="ti ti-x"></i></button></div>`;
+      return _bnHtml(id,'r','Sin foto en la convocatoria',_sinFotoActivos.map(p=>p.nom).join(' · '),_waMsgKey);
     })() : '';
     const _bannerSuave = _sinFotoPool.length ? (()=>{
       const id='juv-foto-comp-s-'+compId;
-      return `<div id="${id}" class="bn bn-s"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">Faltan fotos en el pool</div><div class="bn-x">${_sinFotoPool.map(p=>p.nom).join(' · ')}</div></div><button class="bn-cl" onclick="document.getElementById('${id}').style.display='none'" title="Cerrar"><i class="ti ti-x"></i></button></div>`;
+      return _bnHtml(id,'s','Faltan fotos en el pool',_sinFotoPool.map(p=>p.nom).join(' · '));
     })() : '';
     const _bannerFecha = fechaConvBanner ? `
       <div class="bn bn-f" style="--cat:${_catCol(_juvCat)}"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">Convocatoria vigente</div><div class="bn-x" style="color:#F4F7FB">${fechaConvBanner}</div></div></div>` : '';
