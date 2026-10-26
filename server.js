@@ -823,7 +823,7 @@ async function fetchLigaUY(leagueId, sinTablas) {
 
   const proximos = fixtures
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
-    .slice(0, 4)
+    .slice(0, 16)
     .map(m => ({
       home: shortName(m.homeCompetitor), homeId: m.homeCompetitor.id,
       away: shortName(m.awayCompetitor), awayId: m.awayCompetitor.id,

@@ -864,6 +864,8 @@ table.fu-t tr.sud td:first-child{box-shadow:inset 3px 0 0 #FCD34D}
 table.fu-t tr.risk td{background:rgba(248,113,113,.07)}
 table.fu-t tr.risk td:first-child{box-shadow:inset 3px 0 0 #F87171}
 .fu-src{font-size:10.5px;color:rgba(239,243,248,.4);padding:8px 8px 0;letter-spacing:.02em}
+.fu-dia{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 20px;background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.1);font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#F4F7FB}
+.fu-dia b{font-weight:700;color:#8AD8FF}
 .fu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
 @media(max-width:600px){.fu-tit{font-size:24px}.fu-grid{grid-template-columns:1fr}.fu-card-h,.fu-pills{padding-left:14px;padding-right:14px}.fu-body{padding:6px 8px 12px}}
 .gt-card{max-width:100%;margin:0 0 18px;padding:18px 20px 14px;border-radius:24px;border:1px solid rgba(255,255,255,.14);background:radial-gradient(420px 160px at 100% 0,rgba(0,157,216,.16),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
@@ -7131,7 +7133,7 @@ function _futbolFilaPro(m,liga,esResultado,isMob){
       <div style="flex:1;min-width:0;padding:10px 6px 10px 14px">
         ${team(m.homeId,m.home,gh,winH)}
         ${team(m.awayId,m.away,ga,winA)}
-        <div style="margin-top:5px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${ronda.esFinal?'#D97706':mu}">${_futbolDiaLabel(m.utcTime)}${ronda.texto?` · ${ronda.texto}`:''}</div>
+        <div style="margin-top:5px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${ronda.esFinal?'#D97706':mu}">${esResultado?_futbolDiaLabel(m.utcTime):''}${esResultado?(ronda.texto?` · ${ronda.texto}`:''):ronda.texto}</div>
       </div>
       <div style="display:flex;align-items:center;padding-right:8px">${toggle}</div>
     </div>
@@ -7279,7 +7281,9 @@ window._loadFutbolUY = async function(){
     const chip=(t)=>`<span style="flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#4ADE80;border:1px solid rgba(74,222,128,.5);background:rgba(74,222,128,.08);border-radius:999px;padding:5px 12px;margin-top:2px">${t}</span>`;
     const verTablas=`<button onclick="_futTab('tablas')" style="flex-shrink:0;border:none;background:none;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${isMobF?'rgba(239,243,248,.6)':'var(--muted)'};cursor:pointer;margin-top:4px">Ver tablas →</button>`;
     const filasR=resultados.slice(0,8).map(x=>_futbolFilaPro(x.m,x.L,true,isMobF)).join('');
-    const filasA=agenda.slice(0,8).map(x=>_futbolFilaPro(x.m,x.L,false,isMobF)).join('');
+    const _dk=x=>_futbolDiaKey(x.m.utcTime), _dias=[...new Set(agenda.map(_dk))].slice(0,5), _ag=agenda.filter(x=>_dias.includes(_dk(x)));
+    const filasA=_dias.map(dk=>{ const g=_ag.filter(x=>_dk(x)===dk);
+      return `<div class="fu-dia"><span>${_futbolDiaLabel(g[0].m.utcTime)}</span><b>${g.length} ${g.length===1?'partido':'partidos'}</b></div>`+g.map(x=>_futbolFilaPro(x.m,x.L,false,isMobF)).join(''); }).join('');
     const html=(resultados.length||agenda.length)
       ? `<div class="fu-grid">
           ${_futCard('Resultados','Últimos confirmados',chip('Recientes'),filasR,isMobF)}
