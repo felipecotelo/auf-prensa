@@ -855,6 +855,12 @@ table.fu-t td.pos{color:rgba(239,243,248,.5)}
 table.fu-t tr.top td{background:rgba(74,222,128,.07)}
 table.fu-t tr.top td:first-child{box-shadow:inset 3px 0 0 #4ADE80;border-top-left-radius:10px;border-bottom-left-radius:10px}
 table.fu-t tr.top td.p,table.fu-t tr.top td.pos{color:#4ADE80}
+table.fu-t tr.lib td{background:rgba(0,157,216,.08)}
+table.fu-t tr.lib td:first-child{box-shadow:inset 3px 0 0 #009DD8}
+table.fu-t tr.sud td{background:rgba(252,211,77,.06)}
+table.fu-t tr.sud td:first-child{box-shadow:inset 3px 0 0 #FCD34D}
+.fu-leg{display:flex;gap:14px;flex-wrap:wrap;padding:10px 8px 0;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(239,243,248,.55)}
+.fu-leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 table.fu-t tr.risk td{background:rgba(248,113,113,.07)}
 table.fu-t tr.risk td:first-child{box-shadow:inset 3px 0 0 #F87171}
 .fu-src{font-size:10.5px;color:rgba(239,243,248,.4);padding:8px 8px 0;letter-spacing:.02em}
@@ -7073,7 +7079,7 @@ function _futbolDiaLabel(utcTime){
 // Se eligen por nombre del club (el orden importa: "cerro largo" antes que "cerro", "plaza colonia" antes que "colon"); si el club
 // no está en la lista se usa el escudo de 365scores como antes.
 const _ESCUDOS_UY=[['plaza colonia','plazacolonia'],['cerro largo','cerrolargo'],['cerrito','cerrito'],['cerro','cerro'],['colon','colon'],
-  ['albion','albion'],['boston','bostonriver'],['central espanol','central_espanol'],['danubio','danubio'],['defensor','defensor'],['maldonado','maldonado'],
+  ['albion','albion'],['boston','bostonriver'],['central espanol','central_espanol'],['danubio','danubio'],['defensor','defensor'],['def sporting','defensor'],['maldonado','maldonado'],
   ['juventud','juventud'],['liverpool','liverpool'],['city torque','montevideocity'],['montevideo city','montevideocity'],['torque','montevideocity'],
   ['wanderers','wanderers'],['nacional','nacional'],['penarol','penarol'],['progreso','progreso'],['racing','racing'],
   ['atenas','atenas'],['fenix','fenix'],['huracan','huracan'],['la luz','la_luz'],['miramar','miramar_misiones'],['oriental','oriental'],
@@ -7170,21 +7176,36 @@ window._futGoles = async function(id){
 // hay que refrescarla manualmente cuando cambien los promedios.
 // Tabla de descenso — se trae en vivo de auf.org.uy (server.js la scrapea y cachea
 // 1 hora), ya no es una foto fija cargada a mano.
+const _FUT_LIB=4,_FUT_SUD=4;
+function _futAnual(tablas){
+  const key=n=>_escudoLocal(n)||String(n).toLowerCase(), acc={};
+  tablas.filter(t=>/apertura|intermedio|clausura/i.test(t.nombre)).forEach(t=>t.filas.forEach(r=>{
+    const k=key(r.name), a=acc[k]||(acc[k]={name:r.name,pj:0,w:0,d:0,l:0,gf:0,gc:0,pts:0});
+    ['pj','w','d','l','gf','gc','pts'].forEach(f=>a[f]+=(+r[f]||0));
+  }));
+  const f=Object.values(acc).map(a=>({...a,dif:a.gf-a.gc})).sort((x,y)=>y.pts-x.pts||y.dif-x.dif||y.gf-x.gf);
+  f.forEach((r,i)=>r.pos=i+1);
+  return f;
+}
+function _futEscT(nombre){
+  const l=_escudoLocal(nombre);
+  return l?`<img src="${l}" style="width:22px;height:22px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`:`<span style="width:22px;height:22px;flex-shrink:0;border-radius:50%;background:rgba(255,255,255,.08)"></span>`;
+}
 function _descensoTablaHTML(filas){
   if(!filas||!filas.length) return `<div style="padding:16px;text-align:center;color:rgba(239,243,248,.5);font-size:.85em">No se pudo cargar la tabla de descenso ahora.</div>`;
-  const filasHTML=filas.map((r,i)=>`<tr class="${i>=filas.length-3?'risk':''}"><td class="pos">${r.pos}</td><td class="n">${r.name}</td><td class="p">${r.prom.toFixed(3)}</td><td>${r.pts}</td><td>${r.pj}</td><td>${r.dif>0?'+':''}${r.dif}</td></tr>`).join('');
+  const filasHTML=filas.map((r,i)=>`<tr class="${i>=filas.length-3?'risk':''}"><td class="pos">${r.pos}</td><td class="n"><span style="display:inline-flex;align-items:center;gap:9px">${_futEscT(r.name)}${r.name}</span></td><td class="p">${r.prom.toFixed(3)}</td><td>${r.pts}</td><td>${r.pj}</td><td>${r.dif>0?'+':''}${r.dif}</td></tr>`).join('');
   return `<table class="fu-t"><thead><tr><th>#</th><th class="l">Equipo</th><th>Prom</th><th>Pts</th><th>PJ</th><th>DIF</th></tr></thead><tbody>${filasHTML}</tbody></table>
     <div class="fu-src">Fuente: auf.org.uy (tabla oficial) · se actualiza sola.</div>`;
 }
-function _futbolSubtablaHTML(filas){
-  const filasHTML=filas.map((r,i)=>`<tr class="${i===0?'top':''}"><td class="pos">${r.pos}</td><td class="n">${r.name}${r.campeon?' <span style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#FCD34D;margin-left:6px">Campeón</span>':''}</td><td>${r.pj}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf ?? '—'}</td><td>${r.gc ?? '—'}</td><td>${r.dif>0?'+':''}${r.dif ?? '—'}</td><td class="p">${r.pts}</td></tr>`).join('');
-  return `<table class="fu-t"><thead><tr><th>#</th><th class="l">Equipo</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DIF</th><th>PTS</th></tr></thead><tbody>${filasHTML}</tbody></table>`;
+function _futbolSubtablaHTML(filas,anual){
+  const filasHTML=filas.map((r,i)=>`<tr class="${anual?(i<_FUT_LIB?'lib':i<_FUT_LIB+_FUT_SUD?'sud':''):(i===0?'top':'')}"><td class="pos">${r.pos}</td><td class="n"><span style="display:inline-flex;align-items:center;gap:9px">${_futEscT(r.name)}${r.name}${r.campeon?' <span style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#FCD34D;margin-left:6px">Campeón</span>':''}</span></td><td>${r.pj}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf ?? '—'}</td><td>${r.gc ?? '—'}</td><td>${r.dif>0?'+':''}${r.dif ?? '—'}</td><td class="p">${r.pts}</td></tr>`).join('');
+  return `<table class="fu-t"><thead><tr><th>#</th><th class="l">Equipo</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DIF</th><th>PTS</th></tr></thead><tbody>${filasHTML}</tbody></table>${anual?`<div class="fu-leg"><span><i style="background:#009DD8"></i>Copa Libertadores</span><span><i style="background:#FCD34D"></i>Copa Sudamericana</span></div><div class="fu-src">Suma de Apertura, Intermedio y Clausura. Cupos según el esquema de la temporada pasada (4 + 4); a confirmar con el reglamento.</div>`:''}`;
 }
 function _futbolTablaHTML(nombre,key,liga){
   const tablas=liga.tablas||[];
   if(!tablas.length) return '';
   const pills=tablas.map((t,i)=>`<button class="${i===0?'on':''}" onclick="_futFase('${key}',${i})" data-fut-fase="${key}:${i}">${t.nombre}</button>`).join('');
-  const panels=tablas.map((t,i)=>`<div data-fut-fase-panel="${key}:${i}" style="${i===0?'':'display:none'}">${t.esDescenso?_descensoTablaHTML(t.filas):_futbolSubtablaHTML(t.filas)}</div>`).join('');
+  const panels=tablas.map((t,i)=>`<div data-fut-fase-panel="${key}:${i}" style="${i===0?'':'display:none'}">${t.esDescenso?_descensoTablaHTML(t.filas):_futbolSubtablaHTML(t.filas,t.esAnual)}</div>`).join('');
   return `<div class="fu-card">
     <div class="fu-card-h"><span class="lab">${nombre}</span></div>
     <div class="fu-pills">${pills}</div>
@@ -7268,6 +7289,7 @@ window._loadFutbolUY = async function(){
     document.querySelectorAll('.fut-body').forEach(e=>e.innerHTML=html||'Sin datos disponibles.');
     window._futHtmlCache={fecha:TODAY,html:html||''};
     // La tabla de descenso (promedios) no la da FotMob — se agrega como pestaña extra fija.
+    if(d.primera?.tablas?.length){ const fa=_futAnual(d.primera.tablas); if(fa.length) d.primera.tablas.push({nombre:'Anual', esAnual:true, filas:fa}); }
     if(d.primera?.tablas?.length) d.primera.tablas.push({nombre:'Descenso', esDescenso:true, filas:descensoFilas});
     const htmlTablas=_futbolTablaHTML('Liga AUF Uruguaya','primera',d.primera)+_futbolTablaHTML('Segunda Profesional AUF','segunda',d.segunda);
     document.querySelectorAll('.fut-tablas').forEach(e=>e.innerHTML=htmlTablas||'Sin datos disponibles.');
