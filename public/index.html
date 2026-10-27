@@ -1040,6 +1040,19 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .tk-add input{flex:1;height:38px;padding:0 16px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#F4F7FB;font-size:13px;outline:none}
 .tk-add input:focus{border-color:rgba(138,216,255,.6)}
 .tk-add button{width:38px;height:38px;border-radius:50%;border:none;background:#009DD8;color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:16px;padding:0}
+.tk-tags{display:inline-flex;gap:8px;flex-shrink:0;margin-top:3px}
+.tk-tag{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.85;white-space:nowrap}
+.tk-ic.tg{opacity:0;transition:opacity .15s}
+.tk-row:hover .tk-ic.tg,.tk-ic.tg.has{opacity:1}
+@media(hover:none){.tk-ic.tg{opacity:.5}}
+#tk-pop{border-radius:18px;border:1px solid rgba(255,255,255,.16);padding:12px 12px 10px;background:linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 16px 40px rgba(0,0,0,.55)}
+.tk-pop-eye{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.55);margin-bottom:8px}
+.tk-pop-chips{display:flex;flex-wrap:wrap;gap:6px}
+.tk-pc{height:24px;padding:0 11px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:transparent;color:rgba(239,243,248,.7);font:600 11.5px inherit;font-family:inherit;cursor:pointer}
+.tk-pc:hover{border-color:var(--c)}
+.tk-pc.on{color:var(--c);border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.tk-txt{white-space:pre-wrap;cursor:text}
+.tk-txt b{font-weight:700;color:#fff}
 .ar-ban{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:999px;margin-bottom:8px;font-size:12px;line-height:1.4;color:rgba(239,243,248,.8);border:1px solid}
 .ar-ban strong{color:#F4F7FB}
 .ar-ban i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -8119,12 +8132,57 @@ function _migrarFallecidoUnico(){
 }
 _migrarFallecidoUnico();
 setTimeout(_migrarFallecidoUnico, 4000);
+// Etiquetas de tareas (opcionales, campo `tags` en cada tarea de auf4_tareas_log; las tareas viejas no cambian)
+const TK_TAGS=[
+  {id:'mayor',label:'Mayor',color:'#22D3EE',alias:['mayor']},
+  {id:'local',label:'Local',color:'#86EFAC',alias:['local']},
+  {id:'sub23',label:'Sub-23',color:'#94A3B8',alias:['sub23','s23']},
+  {id:'sub20',label:'Sub-20',color:'#FB923C',alias:['sub20','s20']},
+  {id:'sub17',label:'Sub-17',color:'#FACC15',alias:['sub17','s17']},
+  {id:'sub16',label:'Sub-16',color:'#B388EB',alias:['sub16','s16']},
+  {id:'sub15',label:'Sub-15',color:'#7C9BFF',alias:['sub15','s15']},
+  {id:'complejo',label:'Complejo Celeste',color:'#7DD3FC',alias:['complejo','celeste','cc']},
+];
+// Etiqueta que hereda el recordatorio de una tarea: la primera etiqueta de la tarea (o 'Tarea' si no tiene)
+function _tkEtiqueta(t){ const g=t&&t.tags&&t.tags.length?TK_TAGS.find(x=>x.id===t.tags[0]):null; return g?g.label:'Tarea'; }
+function _tkTagsHtml(tags){
+  return (tags||[]).map(id=>TK_TAGS.find(t=>t.id===id)).filter(Boolean).map(t=>`<span class="tk-tag" style="color:${t.color}">${t.label}</span>`).join('');
+}
+window._tkTagPop=function(idx,btn){
+  document.getElementById('tk-pop')?.remove();
+  const list=_tareasLog(); const t=list[idx]; if(!t) return;
+  const r=btn.getBoundingClientRect();
+  const d=document.createElement('div'); d.id='tk-pop'; d.dataset.idx=idx;
+  d.style.cssText=`position:fixed;z-index:9500;top:${Math.min(r.bottom+6,innerHeight-250)}px;left:${Math.max(8,Math.min(r.right-230,innerWidth-238))}px;width:230px`;
+  const draw=()=>{ const cur=(_tareasLog()[idx]||{}).tags||[]; d.innerHTML=`<div class="tk-pop-eye">Etiquetas</div><div class="tk-pop-chips">${TK_TAGS.map(g=>`<button class="tk-pc${cur.includes(g.id)?' on':''}" style="--c:${g.color}" onclick="_tkToggleTag(${idx},'${g.id}')">${g.label}</button>`).join('')}</div>`; };
+  draw(); document.body.appendChild(d); d._draw=draw;
+  setTimeout(()=>document.addEventListener('click',function h(e){ if(!d.contains(e.target)&&!btn.contains(e.target)){ d.remove(); document.removeEventListener('click',h); } else if(document.body.contains(d)) document.addEventListener('click',h,{once:true}); },{once:true}),10);
+};
+window._tkToggleTag=function(idx,id){
+  const list=_tareasLog(); const t=list[idx]; if(!t) return;
+  const cur=Array.isArray(t.tags)?t.tags.slice():[];
+  const i=cur.indexOf(id); if(i>=0) cur.splice(i,1); else cur.push(id);
+  if(cur.length) t.tags=cur; else delete t.tags;
+  stor.set(KTareasLog,list);
+  const pop=document.getElementById('tk-pop'); if(pop&&pop._draw) pop._draw();
+  const slot=document.querySelector(`.tk-row[data-tarea-idx="${idx}"] .tk-tags`); if(slot) slot.innerHTML=_tkTagsHtml(t.tags);
+  if(t.recId) _tareaRecSync(t.recId,{etiqueta:_tkEtiqueta(t)}); // el recordatorio de la tarea hereda la etiqueta
+};
+// "#sub16 texto" al cargar una tarea: las palabras con # que coinciden con una etiqueta la ponen y se sacan del texto
+function _tkParseTags(txt){
+  const tags=[]; const out=txt.replace(/(^|\s)#([\p{L}\p{N}]+)/gu,(m,sp,w)=>{
+    const g=TK_TAGS.find(t=>t.alias.includes(w.toLowerCase())); if(!g) return m; if(!tags.includes(g.id)) tags.push(g.id); return sp;
+  }).replace(/\s{2,}/g,' ').trim();
+  return {txt:out,tags};
+}
 window._inicioTareaAdd=function(){
   const inp=document.getElementById('inicio-tarea-inp');
-  const txt=(inp?.value||'').trim();
-  if(!txt) return;
+  const raw=(inp?.value||'').trim();
+  if(!raw) return;
+  const pr=_tkParseTags(raw); const txt=pr.txt||raw;
   const list=_tareasLog();
-  list.push({txt,done:false,fecha:TODAY});
+  const nueva={txt,done:false,fecha:TODAY}; if(pr.tags.length) nueva.tags=pr.tags;
+  list.push(nueva);
   stor.set(KTareasLog,list);
   renderInicio();
 };
@@ -8171,7 +8229,7 @@ window._tareaRecGuardar=function(idx){
   const hora=document.getElementById('tarea-rec-h-'+idx)?.value||'';
   const l=_recGet(); let r=t.recId?l.find(x=>x.id===t.recId):null;
   if(!r){ r={id:'tarea-'+Date.now(),tareaRef:true,etiqueta:'Tarea',hecho:false}; l.push(r); t.recId=r.id; }
-  Object.assign(r,{titulo:t.txt,detalle:'De tu lista de tareas',vence:fecha,hora:hora||'09:00',hecho:false}); delete r.hechoEn;
+  Object.assign(r,{titulo:t.txt,detalle:'De tu lista de tareas',etiqueta:_tkEtiqueta(t),vence:fecha,hora:hora||'09:00',hecho:false}); delete r.hechoEn;
   if(hora){ delete r.sinHora; } else { r.sinHora=true; }
   stor.set(KRecordatorios,l); stor.set(KTareasLog,list);
   renderInicio();
@@ -8195,12 +8253,39 @@ window._inicioTareaDel=function(idx){
   stor.set(KTareasLog,list,{allowShrink:true});
   renderInicio();
 };
+// Negrita en tareas (Ctrl/Cmd+B): el texto plano queda en `txt` (recordatorios, historial, búsqueda) y el formato, solo <b>, en `html`
+function _tkSanitize(html){
+  const box=document.createElement('div'); box.innerHTML=String(html||'');
+  const esc=x=>x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const walk=n=>{ let o=''; n.childNodes.forEach(c=>{
+    if(c.nodeType===3) o+=esc(c.textContent);
+    else if(c.nodeType===1){ const tag=c.tagName.toLowerCase(); if(tag==='script'||tag==='style') return; const inner=walk(c);
+      if(tag==='b'||tag==='strong') o+=inner?`<b>${inner}</b>`:'';
+      else if(tag==='br'||tag==='div'||tag==='p') o+=' '+inner; else o+=inner; } }); return o; };
+  return walk(box).replace(/\s{2,}/g,' ').trim();
+}
+window._tkKey=function(e,el){
+  if(e.key==='Enter'){ e.preventDefault(); el.blur(); return; }
+  if((e.metaKey||e.ctrlKey)&&!e.altKey){
+    const k=e.key.toLowerCase();
+    if(k==='b'){ e.preventDefault(); document.execCommand('bold'); return; }
+    if(k==='i'||k==='u'){ e.preventDefault(); }   // solo negrita
+  }
+};
+window._tkPaste=function(e){ e.preventDefault(); const t=(e.clipboardData||window.clipboardData).getData('text/plain').replace(/\s*\n\s*/g,' '); document.execCommand('insertText',false,t); };
 window._inicioTareaEdit=function(idx,value){
   const list=_tareasLog();
-  const txt=(value||'').trim();
-  if(!txt || !list[idx]) return;
-  list[idx].txt=txt;
-  _tareaRecSync(list[idx].recId,{titulo:txt});
+  if(!list[idx]) return;
+  let txt, html=null;
+  if(value && typeof value==='object'){ html=_tkSanitize(value.innerHTML); txt=(value.innerText||'').replace(/\s+/g,' ').trim(); }
+  else txt=(value||'').trim();
+  if(!txt) return;
+  const t=list[idx];
+  if(txt===t.txt && html===null) return;
+  if(html!==null && txt===t.txt && (t.html||null)===(/<b>/.test(html)?html:null)) return;   // sin cambios
+  t.txt=txt;
+  if(html!==null && /<b>/.test(html)) t.html=html; else delete t.html;                       // sin negrita, o editado como texto plano: se descarta el formato
+  _tareaRecSync(t.recId,{titulo:txt});
   stor.set(KTareasLog,list);
 };
 // Ajusta la altura de los <textarea> de tareas al contenido real. NO usamos
@@ -8762,8 +8847,10 @@ function renderInicioTareas(){
       const tip=act?`Recordatorio: ${rc.vence.split('-').reverse().join('/')}${rc.sinHora?'':' '+(rc.hora||'')} — tocá para cambiarlo`:'Ponerle recordatorio';
       return `<div class="tk-row${t.done?' done':''}" data-tarea-idx="${t.idx}">
         <input class="tk-ck" type="checkbox" ${t.done?'checked':''} onchange="window._inicioTareaToggle(${t.idx})">
-        <textarea rows="1" class="tarea-txt tk-txt" onblur="window._inicioTareaEdit(${t.idx},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" oninput="_sizeTareaTAs()">${taTxt}</textarea>
+        <div class="tk-txt" contenteditable="true" spellcheck="false" data-idx="${t.idx}" onblur="window._inicioTareaEdit(${t.idx},this)" onkeydown="_tkKey(event,this)" onpaste="_tkPaste(event)">${t.html?_tkSanitize(t.html):taTxt}</div>
+        <span class="tk-tags">${_tkTagsHtml(t.tags)}</span>
         ${esVieja?`<span class="tk-pend">Pend. ${d}/${mo}</span>`:''}
+        <button class="tk-ic tg${(t.tags&&t.tags.length)?' has':''}" onclick="_tkTagPop(${t.idx},this)" title="Etiquetas"><i class="ti ti-tag"></i></button>
         <button class="tk-ic${act?' on':''}" onclick="window._tareaRecAbrir(${t.idx})" title="${tip}"><i class="ti ${act?'ti-bell-ringing':'ti-bell'}"></i></button>
         <button class="tk-ic" onclick="window._inicioTareaDel(${t.idx})" title="Eliminar"><i class="ti ti-x"></i></button>
       </div>`; }).join('');
