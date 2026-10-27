@@ -1005,6 +1005,26 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .add-act-btn{width:100%;height:38px;margin-top:10px;border-radius:999px!important;border:1px dashed rgba(138,216,255,.5)!important;background:rgba(0,157,216,.06)!important;color:#8AD8FF!important;font:700 11px inherit;font-family:inherit;letter-spacing:.16em;text-transform:uppercase}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cl-eye{margin:14px 0 6px;font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.55)}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-day-note{border-radius:16px!important;border:1px solid rgba(255,255,255,.14)!important;background:rgba(255,255,255,.04)!important;color:#F4F7FB!important;padding:10px 14px}
+.md-card{border-radius:22px;border:1px solid rgba(255,255,255,.14);padding:16px 20px;background:radial-gradient(360px 140px at 100% 0,rgba(0,157,216,.12),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
+.md-top{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.md-id{flex:1;min-width:200px}
+.md-prog{font-family:'Space Grotesk','Inter',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.15;color:#F4F7FB}
+.md-medio{margin-top:3px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.55)}
+.md-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-top:3px}
+.md-tg{height:22px;display:inline-flex;align-items:center;padding:0 11px;border-radius:999px;border:1px solid;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.md-tg.neu{color:rgba(239,243,248,.65);border-color:rgba(255,255,255,.2);background:transparent}
+.md-acts{display:inline-flex;gap:5px;flex-shrink:0}
+.md-act{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:transparent;color:rgba(239,243,248,.6);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+.md-act:hover{color:#8AD8FF;border-color:rgba(138,216,255,.5)}.md-act.del:hover{color:#F87171;border-color:rgba(248,113,113,.55)}
+.md-pp{display:flex;gap:12px;align-items:flex-start;margin-top:12px}
+.md-lb{width:88px;flex-shrink:0;padding-top:4px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.45)}
+.md-chips{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+.md-ch{padding:3px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);font-size:12.5px;color:#F4F7FB}
+.md-ch.lt{color:rgba(239,243,248,.5);border-style:dashed}
+.md-more{padding:3px 11px;border-radius:999px;border:1px solid rgba(138,216,255,.45);background:transparent;color:#8AD8FF;font:700 11px inherit;font-family:inherit;cursor:pointer}
+.md-foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)}
+.md-em{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 12px;border-radius:999px;border:1px solid rgba(138,216,255,.4);background:rgba(0,157,216,.1);color:#8AD8FF;font-size:12px;font-weight:600}
+.md-nt{font-size:12px;color:rgba(239,243,248,.6)}
 .ar-ban{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:999px;margin-bottom:8px;font-size:12px;line-height:1.4;color:rgba(239,243,248,.8);border:1px solid}
 .ar-ban strong{color:#F4F7FB}
 .ar-ban i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -39685,6 +39705,30 @@ function _medGetMediosKnown(){
   return [...set].sort();
 }
 
+// Tarjeta de un medio/programa (estilo nuevo): se usa en la lista y en el buscador
+const _MED_FMT_DARK={TV:'#8AD8FF',Radio:'#67E8F9','Prensa escrita':'#FB923C',Streaming:'#FCD34D',Mixto:'#94A3B8'};
+window._medMore=function(btn){ const box=btn.closest('.md-chips'); const open=btn.dataset.open==='1'; box.querySelectorAll('.md-ch.x').forEach(c=>c.style.display=open?'none':''); btn.dataset.open=open?'0':'1'; btn.textContent=open?`+${btn.dataset.n}`:'menos'; };
+function _medPeopleHtml(label,val){
+  if(Array.isArray(val)&&val.length){
+    const first=val.slice(0,4), rest=val.slice(4);
+    return `<div class="md-pp"><span class="md-lb">${label}</span><div class="md-chips">${first.map(n=>`<span class="md-ch">${n}</span>`).join('')}${rest.map(n=>`<span class="md-ch x" style="display:none">${n}</span>`).join('')}${rest.length?`<button class="md-more" data-n="${rest.length}" onclick="_medMore(this)">+${rest.length}</button>`:''}</div></div>`;
+  }
+  if(val==='luego') return `<div class="md-pp"><span class="md-lb">${label}</span><div class="md-chips"><span class="md-ch lt">Por agregar</span></div></div>`;
+  return '';
+}
+function _medCardHtml(m,i){
+  const fm=(m.formatos||[m.formato]).filter(Boolean);
+  const emi=_medEmisionStr(m.emision);
+  return `<div class="md-card">
+    <div class="md-top">
+      <div class="md-id"><div class="md-prog">${m.programa||'—'}</div>${m.medio?`<div class="md-medio">${m.medio}</div>`:''}</div>
+      <div class="md-tags">${fm.map(f=>{const c=_MED_FMT_DARK[f]||'#94A3B8'; return `<span class="md-tg" style="color:${c};border-color:${c}66;background:${c}14">${f}</span>`;}).join('')}${m.pais?`<span class="md-tg neu">${m.pais}</span>`:''}</div>
+      <span class="md-acts"><button class="md-act" onclick="_medEdit(${i})" title="Editar"><i class="ti ti-pencil"></i></button><button class="md-act del" onclick="_medDel(${i})" title="Eliminar"><i class="ti ti-trash"></i></button></span>
+    </div>
+    ${_medPeopleHtml('Periodistas',m.periodistas)}${_medPeopleHtml('Productores',m.productores)}
+    ${(emi||m.notas)?`<div class="md-foot">${emi?`<span class="md-em"><i class="ti ti-clock"></i>${emi}</span>`:''}${m.notas?`<span class="md-nt">${m.notas}</span>`:''}</div>`:''}
+  </div>`;
+}
 let _medQ = '';
 function _medSearch(el){ _medQ=el.value; _medRenderRows(); }
 function _medRenderRows(){
@@ -39699,26 +39743,7 @@ function _medRenderRows(){
   const rowsEl=document.getElementById('med-rows');
   if(!rowsEl) return;
   rowsEl.innerHTML = filtered.length ? filtered.map(m=>{ const i=list.indexOf(m);
-    const periStr=Array.isArray(m.periodistas)?m.periodistas.join(', '):(m.periodistas==='luego'?'Agregar luego':'');
-    const prodStr=Array.isArray(m.productores)?m.productores.join(', '):(m.productores==='luego'?'Agregar luego':'');
-    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
-          <span style="font-size:.92em;font-weight:900;color:var(--text)">${m.programa||'—'}</span>
-          ${(m.formatos||[m.formato]).filter(Boolean).map(f=>`<span style="font-size:.68em;font-weight:700;border-radius:20px;padding:2px 9px;background:${fmtColor(f)}18;color:${fmtColor(f)}">${f}</span>`).join('')}
-          ${m.pais?`<span style="font-size:.68em;color:var(--muted)">${m.pais}</span>`:''}
-        </div>
-        <div style="font-size:.78em;font-weight:700;color:var(--muted)">${m.medio||''}</div>
-        ${periStr?`<div style="font-size:.73em;color:var(--text);margin-top:5px"><span style="color:var(--muted)">Periodistas:</span> ${periStr}</div>`:''}
-        ${prodStr?`<div style="font-size:.73em;color:var(--text);margin-top:2px"><span style="color:var(--muted)">Productores:</span> ${prodStr}</div>`:''}
-        ${_medEmisionStr(m.emision)?`<div style="font-size:.72em;color:var(--muted);margin-top:4px"><i class="ti ti-clock" style="font-size:.9em"></i> ${_medEmisionStr(m.emision)}</div>`:''}
-        ${m.notas?`<div style="font-size:.72em;color:var(--muted);margin-top:4px;background:var(--surface);border-radius:6px;padding:3px 8px">${m.notas}</div>`:''}
-      </div>
-      <div style="display:flex;gap:4px;flex-shrink:0;margin-top:2px">
-        <button onclick="_medEdit(${i})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
-        <button onclick="_medDel(${i})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
-      </div>
-    </div>`;
+    return _medCardHtml(m,i);
   }).join('')
   : `<div style="text-align:center;padding:32px;color:var(--muted);font-size:.85em">Sin resultados para "${_medQ}"</div>`;
 }
@@ -39729,28 +39754,7 @@ function _renderMediosDB(){
   const list = _mediosGetAll();
   const fmtColor = f => _MED_FORMATO_COLORS[f]||'#6B7280';
 
-  const rows = list.length ? list.map((m,i)=>{
-    const periStr = Array.isArray(m.periodistas) ? m.periodistas.join(', ') : (m.periodistas==='luego'?'Agregar luego':'');
-    const prodStr = Array.isArray(m.productores) ? m.productores.join(', ') : (m.productores==='luego'?'Agregar luego':'');
-    return `<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
-          <span style="font-size:.92em;font-weight:900;color:var(--text)">${m.programa||'—'}</span>
-          ${(m.formatos||[m.formato]).filter(Boolean).map(f=>`<span style="font-size:.68em;font-weight:700;border-radius:20px;padding:2px 9px;background:${fmtColor(f)}18;color:${fmtColor(f)}">${f}</span>`).join('')}
-          ${m.pais?`<span style="font-size:.68em;color:var(--muted)">${m.pais}</span>`:''}
-        </div>
-        <div style="font-size:.78em;font-weight:700;color:var(--muted)">${m.medio||''}</div>
-        ${periStr?`<div style="font-size:.73em;color:var(--text);margin-top:5px"><span style="color:var(--muted)">Periodistas:</span> ${periStr}</div>`:''}
-        ${prodStr?`<div style="font-size:.73em;color:var(--text);margin-top:2px"><span style="color:var(--muted)">Productores:</span> ${prodStr}</div>`:''}
-        ${_medEmisionStr(m.emision)?`<div style="font-size:.72em;color:var(--muted);margin-top:4px"><i class="ti ti-clock" style="font-size:.9em"></i> ${_medEmisionStr(m.emision)}</div>`:''}
-        ${m.notas?`<div style="font-size:.72em;color:var(--muted);margin-top:4px;background:var(--surface);border-radius:6px;padding:3px 8px">${m.notas}</div>`:''}
-      </div>
-      <div style="display:flex;gap:4px;flex-shrink:0;margin-top:2px">
-        <button onclick="_medEdit(${i})" style="border:none;background:var(--surface);border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:var(--text)"><i class="ti ti-pencil"></i></button>
-        <button onclick="_medDel(${i})" style="border:none;background:#FEF2F2;border-radius:7px;padding:3px 8px;font-size:.75em;cursor:pointer;color:#DC2626"><i class="ti ti-trash"></i></button>
-      </div>
-    </div>`;
-  }).join('')
+  const rows = list.length ? list.map((m,i)=>_medCardHtml(m,i)).join('')
   : `<div style="text-align:center;padding:48px 24px;color:var(--muted)">
       <i class="ti ti-device-tv" style="font-size:2.5em;display:block;margin-bottom:12px;opacity:.3"></i>
       <div style="font-weight:700;margin-bottom:4px">Sin medios cargados</div>
@@ -39763,7 +39767,7 @@ function _renderMediosDB(){
     <div style="max-width:1000px;margin:0 auto;padding:0 16px 16px">
       <div style="position:relative;margin-bottom:16px">
         <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9em;pointer-events:none"></i>
-        <input type="text" value="${_medQ}" oninput="_medSearch(this)" placeholder="Buscar por programa, medio, periodista…" style="width:100%;padding:9px 12px 9px 34px;border:1.5px solid var(--border);border-radius:11px;font-size:.86em;box-sizing:border-box;background:#fff">
+        <input type="text" value="${_medQ}" oninput="_medSearch(this)" placeholder="Buscar por programa, medio, periodista…" style="width:100%;height:42px;padding:0 16px 0 38px;border:1px solid rgba(255,255,255,.16);border-radius:999px;font-size:.9em;box-sizing:border-box;background:rgba(255,255,255,.04);color:#F4F7FB;outline:none">
       </div>
       <div id="med-rows" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
