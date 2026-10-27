@@ -1006,7 +1006,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .jf-pos{font-size:10.5px;font-weight:700;letter-spacing:.14em;padding:3px 11px;border-radius:999px;border:1px solid;cursor:pointer}
 .jf-st{font-size:11px;color:rgba(239,243,248,.55)}
 .jf-st b{font-family:'Space Grotesk','Inter',sans-serif;font-size:15px;color:#F4F7FB;margin-right:3px}
-.jf-les{display:inline-flex;align-items:center;gap:6px;max-width:100%;font-size:11px;font-weight:700;color:#FCA5A5;border:1px solid rgba(248,113,113,.5);background:rgba(248,113,113,.1);border-radius:999px;padding:3px 11px;align-self:flex-start;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.jf-les em{font-style:normal;font-weight:500;opacity:.8}.jf-les i{font-size:13px}
+.jf-mid>*{flex-shrink:0}
+.jf-les{flex-shrink:0;min-height:26px;box-sizing:border-box;line-height:1.2;display:inline-flex;align-items:center;gap:6px;max-width:100%;font-size:11px;font-weight:700;color:#FCA5A5;border:1px solid rgba(248,113,113,.5);background:rgba(248,113,113,.1);border-radius:999px;padding:3px 11px;align-self:flex-start;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.jf-les em{font-style:normal;font-weight:500;opacity:.8}.jf-les i{font-size:13px}
 .jf-tags{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .jf-h{font-size:10.5px;font-weight:600;border-radius:999px;padding:2px 9px}
 .jf-hj{cursor:pointer;color:#8AD8FF!important;background:rgba(0,157,216,.14)!important;border:1px solid rgba(138,216,255,.4)}
@@ -23356,7 +23357,7 @@ function buildDTInfoHtml(dtId){
         <div class="dt-nm" style="font-size:28px">Diego Forlán Corazo<em class="sh-tg gold">Cachavacha</em></div>
         <div class="dt-sub">${flagImg('uy',14)}<span>Montevideo, Uruguay · 19 de mayo de 1979 · <b style="color:#F4F7FB">${edad} años</b></span></div>
         <div class="dt-per">Delantero / mediapunta · 1,80 m · Ex futbolista, hoy <b>DT interino de la Selección Mayor</b> y <b>DT de la Sub-20</b></div>
-        <div class="fo-links">${L('Instagram @diegoforlancorazo','https://www.instagram.com/diegoforlancorazo/')}${L('Wikipedia','https://es.wikipedia.org/wiki/Diego_Forl%C3%A1n')}${L('Transfermarkt · entrenador','https://www.transfermarkt.es/diego-forlan/profil/trainer/75562')}${L('Transfermarkt · jugador','https://www.transfermarkt.es/diego-forlan/profil/spieler/38460')}${L('Ficha en AUF','https://www.auf.org.uy/diego-forlan/')}</div>
+        <div class="fo-links">${L('<i class="ti ti-brand-instagram"></i>Instagram @diegoforlancorazo','https://www.instagram.com/diegoforlancorazo/')}${L('<i class="ti ti-brand-x"></i>X @DiegoForlan7','https://x.com/DiegoForlan7')}${L('<i class="ti ti-brand-facebook"></i>Facebook','https://www.facebook.com/DiegoForlanOficial')}${L('<i class="ti ti-world"></i>diegoforlan.com','http://www.diegoforlan.com/')}${L('Wikipedia','https://es.wikipedia.org/wiki/Diego_Forl%C3%A1n')}${L('Transfermarkt · entrenador','https://www.transfermarkt.es/diego-forlan/profil/trainer/75562')}${L('Transfermarkt · jugador','https://www.transfermarkt.es/diego-forlan/profil/spieler/38460')}${L('Ficha en AUF','https://www.auf.org.uy/diego-forlan/')}</div>
       </div>
     </div>
 
@@ -23381,12 +23382,24 @@ function buildDTInfoHtml(dtId){
 
     <div class="es-grid" style="margin-top:14px">
       <div class="es-card" style="--dc:#4ADE80"><div class="es-h" style="cursor:default"><i class="dot"></i><span class="nm">Familia de fútbol</span></div>
-        <div class="es-row" style="cursor:default"><span class="es-av ini" style="--dc:#4ADE80">PF</span><div style="flex:1"><div class="es-nm">Pablo Forlán</div><div class="es-rol">Padre · futbolista</div></div></div>
-        <div class="es-row" style="cursor:default"><span class="es-av ini" style="--dc:#4ADE80">JC</span><div style="flex:1"><div class="es-nm">Juan Carlos Corazzo</div><div class="es-rol">Abuelo materno · DT de Uruguay en el Mundial de 1962</div></div></div>
+        ${(()=>{
+          const nz=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z ]/g,'').replace(/\s+/g,' ').trim();
+          const fam=(nom,rol,alias)=>{
+            const k=nz(alias||nom), kz=k.replace(/z/g,'');
+            const dt=(typeof DT_MAYOR_HIST!=='undefined'?DT_MAYOR_HIST:[]).find(d=>nz(d.name).replace(/z/g,'')===kz);
+            const jk=Object.keys(typeof JUGADORES!=='undefined'?JUGADORES:{}).find(x=>nz(x)===k);
+            let foto='', go='';
+            if(dt){ foto=dt.foto||''; go=`showSection('mayor');showTab('tecnicos');selectDT('hist-'+'${dt.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}')`; }
+            else if(jk){ foto=(window._getPhotoByName?.(jk))||JUGADORES[jk].foto||''; go=`window._gnavGo('mayor','${_encJs(jk)}')`; }
+            const ini=nom.split(' ').map(w=>w[0]).slice(0,2).join('');
+            return `<div class="es-row"${go?` onclick="${go}" title="Abrir su ficha"`:' style="cursor:default"'}>${foto?`<img class="es-av" src="${foto}" onerror="this.outerHTML='<span class=&quot;es-av ini&quot;>${ini}</span>'">`:`<span class="es-av ini" style="--dc:#4ADE80">${ini}</span>`}<div style="flex:1;min-width:0"><div class="es-nm">${nom}</div><div class="es-rol">${rol}</div></div>${go?'<i class="ti ti-chevron-right es-ch"></i>':''}</div>`;
+          };
+          return fam('Pablo Forlán','Padre · ex futbolista')+fam('Pablo Forlán','Hermano · ex futbolista')+fam('Juan Carlos Corazzo','Abuelo materno · DT de Uruguay en el Mundial de 1962','Juan Carlos Corazo');
+        })()}
       </div>
       <div class="es-card" style="--dc:#A3E635"><div class="es-h" style="cursor:default"><i class="dot"></i><span class="nm">Dato institucional</span></div>
-        <div class="es-row" style="cursor:default"><i class="ti ti-building-museum" style="color:#A3E635;font-size:18px;width:38px;text-align:center"></i><div style="flex:1"><div class="es-nm">Embajador internacional del Museo de la FIFA</div><div class="es-rol">desde julio de 2021</div></div></div>
-        <div class="es-row" style="cursor:default"><i class="ti ti-file-text" style="color:#A3E635;font-size:18px;width:38px;text-align:center"></i><div style="flex:1"><div class="es-nm">Vínculo con AUF</div><div class="es-rol">1° ago 2026 – elecciones de presidencia (aprox. mar 2027)</div></div></div>
+        <div class="es-row" style="cursor:default"><span class="es-cr"><img src="./escudos-club/fifa.png" alt="FIFA" style="max-width:30px"></span><div style="flex:1"><div class="es-nm">Embajador internacional del Museo de la FIFA</div><div class="es-rol">desde julio de 2021</div></div></div>
+        <div class="es-row" style="cursor:default"><span class="es-cr">${_escudoSeleccion('Uruguay',28)}</span><div style="flex:1"><div class="es-nm">Vínculo con AUF</div><div class="es-rol">1° ago 2026 – elecciones de presidencia (aprox. mar 2027)</div></div></div>
       </div>
     </div>
     <div class="sx-foot" style="border:none">Fuentes: Wikipedia, Transfermarkt y la ficha histórica de AUF. Los datos de clubes (partidos y goles) corresponden a competiciones oficiales de cada etapa.</div>
