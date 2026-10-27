@@ -680,6 +680,17 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .es-cr{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex-shrink:0;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)}
 .es-cr img{max-width:26px;max-height:26px;object-fit:contain}
 .es-cr.x{display:none}
+.fs-two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.fs-panel{padding:16px 20px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03)}
+.fs-pt{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.65);margin-bottom:14px}.fs-pt em{font-style:normal;letter-spacing:.04em;text-transform:none;font-weight:500;color:rgba(239,243,248,.4);margin-left:8px}
+.fs-bars{display:flex;align-items:flex-end;gap:14px;height:150px}
+.fs-bc{flex:1;display:flex;flex-direction:column;align-items:center;height:100%}
+.fs-bpair{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:5px}
+.fs-bpair i{position:relative;display:block;width:34%;max-width:30px;border-radius:8px 8px 3px 3px;min-height:4px}
+.fs-bpair .gf{background:linear-gradient(180deg,#4ADE80,#15803D)}.fs-bpair .gc{background:linear-gradient(180deg,#F87171,#B91C1C)}
+.fs-bpair b{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font:700 12px 'Space Grotesk',sans-serif;color:#F4F7FB;font-style:normal}
+.fs-bc>span{margin-top:8px;font-size:11px;color:rgba(239,243,248,.5);white-space:nowrap}
+@media(max-width:700px){.fs-two{grid-template-columns:1fr}}
 .es-past{margin-top:22px}
 .es-past-h{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;padding:14px 20px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);cursor:pointer;font-family:inherit;text-align:left}
 .es-past-h .nm{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.7)}
@@ -22834,19 +22845,16 @@ function buildForlanStatsHtml(){
   const jug=Object.entries(D.players).sort((a,b)=>b[1].pj-a[1].pj||b[1].tit-a[1].tit||b[1].g-a[1].g||a[0].localeCompare(b[0],'es'));
   const scorers=Object.entries(D.scorers).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
   return `
-    <div class="fs-hero">
-      <div class="fs-main"><div class="fs-n">${rec.pj}</div><div class="fs-nl">partidos dirigidos<small>${D.porFecha.filter(x=>x.pj).length} ${D.porFecha.filter(x=>x.pj).length===1?'Fecha FIFA':'Fechas FIFA'} · Selección Mayor</small></div></div>
-      <div class="fs-side">
-        <div class="fs-bar" title="Ganados / empatados / perdidos">${rec.g?`<i class="w" style="flex:${rec.g}"></i>`:''}${rec.e?`<i class="e" style="flex:${rec.e}"></i>`:''}${rec.p?`<i class="l" style="flex:${rec.p}"></i>`:''}</div>
-        <div class="fs-wel"><span class="w"><b>${rec.g}</b> ganados</span><span class="e"><b>${rec.e}</b> empatados</span><span class="l"><b>${rec.p}</b> perdidos</span></div>
-        <div class="fs-pts"><b>${pts}</b> de ${rec.pj*3} puntos · <b>${rec.pct}%</b> de rendimiento</div>
-      </div>
+    <div class="fs-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="fs-tile"><span class="v" style="color:#4ADE80">${rec.gf}</span><span class="t">goles a favor · ${(rec.gf/rec.pj).toFixed(1)} por partido</span></div>
+      <div class="fs-tile"><span class="v" style="color:#F87171">${rec.gc}</span><span class="t">en contra · ${(rec.gc/rec.pj).toFixed(1)} por partido</span></div>
+      <div class="fs-tile"><span class="v">${dg>0?'+':''}${dg}</span><span class="t">diferencia de gol</span></div>
     </div>
-    <div class="fs-grid">
-      <div class="fs-tile"><span class="v" style="color:#4ADE80">${rec.gf}</span><span class="t">goles a favor</span></div>
-      <div class="fs-tile"><span class="v" style="color:#F87171">${rec.gc}</span><span class="t">en contra</span></div>
-      <div class="fs-tile"><span class="v">${dg>0?'+':''}${dg}</span><span class="t">diferencia</span></div>
-      <div class="fs-tile"><span class="v">${(rec.gf/rec.pj).toFixed(1)}</span><span class="t">goles por partido</span></div>
+    <div class="fs-two">
+      <div class="fs-panel"><div class="fs-pt">Partido a partido <em>goles a favor y en contra</em></div>
+        <div class="fs-bars">${D.matches.map(m=>{ const mx=Math.max(1,...D.matches.map(x=>Math.max(x.gl,x.gr))); return `<div class="fs-bc"><div class="fs-bpair"><i class="gf" style="height:${Math.max(4,Math.round(m.gl/mx*100))}%"><b>${m.gl}</b></i><i class="gc" style="height:${Math.max(4,Math.round(m.gr/mx*100))}%"><b>${m.gr}</b></i></div><span>${m.rival.split(' ')[0]}</span></div>`; }).join('')}</div></div>
+      <div class="fs-panel"><div class="fs-pt">Goles por minuto <em>cuándo convierte Uruguay</em></div>
+        <div class="fs-bars">${(()=>{ const seg=[[0,15],[16,30],[31,45],[46,60],[61,75],[76,120]], c=seg.map(([a,b])=>D.golesMin.filter(g=>{ const m=parseInt(g.min); return !isNaN(m)&&m>=a&&m<=b; }).length), mx=Math.max(1,...c); return seg.map(([a,b],i)=>`<div class="fs-bc"><div class="fs-bpair"><i class="gf" style="height:${Math.max(c[i]?8:3,Math.round(c[i]/mx*100))}%;opacity:${c[i]?1:.25}"><b>${c[i]||''}</b></i></div><span>${a}'–${b>90?'90+':b+"'"}</span></div>`).join(''); })()}</div></div>
     </div>
     <div class="fs-chips"><span><b>${invictas}</b> de ${rec.pj} con la valla invicta</span><span><b>${conGol}</b> de ${rec.pj} con gol</span><span><b>${usados}</b> jugadores utilizados</span></div>
 
@@ -22906,10 +22914,15 @@ function buildForlanConfsHtml(){
       ${c.link?`<a class="rd-ic" href="${c.link}" target="_blank" rel="noopener" title="Ver" onclick="event.stopPropagation()"><i class="ti ti-brand-youtube"></i></a>`:''}${edit}
     </div>`;
   };
-  return `<div class="sx-trio" style="margin-bottom:6px">
-      <div class="sx-k" style="--kc:#8AD8FF"><div class="n">${total}</div><div class="l">Atenciones</div><div class="s">de Diego Forlán</div></div>
-      <div class="sx-k" style="--kc:#4ADE80"><div class="n">${hechas}</div><div class="l">Realizadas</div></div>
-      <div class="sx-k" style="--kc:#FACC15"><div class="n">${total-hechas}</div><div class="l">Pendientes</div></div></div>
+  const _cat=c=>{ const l=c.tipoLbl||''; if(/Conferencia|Presentación|Post Fecha/i.test(l)) return 'Conferencias'; if(/AUFtv/i.test(l)) return 'Notas para AUFtv'; if(/Zona mixta|Flash/i.test(l)) return 'Zona mixta y flash'; return 'Prensa local y otras'; };
+  const _cats={'Conferencias':[],'Notas para AUFtv':[],'Zona mixta y flash':[],'Prensa local y otras':[]};
+  items.forEach(c=>_cats[_cat(c)].push(c));
+  const _hecha=c=>c.done||(c.fecha&&c.fecha<hoy);
+  const _colT={'Conferencias':'#8AD8FF','Notas para AUFtv':'#FCD34D','Zona mixta y flash':'#67E8F9','Prensa local y otras':'#CBD5E1'};
+  return `<div class="fs-grid" style="margin-bottom:8px">
+      ${Object.entries(_cats).filter(([,l])=>l.length).map(([k,l])=>{ const pend=l.filter(c=>!_hecha(c)).length; return `<div class="fs-tile"><span class="v" style="color:${_colT[k]}">${l.length}</span><span class="t">${k}${pend?` · <b style="color:#FACC15">${pend} pendiente${pend>1?'s':''}</b>`:''}</span></div>`; }).join('')}
+    </div>
+    <div class="fs-chips"><span><b>${total}</b> atenciones de Diego Forlán</span><span><b style="color:#4ADE80">${hechas}</b> realizadas</span>${total-hechas?`<span><b style="color:#FACC15">${total-hechas}</b> pendientes</span>`:'<span>sin pendientes</span>'}</div>
     ${grupos.map(g=>`<div class="sx-eye">${g.g}<em>${g.list.length} ${g.list.length===1?'atención':'atenciones'}</em></div>${g.list.map(card).join('')}`).join('')}
     <div class="sx-foot" style="border:none">Se suman solas desde Fechas FIFA → Prensa y marketing (conferencias MD-1 y MD, notas para AUFtv, zona mixta, flash interview y prensa local) y dejan de figurar como pendientes cuando pasa su fecha.</div>`;
 }
