@@ -602,17 +602,17 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
   border-radius:12px;border-left:4px solid var(--cel);
 }
 /* Estructura: lista por áreas y filas de integrantes (estilo unificado) */
-.es-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:14px;align-items:start}
-.es-card{--dc:#8AD8FF;border-radius:22px;border:1px solid rgba(255,255,255,.14);overflow:hidden;background:radial-gradient(320px 140px at 100% 0,color-mix(in srgb,var(--dc) 20%,transparent),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
+.es-grid{columns:2 420px;column-gap:14px}
+.es-card{--dc:#8AD8FF;--dl:color-mix(in srgb,var(--dc) 55%,#fff);break-inside:avoid;margin-bottom:14px;border-radius:22px;border:1px solid rgba(255,255,255,.14);overflow:hidden;background:radial-gradient(320px 140px at 100% 0,color-mix(in srgb,var(--dc) 20%,transparent),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
 .es-h{display:flex;align-items:center;gap:10px;padding:14px 18px 10px;width:100%;box-sizing:border-box;background:none;border:none;text-align:left;font-family:inherit}
 .es-h .dot{width:8px;height:8px;border-radius:50%;background:var(--dc);box-shadow:0 0 10px var(--dc);flex-shrink:0}
-.es-h .nm{flex:1;font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--dc)}
+.es-h .nm{flex:1;font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--dl)}
 .es-h .ct{font-size:11px;color:rgba(239,243,248,.5)}
-.es-add{width:26px;height:26px;border-radius:50%;border:1px solid color-mix(in srgb,var(--dc) 55%,transparent);background:transparent;color:var(--dc);font-size:15px;line-height:1;cursor:pointer;padding:0}
+.es-add{width:26px;height:26px;border-radius:50%;border:1px solid color-mix(in srgb,var(--dc) 55%,transparent);background:transparent;color:var(--dl);font-size:15px;line-height:1;cursor:pointer;padding:0}
 .es-row{display:flex;align-items:center;gap:12px;padding:9px 18px;border-top:1px solid rgba(255,255,255,.06);cursor:pointer}
 .es-row:hover{background:rgba(255,255,255,.04)}
 .es-av{width:38px;height:38px;border-radius:50%;flex-shrink:0;object-fit:cover;object-position:50% 20%;border:1.5px solid var(--dc);background:#1B2D50}
-.es-av.ini{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--dc)}
+.es-av.ini{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--dl)}
 .es-av.dim{opacity:.45}
 .es-nm{font-size:14px;font-weight:600;color:#F4F7FB;line-height:1.2}.es-nm.dim{color:rgba(239,243,248,.5)}
 .es-rol{font-size:11.5px;color:rgba(239,243,248,.55);margin-top:1px}
@@ -3194,6 +3194,10 @@ textarea.rd-in{height:auto;padding:10px 14px;line-height:1.45;resize:vertical}
 select.rd-in{padding:0 10px}
 .rd-lb{display:block;margin:0 0 5px 2px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.5)}
 .rd-lb em{font-style:normal;letter-spacing:.04em;text-transform:none;font-weight:500;opacity:.8}
+.rd-opts{display:flex;flex-wrap:wrap;gap:6px}
+.rd-opt{height:30px;padding:0 13px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(239,243,248,.72);font:600 12px inherit;font-family:inherit;cursor:pointer}
+.rd-opt:hover{border-color:rgba(138,216,255,.5);color:#F4F7FB}
+.rd-opt.on{border-color:#FCD34D;background:rgba(252,211,77,.14);color:#FCD34D}
 .rd-g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .rd-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
 .rd-f{margin-bottom:10px;position:relative}
@@ -5399,6 +5403,7 @@ function _editLesion(nom){
   const d=getLesiones()[nom]||{};
   const id='lesion-'+Date.now();
   const nomEsc=nom.replace(/'/g,"\\'");
+  const esc=t=>String(t||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   const tipos = getLesionTipos();
   const tiempos = getLesionTiempos();
   const curTipoPreset = tipos.includes(d.nota) ? d.nota : '';
@@ -5407,36 +5412,30 @@ function _editLesion(nom){
   const curTiempoLibre = (d.meses && !curTiempoPreset) ? d.meses : '';
   const curMes = d.mesLesion || TODAY.slice(0,7);
   window._lesionState[id] = {tipo:curTipoPreset, tiempo:curTiempoPreset};
-  const tipoChip = t => `<button type="button" data-tipo-btn="${t}" onclick="window._lesionPick('${id}','tipo','${t}')" style="padding:5px 10px;border-radius:20px;border:1px solid ${t===curTipoPreset?'#CA8A04':'var(--border)'};background:${t===curTipoPreset?'#FEF9C3':'none'};color:${t===curTipoPreset?'#92400E':'var(--fg)'};font-size:.72em;font-weight:700;cursor:pointer;margin:0 4px 4px 0">${t}</button>`;
-  const tiempoChip = t => `<button type="button" data-tiempo-btn="${t}" onclick="window._lesionPick('${id}','tiempo','${t}')" style="padding:5px 10px;border-radius:20px;border:1px solid ${t===curTiempoPreset?'#CA8A04':'var(--border)'};background:${t===curTiempoPreset?'#FEF9C3':'none'};color:${t===curTiempoPreset?'#92400E':'var(--fg)'};font-size:.72em;font-weight:700;cursor:pointer;margin:0 4px 4px 0">${t}</button>`;
-  document.body.insertAdjacentHTML('beforeend',`<div id="${id}" onclick="event.stopPropagation()" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:var(--card,#fff);border-radius:14px;padding:18px;box-shadow:0 8px 32px rgba(0,0,0,.18);width:320px;max-width:92vw;max-height:86vh;overflow:auto">
-    <div style="font-weight:700;font-size:.9em;margin-bottom:12px">Lesión de ${nom.split(' ')[0]}</div>
-    <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tipo de lesión</div>
-    <div id="${id}-tipos" style="display:flex;flex-wrap:wrap;margin-bottom:6px">${tipos.map(tipoChip).join('')}</div>
-    <input id="${id}-tipo-otra" type="text" placeholder="Otra (si la escribís, tiene prioridad y queda guardada)" value="${curTipoLibre.replace(/"/g,'&quot;')}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:.8em;box-sizing:border-box;margin-bottom:14px">
-    <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Tiempo de recuperación estimado</div>
-    <div id="${id}-tiempos" style="display:flex;flex-wrap:wrap;margin-bottom:6px">${tiempos.map(tiempoChip).join('')}</div>
-    <input id="${id}-tiempo-otra" type="text" placeholder="Otro (si lo escribís, tiene prioridad y queda guardado)" value="${curTiempoLibre.replace(/"/g,'&quot;')}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:.8em;box-sizing:border-box;margin-bottom:14px">
-    <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Mes en que se lesionó</div>
-    <input id="${id}-mes" type="month" value="${curMes}" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.85em;font-family:'Inter',system-ui,sans-serif;font-weight:600;color:var(--fg);box-sizing:border-box;margin-bottom:16px;background:var(--card,#fff);accent-color:#1D4ED8">
-    <div style="display:flex;gap:8px">
-      <button onclick="window._lesionSave('${id}','${nomEsc}')" style="flex:1;padding:8px;border-radius:8px;border:none;background:#1D4ED8;color:#fff;font-size:.8em;font-weight:700;cursor:pointer">Guardar</button>
-      ${(d.nota||d.meses)?`<button onclick="clearLesion('${nomEsc}');document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove();if(typeof _refreshAllFichaViews==='function')_refreshAllFichaViews();" style="padding:8px 12px;border-radius:8px;border:1px solid #DC2626;background:none;color:#DC2626;font-size:.8em;font-weight:700;cursor:pointer">Quitar</button>`:''}
-      <button onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:none;font-size:.8em;cursor:pointer">Cancelar</button>
-    </div>
-  </div><div id="${id}-bg" onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.3)"></div>`);
+  const chip=(field,t,cur)=>`<button type="button" class="rd-opt${t===cur?' on':''}" data-${field}-btn="${esc(t)}" onclick="window._lesionPick('${id}','${field}',this.getAttribute('data-${field}-btn'))">${esc(t)}</button>`;
+  _rdModal(`
+    <div class="rd-eye" style="margin-bottom:6px;--cat:#FCD34D">Lesión larga</div>
+    <div class="rd-tit" style="margin-bottom:16px">${esc(nom)}</div>
+    <label class="rd-lb">Tipo de lesión</label>
+    <div id="${id}-tipos" class="rd-opts">${tipos.map(t=>chip('tipo',t,curTipoPreset)).join('')}</div>
+    <input id="${id}-tipo-otra" class="rd-in" type="text" placeholder="Otra (si la escribís, tiene prioridad y queda guardada)" value="${esc(curTipoLibre)}" style="margin:8px 0 16px">
+    <label class="rd-lb">Tiempo de recuperación estimado</label>
+    <div id="${id}-tiempos" class="rd-opts">${tiempos.map(t=>chip('tiempo',t,curTiempoPreset)).join('')}</div>
+    <input id="${id}-tiempo-otra" class="rd-in" type="text" placeholder="Otro (si lo escribís, tiene prioridad y queda guardado)" value="${esc(curTiempoLibre)}" style="margin:8px 0 16px">
+    <label class="rd-lb">Mes en que se lesionó</label>
+    <input id="${id}-mes" class="rd-in" type="month" value="${curMes}" style="margin-bottom:18px;color-scheme:dark">
+    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
+      ${(d.nota||d.meses)?`<button class="rd-btn danger sm" style="margin-right:auto" onclick="clearLesion('${nomEsc}');_rdModalClose();if(typeof _refreshAllFichaViews==='function')_refreshAllFichaViews();">Quitar lesión</button>`:''}
+      <button class="rd-btn ghost" onclick="_rdModalClose()">Cancelar</button>
+      <button class="rd-btn" onclick="window._lesionSave('${id}','${nomEsc}')"><i class="ti ti-check"></i>Guardar</button>
+    </div>`,{width:520,noFocus:true});
 }
 window._lesionPick = function(id, field, val){
   const st = window._lesionState[id] = window._lesionState[id]||{};
   st[field] = (st[field]===val) ? '' : val;
   const container = document.getElementById(id+'-'+(field==='tipo'?'tipos':'tiempos'));
   if(container){
-    [...container.children].forEach(btn=>{
-      const active = btn.getAttribute('data-'+field+'-btn')===st[field];
-      btn.style.border = '1px solid '+(active?'#CA8A04':'var(--border)');
-      btn.style.background = active?'#FEF9C3':'none';
-      btn.style.color = active?'#92400E':'var(--fg)';
-    });
+    [...container.children].forEach(btn=>{ btn.classList.toggle('on', btn.getAttribute('data-'+field+'-btn')===st[field]); });
   }
 };
 window._lesionSave = function(id, nom){
@@ -5446,12 +5445,13 @@ window._lesionSave = function(id, nom){
   const tipo = otraTipo || st.tipo || '';
   const tiempo = otraTiempo || st.tiempo || '';
   const mes = document.getElementById(id+'-mes')?.value||'';
-  if(!tiempo){ alert('Elegí (o escribí) un tiempo de recuperación estimado.'); return; }
+  if(!tiempo){ toast('Elegí (o escribí) un tiempo de recuperación estimado'); return; }
   if(otraTipo) _addLesionTipoCustom(otraTipo);
   if(otraTiempo) _addLesionTiempoCustom(otraTiempo);
   setLesion(nom,{nota:tipo, meses:tiempo, mesLesion:mes, fechaIni:mes?mes+'-01':TODAY});
   document.getElementById(id)?.remove();
   document.getElementById(id+'-bg')?.remove();
+  if(typeof _rdModalClose==='function') _rdModalClose();
   delete window._lesionState[id];
   if(typeof _refreshAllFichaViews==='function') _refreshAllFichaViews();
 };
