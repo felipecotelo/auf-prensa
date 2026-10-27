@@ -1105,6 +1105,13 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .cv-cl{font-size:12px;color:rgba(239,243,248,.55);text-align:right}
 .cv-row.off{border-color:rgba(248,113,113,.35);opacity:.85}.cv-row.off i{color:#F87171}
 .cv-why{font-size:11px;font-weight:700;letter-spacing:.06em;color:#FCA5A5}
+.jg-sec{margin:18px 4px 10px;font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.6)}
+.jg-sec.off{color:rgba(239,243,248,.35)}
+.jg-ct{display:flex;align-items:flex-start;gap:14px}
+.jg-ph{width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid rgba(138,216,255,.45);background:#1B2D50;display:inline-flex;align-items:center;justify-content:center;font-family:'Space Grotesk','Inter',sans-serif;font-weight:700;font-size:17px;color:#8AD8FF}
+.jg-ph img{width:100%;height:100%;object-fit:cover}
+.jg-ci{flex:1;min-width:0}
+.jg-cc.off{opacity:.55}.jg-cc.off .jg-ph{filter:grayscale(1);border-color:rgba(255,255,255,.2)}.jg-cc.off .jg-en{filter:grayscale(.7)}
 .ar-ban{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:999px;margin-bottom:8px;font-size:12px;line-height:1.4;color:rgba(239,243,248,.8);border:1px solid}
 .ar-ban strong{color:#F4F7FB}
 .ar-ban i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -35423,14 +35430,26 @@ function _buildJuvGlobalCT(){
     if(aDt!==bDt) return aDt?-1:1;
     return a.name.localeCompare(b.name);
   });
-  const rows = list.map(p=>`
-    <div class="jg-cc">
-      <div class="jg-cn">${p.iso?`<img src="https://flagcdn.com/w20/${p.iso}.png" onerror="this.style.display='none'">`:''}<span>${p.name}</span></div>
-      <div class="jg-ce">${p.entries.map(e=>{const c=(typeof _catCol==='function'&&_catCol(e.cat))||'#94A3B8'; return `<span class="jg-en${e.dt?' dt':''}" style="--c:${c}">${e.label} · ${e.rol}</span>`;}).join('')}</div>
-    </div>`).join('');
+  // Activo = tiene un cargo cuyo ciclo llega al año actual (ej. 2025-2026, 2026, 2025-2027); el resto va abajo, en gris
+  const _anio=new Date().getFullYear();
+  const _yrEnd=yr=>{ const m=String(yr).match(/\d{4}/g); return m?Math.max(...m.map(Number)):0; };
+  list.forEach(p=>{ p.activo=p.entries.some(e=>_yrEnd(e.yr)>=_anio); });
+  const _cardCT=p=>{
+    const photo=window._getPersonPhoto?.(p.name)||null;
+    const ini=p.name.split(' ').filter(Boolean).filter((_,i,a)=>i===0||i===a.length-1).map(w=>w[0]).join('').toUpperCase();
+    const entries=p.entries.slice().sort((a,b)=>_yrEnd(b.yr)-_yrEnd(a.yr));
+    return `<div class="jg-cc${p.activo?'':' off'}">
+      <div class="jg-ct"><span class="jg-ph">${photo?`<img src="${photo}" loading="lazy">`:`<span>${ini}</span>`}</span>
+        <div class="jg-ci"><div class="jg-cn">${p.iso?`<img src="https://flagcdn.com/w20/${p.iso}.png" onerror="this.style.display='none'">`:''}<span>${p.name}</span></div>
+        <div class="jg-ce">${entries.map(e=>{const c=(typeof _catCol==='function'&&_catCol(e.cat))||'#94A3B8'; return `<span class="jg-en${e.dt?' dt':''}" style="--c:${c}">${e.label} · ${e.rol}</span>`;}).join('')}</div></div></div>
+    </div>`;
+  };
+  const act=list.filter(p=>p.activo), inact=list.filter(p=>!p.activo);
+  const rows=(act.length?`<div class="jg-sec">Activos · ${act.length}</div><div class="jg-grid">${act.map(_cardCT).join('')}</div>`:'')
+    +(inact.length?`<div class="jg-sec off">Anteriores · ${inact.length}</div><div class="jg-grid">${inact.map(_cardCT).join('')}</div>`:'');
   return `
     ${_juvGHead('Selecciones juveniles','Técnicos',"_toggleJuvCT",`${_jgChips()}<div class="jg-cnt">${list.length} técnico${list.length!==1?'s':''}</div>`)}
-    <div class="jg-grid">${rows || `<div class="jg-empty">Sin datos de cuerpo técnico cargados.</div>`}</div>
+    ${rows || `<div class="jg-empty">Sin datos de cuerpo técnico cargados.</div>`}
   `;
 }
 
