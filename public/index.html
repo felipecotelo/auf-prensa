@@ -3186,6 +3186,10 @@ select.rd-in{padding:0 10px}
 .rd-add{width:100%;height:42px;margin-bottom:12px;border-radius:999px;border:1px solid rgba(138,216,255,.5);background:rgba(0,157,216,.1);color:#8AD8FF;font:700 11px inherit;font-family:inherit;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 .rd-add:hover{background:rgba(0,157,216,.2)}
 @media(max-width:600px){.rd-g2,.rd-g3{grid-template-columns:1fr}.rd-grid{grid-template-columns:1fr 1fr}.rd-card,.rd-form{padding:14px 14px}}
+
+.rd-ov{position:fixed;inset:0;z-index:100000;background:rgba(4,8,20,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px}
+.rd-md{width:min(560px,94vw);max-height:90vh;overflow:auto;box-sizing:border-box;padding:22px 24px;border-radius:22px;border:1px solid rgba(255,255,255,.16);color:#F4F7FB;background:radial-gradient(380px 160px at 100% 0,rgba(0,157,216,.2),transparent 70%),linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 30px 80px rgba(0,0,0,.6);animation:rdIn .12s ease-out}
+@keyframes rdIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 </style>
 <script>
 (function(){
@@ -3822,7 +3826,7 @@ select.rd-in{padding:0 10px}
 </div>
 
 </main>
-<footer>Selección Uruguaya de Fútbol · AUF Comunicación · Copa Mundial FIFA 2026 · Uso exclusivo TMO</footer>
+<footer>Selección Uruguaya de Fútbol · AUF Comunicación · Copa Mundial FIFA 2026 · Uso exclusivo TMO · <a href="#" onclick="_revisarResolucionesModal();return false" style="color:inherit;opacity:.7;text-decoration:underline dotted">Revisar resoluciones automáticas</a></footer>
 <div class="toast" id="toast"><i class="ti ti-check"></i><span id="toast-msg"></span></div>
 
 <!-- ── SLOT PICKER MODAL ── -->
@@ -4618,6 +4622,7 @@ const KJugExClubs='auf4_jug_exclubs';
 const getJugClub=()=>stor.get(KJugClub,{});
 const getJugExClubs=()=>stor.get(KJugExClubs,{});
 const setJugClub=(nom,club)=>{
+  club=_clubStd(club);
   const d=getJugClub();
   const prev=(d[nom]||'').trim();
   const ex=getJugExClubs();
@@ -4758,6 +4763,7 @@ window._tmSyncManual=async function(){
 const KJuvClub='auf4_juv_club';
 const getJuvClub=()=>stor.get(KJuvClub,{});
 const setJuvClub=(nom,club,pais)=>{
+  { const _c=_clubCanon(club); if(_c){ club=_c.n; pais=_c.pais; } }
   const d=getJuvClub();
   const prev=(d[nom]?.actual||d[nom]||'').trim();
   const exClubs=d[nom]?.exClubs||[];
@@ -8752,7 +8758,7 @@ function _recSemanalesDerivados(){
   }catch(e){ console.error('recordatorios semanales:',e); }
   return out;
 }
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados()]; }
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados()]; }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -8768,6 +8774,8 @@ function _recHechosHoy(){
 // Cada 5 min se vuelve a pintar el panel para que los que cumplieron las 12 h salgan solos, sin recargar.
 if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },300000);
 function _recNoAplicaBtn(r,hecho){
+  if(r.clubRaw&&!hecho) return `<button data-n="${String(r.clubRaw).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_clubResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
+  if(r.nomPend&&!hecho) return `<button data-n="${String(r.nomPend).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_nombreResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
   if(!r.derivado||hecho) return '';
   return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoAplica(this.dataset.id)" title="No aplica saludo: lo saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no aplica</button>`;
 }
@@ -24907,6 +24915,7 @@ function _clubCorto(n){
   return String(n==null?'':n).replace(/\s+(U-?\d{2}|B|Youth|Juvenil(es)?|Reserve|Reserves|II|Next Gen|Atl[eè]tic)$/i,'');
 }
 // Bandera en emoji (fichas de Mayor/Jugadores que usan texto): del país de la base; si no hay, el emoji guardado.
+function _clubStd(c){ const x=_clubCanon(c,true); return x?x.n:c; } // lo que se ingresa de ahora en adelante entra con el nombre canónico
 function _clubFlagEmoji(club, fallback){
   const p=_clubPick(_clubCanon(club,true),fallback)?.pais; if(!p) return fallback||'';
   if(p==='gb-eng') return '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}';
@@ -24917,6 +24926,262 @@ function _exClubsTxt(list,actual){ // 'ex X · ex Y': nombres canónicos, sin re
   const act=_clubCorto(actual||''), seen=new Set([_clubKey(act)]), out=[];
   (list||[]).forEach(c=>{ const n=_clubCorto(c||''), k=_clubKey(n); if(!k||seen.has(k)) return; seen.add(k); out.push('ex '+n); });
   return out.join(' · ');
+}
+
+// ══ Modal genérico del rediseño (_rdModal): oscuro, degradado, radio 22, Esc / clic afuera cierran ══
+function _rdModalClose(){ document.querySelectorAll('.rd-ov').forEach(n=>n.remove()); }
+function _rdModal(inner, opts){
+  _rdModalClose();
+  const w=document.createElement('div'); w.className='rd-ov'; w.id='rd-modal';
+  w.innerHTML=`<div class="rd-md" role="dialog" aria-modal="true" style="${(opts&&opts.width)?'width:min('+opts.width+'px,94vw)':''}">${inner}</div>`;
+  w.addEventListener('mousedown',e=>{ if(e.target===w) _rdModalClose(); });
+  document.body.appendChild(w);
+  const f=w.querySelector('input:not([type=checkbox]):not([type=radio]),textarea,select'); if(f&&!(opts&&opts.noFocus)) setTimeout(()=>{ try{f.focus();}catch(_){} },30);
+  return w;
+}
+if(!window._rdEscBound){ window._rdEscBound=true; document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&document.querySelector('.rd-ov')){ e.stopPropagation(); _rdModalClose(); } },true); }
+
+// ══ Clubes nuevos sin normalizar: recordatorio derivado + modal para resolverlos (se guarda solo en auf4_clubes_extra, solo agregando) ══
+function _clubesEnUsoSinBase(){
+  const c=window._clubUsoC; if(c&&Date.now()-c.t<30000) return c.v;
+  const nombres=[];
+  const push=x=>{ if(typeof x==='string'&&x.trim()) nombres.push(x.trim()); };
+  try{ Object.values(JUGADORES||{}).forEach(j=>push(j&&j.club)); }catch(_){}
+  const leer=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'{}')||{}; }catch(_){ return {}; } };
+  const jc=leer('auf4_jugclub'); Object.keys(jc).forEach(k=>{ if(!k.endsWith('__pais')) push(jc[k]); });
+  [leer('auf4_juv_club'),leer('auf4_local_club')].forEach(o=>Object.values(o).forEach(e=>{ if(typeof e==='string') push(e); else if(e){ push(e.actual); (e.exClubs||[]).forEach(push); } }));
+  Object.values(leer('auf4_jug_exclubs')).forEach(l=>Array.isArray(l)&&l.forEach(push));
+  (window._clubesSinBase||[]).forEach(push);
+  const vistos=new Set(), out=[];
+  nombres.forEach(n=>{ const k=_clubKey(n); if(!k||vistos.has(k)) return; vistos.add(k); if(_CLUB_SIN_CLUB.test(n)) return; if(!_clubCanon(n,true)) out.push(n); });
+  window._clubUsoC={t:Date.now(),v:out}; return out;
+}
+function _recClubesDerivados(){
+  try{ return _clubesEnUsoSinBase().map(n=>({id:'club|'+_clubKey(n),titulo:'Club nuevo sin normalizar: '+n,detalle:'Elegí a qué club existente corresponde o crealo con nombre corto y país',vence:TODAY,hora:'09:00',etiqueta:'Clubes',derivado:true,clubRaw:n,hecho:false})); }
+  catch(e){ return []; }
+}
+const _PAISES_CLUB=[['uy','Uruguay'],['ar','Argentina'],['br','Brasil'],['py','Paraguay'],['cl','Chile'],['co','Colombia'],['pe','Perú'],['ec','Ecuador'],['ve','Venezuela'],['mx','México'],['us','Estados Unidos'],['ca','Canadá'],['es','España'],['it','Italia'],['pt','Portugal'],['gb-eng','Inglaterra'],['fr','Francia'],['de','Alemania'],['nl','Países Bajos'],['be','Bélgica'],['ch','Suiza'],['hr','Croacia'],['gr','Grecia'],['tr','Turquía'],['ru','Rusia'],['ua','Ucrania'],['sa','Arabia Saudita'],['qa','Catar'],['ae','Emiratos Árabes'],['in','India'],['cn','China'],['jp','Japón']];
+function _clubResolverModal(name){
+  const esc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const ex=_clubesExtra(); const todos=[]; const vistos=new Set();
+  const add=(n,p)=>{ const id=n+'|'+p; if(!vistos.has(id)){ vistos.add(id); todos.push([n,p]); } };
+  CLUBES_DB.forEach(r=>{ const [n,p]=r.split('|'); add(n,p); }); (ex.clubs||[]).forEach(c=>c&&c.n&&add(c.n,c.pais||'uy'));
+  todos.sort((a,b)=>a[0].localeCompare(b[0],'es'));
+  window._clubResName=name;
+  _rdModal(`
+    <div class="rd-eye" style="margin-bottom:6px">Club nuevo sin normalizar</div>
+    <div class="rd-tit" style="margin-bottom:4px">${esc(name)}</div>
+    <div class="rd-sub" style="margin-bottom:16px">Se guarda como regla (alias o club nuevo). No se modifica el club guardado en ningún jugador.</div>
+    <div class="rd-chips" style="margin-bottom:14px">
+      <button class="rd-btn ghost sm on" id="clr-b1" onclick="_clubResModo(1)">Es otro nombre de un club</button>
+      <button class="rd-btn ghost sm" id="clr-b2" onclick="_clubResModo(2)">Es un club nuevo</button>
+    </div>
+    <div id="clr-m1">
+      <label class="rd-lb">Club existente</label>
+      <input class="rd-in" id="clr-sel" list="clr-dl" placeholder="Escribí para buscar (ej: Peñarol)" autocomplete="off">
+      <datalist id="clr-dl">${todos.map(([n,p])=>`<option value="${esc(n)}">${esc(p.toUpperCase())}</option>`).join('')}</datalist>
+    </div>
+    <div id="clr-m2" style="display:none">
+      <div class="rd-g2"><div><label class="rd-lb">Nombre corto</label><input class="rd-in" id="clr-n" value="${esc(name)}"></div>
+      <div><label class="rd-lb">País</label><select class="rd-in" id="clr-p">${_PAISES_CLUB.map(([c,l])=>`<option value="${c}">${l}</option>`).join('')}</select></div></div>
+    </div>
+    <div id="clr-err" style="color:#FCA5A5;font-size:12px;min-height:16px;margin:8px 2px 0"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="rd-btn ghost" onclick="_rdModalClose()">Cancelar</button>
+      <button class="rd-btn" onclick="_clubResGuardar()"><i class="ti ti-check"></i>Guardar</button>
+    </div>`,{width:520});
+}
+function _clubResModo(m){
+  document.getElementById('clr-m1').style.display=m===1?'':'none'; document.getElementById('clr-m2').style.display=m===2?'':'none';
+  document.getElementById('clr-b1').classList.toggle('on',m===1); document.getElementById('clr-b2').classList.toggle('on',m===2);
+  window._clubResM=m;
+}
+function _clubResGuardar(){
+  const name=window._clubResName, modo=window._clubResM||1, err=document.getElementById('clr-err');
+  const cur=_clubesExtra(); const ex={clubs:[...(cur.clubs||[])],alias:[...(cur.alias||[])]}; // solo se agrega; nunca se pisa ni borra
+  if(modo===1){
+    const v=(document.getElementById('clr-sel').value||'').trim();
+    const okNames=new Set([...CLUBES_DB.map(r=>r.split('|')[0]),...(ex.clubs||[]).map(x=>x.n)]);
+    if(!okNames.has(v)){ err.textContent='Elegí un club de la lista.'; return; }
+    const c=_clubCanon(v,true);
+    ex.alias.push({a:name,n:c.n});
+  } else {
+    const n=(document.getElementById('clr-n').value||'').trim(), p=document.getElementById('clr-p').value;
+    if(!n){ err.textContent='Escribí el nombre corto.'; return; }
+    ex.clubs.push({n,pais:p,al:_clubKey(n)===_clubKey(name)?[]:[name]});
+  }
+  stor.set('auf4_clubes_extra',ex);
+  _clubIdx.map=null; _clubMemo.m=new Map(); window._clubUsoC=null;
+  window._clubesSinBase=(window._clubesSinBase||[]).filter(x=>_clubKey(x)!==_clubKey(name));
+  _rdModalClose(); toast('Club guardado: '+(modo===1?name+' → '+ex.alias[ex.alias.length-1].n:ex.clubs[ex.clubs.length-1].n));
+  try{ _recDockRender(); }catch(_){} try{ if(typeof _rerenderTab==='function') _rerenderTab(); }catch(_){}
+}
+
+// ══ Nombres canónicos de jugadores: _nombreCanon / _resolverJugador / _resolverLinea ══
+// Resuelven con tolerancia (tildes, ñ, ü, mayúsculas, guiones/puntos, 'Apellido, Nombre', iniciales, segundo nombre opcional, erratas) y puntaje por contexto
+// (club, categoría, año de nacimiento, posición, dorsal). Resolución segura → se aplica sola y queda en el log (auf4_nombres_log); duda real → se pregunta (recordatorio + modal).
+// Solo se usa en lo que se ingresa de ahora en adelante: nunca reescribe datos ya guardados.
+const _NOM_EXCEPCIONES={'lautaro muniz':'Lautaro Muñiz','yuri oyarzo':'Yuri Oyarzo','thomas sorensen':'Thomas Sorensen','ramiro rolan':'Ramiro Rolan'};
+function _nomNorm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[.\-_'`´’]/g,' ').replace(/[^a-z0-9 ,]/g,' ').replace(/\s+/g,' ').trim(); }
+function _nomTokens(s){
+  let n=_nomNorm(s);
+  if(n.includes(',')){ const [ap,no]=n.split(',',2); n=(no||'').trim()+' '+ap.trim(); } // 'Apellido, Nombre' → 'Nombre Apellido'
+  return n.replace(/,/g,' ').split(' ').filter(Boolean);
+}
+const _nomIdx={t:0,v:null,sig:null};
+function _nomUniverso(){
+  const sig=(localStorage.getItem('auf4_nombres_extra')||'')+'|'+(localStorage.getItem('auf4_juv_club')||'').length;
+  if(_nomIdx.v&&Date.now()-_nomIdx.t<60000&&_nomIdx.sig===sig) return _nomIdx.v;
+  const grupos=new Map(); // clave normalizada → {key, ortografias:Map(nom→n), personas:[{club,nac,pos,cats:Set}]}
+  const add=(nom,o,cat)=>{
+    if(typeof nom!=='string'||nom.length<4||nom.length>60) return; const k=_nomTokens(nom).join(' '); if(!k||k.split(' ').length<2) return;
+    let g=grupos.get(k); if(!g){ g={key:k,orto:new Map(),personas:[]}; grupos.set(k,g); }
+    g.orto.set(nom,(g.orto.get(nom)||0)+1);
+    const nac=String((o&&o.fechaNac)||'').slice(0,4)||'', club=(o&&o.club)?_clubKey(_clubCorto(o.club)):'';
+    let p=g.personas.find(x=>(nac&&x.nac&&x.nac===nac)||(!nac&&!x.nac&&club&&x.club===club)); // misma persona: mismo año de nacimiento; sin año: mismo club
+    if(!p){ p=g.personas.find(x=>!nac||!x.nac); if(p&&nac&&!p.nac) p.nac=nac; }
+    if(!p){ p={club:'',nac:'',pos:'',cats:new Set()}; g.personas.push(p); if(g.personas.length>1) g.homonimos=true; }
+    if(club) p.club=p.club||club; if(nac) p.nac=p.nac||nac; if(o&&o.pos) p.pos=o.pos; if(cat) p.cats.add(cat);
+  };
+  const vis=new Set(); const walk=(o,cat,d)=>{ if(!o||typeof o!=='object'||d>9||vis.has(o)) return; vis.add(o);
+    if(Array.isArray(o)){ o.forEach(x=>walk(x,cat,d+1)); return; }
+    if(typeof o.nom==='string'&&/\s/.test(o.nom)) add(o.nom,o,cat);
+    if(typeof o.name==='string'&&o.rol===undefined&&o.club!==undefined) add(o.name,o,cat);
+    for(const k in o){ const v=o[k]; if(Array.isArray(v)&&/^(jugadores|convocados|lista|preparacion|reservados|finales|descartados|bajas|bajaron|nuevos|noPrestaron)$/.test(k)) v.forEach(x=>{ if(typeof x==='string') add(x,{},cat); });
+      if(v&&typeof v==='object') walk(v,(d===0&&/^sub|^mayor|^local/.test(k))?k:cat,d+1); } };
+  try{ Object.entries(JUGADORES||{}).forEach(([n,j])=>add(n,j,'mayor')); }catch(_){}
+  try{ walk(window.JUVENILES,'',0); }catch(e){ console.warn('nombres JUVENILES',e); } try{ walk(window.COMP_DATA_REF,'',0); }catch(e){ console.warn('nombres COMP_DATA',e); }
+  const leer=k=>{ try{ return JSON.parse(localStorage.getItem(k)||'{}')||{}; }catch(_){ return {}; } };
+  [leer('auf4_juv_club'),leer('auf4_jugclub'),leer('auf4_local_club'),leer('auf4_juv_pos')].forEach(o=>Object.keys(o).forEach(n=>{ if(!n.endsWith('__pais')) add(n,{},'')}));
+  const ex=leer('auf4_nombres_extra'); (ex.nuevos||[]).forEach(x=>x&&x.n&&add(x.n,x,'nuevo'));
+  grupos.forEach(g=>{ let best=null,bc=-1; g.orto.forEach((c,n)=>{ if(c>bc){ bc=c; best=n; } }); g.nom=_NOM_EXCEPCIONES[g.key]||best; });
+  const alias=new Map(); (ex.alias||[]).forEach(a=>a&&a.a&&a.n&&alias.set(_nomTokens(a.a).join(' '),a.n));
+  _nomIdx.v={grupos,alias}; _nomIdx.t=(window.JUVENILES&&window.COMP_DATA_REF)?Date.now():0; _nomIdx.sig=sig; return _nomIdx.v; // si los datos aún no cargaron, no se cachea
+}
+function _tokDist(a,b){ if(a===b) return 0; const max=a.length>=9&&b.length>=9?2:1; if(Math.min(a.length,b.length)<4) return 9; const d=_lev(a,b,max); return d>max?9:d; }
+// Puntaje de similitud nombre-ingresado vs nombre-conocido (0-100) y motivo.
+function _nomScoreBase(tin,tk){
+  if(tin.join(' ')===tk.join(' ')) return [100,'igual (sin tildes/ñ)'];
+  if([...tin].sort().join(' ')===[...tk].sort().join(' ')) return [95,'orden distinto'];
+  const fi=tin[0], li=tin[tin.length-1], fk=tk[0], lk=tk[tk.length-1];
+  // segundo nombre / segundo apellido opcional: primer token y último coinciden; o todos los tokens del corto están en el largo
+  const sub=(a,b)=>a.every(t=>b.includes(t));
+  if(tin.length!==tk.length&&(sub(tin,tk)||sub(tk,tin))&&fi===fk) return [92,'segundo nombre/apellido opcional'];
+  if(tin.length!==tk.length&&(sub(tin,tk)||sub(tk,tin))&&tin.length>=2&&tk.length>=2) return [86,'tokens contenidos'];
+  // inicial: 'M. Araújo' ~ 'Matías Araújo'
+  if(fi.length===1&&tin.length>=2&&fk[0]===fi&&(li===lk||tk.includes(li))) return [76,'inicial del nombre'];
+  if(fk.length===1&&tk.length>=2&&fi[0]===fk&&(li===lk||tin.includes(lk))) return [76,'inicial del nombre'];
+  // erratas por token (mismo número de tokens, en orden o invertido)
+  const dist=(A,B)=>A.length===B.length?A.reduce((s,t,i)=>s+_tokDist(t,B[i]),0):99;
+  const d1=dist(tin,tk), d2=dist([...tin].reverse(),tk);
+  const d=Math.min(d1,d2);
+  if(d>=1&&d<=2) return [84-4*(d-1),'errata ('+d+')'];
+  // un token extra + errata en el resto
+  if(Math.abs(tin.length-tk.length)===1){ const A=tin.length<tk.length?tin:tk, B=tin.length<tk.length?tk:tin;
+    for(let i=0;i<B.length;i++){ const R=B.filter((_,j)=>j!==i); const dd=dist(A,R); if(dd>=0&&dd<=1&&B[0]===A[0]||dd===0&&B[B.length-1]===A[A.length-1]) return [78-4*dd,'errata + segundo nombre']; } }
+  return [0,''];
+}
+// ctx: {club, cat, nac (año o fecha), pos}. → {estado:'ok'|'dudoso'|'nuevo', nom, score, motivo, cands:[{nom,score,club,nac}], difiere}
+function _resolverJugador(raw, ctx){
+  ctx=ctx||{}; const tin=_nomTokens(raw); const U=_nomUniverso();
+  const rawT=String(raw||'').trim();
+  if(tin.length<2) return {estado:'dudoso',nom:rawT,score:0,motivo:'nombre incompleto',cands:[],difiere:false};
+  const al=U.alias.get(tin.join(' ')); if(al) return {estado:'ok',nom:al,score:100,motivo:'alias confirmado',cands:[],difiere:al!==rawT};
+  const nacIn=String(ctx.nac||'').slice(0,4), clubIn=ctx.club?_clubKey(_clubCorto(ctx.club)):'', cat=ctx.cat||'';
+  const cands=[];
+  U.grupos.forEach(g=>{
+    const [base,motivo]=_nomScoreBase(tin,g.key.split(' ')); if(!base) return;
+    // contexto: la mejor persona del grupo (homónimos se desambiguan por club + edad)
+    let best=-99,bp=null;
+    (g.personas.length?g.personas:[{club:'',nac:'',cats:new Set()}]).forEach(p=>{
+      let b=0;
+      if(clubIn&&p.club){ b+=p.club===clubIn?10:-4; }
+      if(nacIn&&p.nac){ b+=p.nac===nacIn?10:-25; }
+      if(cat&&p.cats&&p.cats.has(cat)) b+=4;
+      if(ctx.pos&&p.pos){ b+=ctx.pos===p.pos?3:-3; }
+      if(b>best){ best=b; bp=p; }
+    });
+    cands.push({nom:g.nom,score:Math.max(0,Math.min(100,base+best)),base,motivo,club:bp&&bp.club,nac:bp&&bp.nac,homonimos:!!g.homonimos,personas:g.personas.length});
+  });
+  cands.sort((a,b)=>b.score-a.score);
+  const top=cands[0], seg=cands[1];
+  if(!top||top.score<60) return {estado:'nuevo',nom:rawT,score:top?top.score:0,motivo:'sin parecido suficiente',cands:cands.slice(0,3),difiere:false};
+  const margen=seg?top.score-seg.score:100;
+  // homónimos reales (dos personas con el mismo nombre) sin contexto que desempate → preguntar
+  const ambHom=top.homonimos&&top.personas>1&&!(clubIn||nacIn);
+  if(top.score>=85&&margen>=10&&!ambHom) return {estado:'ok',nom:top.nom,score:top.score,motivo:top.motivo,cands:cands.slice(0,3),difiere:top.nom!==rawT};
+  return {estado:'dudoso',nom:rawT,score:top.score,motivo:ambHom?'hay dos jugadores con ese nombre; falta club o edad':(margen<10?'dos candidatos parecidos':'parecido bajo'),cands:cands.slice(0,3),difiere:false};
+}
+// Devuelve la grafía canónica solo si la resolución es segura; si no, null (el que llama decide: preguntar).
+function _nombreCanon(nom, ctx){ const r=_resolverJugador(nom,ctx); return r.estado==='ok'?r.nom:null; }
+// 'Rodrigo Alvez - CA Peñarol Uruguay' → {nom, club, estado, avisos:[], clubEstado}
+function _resolverLinea(linea, ctx){
+  ctx=ctx||{}; let txt=String(linea||'').trim().replace(/^[\s\d]+[.)\-–]\s*(?=[A-Za-zÁÉÍÓÚÑ])/, ''), nomIn=txt, clubIn='';
+  let m=txt.match(/^(.*?)\s+[-–—|]\s+(.+)$/)||txt.match(/^(.*?)\s*\(([^)]+)\)\s*$/)||txt.match(/^([^,]+),\s*([^,]+)$/);
+  if(m&&!/^[^,]+,\s*[A-Za-zÁÉÍÓÚÑáéíóúñ]+$/.test(txt)){ nomIn=m[1].trim(); clubIn=m[2].trim(); }
+  else if(m&&/\s/.test(m[2].trim())&&_clubCanon(m[2].trim(),true)){ nomIn=m[1].trim(); clubIn=m[2].trim(); }
+  const cC=clubIn?_clubCanon(clubIn,true):null;
+  const r=_resolverJugador(nomIn,{...ctx,club:clubIn||ctx.club});
+  const out={entrada:txt,nom:r.estado==='ok'?r.nom:nomIn,estado:r.estado,score:r.score,motivo:r.motivo,cands:r.cands,club:clubIn?(cC?cC.n:clubIn):'',clubEstado:clubIn?(cC?'ok':'nuevo'):'',avisos:[]};
+  if(r.estado==='ok'&&r.difiere) out.avisos.push(nomIn+' → '+r.nom);
+  if(cC&&clubIn&&cC.n!==clubIn) out.avisos.push(clubIn+' → '+cC.n);
+  if(r.estado!=='ok'||(clubIn&&!cC)) out.pregunta=true;
+  return out;
+}
+// Procesa un texto con varias líneas: aplica las seguras, deja registradas las dudosas (recordatorio) y avisa sin bloquear.
+function _resolverConvocatoria(texto, ctx){
+  const res=String(texto||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>_resolverLinea(l,ctx));
+  _nombresLog(res); _nombresPendientes(res);
+  const av=res.flatMap(r=>r.avisos.map(a=>a)); if(av.length&&typeof toast==='function') toast('Entendí '+av.slice(0,3).join(' · ')+(av.length>3?' · …':'')+' — ver "Revisar resoluciones automáticas"');
+  return res;
+}
+function _nombresLog(res){
+  try{ const cur=JSON.parse(localStorage.getItem('auf4_nombres_log')||'[]'); const arr=Array.isArray(cur)?cur:[];
+    const nuevos=[]; res.forEach(r=>{ if(r.estado==='ok'&&r.avisos.length){ const e=r.entrada, rr=r.nom+(r.club?' · '+r.club:''); if(!arr.some(y=>y.e===e&&y.r===rr)&&!nuevos.some(y=>y.e===e)) nuevos.push({e,r:rr,m:r.motivo+' ('+r.score+')',t:new Date().toISOString().slice(0,16)}); } });
+    if(nuevos.length&&typeof stor!=='undefined') stor.set('auf4_nombres_log',[...arr,...nuevos]); }catch(_){}
+}
+function _nombresPendientes(res){
+  try{ const cur=JSON.parse(localStorage.getItem('auf4_nombres_pend')||'[]'); const arr=Array.isArray(cur)?cur:[]; let ch=false;
+    res.forEach(r=>{ if(r.estado!=='ok'){ const id=_nomTokens(r.entrada.replace(/\s+[-–—|]\s+.*$/,'')).join(' '); if(!arr.some(x=>x.id===id)){ arr.push({id,a:r.entrada,cands:(r.cands||[]).map(c=>c.nom),estado:r.estado,t:new Date().toISOString().slice(0,16),res:false}); ch=true; } } });
+    if(ch&&typeof stor!=='undefined') stor.set('auf4_nombres_pend',arr); }catch(_){}
+}
+function _recNombresDerivados(){
+  try{ const arr=JSON.parse(localStorage.getItem('auf4_nombres_pend')||'[]'); if(!Array.isArray(arr)) return [];
+    return arr.filter(x=>x&&!x.res).map(x=>({id:'nom|'+x.id,titulo:(x.estado==='nuevo'?'Jugador nuevo o sin identificar: ':'Jugador ambiguo: ')+x.a,detalle:x.cands&&x.cands.length?'Candidatos: '+x.cands.join(' · '):'Sin candidatos parecidos en la base',vence:TODAY,hora:'09:00',etiqueta:'Jugadores',derivado:true,nomPend:x.id,hecho:false})); }catch(e){ return []; }
+}
+function _nombreResolverModal(id){
+  const arr=JSON.parse(localStorage.getItem('auf4_nombres_pend')||'[]'); const x=arr.find(y=>y.id===id); if(!x) return;
+  const esc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  window._nomResId=id;
+  _rdModal(`<div class="rd-eye" style="margin-bottom:6px">${x.estado==='nuevo'?'Jugador nuevo o sin identificar':'Jugador ambiguo'}</div>
+    <div class="rd-tit" style="margin-bottom:4px">${esc(x.a)}</div>
+    <div class="rd-sub" style="margin-bottom:14px">No se guardó nada todavía. Elegí a quién corresponde o confirmá que es un jugador nuevo.</div>
+    <div class="rd-chips" id="nr-c" style="margin-bottom:12px">${(x.cands||[]).map((c,i)=>`<label class="rd-chip"><input type="radio" name="nr" value="${esc(c)}"${i===0?' checked':''}>${esc(c)}</label>`).join('')}<label class="rd-chip"><input type="radio" name="nr" value="__nuevo"${(x.cands||[]).length?'':' checked'}>Es un jugador nuevo</label></div>
+    <label class="rd-lb">Nombre (si es nuevo, así queda escrito)</label><input class="rd-in" id="nr-n" value="${esc(x.a.replace(/\s+[-–—|]\s+.*$/,''))}">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button class="rd-btn ghost" onclick="_rdModalClose()">Cancelar</button><button class="rd-btn" onclick="_nombreResGuardar()"><i class="ti ti-check"></i>Guardar</button></div>`,{width:520});
+}
+function _nombreResGuardar(){
+  const id=window._nomResId; const sel=document.querySelector('input[name=nr]:checked'); if(!sel) return;
+  const pend=JSON.parse(localStorage.getItem('auf4_nombres_pend')||'[]'); const x=pend.find(y=>y.id===id); if(!x) return;
+  const cur=(()=>{ try{ return JSON.parse(localStorage.getItem('auf4_nombres_extra')||'{}')||{}; }catch(_){ return {}; } })();
+  const ex={nuevos:[...(cur.nuevos||[])],alias:[...(cur.alias||[])]}; const nomIn=x.a.replace(/\s+[-–—|]\s+.*$/,'');
+  if(sel.value==='__nuevo'){ const n=(document.getElementById('nr-n').value||'').trim(); if(!n) return; ex.nuevos.push({n}); if(_nomTokens(n).join(' ')!==_nomTokens(nomIn).join(' ')) ex.alias.push({a:nomIn,n}); }
+  else ex.alias.push({a:nomIn,n:sel.value});
+  stor.set('auf4_nombres_extra',ex);
+  x.res=true; stor.set('auf4_nombres_pend',pend,{allowShrink:true}); // se marca resuelto; nunca se borra
+  _nomIdx.v=null; _rdModalClose(); toast('Guardado: '+nomIn+' → '+(sel.value==='__nuevo'?document.getElementById('nr-n')?.value||nomIn:sel.value));
+  try{ _recDockRender(); }catch(_){}
+}
+// Revisión de resoluciones automáticas (clubes + jugadores)
+function _revisarResolucionesModal(){
+  const esc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const rd=k=>{ try{ const a=JSON.parse(localStorage.getItem(k)||'[]'); return Array.isArray(a)?a:[]; }catch(_){ return []; } };
+  const fila=(tipo,x)=>`<tr><td style="color:rgba(239,243,248,.5)">${tipo}</td><td>${esc(x.e)}</td><td style="color:#8AD8FF">${esc(x.r)}</td><td style="color:rgba(239,243,248,.5);font-size:11px">${esc(x.m)}</td></tr>`;
+  const filas=[...rd('auf4_clubes_log').map(x=>fila('Club',x)),...rd('auf4_nombres_log').map(x=>fila('Jugador',x))].reverse();
+  _rdModal(`<div class="rd-eye" style="margin-bottom:6px">Auditoría</div><div class="rd-tit" style="margin-bottom:12px">Resoluciones automáticas</div>
+    ${filas.length?`<div style="max-height:52vh;overflow:auto"><table class="sx-t"><thead><tr><th>Tipo</th><th>Entrada</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody>${filas.join('')}</tbody></table></div>`:'<div class="rd-sub">Todavía no hubo resoluciones automáticas.</div>'}
+    <div class="rd-sub" style="margin-top:10px">Para corregir una, resolvé el alias desde Recordatorios o pedí el ajuste. El log solo agrega.</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="rd-btn ghost" onclick="_rdModalClose()">Cerrar</button></div>`,{width:760});
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -25742,6 +26007,7 @@ const getLocalPos  = ()=>stor.get(KLocalPos,{});
 const getLocalClub = ()=>stor.get(KLocalClub,{});
 const setLocalPos  = (nom,pos)=>{const d=getLocalPos();if(pos==null)delete d[nom];else d[nom]=pos;stor.set(KLocalPos,d,{allowShrink:true});};
 const setLocalClubActual = (nom,club,pais)=>{
+  { const _c=_clubCanon(club); if(_c){ club=_c.n; pais=_c.pais; } }
   const d=getLocalClub();
   const prev=(d[nom]?.actual||'').trim();
   const exClubs=d[nom]?.exClubs||[];
@@ -29320,6 +29586,7 @@ const JUVENILES = {
 // scoping recurrente acá (closures distintos según dónde quedó declarada cada
 // cosa) — reproducido real, no solo en pruebas.
 window.JUVENILES = JUVENILES;
+Object.defineProperty(window,'COMP_DATA_REF',{configurable:true,get:()=>{ try{ return COMP_DATA; }catch(_){ return null; } }}); // para resolver nombres contra todas las convocatorias
 
 // ── Listas largas ─────────────────────────────────────────────────────────
 
