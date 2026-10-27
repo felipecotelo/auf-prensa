@@ -15126,7 +15126,7 @@ window._fifaFixturePro=function(EV,lsKey){
     const gU=played?fm.gLocal:null, gR=played?fm.gRival:null;
     const col=played?(gU>gR?'#86EFAC':gU<gR?'#FCA5A5':'#FCD34D'):'#38BDF8';
     const st=played?[gU>gR?'Victoria':gU<gR?'Derrota':'Empate',col]:_fifaNovEstado(p);
-    const eq=(n,esU)=>`<div class="fx-eq${esU?' uy':''}"><span class="fx-esc">${_escudoSeleccion(n,40)}</span><b>${n}</b><i title="Ranking FIFA al ${_RK.actualizado||''}">${_RK[n]?_RK[n]+'º del ranking FIFA':''}</i></div>`;
+    const eq=(n,esU)=>`<div class="fx-eq${esU?' uy':''}"><span class="fx-esc">${_escudoSeleccion(n,40)}</span><b>${n}</b><i data-rkn="${n}" data-rkf="${played?String(p.fecha).slice(0,10):''}" title="Ranking FIFA al ${_RK.actualizado||''}">${_RK[n]?_RK[n]+'º del ranking FIFA':''}</i></div>`;
     const centro=played
       ?`<div class="fx-mid"><b style="color:${col}">${vis?gR+' - '+gU:gU+' - '+gR}</b><i>Final</i></div>`
       :`<div class="fx-mid"><b>${p.horaLocal||p.hora||'—'}</b><i>${p.hora&&p.hora!=='—'?'Hora de Uruguay':'Hora por confirmar'}</i></div>`;
@@ -15138,6 +15138,7 @@ window._fifaFixturePro=function(EV,lsKey){
       <div class="fx-foot"><span><i class="ti ti-building-stadium"></i>${p.sede||'Sede por confirmar'}</span><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em></div>
     </div>`;
   }).join('');
+  setTimeout(()=>{ try{ window._rkFixtureFill&&window._rkFixtureFill(); }catch(_){} },60);
   const _hDesc=_fifaMatches.map(p=>`<b class="acc">${p.rival} (${p.local===false?'V':'L'})</b> el <b>${String(p.fecha).slice(8,10)}/${String(p.fecha).slice(5,7)}</b>`).join(', ');
   return _pgHero(`${EV.label} · Selección Mayor`,'<span class="acc">Fixture</span>',`${EV.partidos||_fifaMatches.length} amistosos internacionales durante el período FIFA: ${_hDesc}.`,'') +
     `<div class="fx-cards">${_cardsPro}</div>` +
@@ -21596,6 +21597,30 @@ function _rkHtml(d,viejo){
     </div>
   </div>`;
 }
+// Ranking FIFA vigente en la fecha de un partido: antes de jugarse, el último publicado; ya jugado, el que regía ese día (no cambia más)
+async function _rkGetAt(fecha){
+  const key=fecha?('auf4_rk_at_'+fecha):_RK_KEY;
+  let c=null; try{ c=JSON.parse(localStorage.getItem(key)||'null'); }catch(_){}
+  if(c&&c.data&&(fecha||Date.now()-c.ts<_RK_TTL)) return c.data;
+  try{
+    const r=await fetch('/api/ranking-fifa'+(fecha?('?fecha='+fecha):''),{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json(); if(!d.ok||!d.equipos||!d.equipos.length) throw new Error('sin datos');
+    try{ localStorage.setItem(key,JSON.stringify({ts:Date.now(),data:d})); }catch(_){}
+    return d;
+  }catch(e){ return c&&c.data?c.data:null; }
+}
+window._rkFixtureFill=async function(){
+  const els=[...document.querySelectorAll('[data-rkn]')]; if(!els.length) return;
+  const fechas=[...new Set(els.map(e=>e.dataset.rkf||''))];
+  const datos={}; await Promise.all(fechas.map(async f=>{ datos[f]=await _rkGetAt(f); }));
+  els.forEach(el=>{
+    const d=datos[el.dataset.rkf||'']; if(!d) return;
+    const n=el.dataset.rkn, en=n==='Uruguay'?'Uruguay':_rkNombreEn(n);
+    const t=(d.equipos||[]).find(x=>x.name===en||x.name.toLowerCase()===String(n).toLowerCase()); if(!t) return;
+    el.textContent=t.rank+'º del ranking FIFA';
+    el.title='Ranking FIFA publicado el '+_rkFecha(d.publicado)+(el.dataset.rkf?' (vigente el día del partido)':' (último publicado)');
+  });
+};
 window._rkFifaLoad=async function(){
   const box=document.getElementById('rk-fifa'); if(!box) return;
   let cache=null; try{ cache=JSON.parse(localStorage.getItem(_RK_KEY)||'null'); }catch(_){}

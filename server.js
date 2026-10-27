@@ -910,9 +910,16 @@ function rkParseSchedules(html) {
   const m = String(html || '').match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   const t = m ? m[1] : String(html || '');
   const re = /\{"id":"([^"]+)","iso":"([^"]+)","dateText":"[^"]*","matchWindowEndDate":"[^"]*"\}/g;
-  let x, best = null;
-  while ((x = re.exec(t))) { if (!best || x[2] > best.iso) best = { id: x[1], iso: x[2] }; }
-  return best;
+  let x; const all = [];
+  while ((x = re.exec(t))) all.push({ id: x[1], iso: x[2] });
+  all.sort((a, b) => (a.iso < b.iso ? 1 : a.iso > b.iso ? -1 : 0));
+  return all;
+}
+// Publicación vigente en una fecha (YYYY-MM-DD): la última publicada ese día o antes. Sin fecha: la más nueva.
+function rkPickAt(list, fecha) {
+  if (!list || !list.length) return null;
+  if (!fecha) return list[0];
+  return list.find(x => x.iso.slice(0, 10) <= fecha) || null;
 }
 function rkMapRows(data) {
   return ((data && data.Results) || []).map(r => ({
@@ -937,30 +944,47 @@ function rkGet(url, depth) {
     }).on('error', reject).setTimeout(20000, function () { this.destroy(new Error('timeout')); });
   });
 }
-let _rkCache = null;
+let _rkSched = null;            // lista de publicaciones, 3 h
+const _rkById = {};            // datos por publicación: las ya publicadas no cambian, la más nueva se refresca cada 3 h
 const RK_TTL = 3 * 3600 * 1000;
-async function rkLoad() {
-  let id = null, publicado = null, fuente = 'pagina';
-  try { const sch = rkParseSchedules(await rkGet('https://inside.fifa.com/fifa-rankings/world-ranking/men')); if (sch) { id = sch.id; publicado = sch.iso; } } catch (e) { /* sin página: se usa el último id conocido */ }
-  if (!id) { id = RK_FALLBACK_ID; fuente = 'respaldo'; }
-  const rows = rkMapRows(JSON.parse(await rkGet('https://api.fifa.com/api/v3/fifarankings/rankings/rankingsbyschedule?rankingScheduleId=' + encodeURIComponent(id) + '&language=en')));
-  if (!rows.length) throw new Error('ranking vacío para ' + id);
+async function rkSchedules() {
+  if (_rkSched && (Date.now() - _rkSched.ts) < RK_TTL) return _rkSched.list;
+  let list = [];
+  try { list = rkParseSchedules(await rkGet('https://inside.fifa.com/fifa-rankings/world-ranking/men')); } catch (e) { /* sin página: se usa el último id conocido */ }
+  if (list.length) _rkSched = { ts: Date.now(), list };
+  return list;
+}
+async function rkLoad(fecha) {
+  const list = await rkSchedules();
+  let pick = rkPickAt(list, fecha), fuente = 'pagina';
+  if (!pick) {
+    if (fecha && list.length) throw new Error('no hay publicación vigente el ' + fecha);
+    pick = { id: RK_FALLBACK_ID, iso: null }; fuente = 'respaldo';
+  }
+  const esUltima = !list.length || pick.id === list[0].id;
+  const hit = _rkById[pick.id];
+  if (hit && (!esUltima || (Date.now() - hit.ts) < RK_TTL)) return hit.data;
+  const rows = rkMapRows(JSON.parse(await rkGet('https://api.fifa.com/api/v3/fifarankings/rankings/rankingsbyschedule?rankingScheduleId=' + encodeURIComponent(pick.id) + '&language=en')));
+  if (!rows.length) throw new Error('ranking vacío para ' + pick.id);
   let proxima = null;
-  try {
-    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
-    const w = JSON.parse(await rkGet('https://inside.fifa.com/api/live-world-ranking/get-international-ranking-window?locale=en&date=' + hoy + '&category=men'));
-    proxima = (w.nextWindow && w.nextWindow.dateTo) || null;
-  } catch (e) { /* la fecha de la próxima publicación es opcional */ }
-  return { ok: true, scheduleId: id, publicado, proxima, fuente, total: rows.length, equipos: rows, consultado: new Date().toISOString() };
+  if (esUltima) {
+    try {
+      const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+      const w = JSON.parse(await rkGet('https://inside.fifa.com/api/live-world-ranking/get-international-ranking-window?locale=en&date=' + hoy + '&category=men'));
+      proxima = (w.nextWindow && w.nextWindow.dateTo) || null;
+    } catch (e) { /* la fecha de la próxima publicación es opcional */ }
+  }
+  const data = { ok: true, scheduleId: pick.id, publicado: pick.iso, proxima, fuente, vigenteEn: fecha || null, total: rows.length, equipos: rows, consultado: new Date().toISOString() };
+  _rkById[pick.id] = { ts: Date.now(), data };
+  return data;
 }
 app.get('/api/ranking-fifa', async (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.fecha || '')) ? String(req.query.fecha) : '';
   try {
-    if (_rkCache && (Date.now() - _rkCache.ts) < RK_TTL) return res.json(_rkCache.data);
-    const data = await rkLoad();
-    _rkCache = { ts: Date.now(), data };
-    res.json(data);
+    res.json(await rkLoad(fecha));
   } catch (e) {
-    if (_rkCache) return res.json({ ..._rkCache.data, viejo: true }); // si FIFA falla, se muestra el último dato bueno
+    const viejo = Object.values(_rkById).sort((a, b) => b.ts - a.ts)[0];
+    if (viejo && !fecha) return res.json({ ...viejo.data, viejo: true }); // si FIFA falla, se muestra el último dato bueno
     res.status(502).json({ ok: false, error: e.message });
   }
 });
