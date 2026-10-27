@@ -1060,6 +1060,73 @@ async function fotmobHoy(ymd) {
 const _palabrasEq = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length >= 4 && w !== 'club');
 const _mismoEquipo = (a, b) => { const A = _palabrasEq(a), B = _palabrasEq(b); return A.some(w => B.includes(w)); };
 
+
+// ── Partidos de clubes con jugadores reservados de la Mayor (cualquier liga del mundo) ──────────────────────────────
+// FotMob lista TODOS los partidos de un día; acá se filtran los de los clubes que le pasa la web (los de los reservados), con un
+// emparejamiento estricto de nombres (sin sufijos de club, sin equipos femeninos/juveniles) y chequeo de país para no confundir
+// homónimos (Liverpool de Uruguay vs. Liverpool FC).
+const _RES_STOP = new Set(['fc','cf','cr','club','rc','ssc','ac','as','sc','fk','sk','calcio','krc','afc','se','de','del','la','el','los','las','futbol','football','sv','tsg','vfl','vfb','bsc','cd','ud','sd','ca','hotspur']);
+// Nombres que la web guarda distinto de como los publica FotMob (clave: nombre de la web sin tildes, en minúsculas)
+const _RES_CLUB_ALIAS = { 'sporting de lisboa': ['Sporting CP'], 'ssc napoles': ['Napoli'], 'dinamo moscu': ['Dinamo Moscow', 'Dynamo Moscow'], 'real salt lake city': ['Real Salt Lake'], 'diriyah club': ['Al Diriyah', 'Diriyah'], 'cagliari calcio': ['Cagliari'], 'real betis balompie': ['Real Betis'], 'tottenham hotspur': ['Tottenham Hotspur', 'Tottenham'], 'liverpool fc': ['Liverpool'] };
+const _RES_CC = { uy:'URU', ar:'ARG', br:'BRA', es:'ESP', it:'ITA', pt:'POR', 'gb-eng':'ENG', mx:'MEX', us:'USA', co:'COL', be:'BEL', cl:'CHI', sa:'KSA', fr:'FRA', de:'GER', nl:'NED', tr:'TUR', jp:'JPN', ec:'ECU', py:'PAR', pe:'PER', ve:'VEN', cn:'CHN', ae:'UAE', qa:'QAT', gr:'GRE', ch:'SUI', at:'AUT', ru:'RUS', se:'SWE', dk:'DEN', no:'NOR', pl:'POL', cz:'CZE', hr:'CRO', rs:'SRB', 'gb-sct':'SCO', kr:'KOR', in:'IND', hk:'HKG', au:'AUS' };
+function _resNorm(n) { return String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function _resTok(n) { return _resNorm(n).split(' ').filter(w => w && !_RES_STOP.has(w)); }
+function _resMatch1(appName, appCc, fmName, fmCc) {
+  if (/\(w\)|\bu-?\d{2}\b|\bii\b| b$| women|\bsub-?\d{2}\b|reserves|youth/i.test(fmName)) return false;
+  const A = _resTok(appName), B = _resTok(fmName); if (!A.length || !B.length) return false;
+  const sa = new Set(A), sb = new Set(B), sub = (x, y) => [...x].every(t => y.has(t));
+  const appCcc = _RES_CC[appCc];
+  const paisOk = !(appCcc && fmCc && fmCc !== 'INT' && appCcc !== fmCc);   // misma liga/país (o competencia internacional)
+  if (sa.size === sb.size && sub(sa, sb)) return paisOk;                    // nombres idénticos
+  // uno contenido en el otro: solo del mismo país y cuando lo que sobra es un prefijo/sufijo inocuo (Deportivo Toluca = Toluca, Real Betis Balompié = Real Betis);
+  // así 'Independiente' no se confunde con 'Independiente Rivadavia'
+  const OK = new Set(['deportivo', 'real', 'balompie', 'athletic']);
+  const extra = (x, y) => [...x].filter(t => !y.has(t)).every(t => OK.has(t));
+  return !!(appCcc && appCcc === fmCc && ((sub(sa, sb) && extra(sb, sa)) || (sub(sb, sa) && extra(sa, sb))));
+}
+function _resMatch(appClub, appCc, fmName, fmCc) {
+  const cands = [appClub, ...(_RES_CLUB_ALIAS[_resNorm(appClub)] || [])];
+  return cands.some(c => _resMatch1(c, appCc, fmName, fmCc));
+}
+const _fmDiaCache = {};
+async function fotmobDia(ymd) {
+  const c = _fmDiaCache[ymd]; if (c && (Date.now() - c.ts) < 120000) return c.data;
+  const raw = await fetchText(`https://www.fotmob.com/api/data/matches?date=${ymd}&timezone=America%2FMontevideo&ccode3=URY`);
+  const data = JSON.parse(raw).leagues || [];
+  _fmDiaCache[ymd] = { ts: Date.now(), data };
+  return data;
+}
+app.get('/api/partidos-reservados', async (req, res) => {
+  try {
+    const fechas = String(req.query.fechas || '').split(',').filter(f => /^\d{4}-\d{2}-\d{2}$/.test(f)).slice(0, 3);
+    const clubs = String(req.query.clubs || '').split(';;').map(x => x.trim()).filter(Boolean).slice(0, 80).map(x => { const [n, cc] = x.split('~'); return { n, cc: (cc || '').toLowerCase() }; });
+    if (!fechas.length || !clubs.length) return res.json({ ok: true, partidos: [] });
+    const out = [];
+    for (const f of fechas) {
+      const leagues = await fotmobDia(f.replace(/-/g, ''));
+      leagues.forEach(l => (l.matches || []).forEach(m => {
+        const st = m.status || {};
+        const hit = [['home', m.home], ['away', m.away]].map(([lado, t]) => ({ lado, t, c: clubs.find(c => _resMatch(c.n, c.cc, (t && t.name) || '', l.ccode)) })).filter(x => x.c);
+        if (!hit.length) return;
+        const ud = st.utcTime ? new Date(st.utcTime) : null;
+        const dia = ud ? ud.toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' }) : f;
+        out.push({
+          fecha: dia, utc: st.utcTime || null, liga: l.name || '', ccode: l.ccode || '', id: m.id,
+          home: m.home && m.home.name, homeId: m.home && m.home.id, away: m.away && m.away.name, awayId: m.away && m.away.id,
+          gh: m.home && m.home.score, ga: m.away && m.away.score,
+          estado: st.cancelled ? 'susp' : st.finished ? 'fin' : (st.started || st.ongoing) ? 'vivo' : 'prog',
+          minuto: String((st.liveTime && st.liveTime.short) || '').replace(/[‎‏]/g, ''),
+          clubs: hit.map(x => x.c.n),
+        });
+      }));
+    }
+    out.sort((a, b) => String(a.utc).localeCompare(String(b.utc)));
+    res.json({ ok: true, partidos: out });
+  } catch (e) {
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
 let _hoyCache = null;
 app.get('/api/futbol-uy/hoy', async (req, res) => {
   try {
