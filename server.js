@@ -1118,7 +1118,7 @@ app.get('/api/partido-detalle', async (req, res) => {
       return { ...base, jugador: e.nameStr || '' };
     }).filter(e => ['Goal', 'Card', 'Substitution', 'VAR'].includes(e.tipo));
     const lu = ct.lineup || {};
-    const eq = t => t ? { nombre: t.name, formacion: t.formation || '', dt: (t.coach && t.coach.name) || '', titulares: (t.starters || []).map(p => ({ nombre: p.name, num: p.shirtNumber, nota: p.performance && p.performance.rating })), suplentes: (t.subs || []).map(p => ({ nombre: p.name, num: p.shirtNumber })) } : null;
+    const eq = t => t ? { nombre: t.name, formacion: t.formation || '', dt: (t.coach && t.coach.name) || '', titulares: (t.starters || []).map(p => ({ nombre: p.name, num: p.shirtNumber, nota: p.performance && p.performance.rating })), suplentes: (t.subs || []).map(p => ({ nombre: p.name, num: p.shirtNumber, nota: p.performance && p.performance.rating })) } : null;
     const d = {
       ok: true, id, liga: g.leagueName || '', ronda: g.matchRound || '', utc: g.matchTimeUTCDate || st.utcTime || null,
       home: g.homeTeam && g.homeTeam.name, homeId: g.homeTeam && g.homeTeam.id, away: g.awayTeam && g.awayTeam.name, awayId: g.awayTeam && g.awayTeam.id,
