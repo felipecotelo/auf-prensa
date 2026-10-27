@@ -3190,6 +3190,34 @@ select.rd-in{padding:0 10px}
 .rd-ov{position:fixed;inset:0;z-index:100000;background:rgba(4,8,20,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px}
 .rd-md{width:min(560px,94vw);max-height:90vh;overflow:auto;box-sizing:border-box;padding:22px 24px;border-radius:22px;border:1px solid rgba(255,255,255,.16);color:#F4F7FB;background:radial-gradient(380px 160px at 100% 0,rgba(0,157,216,.2),transparent 70%),linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 30px 80px rgba(0,0,0,.6);animation:rdIn .12s ease-out}
 @keyframes rdIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Banners: titular de convocatoria + detalle discreto de fotos */
+.bn{padding:7px 12px;border-radius:14px;gap:10px;margin-bottom:8px;border-color:rgba(255,255,255,.09);background:rgba(255,255,255,.03)}
+.bn-r,.bn-s{border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.03)}
+.bn-dot,.bn-r .bn-dot,.bn-s .bn-dot{width:6px;height:6px;box-shadow:none}
+.bn-r .bn-dot{background:#FCA5A5}
+.bn .bn-b{font-size:12px;line-height:1.5}
+.bn .bn-t{display:inline;font-size:11px;letter-spacing:.04em;text-transform:none;font-weight:700;color:rgba(239,243,248,.75)}
+.bn-r .bn-t{color:#FCA5A5}
+.bn .bn-x{display:inline;margin:0;font-size:12px;line-height:1.5;color:rgba(239,243,248,.6)}
+.bn .bn-wa{height:24px;padding:0 10px;font:600 10px inherit;font-family:inherit;letter-spacing:.02em;text-transform:none;display:inline-flex;align-items:center;gap:5px}
+.bn .bn-wa i{font-size:13px}
+.bn .bn-cl{width:22px;height:22px;font-size:11px}
+.bn-hd{position:relative;margin:2px 2px 18px;padding:4px 0 4px 18px;border-left:3px solid var(--cat,#8AD8FF)}
+.bn-hd-eye{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--cat,#8AD8FF)}
+.bn-hd-t{margin-top:4px;font-family:'Space Grotesk','Inter',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1.1;color:#F4F7FB}
+.bn-hd-s{margin-top:4px;font-size:13px;color:rgba(239,243,248,.6)}
+.cv-empty{text-align:left}
+.cv-empty .rd-tit{font-size:26px;margin:6px 0 4px}
+
+.tabs.jt{justify-content:safe center;flex-wrap:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 26px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 26px),transparent 100%)}
+.juv-cat-sticky .tabs.jt{padding-left:1.4rem!important;padding-right:1.4rem!important}
+.tabs.jt .tab,#nav-l2.tabs.jt .tab{font-size:12px!important;height:30px;padding:0 11px;gap:5px;flex:0 0 auto}
+.tabs.jt .tab i{font-size:13px}
+#jt-menu{min-width:200px;padding:6px;border-radius:16px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,#10182C,#0A1022);box-shadow:0 18px 50px rgba(0,0,0,.55)}
+#jt-menu button{display:flex;align-items:center;gap:9px;width:100%;height:34px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:rgba(239,243,248,.8);font:600 12.5px inherit;font-family:inherit;cursor:pointer;text-align:left}
+#jt-menu button:hover{background:rgba(255,255,255,.06)}#jt-menu button.on{color:#8AD8FF;background:rgba(0,157,216,.14)}
+#jt-menu button i{font-size:14px;opacity:.75}
 </style>
 <script>
 (function(){
@@ -35492,8 +35520,50 @@ window._editJuvClub = function(nom, el){
 
 // Aviso de fotos faltantes (un solo armado para las 3 pantallas). kind: 'r' rojo, 's' suave. waKey: nombre de la clave en window con el mensaje de WhatsApp.
 function _bnHtml(id,kind,title,names,waKey){
-  return `<div id="${id}" class="bn bn-${kind}"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">${title}</div><div class="bn-x">${names}</div></div>${waKey?`<button class="bn-wa" onclick="_copyWaFotos(this,window['${waKey}'])" title="Copiar mensaje para WhatsApp">WhatsApp</button>`:''}<button class="bn-cl" onclick="document.getElementById('${id}').style.display='none'" title="Cerrar"><i class="ti ti-x"></i></button></div>`;
+  // Detalle discreto (no alerta): una línea con "Sin foto: nombres", botón WhatsApp compacto y X chica.
+  return `<div id="${id}" class="bn bn-${kind}"><i class="bn-dot"></i><div class="bn-b"><span class="bn-t">${title}:</span> <span class="bn-x">${names}</span></div>${waKey?`<button class="bn-wa" onclick="_copyWaFotos(this,window['${waKey}'])" title="Copiar mensaje para WhatsApp"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>`:''}<button class="bn-cl" onclick="document.getElementById('${id}').style.display='none'" title="Cerrar"><i class="ti ti-x"></i></button></div>`;
 }
+// ¿La competencia ya tiene lista definitiva (de ESA competencia)? Criterio de la app: convocadosFecha "Convocatoria final · …".
+// Las de entrenamientos ("Microciclo N") o amistosos/viajes ("Viajeros a …") no cuentan: viven en Jugadores / Amistosos prep. Competencias históricas (sin convocadosFecha, con lista cargada) sí.
+// Además, Felipe puede marcarla con la acción explícita "Cargar lista definitiva" (clave sincronizada auf4_juv_lista_final; solo agrega).
+function _compListaFinal(comp){
+  try{ const f=JSON.parse(localStorage.getItem('auf4_juv_lista_final')||'{}')||{}; if(comp&&comp.id&&f[comp.id]) return true; }catch(_){}
+  const cf=String((comp&&comp.convocadosFecha)||'').trim();
+  if(!cf) return true;
+  return /convocatoria\s+final/i.test(cf);
+}
+function _compCargarListaFinal(id){
+  _rdModal(`<div class="rd-eye" style="margin-bottom:6px">Lista definitiva</div><div class="rd-tit" style="margin-bottom:6px">¿Marcar la lista cargada como definitiva?</div>
+    <div class="rd-sub" style="margin-bottom:16px">Convocados pasa a mostrar la lista que está cargada hoy como lista final de la competencia. No se borra ni se mueve ningún dato.</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="rd-btn ghost" onclick="_rdModalClose()">Cancelar</button><button class="rd-btn" onclick="_compCargarListaFinalOk('${id}')"><i class="ti ti-check"></i>Sí, es la definitiva</button></div>`,{width:480,noFocus:true});
+}
+function _compCargarListaFinalOk(id){
+  let cur={}; try{ cur=JSON.parse(localStorage.getItem('auf4_juv_lista_final')||'{}')||{}; }catch(_){}
+  stor.set('auf4_juv_lista_final',{...cur,[id]:{t:new Date().toISOString().slice(0,10)}});
+  _rdModalClose(); toast('Lista definitiva marcada'); try{ window.renderJuveniles(); }catch(_){}
+}
+// Barra de pestañas única para todas las categorías (Sub-13/15/16/17/20): compacta y legible (≥12 px). Con más de 7 pestañas, las secundarias van en un menú "Más".
+function _juvTabsBar(TABS, activeId, fn){
+  const PRIM=['convocados','jugadores','fixture','posiciones','diseno'];
+  const usarMas = TABS.length>7;
+  const vis = usarMas ? TABS.filter(t=>PRIM.includes(t.id)) : TABS;
+  const mas = usarMas ? TABS.filter(t=>!PRIM.includes(t.id)) : [];
+  const btn = t=>`<button onclick="${fn}('${t.id}')" class="tab${t.id===activeId?' active':''}" title="${t.label}"><i class="ti ${t.icon}"></i>${t.label}</button>`;
+  const act = mas.find(t=>t.id===activeId);
+  window._juvMasCfg={fn,items:mas.map(t=>({id:t.id,label:t.label,icon:t.icon,on:t.id===activeId}))};
+  return `<div class="tabs jt">${vis.map(btn).join('')}${mas.length?`<button class="tab${act?' active':''}" onclick="_juvMasMenu(this)"><i class="ti ti-dots"></i>${act?act.label:'Más'}<i class="ti ti-chevron-down" style="font-size:11px"></i></button>`:''}</div>`;
+}
+function _juvMasMenu(btn){
+  const old=document.getElementById('jt-menu'); if(old){ old.remove(); return; }
+  const cfg=window._juvMasCfg||{items:[]}; const r=btn.getBoundingClientRect();
+  const m=document.createElement('div'); m.id='jt-menu';
+  m.style.cssText='position:fixed;z-index:99990;top:'+(r.bottom+6)+'px;left:'+Math.max(8,Math.min(r.left,innerWidth-232))+'px';
+  m.innerHTML=cfg.items.map(t=>`<button class="${t.on?'on':''}" onclick="document.getElementById('jt-menu').remove();${cfg.fn}('${t.id}')"><i class="ti ${t.icon}"></i>${t.label}</button>`).join('');
+  document.body.appendChild(m);
+  setTimeout(()=>{ const off=e=>{ if(!m.contains(e.target)){ m.remove(); document.removeEventListener('mousedown',off,true); } }; document.addEventListener('mousedown',off,true); },0);
+}
+if(!window._jtEsc){ window._jtEsc=true; document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const m=document.getElementById('jt-menu'); if(m) m.remove(); } },true); }
+window._juvMasMenu=_juvMasMenu; window._compCargarListaFinal=_compCargarListaFinal; window._compCargarListaFinalOk=_compCargarListaFinalOk; // los onclick en línea necesitan estar en window
 function _juvFichaCard(p, hist, off, extraIcon){
   const hasOficial = off.conv>0;
   const isChamp = _isChampSub20(p.nom);
@@ -35831,10 +35901,7 @@ function _renderJuvenilesSafe(el){
         const _CT_ORD=['convocados','jugadores','fixture','posiciones','diseno','goleadores','ct_del','amistosos','info'];
         const _ctPos=id=>{ const i=_CT_ORD.indexOf(id); return i<0?(id==='info'?60:50):i; };
         CTABS = CTABS.map((t,i)=>({t,i})).sort((a,b)=>(_ctPos(a.t.id)-_ctPos(b.t.id))||(a.i-b.i)).map(x=>x.t);
-        navL2 = `<div class="tabs">${CTABS.map(t=>`
-          <button onclick="_setJuvCompTab('${t.id}')" class="tab${t.id===_juvCompTab?' active':''}">
-            <i class="ti ${t.icon}"></i>${t.label}
-          </button>`).join('')}</div>`;
+        navL2 = _juvTabsBar(CTABS, _juvCompTab, '_setJuvCompTab');
       }
     }
   } else {
@@ -35852,10 +35919,7 @@ function _renderJuvenilesSafe(el){
       {id:'amistosos', label:'Amistosos', icon:'ti-ball-football'},
       {id:'info', label:'Info general', icon:'ti-info-circle'},
     ];
-    navL2 = `<div class="tabs">${TABS.map(t=>`
-      <button onclick="_setJuvTab('${t.id}')" class="tab${t.id===_juvTab?' active':''}">
-        <i class="ti ${t.icon}"></i>${t.label}
-      </button>`).join('')}</div>`;
+    navL2 = _juvTabsBar(TABS, _juvTab, '_setJuvTab');
   }
 
   // ── Contenido del tab activo ──
@@ -36499,6 +36563,7 @@ function _buildJuvCompBody(compId, color, catData){
   const comp = COMP_DATA[compId];
   if(!comp) return '<div style="padding:32px;text-align:center;color:var(--muted)">Sin datos</div>';
   const cc = comp.color||color;
+  const ccr = `color-mix(in srgb,${cc} 55%,#fff)`; // versión legible sobre fondo oscuro (colores de competencia muy oscuros)
 
   // La pestaña "Dorsales" se fusionó con "Convocados" (mostraba lo mismo): si quedó guardada, va a Convocados.
   if(_juvCompTab==='dorsales') _juvCompTab='convocados';
@@ -36523,19 +36588,19 @@ function _buildJuvCompBody(compId, color, catData){
     // Datos cortos (fecha, sede, formato) van como chips destacados; el resto, como filas con eyebrow.
     const _igCortos = _igE.filter(([k,v])=>String(v).length<=26);
     const _igLargos = _igE.filter(([k,v])=>String(v).length>26);
-    const _card = (eye, body) => `<div class="fu-card rd-cat" style="--cat:${cc}"><div class="fu-card-h"><span class="lab" style="color:${cc}">${eye}</span></div><div style="padding:6px 20px 16px">${body}</div></div>`;
+    const _card = (eye, body) => `<div class="fu-card rd-cat" style="--cat:${ccr}"><div class="fu-card-h"><span class="lab" style="color:${ccr}">${eye}</span></div><div style="padding:6px 20px 16px">${body}</div></div>`;
     content = `
-      ${_igCortos.length?`<div class="rd-chips" style="margin:0 2px 14px">${_igCortos.map(([k,v])=>`<span class="rd-pill" style="--c:${cc}"><span style="opacity:.7">${k}</span> ${v}</span>`).join('')}</div>`:''}
+      ${_igCortos.length?`<div class="rd-chips" style="margin:0 2px 14px">${_igCortos.map(([k,v])=>`<span class="rd-pill" style="--c:${ccr}"><span style="opacity:.7">${k}</span> ${v}</span>`).join('')}</div>`:''}
       <div class="rd-grid2">
         ${_igLargos.length?_card('Información general', _igLargos.map(([k,v])=>`<div class="rd-kv"><span>${k}</span><b>${v}</b></div>`).join('')):''}
-        ${comp.itinerario?.length?_card('Itinerario', comp.itinerario.map(s=>`<div class="rd-kv" style="flex-direction:row;align-items:flex-start;gap:10px"><i class="ti ti-point-filled" style="color:${cc};font-size:14px;margin-top:2px"></i><b>${s}</b></div>`).join('')):''}
+        ${comp.itinerario?.length?_card('Itinerario', comp.itinerario.map(s=>`<div class="rd-kv" style="flex-direction:row;align-items:flex-start;gap:10px"><i class="ti ti-point-filled" style="color:${ccr};font-size:14px;margin-top:2px"></i><b>${s}</b></div>`).join('')):''}
       </div>
       ${comp.grupos?`
         <div class="sx-eye" style="margin-top:6px">Grupos</div>
         <div class="rd-grid2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
           ${Object.entries(comp.grupos).map(([g,equipos])=>`
-            <div class="fu-card rd-cat" style="--cat:${cc};margin:0"><div class="fu-card-h"><span class="lab" style="color:${cc}">${g}</span></div>
-              <div class="rd-chips" style="padding:8px 20px 16px">${equipos.map(e=>`<span class="rd-pill" style="--c:${e==='Uruguay'?cc:'rgba(239,243,248,.7)'};${e==='Uruguay'?'':'background:transparent'}">${e}</span>`).join('')}</div>
+            <div class="fu-card rd-cat" style="--cat:${ccr};margin:0"><div class="fu-card-h"><span class="lab" style="color:${ccr}">${g}</span></div>
+              <div class="rd-chips" style="padding:8px 20px 16px">${equipos.map(e=>`<span class="rd-pill" style="--c:${e==='Uruguay'?ccr:'rgba(239,243,248,.7)'};${e==='Uruguay'?'':'background:transparent'}">${e}</span>`).join('')}</div>
             </div>`).join('')}
         </div>`:''}`;
   }
@@ -36544,6 +36609,7 @@ function _buildJuvCompBody(compId, color, catData){
     const convs = comp.convocados||[];
     const activos = convs.filter(j=>!j.descartado);
     const descartados = convs.filter(j=>j.descartado);
+    const _hayFinal = _compListaFinal(comp);
     // Camiseta 1ª/2ª por dorsal: se muestra en la ficha si está cargada.
     const _dis = comp.diseno||{};
     const _sh1 = `<svg width="16" height="18" viewBox="0 0 18 20" fill="none"><path d="M6 1L1 4l2 4 2-1v12h8V7l2 1 2-4L12 1 9 3 6 1z" fill="#1A56DB" stroke="#fff" stroke-width=".5"/></svg>`;
@@ -36573,7 +36639,16 @@ function _buildJuvCompBody(compId, color, catData){
         <div class="jf-stats"><span class="jf-pos" style="color:${pc};border-color:${pc}66;background:${pc==='rgba(239,243,248,.5)'?'transparent':pc+'14'};cursor:default">${pos||'—'}</span>${off?`<span class="jf-st" style="color:#FCA5A5">${j.descartado}</span>`:''}</div>
       </div>`;
     };
-    content = `
+    content = !_hayFinal ? `
+      <div class="fu-card rd-cat cv-empty" style="--cat:${ccr};padding:26px 26px 24px">
+        <div class="rd-eye">Lista definitiva no confirmada todavía</div>
+        <div class="rd-tit">${comp.label||'Competencia'}</div>
+        <div class="rd-sub" style="font-size:13px;max-width:560px;line-height:1.55">${comp.fecha?`Se espera la lista final de la competencia (${comp.fecha}). `:''}Mientras tanto, los jugadores del proceso y las convocatorias semanales de entrenamientos están en la pestaña Jugadores.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px">
+          <button class="rd-btn" onclick="_setJuvCompTab('jugadores')"><i class="ti ti-id-badge-2"></i>Ver jugadores en proceso · ${activos.length}</button>
+          <button class="rd-btn ghost" onclick="_compCargarListaFinal('${comp.id}')"><i class="ti ti-clipboard-check"></i>Cargar lista definitiva</button>
+        </div>
+      </div>` : `
       <div class="cv-eye">${activos.length} convocados</div>
       <div class="rd-grid" style="--cat:${_catCol(_juvCat)}">
         ${activos.map(j=>_cvFicha(j,false)).join('')||`<div style="color:rgba(239,243,248,.5);font-size:13px;padding:8px">Sin convocados registrados</div>`}
@@ -36710,8 +36785,8 @@ function _buildJuvCompBody(compId, color, catData){
       const id='juv-foto-comp-s-'+compId;
       return _bnHtml(id,'s','Faltan fotos en el pool',_sinFotoPool.map(p=>p.nom).join(' · '));
     })() : '';
-    const _bannerFecha = fechaConvBanner ? `
-      <div class="bn bn-f" style="--cat:${_catCol(_juvCat)}"><i class="bn-dot"></i><div class="bn-b"><div class="bn-t">Convocatoria vigente</div><div class="bn-x" style="color:#F4F7FB">${fechaConvBanner}</div></div></div>` : '';
+    const _bannerFecha = fechaConvBanner ? (()=>{ const _pp=String(fechaConvBanner).split(' · '); return `
+      <div class="bn-hd" style="--cat:${_catCol(_juvCat)}"><div class="bn-hd-eye">Convocatoria vigente</div><div class="bn-hd-t">${_pp[0]}</div>${_pp.length>1?`<div class="bn-hd-s">${_pp.slice(1).join(' · ')}</div>`:''}</div>`; })() : '';
     content = _bannerFecha + _bannerRojo + _bannerSuave + `
       <div style="font-size:.68em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
         ${prepAsActive?`Reservados / Preparación — ${activos.length} jugadores`:`Convocados — ${activos.length} jugadores`}
@@ -36749,21 +36824,21 @@ function _buildJuvCompBody(compId, color, catData){
         ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
         : `<span>${initials}</span>`;
       return `
-      <div class="rd-ppl" style="--cat:${cc}">
+      <div class="rd-ppl" style="--cat:${ccr}">
         <div class="rd-av" onclick="_clickCtPhoto('${_encJs(m.name)}')" title="Cargar/editar foto">
           <div>${avatar}</div><i class="ti ti-camera"></i>
           <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(m.name)}',this)">
         </div>
         <div class="rd-pn"><b>${m.name}</b><span>${m.rol}</span></div>
-        ${m.dt?`<span class="rd-pill" style="--c:${cc}">DT</span>`:''}
+        ${m.dt?`<span class="rd-pill" style="--c:${ccr}">DT</span>`:''}
         ${_juvCompCtEdit?`<button class="rd-ic del" title="Quitar" onclick="_juvCompCTRemove('${ctKey}',${idx})"><i class="ti ti-x"></i></button>`:''}
       </div>`;
     };
 
-    const editBtn = `<button class="rd-btn ghost sm${_juvCompCtEdit?' on':''}" style="--cat:${cc}" onclick="_juvCompCTToggleEdit()"><i class="ti ti-${_juvCompCtEdit?'check':'pencil'}"></i>${_juvCompCtEdit?'Listo':'Editar CT'}</button>`;
+    const editBtn = `<button class="rd-btn ghost sm${_juvCompCtEdit?' on':''}" style="--cat:${ccr}" onclick="_juvCompCTToggleEdit()"><i class="ti ti-${_juvCompCtEdit?'check':'pencil'}"></i>${_juvCompCtEdit?'Listo':'Editar CT'}</button>`;
 
     const addForm = _juvCompCtEdit ? `
-      <div class="rd-form" style="--cat:${cc};margin-top:10px">
+      <div class="rd-form" style="--cat:${ccr};margin-top:10px">
         <div class="rd-eye mut" style="margin-bottom:10px">Agregar integrante</div>
         <div class="rd-g2">
           <div style="position:relative">
@@ -36810,7 +36885,7 @@ function _buildJuvCompBody(compId, color, catData){
         ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
         : `<span>${initials}</span>`;
       return `
-      <div class="rd-ppl" style="--cat:${cc}">
+      <div class="rd-ppl" style="--cat:${ccr}">
         <div class="rd-av" onclick="_clickCtPhoto('${_encJs(m.name)}')" title="Cargar/editar foto">
           <div>${avatar}</div><i class="ti ti-camera"></i>
           <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(m.name)}',this)">
@@ -36824,9 +36899,9 @@ function _buildJuvCompBody(compId, color, catData){
         <button class="rd-ic del" title="Quitar" onclick="_juvCompDelRemove('${ctKey}',${idx})"><i class="ti ti-x"></i></button>`:''}
       </div>`;
     };
-    const delEditBtn = `<button class="rd-btn ghost sm${_juvCompDelEdit?' on':''}" style="--cat:${cc}" onclick="_juvCompDelToggleEdit()"><i class="ti ti-${_juvCompDelEdit?'check':'pencil'}"></i>${_juvCompDelEdit?'Listo':'Editar delegación'}</button>`;
+    const delEditBtn = `<button class="rd-btn ghost sm${_juvCompDelEdit?' on':''}" style="--cat:${ccr}" onclick="_juvCompDelToggleEdit()"><i class="ti ti-${_juvCompDelEdit?'check':'pencil'}"></i>${_juvCompDelEdit?'Listo':'Editar delegación'}</button>`;
     const delAddForm = _juvCompDelEdit ? `
-      <div class="rd-form" style="--cat:${cc};margin-top:10px">
+      <div class="rd-form" style="--cat:${ccr};margin-top:10px">
         <div class="rd-eye mut" style="margin-bottom:10px">Agregar integrante</div>
         <div class="rd-g2">
           <div style="position:relative">
@@ -36851,11 +36926,11 @@ function _buildJuvCompBody(compId, color, catData){
       </button>` : '';
 
     content = `
-      <div class="rd-top" style="--cat:${cc}"><span class="rd-eye">Cuerpo técnico</span>${editBtn}</div>
+      <div class="rd-top" style="--cat:${ccr}"><span class="rd-eye">Cuerpo técnico</span>${editBtn}</div>
       <div class="rd-grid" style="margin-bottom:10px">${ctSorted.map(m=>memberRow(m,m._origIdx)).join('')}</div>
       ${addForm}
       ${resetBtn}
-      <div class="rd-top" style="--cat:${cc};margin-top:24px"><span class="rd-eye">Delegación</span>${delEditBtn}</div>
+      <div class="rd-top" style="--cat:${ccr};margin-top:24px"><span class="rd-eye">Delegación</span>${delEditBtn}</div>
       ${del.length?`<div class="rd-grid" style="margin-bottom:10px">${del.map((m,i)=>delMemberRow(m,i)).join('')}</div>`:`<div style="text-align:center;padding:20px 0;color:rgba(239,243,248,.5);font-size:13px">Sin delegación cargada todavía</div>`}
       ${delAddForm}
       ${delResetBtn}`;
