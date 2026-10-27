@@ -8651,14 +8651,14 @@ function _recPartidosDerivados(){
             // La alineación no sale 24 h antes: por lo general aparece la noche anterior (tv1 18:00, tv2 18:30, tv3 19:00 del día previo: horario laboral, nada después de las 19)
             const _prev={tv1:'18:00',tv2:'18:30',tv3:'19:00'};
             const id=k+'|'+uid, mn=manual[id]||{}, dt=_prev[k]?{vence:_recSumarDias(D,-1),hora:_prev[k]}:en(off);
-            out.push({id,titulo:tit,detalle:det,vence:dt.vence,hora:dt.hora,etiqueta:metaCat(cat),importante:true,orden:i+1,sinAnticipo:(k==='tv1'||k==='tv2'||k==='tv3'),
+            out.push({id,titulo:tit,detalle:det,vence:dt.vence,hora:dt.hora,etiqueta:metaCat(cat),importante:true,orden:i+1,
               hecho:!!auto||!!mn.hecho,hechoEn:(!auto&&mn.hecho)?mn.hechoEn:null});
           });
           return;
         }
         if(D>=TODAY && D<=_recSumarDias(TODAY,10)){
           const id='alin|'+uid, mn=manual[id]||{};
-          out.push({id,titulo:'Conseguir la alineación de '+lbl+' y cargarla en la app',detalle:'Partido '+D.split('-').reverse().join('/')+hora+' · se la pedimos al CT',vence:_recSumarDias(D,-1),hora:'10:00',etiqueta:metaCat(cat),sinAnticipo:true,
+          out.push({id,titulo:'Conseguir la alineación de '+lbl+' y cargarla en la app',detalle:'Partido '+D.split('-').reverse().join('/')+hora+' · se la pedimos al CT',vence:_recSumarDias(D,-1),hora:'10:00',etiqueta:metaCat(cat),
             hecho:nStart>=nMax||!!mn.hecho,hechoEn:(nStart<nMax&&mn.hecho)?mn.hechoEn:null});
         }
         if(cat!=='fifamayor' && D<=TODAY && D>=_recSumarDias(TODAY,-10)){
@@ -8700,9 +8700,9 @@ function _recSemanalesDerivados(){
 }
 function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados()]; }
 function _recPendientes(){
-  const lim=new Date(); lim.setDate(lim.getDate()+1); lim.setHours(23,59,59,999);
-  const limHoy=new Date(); limHoy.setHours(23,59,59,999); // sinAnticipo: no se muestran antes de su día (p. ej. alineación del partido de mañana)
-  return _recTodos().filter(r=>!r.hecho && _recDue(r)<=(r.sinAnticipo?limHoy:lim)).sort(_recCmp);
+  // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
+  const lim=new Date(); lim.setHours(23,59,59,999);
+  return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim).sort(_recCmp);
 }
 // Los marcados como hechos quedan a la vista con su tick durante 12 horas (se pueden destildar); pasado ese tiempo salen de la lista.
 const _REC_HECHO_HORAS=12;
