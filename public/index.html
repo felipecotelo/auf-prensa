@@ -7313,7 +7313,7 @@ function renderInicioHoySeleccion(dayOffset){
       [typeof FIFASEP26!=='undefined'?FIFASEP26:null, typeof FIFANOV26!=='undefined'?FIFANOV26:null].filter(Boolean).forEach(EV=>{
         (EV.partidosData||[]).forEach(p=>{
           if((p.fecha||'').slice(0,10)===isoHoy){
-            partidosHoy.push({txt:`Mayor vs. ${p.rival}${p.rivalBandera?' '+p.rivalBandera:''}${p.hora?' · '+p.hora+'h (UY)':''}`, cat:'Mayor', ck:'mayor', rival:p.rival, hora:p.hora||'', eb:{nom:'Selección Mayor',det:EV.label||'Fecha FIFA'}, sede:p.sede||'', onclick:`showSection('mayor')`});
+            partidosHoy.push({txt:`Mayor vs. ${p.rival}${p.rivalBandera?' '+p.rivalBandera:''}${p.hora?' · '+p.hora+'h (UY)':''}`, cat:'Mayor', ck:'mayor', rival:p.rival, hora:p.hora||'', eb:{nom:'Selección Mayor',det:(EV.label||'Fecha FIFA')+(p.var==='sin'?' · Sin VAR':p.var==='con'?' · Con VAR':'')}, sede:p.sede||'', onclick:`showSection('mayor')`});
           }
         });
       });
@@ -8882,7 +8882,53 @@ function _recSemanalesDerivados(){
   }catch(e){ console.error('recordatorios semanales:',e); }
   return out;
 }
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados()]; }
+
+// Recordatorios derivados de la Mayor y de la cobertura de entrenamientos Juveniles
+//  · 10 días antes de cada Fecha FIFA de la Mayor: chequear nacimientos de hijos (camiseta de niño de regalo).
+//  · Por cada entrenamiento Juvenil con cobertura agendada (Cobertura fotográfica semanal): «Publicar de entrenamiento X» a las 3 h de empezar
+//    y, una hora después, «Enviar a plantel y staff el link de fotos». Van conectados con los tildes de «Publicado» y «Link» de esa cobertura.
+function _covDia(d){ return String(d||'').split('-').reverse().slice(0,2).join('/'); }
+function _recExtraDerivados(){
+  const out=[];
+  try{
+    const manual=stor.get('auf4_rec_manual',{});
+    [[typeof FIFASEP26!=='undefined'?FIFASEP26:null,'sep'],[typeof FIFANOV26!=='undefined'?FIFANOV26:null,'nov']].forEach(([EV,k])=>{
+      if(!EV||!EV.desde||TODAY>EV.desde) return;
+      const id='bebes|'+k, mn=manual[id]||{}, nac=EV.nacimientos||[];
+      const detalle=nac.length
+        ? nac.map(n=>`${n.nom} fue papá el ${_covDia(n.fecha)} (${n.rol||'reservado'}): hacerle la camiseta de niño; si queda convocado se la damos ahí, si no, después`).join(' · ')
+        : 'Mirar si algún reservado o convocado fue papá hace poco para regalarle una camiseta de niño';
+      out.push({id,titulo:'Chequear nacimientos de hijos de reservados y convocados (camisetas de niño)',detalle:`${EV.label||'Fecha FIFA'} · ${detalle}`,vence:_recSumarDias(EV.desde,-10),hora:'10:00',etiqueta:'Mayor',hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
+    });
+    const cal=(typeof getCalendarioSeleccion==='function'?getCalendarioSeleccion():[]).filter(c=>c.tipo==='actividad'&&/entren/i.test(String(c.txt||'')));
+    (typeof COV_CATS!=='undefined'?COV_CATS:[]).forEach(cat=>{
+      const semanas=new Set(); for(let d=-7;d<=7;d+=7) semanas.add(_covWeekKey(_recSumarDias(TODAY,d)));
+      semanas.forEach(wk=>{
+        const rc=_covGetRec(wk,cat.key);
+        const fechas=[rc.cubierto,...(rc.cubiertoExtra||[])].map((f,i)=>({f,i:i-1})).filter(x=>x.f&&x.f!=='no'&&/^\d{4}-\d{2}-\d{2}$/.test(x.f));
+        fechas.forEach(({f:D,i})=>{
+          if(D<_recSumarDias(TODAY,-3)||D>_recSumarDias(TODAY,7)) return;
+          const act=cal.find(c=>(c.fecha||'').slice(0,10)===D&&String(c.txt||'').toLowerCase().startsWith(cat.label.toLowerCase()));
+          const hm=String((act&&act.hora)||'').match(/(\d{1,2}):(\d{2})/); const h0=hm?parseInt(hm[1],10):9, mm0=hm?hm[2]:'00';
+          const pad=n=>String(Math.min(23,n)).padStart(2,'0');
+          const pubOk=i<0?!!rc.publicado:!!(rc.publicadoExtra||[])[i], linkOk=i<0?!!rc.link:!!(rc.linkExtra||[])[i];
+          out.push({id:`covpub|${cat.key}|${D}`,titulo:`Publicar de entrenamiento ${cat.label}`,detalle:`Cobertura del ${_covDia(D)}${hm?` · entrenamiento a las ${h0}:${mm0}h`:''}`,vence:D,hora:`${pad(h0+3)}:${mm0}`,etiqueta:cat.label,orden:1,hecho:pubOk,hechoEn:pubOk?new Date().toISOString():null});
+          out.push({id:`covlink|${cat.key}|${D}`,titulo:`Enviar a plantel y staff el link de fotos del entrenamiento ${cat.label}`,detalle:`Cobertura del ${_covDia(D)} · después de publicar`,vence:D,hora:`${pad(h0+4)}:${mm0}`,etiqueta:cat.label,orden:2,hecho:linkOk,hechoEn:linkOk?new Date().toISOString():null});
+        });
+      });
+    });
+  }catch(e){ console.warn('recordatorios extra:',e); }
+  return out;
+}
+// Tilda/destilda en «Cobertura fotográfica semanal» (publicado y link) el entrenamiento de un recordatorio
+window._covSetDesdeRec=function(tipo,catKey,D){
+  const wk=_covWeekKey(D), all=_covGetAll(); if(!all[wk]) all[wk]={}; if(!all[wk][catKey]) all[wk][catKey]={cubierto:null,publicado:null,link:false};
+  const rec=all[wk][catKey]; const i=(rec.cubierto===D)?-1:(rec.cubiertoExtra||[]).indexOf(D);
+  if(tipo==='pub'){ if(i<0){ rec.publicado=rec.publicado?null:D; } else { rec.publicadoExtra=rec.publicadoExtra||[]; rec.publicadoExtra[i]=rec.publicadoExtra[i]?null:D; } }
+  else { if(i<0){ rec.link=!rec.link; } else { rec.linkExtra=rec.linkExtra||[]; rec.linkExtra[i]=!rec.linkExtra[i]; } }
+  stor.set(KCovSemanal,all);
+};
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados()]; }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -9353,7 +9399,9 @@ window._recNoAplica=function(id){
   window._recCumpleCache=null; if(typeof renderInicio==='function') renderInicio();
 };
 window._recHecho=function(id){
-  if(/^(alin|ficha|pub|sem|tv[1-6])\|/.test(String(id))){
+  const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
+  if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6])\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
@@ -14462,6 +14510,7 @@ function renderFifaSep26(tabId){
           </div>`}
         </div>
       </div>
+      ${(p.datosColor||[]).length?`<div style="background:#FFFBEB;border-top:0.5px solid #FDE68A;padding:8px 16px;display:flex;gap:8px;align-items:flex-start"><span style="font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#92400E;white-space:nowrap;padding-top:1px">Dato de color</span><span style="font-size:11.5px;color:#78350F;line-height:1.5">${p.datosColor.join(' · ')}</span></div>`:''}
       <div style="background:var(--surface);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid var(--border)">
         <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="ti ti-building-stadium" style="font-size:12px"></i>${p.sede}</span>
         <span style="font-size:11px;color:var(--muted)">${p.local===false?'Visitante':'Local'}</span>
@@ -15388,12 +15437,14 @@ const FIFANOV26 = {
   // Estadio confirmado (23/10/2026): Campus de Maldonado.
   partidosData: [
     {fecha:'2026-11-13', rival:'Argentina', rivalBandera:'🇦🇷', sede:'Argentina · estadio por confirmar', hora:'', horaLocal:'', local:false, confirmado:true},
-    {fecha:'2026-11-17', rival:'República Dominicana', rivalBandera:'🇩🇴', sede:'Campus de Maldonado', hora:'20:30', horaLocal:'20:30', local:true, confirmado:true},
+    {fecha:'2026-11-17', rival:'República Dominicana', rivalBandera:'🇩🇴', sede:'Campus de Maldonado', hora:'20:30', horaLocal:'20:30', local:true, confirmado:true, var:'sin', datosColor:['Tentativo: llegaría a Uruguay el 15/11 y va directo a Maldonado','Se hospedaría en el Complejo Solanas']}, // var: 'sin' | 'con' (cambia en cada partido: define árbitros y cuerpo arbitral)
   ],
   itinerario: [],
   // Listas: se cargan cuando se publiquen. `reservados` null = "lista por
   // confirmar" (placeholder); `finales` null = todavía no hay convocatoria final.
   reservadosFecha: '23/10/2026',
+  // Hijos nacidos de reservados/convocados (para la camiseta de niño de regalo): {nom, fecha, rol}
+  nacimientos: [{nom:'Santiago Mele', fecha:'2026-10-26', rol:'reservado'}],
   finalesFecha: '',
   finales: null,
   // Primera convocatoria = primera vez CONVOCADO a la lista final (haber estado solo en reservados no cuenta). Confirmado por el usuario
@@ -16679,7 +16730,7 @@ function renderFifaNov26(tabId){
       </div>
       <div style="background:var(--surface);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid var(--border)">
         <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px"><i class="ti ti-building-stadium" style="font-size:12px"></i>${p.sede}</span>
-        <span style="font-size:11px;color:var(--muted)">${p.local===false?'Visitante':'Local'}</span>
+        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px">${p.var?`<b style="font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 9px;border-radius:999px;border:1px solid ${p.var==='sin'?'#F97316':'#16A34A'};color:${p.var==='sin'?'#C2410C':'#15803D'}" title="${p.var==='sin'?'Partido sin VAR: cambia el cuerpo arbitral':'Partido con VAR'}">${p.var==='sin'?'Sin VAR':'Con VAR'}</b>`:''}${p.local===false?'Visitante':'Local'}</span>
       </div>
     </div>`;
   };
@@ -22981,7 +23032,7 @@ function _forlanFechasHtml(){
   };
   const cards=[
     mk('sep',FIFASEP26,{d1:'21',mes:'SEP · 6 OCT',title:'Fecha FIFA set-oct 2026',sub:'Japón, Corea del Sur e India · gira por Asia',go:'fifasep26'}),
-    mk('nov',FIFANOV26,{d1:'9',mes:'NOV · 17 NOV',title:'Fecha FIFA nov 2026',sub:'Argentina y República Dominicana',go:'fifanov26'}),
+    mk('nov',FIFANOV26,{d1:'9',mes:'NOV · 17 NOV',title:'Fecha FIFA nov 2026',sub:'Argentina y República Dominicana (esta, sin VAR)',go:'fifanov26'}),
     {d1:'—',mes:'MAR 2027',title:'Fecha FIFA mar 2027',sub:'2 partidos previstos · todavía sin módulo en la app',matches:[],pill:`<b style="font-size:20px;color:rgba(239,243,248,.6)">2 PJ</b><em>Sin módulo</em>`,go:null},
   ];
   return cards.map(o=>`<div class="jm-card ff-card${o.go?'':' off'}" style="--cat:#22D3EE" ${o.go?`onclick="showTournament('${o.go}')" title="Abrir el módulo de esta Fecha FIFA"`:''}>
