@@ -5421,6 +5421,21 @@ function _lesionRegreso(mes,tiempo){
     return lo===hi ? `${A.m} ${A.y}` : (A.y===B.y ? `${A.m}–${B.m} ${B.y}` : `${A.m} ${A.y} – ${B.m} ${B.y}`);
   }catch(_){ return null; }
 }
+// Texto del tiempo que FALTA: arranca con el estimado ('8-10 meses') y baja con el paso de los meses desde el mes de la lesión.
+function _lesionRestante(mes,tiempo){
+  try{
+    const t=String(tiempo||'').trim(); const tl=t.toLowerCase(); if(!mes||!t||/indefin/.test(tl)) return t;
+    let lo,hi,m=tl.match(/(\d+)\s*[-–a]\s*(\d+)\s*mes/);
+    if(m){ lo=+m[1]; hi=+m[2]; } else if((m=tl.match(/(\d+)\s*mes/))){ lo=hi=+m[1]; } else return t;
+    const [y,mo]=mes.split('-').map(Number); const ini=new Date(y,mo-1,1), hoy=new Date();
+    const e=Math.max(0,Math.floor((hoy-ini)/(86400000*30.4)));
+    if(e===0) return t;
+    const l=lo-e, h=hi-e;
+    if(h<=0) return 'recuperación cumplida';
+    if(l<=0) return h===1?'menos de 1 mes':`hasta ${h} meses`;
+    return l===h?`${l} ${l===1?'mes':'meses'}`:`${l}-${h} meses`;
+  }catch(_){ return String(tiempo||''); }
+}
 window._lesionPreview=function(id){
   const st=window._lesionState[id]||{}; const el=document.getElementById(id+'-prev'); if(!el) return;
   const tiempo=(document.getElementById(id+'-tiempo-otra')?.value||'').trim()||st.tiempo||'';
@@ -19188,7 +19203,7 @@ function renderJugadores(){
         <span style="font-size:.68em;color:var(--muted)">·</span>
         ${d.total&&d.total.pj!=null?`<span style="font-size:.68em;font-weight:600;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">— PJ</span>`}
         <div style="display:flex;gap:3px;margin-left:auto;align-items:center">
-          ${lesion?`<span onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion.nota||'Lesión larga'} · ${lesion.meses} meses · Click para editar" style="display:inline-flex;align-items:center;gap:3px;background:#FEF9C3;color:#92400E;border:1px solid #FDE68A;border-radius:20px;padding:2px 7px;font-size:.6em;font-weight:700;cursor:pointer;white-space:nowrap;margin-right:4px">🩹 ${lesion.nota||lesion.meses+'m'}</span>`:''}
+          ${lesion?`<span class="jf-les" onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="Click para editar" style="margin-right:4px"><i class="ti ti-bandage"></i>${lesion.nota?lesion.nota+' <em>·</em> ':''}${_lesionRestante(lesion.mesLesion,lesion.meses)}</span>`:''}
           <button onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion?'Editar lesión':'Marcar lesión larga'}" style="background:${lesion?'#334155':'transparent'};border:1.5px solid ${lesion?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${lesion?'#fff':'#CBD5E1'}">L</button>
           <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#334155':'transparent'};border:1.5px solid ${isRetirado?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
           <button onclick="event.stopPropagation();_toggleFallecidoMayor('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#334155':'transparent'};border:1.5px solid ${isFallecido?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isFallecido?'#fff':'#CBD5E1'}">F</button>
@@ -26647,7 +26662,7 @@ function _renderLocalFicha(nom){
         <button onclick="_toggleLocalRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#fff':'rgba(255,255,255,.12)'};border:1.5px solid ${isRetirado?'#fff':'rgba(255,255,255,.3)'};border-radius:5px;cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;color:${isRetirado?'#0f2744':'#fff'}">R</button>
         <button onclick="_toggleLocalFallecido('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#fff':'rgba(255,255,255,.12)'};border:1.5px solid ${isFallecido?'#fff':'rgba(255,255,255,.3)'};border-radius:5px;cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;color:${isFallecido?'#0f2744':'#fff'}">F</button>
         ${(()=>{const _hs=(window._getSanciones?window._getSanciones(nom):[]);return`<button onclick="_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(x=>x.ano+': '+x.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#fff':'rgba(255,255,255,.12)'};border:1.5px solid ${_hs.length?'#fff':'rgba(255,255,255,.3)'};border-radius:5px;cursor:pointer;font-size:10px;font-weight:700;padding:3px 8px;color:${_hs.length?'#0f2744':'#fff'}">S</button>`;})()}
-        ${lesion?`<span onclick="_toggleLocalLesionado('${nomSafe}')" title="${lesion.nota||'Lesión larga'} · ${lesion.meses}" style="display:inline-flex;align-items:center;gap:3px;background:#FEF9C3;color:#92400E;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">🩹 ${lesion.nota||lesion.meses}</span>`:''}
+        ${lesion?`<span class="jf-les" onclick="_toggleLocalLesionado('${nomSafe}')" title="Click para editar"><i class="ti ti-bandage"></i>${lesion.nota?lesion.nota+' <em>·</em> ':''}${_lesionRestante(lesion.mesLesion,lesion.meses)}</span>`:''}
       </div>
     </div>
 
@@ -35857,7 +35872,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
       <span class="jf-st"><b>${off.pj}</b> PJ</span>
     </div>
     <div class="jf-mid">
-    ${isJuvLesion?`<div class="jf-les" onclick="event.stopPropagation();_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion.nota||'Lesión larga'} · ${isJuvLesion.meses} · Click para editar"><i class="ti ti-bandage"></i>${isJuvLesion.nota||isJuvLesion.meses}${(()=>{ const r=_lesionRegreso(isJuvLesion.mesLesion,isJuvLesion.meses); return r?` <em>· vuelve ${r}</em>`:''; })()}</div>`:''}
+    ${isJuvLesion?`<div class="jf-les" onclick="event.stopPropagation();_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion.nota||'Lesión larga'} · estimado inicial ${isJuvLesion.meses}${(()=>{ const r=_lesionRegreso(isJuvLesion.mesLesion,isJuvLesion.meses); return r?' · regreso '+r:''; })()} · Click para editar"><i class="ti ti-bandage"></i>${isJuvLesion.nota?isJuvLesion.nota+' <em>·</em> ':''}${_lesionRestante(isJuvLesion.mesLesion,isJuvLesion.meses)}</div>`:''}
     ${sb?`<div class="jf-badges">${sb}</div>`:''}
     ${_juvStatsBreakdownHTML(p.nom)}
     <div class="jf-tags">
