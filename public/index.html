@@ -1210,7 +1210,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .sh-rk.m1{background:rgba(252,211,77,.18);color:#FCD34D;font-weight:700}.sh-rk.m2{background:rgba(203,213,225,.16);color:#E2E8F0;font-weight:700}.sh-rk.m3{background:rgba(251,146,60,.18);color:#FB923C;font-weight:700}
 .sh-av{position:relative;width:36px;height:36px;border-radius:50%;flex-shrink:0;overflow:hidden;border:1.5px solid var(--pc,#94A3B8);background:#1B2D50;display:inline-flex;align-items:center;justify-content:center}
 .sh-av>span{font-size:10px;font-weight:700;color:var(--pc,#8AD8FF)}
-.sh-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 8%;transform:scale(1.7);transform-origin:50% 18%}
+.sh-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;transform:translateY(3px) scale(1.2);transform-origin:50% 40%}
+.sh-av img.pt{object-position:50% 0;transform:scale(1.4);transform-origin:50% 0}
 .sh-nm{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
 .sh-nm button{background:none;border:none;padding:0;cursor:pointer;color:#F4F7FB;font:600 14px inherit;font-family:inherit;text-align:left}
 .sh-nm button:hover{color:#8AD8FF}
@@ -17846,18 +17847,18 @@ function _patchStatPhotos(){
     const d=JUGADORES[nom]; if(!d) return;
     const ms=_slug(nom), as=d.auf||'';
     const plPhoto=PLAYERS.find(p=>p.name===nom)?.photo||'';
-    const photo=(window._estPhotoCache||{})['mayor:'+ms]
-      ||(window._estPhotoCache||{})['ct-p:'+ms]
-      ||(window._estPhotoCache||{})['mayor:'+as]
-      ||(window._estPhotoCache||{})['ct-p:'+as]
-      ||d.foto||plPhoto||(window._juvPhotoCache||{})[nom]||window._getPhotoByName?.(nom)||'';
-    if(photo && img.getAttribute('src')!==photo){
+    const photo=d.foto||plPhoto||window._getPhotoByName?.(nom)||'';
+    if(photo && !img.dataset.tried && img.getAttribute('src')!==photo){
       img.src=photo;
-      img.style.cssText='position:absolute;inset:0;width:24px;height:24px;border-radius:50%;object-fit:cover;object-position:top center;display:block';
-      img.onerror=function(){this.remove();};
+      img.style.display='';
     }
   });
 }
+window._avErr=function(img){ // foto rota: probar otra fuente (Supabase/Juveniles, con o sin tilde) y si no, quedan las iniciales
+  try{ if(!img.dataset.tried){ img.dataset.tried='1'; const nom=img.dataset.histNom; const pp=(typeof PLAYERS!=='undefined'&&PLAYERS.find(p=>p.name===nom))||null;
+    const alt=[window._getPhotoByName?.(nom), pp&&pp.photo].find(u=>u&&img.getAttribute('src')!==u); if(alt){ img.src=alt; return; } } }catch(e){}
+  img.style.display='none'; };
+window._avFit=function(img){ try{ img.classList.toggle('pt', img.naturalHeight>img.naturalWidth*1.1); img.style.display=''; }catch(e){} };
 
 function _patchMayorPhotos(){
   // Surgical photo update — avoids full re-render of the 277-player grid
@@ -19120,7 +19121,7 @@ function showJugador(nom){
   const auf=JUGADORES[nom];
   if(!auf) return;
   const p=PLAYERS.find(x=>x.name===nom)||null;
-  const photo=auf.foto||(p?.photo)||null;
+  const photo=auf.foto||(p?.photo)||window._getPhotoByName?.(nom)||null;
   const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#0E7490',DEL:'#B45309'};
   const posLbl={POR:'Portero',DEF:'Defensa',MED:'Mediocampista',DEL:'Delantero'};
   const _customPos=getJugPos()[nom];
@@ -22872,7 +22873,7 @@ function buildAllHistFromJugadores(){
     const safe=nom.replace(/'/g,"\\'");
     const dBadge=(showDelta&&pp)?statDeltaBadge(pp.n,deltaKey):'';
     const isFall=!!(d.fallecido||fallecidosLS[nom]);
-    const _initSrc=window._getPhotoByName?.(nom)||d.foto||(pp?.photo)||'';
+    const _initSrc=d.foto||(pp?.photo)||window._getPhotoByName?.(nom)||'';
     // Estado de convocatoria: reserva vigente > convocatoria final vigente > última convocatoria (ciclo anterior)
     const _nv=(typeof FIFANOV26!=='undefined')?FIFANOV26:null;
     const _sp=(typeof FIFASEP26!=='undefined')?FIFASEP26:null;
@@ -22885,7 +22886,7 @@ function buildAllHistFromJugadores(){
     const medal=i<3?' m'+(i+1):'';
     return `<div class="sh-row${isRet||isFall?' off':''}${(_nvFin||_nvRes)?' conv':''}">
       <span class="sh-rk${medal}">${i+1}</span>
-      <span class="sh-av" style="--pc:${pc}"><span>${initials}</span><img data-hist-nom="${nom.replace(/"/g,'&quot;')}" src="${_initSrc}" style="${_initSrc?'':'display:none'}" onerror="this.style.display='none'"></span>
+      <span class="sh-av" style="--pc:${pc}"><span>${initials}</span><img data-hist-nom="${nom.replace(/"/g,'&quot;')}" src="${_initSrc}" style="${_initSrc?'':'display:none'}" onload="_avFit(this)" onerror="_avErr(this)"></span>
       <span class="sh-nm"><button onclick="showJugador('${safe}')">${nom}</button>${isLeg?'<i class="ti ti-star-filled sh-leg" title="Leyenda"></i>':''}${isFall?'<em class="sh-tg">†</em>':isRet?'<em class="sh-tg">Retirado</em>':'<i class="sh-act" title="En actividad"></i>'}${isConvFifa?`<em class="sh-tg cv${convSt==='Última convocatoria'?' ult':''}" title="${convTit}">${convSt}</em>`:''}${d.auf?`<a class="sh-lk" href="https://www.auf.org.uy/${d.auf}/" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Perfil AUF"><i class="ti ti-arrow-up-right"></i></a>`:''}</span>
       <span class="sh-v">${dBadge}<b>${val}</b></span>
     </div>`;
@@ -25772,6 +25773,15 @@ window._getPhotoByName = function(nom){
   }
   // 4. Foto estática Mayor
   if(typeof JUGADORES!=='undefined' && JUGADORES[nom]?.foto) return JUGADORES[nom].foto;
+  // 5. Misma persona con/sin tilde (Juveniles guarda varias fotos sin tildes: "Egidio Arevalo Rios")
+  const _plain = nom.normalize('NFD').replace(/[̀-ͯ]/g,'');
+  if(window._juvPhotoCache){
+    if(window._juvPhotoCache[_plain]) return window._juvPhotoCache[_plain];
+    const _plain2 = _plain.replace(/ue(?=[a-z]*$)/,'u'); // Grossmueller → Grossmuller
+    if(window._juvPhotoCache[_plain2]) return window._juvPhotoCache[_plain2];
+    const _k = Object.keys(window._juvPhotoCache).find(k=>k.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()===_plain.toLowerCase());
+    if(_k) return window._juvPhotoCache[_k];
+  }
   return null;
 };
 function _localGetPhoto(nom){ return window._getPhotoByName(nom); }
