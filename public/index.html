@@ -619,6 +619,11 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .es-nota{display:inline-block;margin-top:4px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:1px 9px;border-radius:999px;border:1px solid}
 .es-age{text-align:right;flex-shrink:0}.es-age b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:13px;color:#F4F7FB}.es-age span{font-size:10.5px;color:rgba(239,243,248,.45)}
 .es-mv{display:flex;flex-direction:column;flex-shrink:0}.es-mv button{border:none;background:none;color:rgba(239,243,248,.45);cursor:pointer;padding:0;line-height:1;font-size:13px}.es-mv button:disabled{color:rgba(239,243,248,.15);cursor:default}
+.es-past{margin-top:22px}
+.es-past-h{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;padding:14px 20px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);cursor:pointer;font-family:inherit;text-align:left}
+.es-past-h .nm{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.7)}
+.es-past-h .ct{flex:1;font-size:12px;color:rgba(239,243,248,.45)}
+.es-past-h .es-add{display:inline-flex;align-items:center;justify-content:center;color:#8AD8FF;border-color:rgba(138,216,255,.5)}
 .es-ch{color:rgba(239,243,248,.3);font-size:13px;flex-shrink:0}
 /* Redes: tarjetas del módulo al estilo unificado (las piezas con estilos en línea se actualizan por selector) */
 #redes-body :is([style*="border-radius:14px"],[style*="border-radius:16px"],[style*="border-radius:12px"],[style*="border-radius:20px"]):is([style*="background:#fff"],[style*="background:var(--card)"],[style*="background:var(--white)"]){background:radial-gradient(360px 160px at 100% 0,rgba(0,157,216,.12),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:22px!important}
@@ -5424,7 +5429,7 @@ function _lesionRegreso(mes,tiempo){
 // Texto del tiempo que FALTA: arranca con el estimado ('8-10 meses') y baja con el paso de los meses desde el mes de la lesión.
 function _lesionRestante(mes,tiempo){
   try{
-    const t=String(tiempo||'').trim(); const tl=t.toLowerCase(); if(!mes||!t||/indefin/.test(tl)) return t;
+    let t=String(tiempo||'').trim(); if(/^\d+$/.test(t)) t=t+(t==='1'?' mes':' meses'); const tl=t.toLowerCase(); if(!mes||!t||/indefin/.test(tl)) return t;
     let lo,hi,m=tl.match(/(\d+)\s*[-–a]\s*(\d+)\s*mes/);
     if(m){ lo=+m[1]; hi=+m[2]; } else if((m=tl.match(/(\d+)\s*mes/))){ lo=hi=+m[1]; } else return t;
     const [y,mo]=mes.split('-').map(Number); const ini=new Date(y,mo-1,1), hoy=new Date();
@@ -18134,7 +18139,7 @@ function _patchMayorPhotos(){
     const customPos=getJugPos()[nom];
     const pos=customPos||d.pos;
     const col=posColor[pos]||'#555';
-    el.innerHTML=`<img src="${photo}" alt="${nom}" loading="lazy" style="width:54px;height:54px;border-radius:50%;object-fit:cover;object-position:top center;border:2px solid ${col}44" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:54px;height:54px;border-radius:50%;background:${col};align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0;letter-spacing:-.5px">${nom.split(' ').filter(w=>/^[A-ZÁÉÍÓÚÑÜ]/.test(w)).slice(0,2).map(w=>w[0]).join('')}</div>`;
+    el.innerHTML=`<img src="${photo}" alt="${nom}" decoding="async">`;
   });
 }
 // Refresca cualquier vista de fichas que esté montada — Mayor, Local y Juveniles
@@ -19081,9 +19086,9 @@ function renderJugadores(){
   const leyendasN=LEYENDAS_SET.size;
   const filterPills=[
     {id:'todos',    label:`Todos (${total})`},
-    {id:'wc26',     label:`🏆 Mundial 2026 (${wc26n})`},
+    {id:'wc26',     label:`Mundial 2026 (${wc26n})`},
     {id:'bielsa',   label:`Ciclo Bielsa (${bielsan2})`},
-    {id:'leyendas', label:`⭐ Leyendas (${leyendasN})`},
+    {id:'leyendas', label:`Leyendas (${leyendasN})`},
   ];
   const posPills=[
     {id:'todos',label:'Todas'},
@@ -19094,8 +19099,7 @@ function renderJugadores(){
   ];
 
   function pill(val, label, cur, fn){
-    const active=cur===val;
-    return `<button onclick="${fn}('${val.replace(/'/g,"\\'")}')" style="padding:5px 12px;border-radius:20px;border:1px solid ${active?'var(--navy)':'var(--border)'};background:${active?'var(--navy)':'transparent'};color:${active?'#fff':'var(--muted)'};font-size:.75em;font-weight:${active?700:500};cursor:pointer;white-space:nowrap;transition:all .12s">${label}</button>`;
+    return `<button class="${cur===val?'on':''}" onclick="${fn}('${val.replace(/'/g,"\\'")}')">${label}</button>`;
   }
 
   const isMob = window.innerWidth <= 600;
@@ -19180,43 +19184,74 @@ function renderJugadores(){
       <span style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:5px;padding:1px 6px;font-size:7.5px;font-weight:800;text-transform:uppercase">${pos||'?'}</span>
       ${lesion?`<span style="position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:#EF4444;border:1px solid #fff"></span>`:''}
     </div>`;
-    return `<div onclick="showJugador('${nomSafe}')" style="background:${cardBg};border:${_lesionBorder};border-radius:12px;padding:13px;cursor:pointer;transition:border-color .15s;display:flex;flex-direction:column;gap:0;position:relative">
-      ${_fallBadge}
-      <button onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}" style="position:absolute;top:8px;right:9px;background:none;border:none;cursor:pointer;font-size:13px;padding:0;line-height:1;opacity:${isLeyenda?1:.2};filter:${isLeyenda?'none':'grayscale(1)'}">⭐</button>
-      <button onclick="event.stopPropagation();_toggleCapitan('${nomSafe}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:2">C</button>
-      <div style="display:flex;align-items:center;gap:11px;${isRetOrDead?'margin-top:8px':''}${isRetOrDead?';opacity:.55':''}">
-        <div onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" style="position:relative;flex-shrink:0;cursor:pointer;filter:${isRetOrDead?'grayscale(1)':''}">
-          <div id="mayor-av-${mayorKeyEnc}">${avatar(nom, pos, cachedPhoto, 54)}</div>
-          <div style="position:absolute;bottom:-1px;right:-1px;width:17px;height:17px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;border:1.5px solid rgba(255,255,255,.5);pointer-events:none">📷</div>
-          <input type="file" accept="image/*" id="mayor-inp-${mayorKeyEnc}" style="display:none" onchange="_mayorPhotoSelected('${mayorKeyEnc}',this)">
-        </div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.9em;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px">${nom}</div>
-          <div id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" style="font-size:.7em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:4px" title="Tocar para editar club">${_clubFlagEmoji(club,pais)} ${_clubCorto(club)}${customClub!==undefined?' ✎':''}</div>
-          <div onclick="event.stopPropagation();_editMayorNac('${nomSafe}')" style="font-size:.68em;color:var(--muted);margin-top:2px;cursor:pointer;display:flex;align-items:center;gap:3px" title="Editar fecha de nacimiento">${_nacAge2!==null?(isFallecido?`<span style="opacity:.6">${_nacFmt(_nacIso)}</span>`:`<span style="font-weight:600;color:var(--fg)">${_nacAge2} años</span><span style="opacity:.6"> · ${_nacFmt(_nacIso)}</span>`):'<span style="opacity:.45">+ fecha nac.</span>'}</div>
-          ${typeof _famHtml==='function'?_famHtml(nom):''}
-        </div>
+    // Ficha unificada (mismo diseño que Juveniles / Local): foto, nombre, club con bandera, edad, posición y carrera
+    const _pc={POR:'#FCD34D',DEF:'#4ADE80',MED:'#67E8F9',DEL:'#F87171'}[pos]||'rgba(239,243,248,.5)';
+    const _pcode=(()=>{ try{ const c=_clubPick(_clubCanon(club,true),pais); return (c&&c.pais)||''; }catch(_){ return ''; } })();
+    const _flag=_pcode?`<img src="https://flagcdn.com/w20/${_pcode}.png" onerror="this.style.display='none'">`:(pais?`<span>${pais}</span>`:'');
+    const _ini=nom.split(' ').filter(w=>/^[A-ZÁÉÍÓÚÑÜ]/.test(w)).slice(0,2).map(w=>w[0]).join('');
+    const _av=cachedPhoto?`<img src="${cachedPhoto}" alt="${nom}" decoding="async" onerror="this.replaceWith(Object.assign(document.createElement('b'),{textContent:'${_ini}'}))">`:`<b>${_ini}</b>`;
+    const _tool=(on,letter,fn,tOn,tOff)=>`<button class="jf-tool${on?' on':''}" onclick="event.stopPropagation();${fn}" title="${on?tOn:tOff}">${letter}</button>`;
+    const _hs=(window._getSanciones?window._getSanciones(nom):[]);
+    const _estado=[
+      isFallecido?`<span class="jf-tag">† ${(fallecidoDate||'').split('-')[0]}</span>`:'',
+      (!isFallecido&&selOtra)?`<span class="jf-tag blue">Otra selección</span>`:'',
+      (!isFallecido&&!selOtra&&isRetirado)?`<span class="jf-tag">Retirado</span>`:'',
+      isWC?`<span class="jf-tag gold">Mundial 2026</span>`:'',
+    ].filter(Boolean).join('');
+    const _logrosHtml=[
+      ..._logroWC.map(y=>`<span class="jf-h" title="Campeón del Mundo ${y}" style="color:#FCD34D;background:rgba(252,211,77,.14)">Mundial ${y}</span>`),
+      ...(_logroCA.length?[`<span class="jf-h" title="Copa América: ${_logroCA.join(', ')}" style="color:#FB923C;background:rgba(251,146,60,.14)">Copa Am. ×${_logroCA.length}</span>`]:[]),
+      ..._logroOro.map(y=>`<span class="jf-h" title="Copa de Oro ${y}" style="color:#F87171;background:rgba(248,113,113,.14)">Copa de Oro ${y}</span>`),
+      ...(_isChamp?[`<span class="jf-h" title="Campeón Mundial Sub-20 · Argentina 2023" style="color:#67E8F9;background:rgba(103,232,249,.14)">Sub-20 2023</span>`]:[]),
+      ...(typeof _isChampSud20_2017==='function'&&_isChampSud20_2017(nom)?[`<span class="jf-h" title="Campeón Sudamericano Sub-20 · Ecuador 2017" style="color:#8AD8FF;background:rgba(138,216,255,.14)">Sud. Sub-20 2017</span>`]:[]),
+      ...(typeof _isFinalistMun20_2013==='function'&&_isFinalistMun20_2013(nom)?[`<span class="jf-h" title="Finalista Mundial Sub-20 · Turquía 2013" style="color:#CBD5E1;background:rgba(203,213,225,.14)">Mundial Sub-20 2013</span>`]:[]),
+    ].join('');
+    const _juvHtml=_allJuvBadges.map(b=>`<span class="jf-h" style="color:${b.color};background:${b.color}22">${b.label}</span>`).join('');
+    return `<div class="jf${isRetOrDead?' off':''}" onclick="showJugador('${nomSafe}')" style="--cat:#22D3EE;cursor:pointer;${lesion?'border-color:#EF4444;':''}">
+    <div class="jf-top"><span></span><span class="jf-ico">
+      <button class="jf-c${isCapitan?' on':''}" onclick="event.stopPropagation();_toggleCapitan('${nomSafe}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}">C</button>
+      <button class="jf-star${isLeyenda?' on':''}" onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}"><i class="ti ti-star${isLeyenda?'-filled':''}"></i></button>
+    </span></div>
+    <div class="jf-who">
+      <div class="jf-ph" onclick="event.stopPropagation();_clickMayorPhoto('${mayorKeyEnc}')" title="Click para cargar/editar foto">
+        <div class="jf-ph-in" id="mayor-av-${mayorKeyEnc}">${_av}</div>
+        <i class="ti ti-camera"></i>
+        <input type="file" accept="image/*" id="mayor-inp-${mayorKeyEnc}" style="display:none" onchange="_mayorPhotoSelected('${mayorKeyEnc}',this)">
       </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap">
-        <span id="jpos-${nomId}" onclick="event.stopPropagation();jTogglePosEdit('${nomSafe}',this)" style="background:${col}18;color:${col};border:1px solid ${col}44;border-radius:5px;padding:2px 7px;font-size:.67em;font-weight:700;cursor:pointer" title="Tocar para cambiar posición">${pos||'?'}${customPos?'✎':''}</span>
-        <span style="font-size:.68em;color:var(--muted)">${calls} conv.</span>
-        <span style="font-size:.68em;color:var(--muted)">·</span>
-        ${d.total&&d.total.pj!=null?`<span style="font-size:.68em;font-weight:600;color:var(--fg)">${d.total.pj} PJ</span>`:`<span style="font-size:.68em;color:var(--muted)">— PJ</span>`}
-        <div style="display:flex;gap:3px;margin-left:auto;align-items:center">
-          ${lesion?`<span class="jf-les" onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="Click para editar" style="margin-right:4px"><i class="ti ti-bandage"></i>${lesion.nota?lesion.nota+' <em>·</em> ':''}${_lesionRestante(lesion.mesLesion,lesion.meses)}</span>`:''}
-          <button onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="${lesion?'Editar lesión':'Marcar lesión larga'}" style="background:${lesion?'#334155':'transparent'};border:1.5px solid ${lesion?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${lesion?'#fff':'#CBD5E1'}">L</button>
-          <button onclick="event.stopPropagation();_toggleRetirado('${nomSafe}')" title="${isRetirado?'Marcar activo':'Marcar retirado'}" style="background:${isRetirado?'#334155':'transparent'};border:1.5px solid ${isRetirado?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isRetirado?'#fff':'#CBD5E1'}">R</button>
-          <button onclick="event.stopPropagation();_toggleFallecidoMayor('${nomSafe}')" title="${isFallecido?'Desmarcar fallecido':'Marcar fallecido'}" style="background:${isFallecido?'#334155':'transparent'};border:1.5px solid ${isFallecido?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${isFallecido?'#fff':'#CBD5E1'}">F</button>
-          ${(()=>{const _hs=(window._getSanciones?window._getSanciones(nom):[]);return`<button onclick="event.stopPropagation();_openSancModal('${nomSafe}')" title="${_hs.length?_hs.map(s=>s.ano+': '+s.tipo).join(' | '):'Registrar sanción/disciplina'}" style="background:${_hs.length?'#334155':'transparent'};border:1.5px solid ${_hs.length?'#334155':'#CBD5E1'};border-radius:5px;cursor:pointer;font-size:9px;font-weight:700;padding:1px 5px;line-height:1.4;color:${_hs.length?'#fff':'#CBD5E1'}">S</button>`;})()}
-        </div>
+      <div class="jf-id">
+        <div class="jf-nm" style="font-size:${Math.max(11,Math.min(15.5,Math.round(2150/Math.max(nom.length,1))/10))}px">${nom}</div>
+        <div class="jf-club" id="jclub-${nomId}" onclick="event.stopPropagation();jToggleClubEdit('${nomSafe}',this)" title="Tocar para editar club">${_flag}<span>${_clubCorto(club)}${customClub!==undefined?' ✎':''}</span></div>
+        <div class="jf-age" onclick="event.stopPropagation();_editMayorNac('${nomSafe}')" style="cursor:pointer" title="Editar fecha de nacimiento">${_nacAge2!==null?(isFallecido?`${_nacFmt(_nacIso)}`:`<b style="color:rgba(239,243,248,.85);font-weight:600">${_nacAge2} años</b> · ${_nacFmt(_nacIso)}`):'<span style="opacity:.55">+ fecha nac.</span>'}</div>
+        ${typeof _famHtml==='function'?_famHtml(nom):''}
       </div>
-      ${_logroBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${_logroBadges.join('')}</div>`:''}
-      ${_allJuvBadges.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${_allJuvBadges.map(b=>`<span style="background:${b.bg};color:${b.color};border-radius:5px;padding:2px 7px;font-size:.6em;font-weight:600">${b.label}</span>`).join('')}<button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Editar categorías juveniles" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 6px;font-size:.6em;color:var(--muted);cursor:pointer">✎</button></div>`
-      :`<div style="margin-top:6px"><button onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" style="background:none;border:0.5px dashed var(--border);border-radius:5px;padding:2px 8px;font-size:.6em;color:var(--muted);cursor:pointer">+ juvenil</button></div>`}
+    </div>
+    ${_estado?`<div class="jf-badges">${_estado}</div>`:''}
+    <div class="jf-stats">
+      <span class="jf-pos" id="jpos-${nomId}" onclick="event.stopPropagation();jTogglePosEdit('${nomSafe}',this)" title="Tocar para cambiar posición" style="color:${_pc};border-color:${_pc}66;background:${_pc}14">${pos||'?'}${customPos?'✎':''}</span>
+      <span class="jf-st"><b>${calls}</b> conv.</span>
+      <span class="jf-st">${d.total&&d.total.pj!=null?`<b>${d.total.pj}</b> PJ`:'— PJ'}</span>
+      ${d.total&&d.total.g!=null&&d.pos!=='POR'?`<span class="jf-st"><b>${d.total.g}</b> G</span>`:''}
+    </div>
+    <div class="jf-mid">
+      ${lesion?`<div class="jf-les" onclick="event.stopPropagation();_editLesion('${nomSafe}')" title="Click para editar"><i class="ti ti-bandage"></i>${lesion.nota?lesion.nota+' <em>·</em> ':''}${_lesionRestante(lesion.mesLesion,lesion.meses)}</div>`:''}
+      ${_sancBadge(nom)?`<div class="jf-badges">${_sancBadge(nom)}</div>`:''}
       ${_juvStatsBreakdownHTML(nom)}
-      ${(()=>{const _sb=_sancBadge(nom);return _sb?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${_sb}</div>`:'';})()}
-      ${d.estKey?`<div style="margin-top:6px"><button onclick="event.stopPropagation();_goToEstFicha('${d.estKey}')" style="background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;border-radius:6px;padding:3px 9px;font-size:.6em;font-weight:700;cursor:pointer">👔 Ver perfil DT</button></div>`:''}
-    </div>`;
+      <div class="jf-tags">
+        ${_logrosHtml}${_juvHtml}
+        <span class="jf-add" onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Categorías juveniles">${_allJuvBadges.length?'✎':'+ juvenil'}</span>
+        ${d.estKey?`<span class="jf-add" onclick="event.stopPropagation();_goToEstFicha('${d.estKey}')">Perfil DT</span>`:''}
+      </div>
+    </div>
+    <div class="jf-foot">
+      <span class="jf-tools">
+        ${_tool(!!lesion,'L',`_editLesion('${nomSafe}')`,'Editar lesión','Marcar lesión larga')}
+        ${_tool(isRetirado,'R',`_toggleRetirado('${nomSafe}')`,'Marcar activo','Marcar retirado')}
+        ${_tool(isFallecido,'F',`_toggleFallecidoMayor('${nomSafe}')`,'Desmarcar fallecido','Marcar fallecido')}
+        ${_tool(_hs.length>0,'S',`_openSancModal('${nomSafe}')`,_hs.map(x=>x.ano+': '+x.tipo).join(' | '),'Registrar sanción/disciplina')}
+      </span>
+      <button class="jf-more" onclick="event.stopPropagation();showJugador('${nomSafe}')" title="Ampliar ficha">+</button>
+    </div>
+  </div>`;
   }
 
   con.innerHTML=`
@@ -19226,19 +19261,15 @@ function renderJugadores(){
         <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px"></i>
         <input id="jug-search" type="text" placeholder="Buscar jugador..." value="${window._jSearch}"
           oninput="window._jSearch=this.value;const _p=this.selectionStart;renderJugadores();const _i=document.getElementById('jug-search');if(_i){_i.focus();_i.setSelectionRange(_p,_p);}"
-          style="width:100%;padding:9px 12px 9px 32px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);font-size:.88em;box-sizing:border-box;outline:none">
+          class="rd-in" style="padding-left:36px;border-radius:999px">
       </div>
       ${window._jSearch?`<button onclick="window._jSearch='';renderJugadores()" style="padding:0 12px;border-radius:10px;border:1px solid var(--border);background:none;cursor:pointer;font-size:.8em;color:var(--muted)">✕</button>`:''}
-      <button onclick="exportarFotosIDB()" title="Exportar todas las fotos para compartir" style="padding:0 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-size:.8em;color:var(--muted);white-space:nowrap">📤 Exportar fotos</button>
+      <button class="rd-btn ghost" onclick="exportarFotosIDB()" title="Exportar todas las fotos para compartir"><i class="ti ti-photo-down"></i>Exportar fotos</button>
     </div>
 
     <!-- Filtros -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-      ${filterPills.map(p=>pill(p.id,p.label,window._jFilter,'jSetFilter')).join('')}
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
-      ${posPills.map(p=>pill(p.id,p.label,window._jPos,'jSetPos')).join('')}
-    </div>
+    <div class="jg-pills" style="margin-bottom:8px">${filterPills.map(p=>pill(p.id,p.label,window._jFilter,'jSetFilter')).join('')}</div>
+    <div class="jg-pills" style="margin-bottom:16px">${posPills.map(p=>pill(p.id,p.label,window._jPos,'jSetPos')).join('')}</div>
 
     <!-- Figuritas strip (solo en tab Leyendas) -->
     ${window._jFilter==='leyendas'?(()=>{
@@ -19257,10 +19288,10 @@ function renderJugadores(){
 
     <!-- Sync TM -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-size:.72em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">${entries.length} jugador${entries.length!==1?'es':''}</div>
-      <button id="tm-sync-btn" onclick="_tmSyncManual()" style="font-size:.7em;font-weight:700;color:#1D4ED8;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:4px 10px;cursor:pointer;display:flex;align-items:center;gap:4px"><i class="ti ti-refresh" style="font-size:.9em"></i> Sincronizar clubes (TM)</button>
+      <div style="font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.6)">${entries.length} jugador${entries.length!==1?'es':''}</div>
+      <button id="tm-sync-btn" class="rd-btn ghost sm" onclick="_tmSyncManual()"><i class="ti ti-refresh"></i>Sincronizar clubes (TM)</button>
     </div>
-    <div style="display:grid;grid-template-columns:${isMob?'repeat(3,1fr)':'repeat(auto-fill,minmax(200px,1fr))'};gap:${isMob?'6':'8'}px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:${isMob?'repeat(3,1fr)':'repeat(auto-fill,minmax(205px,1fr))'};gap:${isMob?'6':'10px'};margin-bottom:16px">
       ${entries.map(([nom,d])=>playerCard(nom,d)).join('')}
     </div>
 
@@ -41373,7 +41404,8 @@ function _estApplyOrder(dept, personas){
 // para que mover con las flechitas opere exactamente sobre lo que se ve en pantalla.
 function _estVisiblePersonasFor(d, contracts){
   const _isActive=c=>c==='activo'||c==='por_vencer'||c==='proximo';
-  const raw=d.showAll ? d.personas : d.personas.filter(p=>_isActive(contracts[p.key]||_estDefaultContrato(p)));
+  if(d.past) return []; // períodos anteriores: van plegados abajo
+  const raw=d.personas.filter(p=>_isActive(contracts[p.key]||_estDefaultContrato(p)));
   return _estApplyOrder(d.dept, raw);
 }
 window._estMovePersona=function(dept, key, dir){
@@ -41455,7 +41487,31 @@ function _estSaveContracts(obj){ stor.set(KEstContract, obj); }
 // Personas cuyo rol arranca con "Ex " (ex-DT, ex-técnico, etc.) son históricas por
 // definición aunque nadie les haya marcado el contrato a mano — si no hay estado
 // explícito en KEstContract, hay que default a "finalizado", no a "activo".
-function _estDefaultContrato(p){ return (p.rol && p.rol.startsWith('Ex '))?'finalizado':'activo'; }
+// Quien aparece SOLO en períodos anteriores (CT juveniles de ciclos pasados, DT históricos) queda 'finalizado' por defecto; lo guardado a mano manda.
+let _estPastKeysC=null;
+let _estPastSig='';
+function _estPastOnlyKeys(){
+  let sig=''; try{ sig=typeof JUVENILES!=='undefined'?Object.values(JUVENILES).map(cd=>Object.values(cd.anos||{}).reduce((n,a)=>n+1+(a.ct||[]).length,0)).join(','):''; }catch(_){}
+  if(_estPastKeysC && sig===_estPastSig) return _estPastKeysC; // se recalcula si cambia lo cargado
+  const act=new Set(), past=new Set(); let ok=false;
+  try{
+    const lastYr=s=>{ const m=String(s).match(/\d{4}/g); return m?+m[m.length-1]:0; };
+    const latest={};
+    if(typeof JUVENILES!=='undefined') Object.entries(JUVENILES).forEach(([cat,cd])=>{ latest[cat]=Math.max(0,...Object.keys(cd.anos||{}).map(lastYr)); });
+    const nk=n=>_nameToKey(n);
+    ESTRUCTURA_PERSONAS.forEach(d=>d.personas.forEach(x=>act.add(x.key)));
+    (CT_MAYOR_FORLAN||[]).forEach(m=>m.name&&act.add(nk(m.name)));
+    (CT_MAYOR_BIELSA||[]).forEach(m=>m.name&&act.add(nk(m.name)));
+    if(typeof JUVENILES!=='undefined') Object.entries(JUVENILES).forEach(([cat,cd])=>Object.entries(cd.anos||{}).forEach(([yr,ad])=>{
+      (ad.ct||[]).forEach(m=>{ if(!m.name||m.pendiente) return; (lastYr(yr)>=latest[cat]?act:past).add(nk(m.name)); });
+    }));
+    ok=true;
+  }catch(_){}
+  const res=new Set([...past].filter(k=>!act.has(k)));
+  if(ok){ _estPastKeysC=res; _estPastSig=sig; }
+  return res;
+}
+function _estDefaultContrato(p){ if(p.rol && p.rol.startsWith('Ex ')) return 'finalizado'; return (p.key && _estPastOnlyKeys().has(p.key))?'finalizado':'activo'; }
 const _EST_CONTRATO = {
   activo:      {label:'Activo',              bg:'#D1FAE5',color:'#065F46'},
   por_vencer:  {label:'Hasta 31 jul 2026',   bg:'#FFEDD5',color:'#9A3412'},
@@ -41560,9 +41616,11 @@ const DT_MAYOR_HIST = [
 ];
 
 // Convierte nombre a key de persona unificada
-const _nameToKey = n => 'ct-p:' + n.toLowerCase()
+// Misma persona con y sin segundo nombre = una sola ficha (grafía completa como clave).
+const _EST_KEY_ALIAS = {'ct-p:ignacio-gonzalez':'ct-p:ignacio-maria-gonzalez'};
+const _nameToKey = n => { const k='ct-p:' + n.toLowerCase()
   .normalize('NFD').replace(/[̀-ͯ]/g,'')
-  .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); return _EST_KEY_ALIAS[k]||k; };
 
 // Migración: marcar todos los DT histórico Mayor como "finalizado" automáticamente
 (()=>{try{
@@ -41639,19 +41697,21 @@ function _estBuildAllSections(){
   const dtHistMayor = DT_MAYOR_HIST.map(m=>({
     key:_nameToKey(m.name), label:m.name, rol:m.rol||'Director técnico', logro:m.logro||'', foto:m.foto||''
   }));
-  if(dtHistMayor.length) sections.push({dept:'DT Selección Mayor — Histórico', color:'#0891B2', personas:dtHistMayor, showAll:true});
+  if(dtHistMayor.length) sections.push({dept:'DT Selección Mayor — Histórico', color:'#0891B2', personas:dtHistMayor, showAll:true, past:true});
 
   // CT Juveniles — una sección por categoría/año
   if(typeof JUVENILES!=='undefined'){
     const juvColors={'sub23':'#92400e','sub20':'#1D4ED8','sub18':'#0891B2','sub17':'#15803d','sub16':'#b45309','sub15':'#0891B2','sub13':'#6b7280'};
     Object.entries(JUVENILES).forEach(([catKey,catData])=>{
+      const _lyr=s=>{ const m=String(s).match(/\d{4}/g); return m?+m[m.length-1]:0; };
+      const _latest=Math.max(0,...Object.keys(catData.anos||{}).map(_lyr));
       Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
         const ct=(anoData.ct||[]).filter(m=>m.name&&!m.pendiente);
         if(!ct.length) return;
-        const personas=ct.map(m=>({key:_nameToKey(m.name), label:m.name, rol:m.rol||'Cuerpo técnico'}));
+        const personas=ct.map(m=>({key:_nameToKey(m.name), label:(m.name==='Ignacio González'?'Ignacio María González':m.name), rol:m.rol||'Cuerpo técnico'}));
         const dept=`CT ${catData.label} — ${yr}`;
         const color=juvColors[catKey]||'#0891B2';
-        sections.push({dept, color, personas, showAll:true});
+        sections.push({dept, color, personas, showAll:true, past:_lyr(yr)<_latest});
       });
     });
   }
@@ -41677,7 +41737,8 @@ function _estGetPerson(key){
   return null;
 }
 
-let _estView='list', _estCurKey=null, _estTab='activos', _estExOpen={};
+let _estView='list', _estCurKey=null, _estTab='activos', _estExOpen={}, _estPastOpen=false;
+window._estTogglePast=function(){ _estPastOpen=!_estPastOpen; _renderEstLista(); };
 function _estSetTab(t){ _estTab=t; _renderEstLista(); }
 window._estToggleExGroup=function(dkey){ _estExOpen[dkey]=(_estExOpen[dkey]===false)?true:false; _renderEstLista(); };
 window._estSetTab=_estSetTab;
@@ -41732,7 +41793,14 @@ function _estResolvePhoto(p){
   const slug=typeof _nameSlug==='function'?_nameSlug(p.label):null;
   // Sin fallback por nombre a la caché de fotos de Juveniles: cruza homónimos
   // (ej. un dirigente y un juvenil que comparten nombre común terminan con la misma foto).
-  return cache[p.key]||cache[_sbSafeKey(p.key)]||(slug&&cache[slug])||p.foto||null;
+  const _al=Object.keys(_EST_KEY_ALIAS).find(a=>_EST_KEY_ALIAS[a]===p.key);
+  return cache[p.key]||cache[_sbSafeKey(p.key)]||(slug&&cache[slug])||(_al&&(cache[_al]||cache[_sbSafeKey(_al)]))||p.foto||_estFotoPorClave(p.key)||null;
+}
+// La misma persona aparece en varias secciones (p. ej. DT histórico y CT Sub-20 de un año): si una trae foto, vale para todas.
+let _estFotoMapC=null;
+function _estFotoPorClave(key){
+  if(!_estFotoMapC){ const m={}; try{ _estBuildAllSections().forEach(d=>d.personas.forEach(x=>{ if(x.foto&&!m[x.key]) m[x.key]=x.foto; })); _estFotoMapC=m; }catch(_){ return null; } }
+  return _estFotoMapC[key]||null;
 }
 
 function _renderEstLista(){
@@ -41770,6 +41838,20 @@ function _renderEstLista(){
       </div>`;
     });
     if(!blocks) blocks=`<div style="text-align:center;padding:40px 0;color:var(--muted);font-size:.85em">Sin integrantes activos</div>`; else blocks=`<div class="es-grid">${blocks}</div>`;
+    // Anteriores: períodos y cuerpos técnicos que ya no están (contrato finalizado), plegados abajo con un +
+    let pastN=0, pastS=0, pastBlocks='';
+    sections.forEach(d=>{
+      if(!d.showAll) return;
+      const ps=d.past?d.personas:d.personas.filter(x=>{ const c=contracts[x.key]||_estDefaultContrato(x); return c==='finalizado'||c==='desvinculado'; });
+      if(!ps.length) return;
+      pastS++; pastN+=ps.length;
+      const rows=ps.map(x=>_renderEstPersonaRow(x,edits[x.key]?.label||x.label,edits[x.key]?.rolesEdit?.[d.dept]?.rol||x.rol,_estResolvePhoto(x),contracts[x.key]||_estDefaultContrato(x),edits[x.key]?.fechaNac||x.fechaNac)).join('');
+      pastBlocks+=`<div class="es-card" style="--dc:${d.color}"><div class="es-h" style="cursor:default"><i class="dot"></i><span class="nm">${d.dept}</span><span class="ct">${ps.length}</span></div>${rows}</div>`;
+    });
+    if(pastN) blocks+=`<div class="es-past${_estPastOpen?' open':''}">
+      <button class="es-past-h" onclick="_estTogglePast()"><span class="nm">Períodos anteriores</span><span class="ct">${pastN} persona${pastN!==1?'s':''} en ${pastS} período${pastS!==1?'s':''} · contrato finalizado</span><i class="es-add">${_estPastOpen?'–':'+'}</i></button>
+      ${_estPastOpen?`<div class="es-grid" style="margin-top:14px">${pastBlocks}</div>`:''}
+    </div>`;
 
   } else {
     // Ex integrantes: personas únicas (por clave) con contrato != activo
@@ -41813,7 +41895,7 @@ function _renderEstLista(){
   }
 
   const subtitle=_estTab==='activos'
-    ?`Registro de los ${total} integrantes activos de las ${sections.filter(d=>d.personas.some(p=>(contracts[p.key]||_estDefaultContrato(p))==='activo')).length} áreas que rodean a la Selección Uruguaya y el Complejo Celeste.`
+    ?`Registro de los ${total} integrantes activos de las ${sections.filter(d=>!d.past&&d.personas.some(p=>(contracts[p.key]||_estDefaultContrato(p))==='activo')).length} áreas que rodean a la Selección Uruguaya y el Complejo Celeste.`
     :`Registro de ${total} ex integrante${total!==1?'s':''} de las áreas que rodean a la Selección Uruguaya y el Complejo Celeste.`;
 
   el.innerHTML=`${tabs}
