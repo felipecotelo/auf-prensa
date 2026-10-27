@@ -835,6 +835,26 @@ function _sumarOctavosCopa(proximos) {
   return [...proximos, ...extra].sort((x, y) => new Date(x.utcTime) - new Date(y.utcTime));
 }
 
+
+const _segNorm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+const _SEG_ALIAS = { 'huracan fc': 'huracan', 'paysandu': 'paysandu fc', 'river plate': 'ca river plate', 'miramar misiones': 'miramar', 'uruguay montevideo': 'montevideo fc', 'tacuarembo fc': 'tacuarembo' };
+async function _segundaFotmobTablas(baseRows) {
+  const d = JSON.parse(await rkGet('https://www.fotmob.com/api/data/tltable?leagueId=9122'));
+  const tabs = (((d || [])[0] || {}).data || {}).tables || [];
+  const ids = {}; (baseRows || []).forEach(r => { ids[_segNorm(r.name)] = r.id; });
+  const mapRows = rows => (rows || []).map(r => {
+    const k0 = _segNorm(r.name), k = _SEG_ALIAS[k0] || k0;
+    const [gf, gc] = String(r.scoresStr || '0-0').split('-').map(Number);
+    return { pos: r.idx, id: ids[k] || ids[k0] || null, name: r.name, pj: r.played, w: r.wins, d: r.draws, l: r.losses, gf, gc, dif: r.goalConDiff, pts: r.pts };
+  });
+  const out = [];
+  tabs.forEach((t, i) => {
+    const filas = mapRows(t.table && t.table.all); if (!filas.length) return;
+    const nom = i === 0 ? 'Acumulada' : String(t.leagueName || '').replace(/^Grp\.?\s*/i, 'Grupo ');
+    out.push({ nombre: nom, filas });
+  });
+  return out;
+}
 async function fetchLigaUY(leagueId, sinTablas) {
   const qs = `${_365_QS}&competitions=${leagueId}`;
   const [fixturesRaw, resultsRaw, standingsRaw] = await Promise.all([
@@ -897,6 +917,12 @@ async function fetchLigaUY(leagueId, sinTablas) {
     }));
     const nombre = (s.displayName || '').split(' - ').pop() || 'Actual';
     if (filas.length) tablas.push({ nombre, filas });
+  }
+  // Segunda Profesional: después de la temporada regular (24 fechas) se juegan grupos y la tabla oficial es la ACUMULADA
+  // (temporada + grupos). 365scores solo trae la temporada regular, así que se completa con FotMob (liga 9122).
+  if (leagueId === FUTBOL_LEAGUES.segunda) {
+    try { const extra = await _segundaFotmobTablas(tablas[0] && tablas[0].filas); if (extra.length) tablas.unshift(...extra); }
+    catch (e) { /* si FotMob falla, queda solo la temporada regular */ }
   }
   return { proximos: leagueId === FUTBOL_LEAGUES.copa ? _sumarOctavosCopa(proximos) : proximos, ultimos, hoy, tablas };
 }
