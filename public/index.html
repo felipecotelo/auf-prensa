@@ -8639,16 +8639,18 @@ function _recPartidosDerivados(){
           const fD=D.split('-').reverse().join('/')+' · '+HH+'h';
           const resultadoCargado=m.gLocal!=null&&m.gRival!=null&&Array.isArray(m.subs)&&m.subs.length>0;
           const pasos=[
-            ['tv1',-1440,'Conseguir la alineación de '+lbl+' (AUFtv)','Partido '+fD+' · 24 horas antes del partido',false,true],
+            ['tv1',-1440,'Conseguir la alineación de '+lbl+' (AUFtv)','Partido '+fD+' · suele salir la noche anterior',false,true],
             ['tv2',-1380,'Cargar en la app la alineación de '+lbl,'Partido '+fD+' · apenas la tengamos',nStart>=nMax,true],
-            ['tv3',-1260,'Mandar a diseñar la alineación de '+lbl,'Partido '+fD+' · unas horas después de conseguirla',false,true],
+            ['tv3',-1260,'Mandar a diseñar la alineación de '+lbl,'Partido '+fD+' · una vez que la tengamos',false,true],
             ['tv4',-90,'Publicar la alineación de '+lbl,'Partido '+fD+' · 1:30 h antes del inicio',false,true],
             ['tv5',120,'Cargar en la app resultado, goles e ingresos de '+lbl,'Partido '+fD+' · al terminar',resultadoCargado,false],
             ['tv6',150,'Publicar informe post-partido de '+lbl,'Partido '+fD+' · después de cargar el resultado',false,false],
           ];
           pasos.forEach(([k,off,tit,det,auto,pre],i)=>{
             if(pre ? !(D>=TODAY && D<=_recSumarDias(TODAY,10)) : !(D<=TODAY && D>=_recSumarDias(TODAY,-10))) return;
-            const id=k+'|'+uid, mn=manual[id]||{}, dt=en(off);
+            // La alineación no sale 24 h antes: por lo general aparece la noche anterior (tv1 20:00, tv2 20:30, tv3 22:00 del día previo)
+            const _prev={tv1:'20:00',tv2:'20:30',tv3:'22:00'};
+            const id=k+'|'+uid, mn=manual[id]||{}, dt=_prev[k]?{vence:_recSumarDias(D,-1),hora:_prev[k]}:en(off);
             out.push({id,titulo:tit,detalle:det,vence:dt.vence,hora:dt.hora,etiqueta:metaCat(cat),importante:true,orden:i+1,
               hecho:!!auto||!!mn.hecho,hechoEn:(!auto&&mn.hecho)?mn.hechoEn:null});
           });
