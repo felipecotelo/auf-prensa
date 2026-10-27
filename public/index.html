@@ -653,6 +653,9 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .lg-opt.lg-ro{height:auto;min-height:52px;border-radius:20px;padding:10px 18px;display:flex;width:100%;box-sizing:border-box}
 .lg-opt.lg-ro small{display:block;margin-top:3px;font-size:11px;font-weight:400;color:rgba(239,243,248,.5)}
 .lg-opt.lg-ro b{color:#F4F7FB}
+.ff-rv{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}.ff-rv i{display:inline-flex;align-items:center;gap:6px;font-style:normal;padding:3px 12px 3px 5px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04)}
+.ff-rv em{font-style:normal;font-size:12px;font-weight:600;color:#F4F7FB}.ff-rv u{text-decoration:none;font-family:'Space Grotesk','Inter',sans-serif;font-size:13px;font-weight:700}
+.ff-card.off{cursor:default;opacity:.8}.ff-card .jm-sc em{display:block}
 .es-past{margin-top:22px}
 .es-past-h{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;padding:14px 20px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);cursor:pointer;font-family:inherit;text-align:left}
 .es-past-h .nm{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.7)}
@@ -18636,9 +18639,21 @@ const BIELSA_BIO=DT_CATALOG.find(d=>d.id==='bielsa');
 const _bielsaStart=PERIPLO_MATCHES.findIndex(m=>m.rival==='Nicaragua'&&m.yr===2023);
 const BIELSA_MATCHES=PERIPLO_MATCHES.slice(_bielsaStart).filter(m=>m.fui&&!m.sub);
 
+function _tecHeroTexto(){
+  try{
+    const fo=DT_CATALOG.find(d=>d.activo)||{}, bi=DT_CATALOG.find(d=>d.id==='bielsa')||{};
+    const r=(typeof _forlanMayorRecord==='function')?_forlanMayorRecord():{pj:0,g:0,e:0,p:0};
+    const hist=new Set([...(typeof DT_MAYOR_HIST!=='undefined'?DT_MAYOR_HIST.map(x=>x.name):[]),...DT_CATALOG.map(x=>x.full)]).size;
+    const c1='#22D3EE', c2='#FCD34D', c3='#4ADE80';
+    return `Hoy dirige <b style="color:${c1}">${fo.full||'—'}</b>${fo.interino?`, <b style="color:#F4F7FB">DT interino</b>`:''} hasta las <b style="color:#F4F7FB">elecciones de la AUF</b>`
+      +(r.pj?` · lleva <b style="color:${c3}">${r.g} ${r.g===1?'victoria':'victorias'}</b>${r.e?`, <b style="color:${c2}">${r.e} ${r.e===1?'empate':'empates'}</b>`:''}${r.p?` y <b style="color:#FCA5A5">${r.p} ${r.p===1?'derrota':'derrotas'}</b>`:''} en <b style="color:#F4F7FB">${r.pj} partidos</b>`:'')
+      +`.<br>Antes, el ciclo de <b style="color:${c2}">${bi.full||'Bielsa'}</b>: <b style="color:#F4F7FB">${bi.pj||0} partidos</b> entre ${bi.desde||''} y ${bi.hasta||''}. Detrás, <b style="color:${c1}">${hist} directores técnicos</b> desde 1917.`;
+  }catch(e){ return 'Selección Mayor'; }
+}
 function renderTecnicos(){
   const con=document.getElementById('tecnicos-container');
   if(!con) return;
+  try{ const _hp=document.querySelector('#tecnicos .pg-hero-r p'); if(_hp) _hp.innerHTML=_tecHeroTexto(); }catch(_){}
 
   // Carga fotos IDB en background si no están — render inmediato con CDN, re-render cuando carguen
   if(!_idbPhotos) loadIDBPhotos().then(()=>renderTecnicos());
@@ -18781,21 +18796,10 @@ function renderTecnicos(){
       ${statChip('GF',_forlanRec.gf,'var(--cel-dk)')}
       ${statChip('%',_forlanRec.pct+'%','#0891B2')}
     </div>`:''}
-    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Vínculo con AUF</div>
-    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:11.5px">
-        <span style="flex:1;font-weight:600;color:var(--text)">Duración del vínculo</span>
-        <span style="color:var(--muted);font-size:10px">1° ago 2026 – elecciones de presidencia AUF (aprox. mar 2027)</span>
-      </div>
-    </div>
-    <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Rol · ${_tecMode==='sub20'?'Selección Sub-20':'Selección Mayor'}</div>
-    <div style="display:flex;flex-direction:column;gap:4px">
-      ${(_forlanRolesPorModo[_tecMode]||[]).map(([fase,det])=>`
-        <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surface);border:0.5px solid var(--border);border-radius:8px;font-size:11.5px">
-          <span style="flex:1;font-weight:600;color:var(--text)">${fase}</span>
-          <span style="color:var(--muted);font-size:10px">${det}</span>
-        </div>`).join('')}
-    </div>`;
+    <div class="rd-eyebar" style="margin-top:6px">Vínculo con AUF</div>
+    <div class="sx-note" style="border-color:rgba(34,211,238,.35);margin-bottom:6px"><div class="b"><strong>Del 1° de agosto de 2026</strong> hasta las <strong>elecciones de presidencia de la AUF</strong> (aprox. marzo 2027).</div></div>
+    <div class="rd-eyebar">${_tecMode==='sub20'?'Selección Sub-20':'Fechas FIFA al frente de la Mayor'}</div>
+    ${_tecMode==='sub20'?`<div class="sx-note"><div class="b"><strong>Sub-20 · Director técnico</strong> hasta el Sudamericano Sub-20 de enero 2027.</div></div>`:_forlanFechasHtml()}`;
   const resumenHtml=!matches.length?(_tecDT==='alonso'?_alonsoResumenHtml:_tecDT==='forlan'?_forlanResumenHtml:_noDataHtml):`
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px">
       ${statChip('PJ',pj,'var(--text)')}
@@ -22854,6 +22858,32 @@ function _forlanMayorRecord(evId){
   rec.scorers=Object.entries(sc).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
   rec.pct=rec.pj?Math.round(((rec.g+rec.e*0.5)/rec.pj)*100):0;
   return rec;
+}
+
+// Fechas FIFA del interinato de Forlán: tarjeta por cada una (rivales con escudo, resultados, estado); la que tiene módulo armado lleva a él
+function _forlanFechasHtml(){
+  const MES={'09':'SEP','10':'OCT','11':'NOV','03':'MAR'};
+  const rec=(ev)=>_forlanMayorRecord(ev);
+  const mk=(ev,EV,cfg)=>{
+    const r=rec(ev); const res={}; r.matches.forEach(m=>{ res[m.rival]=m; });
+    const matches=(EV.partidosData||[]).map(pd=>{ const m=res[pd.rival]; return {rival:pd.rival,res:m?`${m.gl}–${m.gr}`:'',col:m?(m.gl>m.gr?'#86EFAC':m.gl===m.gr?'#FCD34D':'#FCA5A5'):''}; });
+    const jugada=r.pj>0, completa=r.pj>=(EV.partidos||matches.length);
+    const pill=jugada?`<b style="font-size:26px;color:#F4F7FB">${r.g}G ${r.e}E ${r.p}P</b><em>${completa?'Cerrada':'En curso'}</em>`:`<b style="font-size:20px;color:rgba(239,243,248,.6)">${EV.partidos||matches.length} PJ</b><em>Próxima</em>`;
+    return {d1:cfg.d1,mes:cfg.mes,title:cfg.title,sub:cfg.sub,matches,pill,go:cfg.go};
+  };
+  const cards=[
+    mk('sep',FIFASEP26,{d1:'21',mes:'SEP · 6 OCT',title:'Fecha FIFA set-oct 2026',sub:'Japón, Corea del Sur e India · gira por Asia',go:'fifasep26'}),
+    mk('nov',FIFANOV26,{d1:'9',mes:'NOV · 17 NOV',title:'Fecha FIFA nov 2026',sub:'Argentina y República Dominicana',go:'fifanov26'}),
+    {d1:'—',mes:'MAR 2027',title:'Fecha FIFA mar 2027',sub:'2 partidos previstos · todavía sin módulo en la app',matches:[],pill:`<b style="font-size:20px;color:rgba(239,243,248,.6)">2 PJ</b><em>Sin módulo</em>`,go:null},
+  ];
+  return cards.map(o=>`<div class="jm-card ff-card${o.go?'':' off'}" style="--cat:#22D3EE" ${o.go?`onclick="showTournament('${o.go}')" title="Abrir el módulo de esta Fecha FIFA"`:''}>
+    <span class="pz-d"><b>${o.d1}</b><span>${o.mes}</span></span>
+    <span class="jm-mt"><span class="rd-eye" style="display:block;margin-bottom:3px;--cat:#22D3EE">Fecha FIFA</span><b>${o.title}</b>
+      ${o.matches.length?`<span class="ff-rv">${o.matches.map(m=>`<i>${_escudoSeleccion(m.rival,22)}<em>${m.rival}</em>${m.res?`<u style="color:${m.col}">${m.res}</u>`:''}</i>`).join('')}</span>`:''}
+      <span>${o.sub}</span></span>
+    <span class="jm-sc">${o.pill}</span>
+    ${o.go?'<i class="ti ti-chevron-right jm-ch"></i>':''}
+  </div>`).join('');
 }
 function buildForlanStatsHtml(){
   const rec=_forlanMayorRecord();
