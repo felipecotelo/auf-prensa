@@ -901,6 +901,70 @@ async function fetchLigaUY(leagueId, sinTablas) {
   return { proximos: leagueId === FUTBOL_LEAGUES.copa ? _sumarOctavosCopa(proximos) : proximos, ultimos, hoy, tablas };
 }
 
+// ── Ranking FIFA masculino (oficial) ─────────────────────────────────────────
+// La tabla sale de la API pública de FIFA (api.fifa.com … rankingsbyschedule?rankingScheduleId=…). El id de la última
+// publicación se saca de la propia página del ranking (inside.fifa.com), que lista todas las fechas de publicación.
+// FIFA publica después de cada ventana internacional (unas 5-6 veces por año); se consulta como mucho cada 3 horas.
+// BEGIN ranking-fifa (funciones puras, sin APIs de Node)
+function rkParseSchedules(html) {
+  const m = String(html || '').match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  const t = m ? m[1] : String(html || '');
+  const re = /\{"id":"([^"]+)","iso":"([^"]+)","dateText":"[^"]*","matchWindowEndDate":"[^"]*"\}/g;
+  let x, best = null;
+  while ((x = re.exec(t))) { if (!best || x[2] > best.iso) best = { id: x[1], iso: x[2] }; }
+  return best;
+}
+function rkMapRows(data) {
+  return ((data && data.Results) || []).map(r => ({
+    rank: r.Rank, prev: r.PrevRank, pts: r.TotalPoints, prevPts: r.PrevPoints, code: r.IdCountry,
+    name: (r.TeamName && r.TeamName[0] && r.TeamName[0].Description) || r.IdCountry, conf: r.ConfederationName,
+  })).sort((a, b) => a.rank - b.rank);
+}
+// END ranking-fifa
+const RK_FALLBACK_ID = 'FRS_Male_Football_20260720'; // 07/10/2026 — si no se puede leer la página, se usa la última conocida
+const RK_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+function rkGet(url, depth) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': RK_UA, 'Accept-Encoding': 'identity', 'Accept': '*/*' } }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && (depth || 0) < 4) {
+        const next = new URL(r.headers.location, url).toString();
+        r.resume(); return rkGet(next, (depth || 0) + 1).then(resolve, reject);
+      }
+      let data = '';
+      r.setEncoding('utf8');
+      r.on('data', c => data += c);
+      r.on('end', () => (r.statusCode >= 200 && r.statusCode < 300) ? resolve(data) : reject(new Error('HTTP ' + r.statusCode)));
+    }).on('error', reject).setTimeout(20000, function () { this.destroy(new Error('timeout')); });
+  });
+}
+let _rkCache = null;
+const RK_TTL = 3 * 3600 * 1000;
+async function rkLoad() {
+  let id = null, publicado = null, fuente = 'pagina';
+  try { const sch = rkParseSchedules(await rkGet('https://inside.fifa.com/fifa-rankings/world-ranking/men')); if (sch) { id = sch.id; publicado = sch.iso; } } catch (e) { /* sin página: se usa el último id conocido */ }
+  if (!id) { id = RK_FALLBACK_ID; fuente = 'respaldo'; }
+  const rows = rkMapRows(JSON.parse(await rkGet('https://api.fifa.com/api/v3/fifarankings/rankings/rankingsbyschedule?rankingScheduleId=' + encodeURIComponent(id) + '&language=en')));
+  if (!rows.length) throw new Error('ranking vacío para ' + id);
+  let proxima = null;
+  try {
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' });
+    const w = JSON.parse(await rkGet('https://inside.fifa.com/api/live-world-ranking/get-international-ranking-window?locale=en&date=' + hoy + '&category=men'));
+    proxima = (w.nextWindow && w.nextWindow.dateTo) || null;
+  } catch (e) { /* la fecha de la próxima publicación es opcional */ }
+  return { ok: true, scheduleId: id, publicado, proxima, fuente, total: rows.length, equipos: rows, consultado: new Date().toISOString() };
+}
+app.get('/api/ranking-fifa', async (req, res) => {
+  try {
+    if (_rkCache && (Date.now() - _rkCache.ts) < RK_TTL) return res.json(_rkCache.data);
+    const data = await rkLoad();
+    _rkCache = { ts: Date.now(), data };
+    res.json(data);
+  } catch (e) {
+    if (_rkCache) return res.json({ ..._rkCache.data, viejo: true }); // si FIFA falla, se muestra el último dato bueno
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/api/futbol-uy', async (req, res) => {
   try {
     if (_futbolCache && (Date.now() - _futbolCache.ts) < FUTBOL_TTL) {

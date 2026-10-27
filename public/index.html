@@ -1130,6 +1130,37 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .day-closed-btn.open{color:#8AD8FF!important;border-color:rgba(138,216,255,.55)!important;background:rgba(0,157,216,.12)!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .day-closed-btn.closed{color:#F4F7FB!important;border-color:rgba(255,255,255,.35)!important;background:rgba(148,163,184,.28)!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .day-closed-btn.na{color:rgba(239,243,248,.5)!important;border-style:dashed!important}
+.rk-card{margin-bottom:16px;border-radius:22px;border:1px solid rgba(255,255,255,.14);padding:16px 22px 18px;background:radial-gradient(420px 170px at 100% 0,rgba(0,157,216,.18),transparent 70%),linear-gradient(180deg,#10182C,#0A1022);color:#F4F7FB}
+.rk-h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 14px;margin-bottom:12px}
+.rk-eye{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.6)}
+.rk-fe{font-size:11.5px;color:rgba(239,243,248,.5)}
+.rk-body{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-start}
+.rk-big{min-width:120px}
+.rk-pos{font-family:'Space Grotesk','Inter',sans-serif;font-size:76px;font-weight:700;letter-spacing:-.05em;line-height:.9;color:#8AD8FF}
+.rk-pos sup{font-size:26px;letter-spacing:0;vertical-align:top;margin-left:2px}
+.rk-sub{margin-top:6px;font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(239,243,248,.5)}
+.rk-info{flex:1;min-width:230px}
+.rk-pts{font-size:13px;color:rgba(239,243,248,.6)}
+.rk-pts b{font-family:'Space Grotesk','Inter',sans-serif;font-size:26px;font-weight:700;color:#F4F7FB;margin-right:4px}
+.rk-pts em{font-style:normal;font-weight:700;margin-left:8px}
+.rk-pts em.up,.rk-m.up,.rk-mv.up{color:#4ADE80}.rk-pts em.dn,.rk-m.dn,.rk-mv.dn{color:#F87171}
+.rk-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.rk-mv{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 11px;border-radius:999px;border:1px solid rgba(255,255,255,.18);font-size:11px;font-weight:600;color:rgba(239,243,248,.75)}
+.rk-mv.up{border-color:rgba(74,222,128,.5)}.rk-mv.dn{border-color:rgba(248,113,113,.5)}
+.rk-rvs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
+.rk-lb{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.45);margin-right:4px}
+.rk-rv{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 11px;border-radius:999px;border:1px solid rgba(138,216,255,.4);background:rgba(0,157,216,.1);font-size:12px;color:#F4F7FB}
+.rk-rv b{color:#8AD8FF;font-family:'Space Grotesk','Inter',sans-serif}
+.rk-fl{width:18px;height:12px;object-fit:cover;border-radius:2px;flex-shrink:0}
+.rk-list{flex:1.2;min-width:280px}
+.rk-row{display:flex;align-items:center;gap:10px;padding:5px 10px;border-radius:12px;font-size:13px;color:rgba(239,243,248,.8)}
+.rk-row.uy{background:rgba(0,157,216,.16);border:1px solid rgba(138,216,255,.4);color:#F4F7FB;font-weight:700}
+.rk-n{width:26px;text-align:right;font-family:'Space Grotesk','Inter',sans-serif;color:rgba(239,243,248,.5)}
+.rk-row.uy .rk-n{color:#8AD8FF}
+.rk-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk-pt{font-variant-numeric:tabular-nums;color:rgba(239,243,248,.6)}
+.rk-m{width:34px;text-align:right;font-size:11px;color:rgba(239,243,248,.4)}
+.rk-gap{padding:0 10px 0 46px;color:rgba(239,243,248,.3);line-height:1}
 .ar-ban{display:flex;align-items:center;gap:10px;padding:7px 14px;border-radius:999px;margin-bottom:8px;font-size:12px;line-height:1.4;color:rgba(239,243,248,.8);border:1px solid}
 .ar-ban strong{color:#F4F7FB}
 .ar-ban i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -21521,6 +21552,56 @@ function renderStatsUpdateBar(){
   </div>`;
 }
 
+// ── Ranking FIFA en Stats de la Mayor: se lee de /api/ranking-fifa (API oficial de FIFA vía el servidor); se actualiza solo ──
+const _RK_KEY='auf4_rk_fifa', _RK_TTL=3*3600*1000;
+function _rkFecha(iso){ if(!iso) return ''; const d=new Date(iso); return isNaN(d)?'':d.toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'America/Montevideo'}); }
+function _rkNombreEn(es){
+  const alias={'República Dominicana':'Dominican Republic','Estados Unidos':'USA','Corea del Sur':'Korea Republic','Irán':'IR Iran'};
+  if(alias[es]) return alias[es];
+  const inv=(typeof _FIFA_ES!=='undefined')?Object.entries(_FIFA_ES).find(([en,e])=>e===es):null;
+  return inv?inv[0]:es;
+}
+function _rkHtml(d,viejo){
+  const eq=d.equipos||[]; const U=eq.find(x=>x.code==='URU'); if(!U) return '';
+  const conm=eq.filter(x=>x.conf==='CONMEBOL'); const rkConm=conm.findIndex(x=>x.code==='URU')+1;
+  const mov=(U.prev||U.rank)-U.rank, dpts=U.pts-U.prevPts;
+  const movHtml=mov>0?`<span class="rk-mv up"><i class="ti ti-arrow-up"></i>Subió ${mov}</span>`:mov<0?`<span class="rk-mv dn"><i class="ti ti-arrow-down"></i>Bajó ${-mov}</span>`:`<span class="rk-mv">Sin cambios</span>`;
+  const flag=c=>`<img class="rk-fl" src="https://api.fifa.com/api/v3/picture/flags-sq-2/${c}" loading="lazy" onerror="this.style.visibility='hidden'">`;
+  const nums=new Set([1,2,3]); for(let i=U.rank-3;i<=U.rank+3;i++) if(i>=1) nums.add(i);
+  const rows=[...nums].sort((a,b)=>a-b).map(r=>eq.find(x=>x.rank===r)).filter(Boolean);
+  let last=0; const rowsHtml=rows.map(x=>{ const gap=last&&x.rank>last+1?`<div class="rk-gap">···</div>`:''; last=x.rank;
+    const m=(x.prev||x.rank)-x.rank;
+    return `${gap}<div class="rk-row${x.code==='URU'?' uy':''}"><span class="rk-n">${x.rank}</span>${flag(x.code)}<span class="rk-nm">${x.name}</span><span class="rk-pt">${x.pts.toFixed(2)}</span><span class="rk-m ${m>0?'up':m<0?'dn':''}">${m>0?'▲'+m:m<0?'▼'+(-m):'='}</span></div>`; }).join('');
+  const riv=((typeof FIFANOV26!=='undefined'&&FIFANOV26.partidosData)||[]).filter(p=>p.fecha>=TODAY).map(p=>{ const en=_rkNombreEn(p.rival); const t=eq.find(x=>x.name===en||x.name.toLowerCase()===String(p.rival).toLowerCase()); return t?`<span class="rk-rv">${flag(t.code)}${p.rival}<b>#${t.rank}</b></span>`:''; }).join('');
+  const pub=_rkFecha(d.publicado), prox=_rkFecha(d.proxima);
+  return `<div class="rk-card">
+    <div class="rk-h"><span class="rk-eye">Ranking FIFA masculino</span><span class="rk-fe">${pub?`Actualizado el ${pub}`:''}${prox?` · Próxima actualización estimada: ${prox}`:''}${viejo?' · dato guardado (FIFA no respondió)':''}</span></div>
+    <div class="rk-body">
+      <div class="rk-big"><div class="rk-pos"><span>${U.rank}</span><sup>º</sup></div><div class="rk-sub">del mundo</div></div>
+      <div class="rk-info">
+        <div class="rk-pts"><b>${U.pts.toFixed(2)}</b> puntos <em class="${dpts>=0?'up':'dn'}">${dpts>=0?'+':''}${dpts.toFixed(2)}</em></div>
+        <div class="rk-tags">${movHtml}<span class="rk-mv">${rkConm}º de CONMEBOL</span></div>
+        ${riv?`<div class="rk-rvs"><span class="rk-lb">Próximos rivales</span>${riv}</div>`:''}
+      </div>
+      <div class="rk-list">${rowsHtml}</div>
+    </div>
+  </div>`;
+}
+window._rkFifaLoad=async function(){
+  const box=document.getElementById('rk-fifa'); if(!box) return;
+  let cache=null; try{ cache=JSON.parse(localStorage.getItem(_RK_KEY)||'null'); }catch(_){}
+  if(cache&&cache.data) box.innerHTML=_rkHtml(cache.data,false);
+  if(cache&&Date.now()-cache.ts<_RK_TTL) return;
+  try{
+    const r=await fetch('/api/ranking-fifa',{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json(); if(!d.ok||!d.equipos||!d.equipos.length) throw new Error('sin datos');
+    try{ localStorage.setItem(_RK_KEY,JSON.stringify({ts:Date.now(),data:d})); }catch(_){}
+    const b=document.getElementById('rk-fifa'); if(b) b.innerHTML=_rkHtml(d,!!d.viejo);
+  }catch(e){
+    const b=document.getElementById('rk-fifa'); if(b&&!(cache&&cache.data)) b.innerHTML=`<div class="rk-card"><div class="rk-h"><span class="rk-eye">Ranking FIFA masculino</span><span class="rk-fe">No se pudo leer ahora. Se reintenta al volver a entrar.</span></div></div>`;
+    else if(b&&cache&&cache.data) b.innerHTML=_rkHtml(cache.data,true);
+  }
+};
 function renderEstadisticas(){
   const con=document.getElementById('stats-container');
   if(!con) return;
@@ -21621,7 +21702,9 @@ function renderEstadisticas(){
 
   const tab=_statsSubTab||'auf-historia';
   const subTab=_statsSubSubTab||'generales';
+  setTimeout(()=>{ try{ window._rkFifaLoad&&window._rkFifaLoad(); }catch(_){} },0);
   con.innerHTML=`
+    <div id="rk-fifa"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
       <button onclick="showStatsSubTab('auf-historia')" style="font-size:10.5px;padding:5px 12px;border-radius:8px;font-weight:800;cursor:pointer;border:1.5px solid ${tab==='auf-historia'?'var(--navy)':'var(--border)'};background:${tab==='auf-historia'?'var(--navy)':'var(--white)'};color:${tab==='auf-historia'?'#fff':'var(--text)'};transition:all .15s">Generales</button>
       <span style="color:var(--border);font-size:14px">|</span>
