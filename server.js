@@ -1096,6 +1096,43 @@ async function fotmobDia(ymd) {
   _fmDiaCache[ymd] = { ts: Date.now(), data };
   return data;
 }
+// Detalle de un partido (FotMob): marcador, estadio, árbitro, eventos (goles con asistencia, tarjetas, cambios con lesión) y alineaciones.
+// La web lo usa para seguir a los jugadores reservados: si fue titular o entró, en qué minuto salió, goles/asistencias, tarjetas, lesión.
+const _fmDetCache = {};
+app.get('/api/partido-detalle', async (req, res) => {
+  const id = String(req.query.id || '').replace(/[^0-9]/g, '');
+  if (!id) return res.status(400).json({ ok: false, error: 'falta id' });
+  try {
+    const c = _fmDetCache[id];
+    const vivo = c && c.d && c.d.estado === 'vivo';
+    if (c && (Date.now() - c.ts) < (vivo ? 30000 : 120000)) return res.json(c.d);
+    const j = JSON.parse(await fetchText('https://www.fotmob.com/api/data/matchDetails?matchId=' + id));
+    const g = j.general || {}, h = j.header || {}, st = h.status || {}, ct = j.content || {}, mf = ct.matchFacts || {}, ib = mf.infoBox || {};
+    const norm = n => String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const evs = ((mf.events || {}).events || []).map(e => {
+      const t = e.type;
+      const base = { min: e.time, extra: e.overloadTime || 0, tipo: t, home: !!e.isHome };
+      if (t === 'Goal') return { ...base, jugador: e.nameStr || (e.player && e.player.name) || '', asistencia: String(e.assistStr || '').replace(/^assist by\s*/i, ''), propio: !!e.ownGoal, penal: /pen/i.test(String(e.goalDescription || '')), marcador: e.newScore || null };
+      if (t === 'Card') return { ...base, jugador: e.nameStr || (e.player && e.player.name) || '', tarjeta: String(e.card || '').toLowerCase() };
+      if (t === 'Substitution') { const sw = e.swap || []; return { ...base, sale: sw[1] ? sw[1].name : '', entra: sw[0] ? sw[0].name : '', lesion: !!e.injuredPlayerOut }; }
+      return { ...base, jugador: e.nameStr || '' };
+    }).filter(e => ['Goal', 'Card', 'Substitution', 'VAR'].includes(e.tipo));
+    const lu = ct.lineup || {};
+    const eq = t => t ? { nombre: t.name, formacion: t.formation || '', dt: (t.coach && t.coach.name) || '', titulares: (t.starters || []).map(p => ({ nombre: p.name, num: p.shirtNumber, nota: p.performance && p.performance.rating })), suplentes: (t.subs || []).map(p => ({ nombre: p.name, num: p.shirtNumber })) } : null;
+    const d = {
+      ok: true, id, liga: g.leagueName || '', ronda: g.matchRound || '', utc: g.matchTimeUTCDate || st.utcTime || null,
+      home: g.homeTeam && g.homeTeam.name, homeId: g.homeTeam && g.homeTeam.id, away: g.awayTeam && g.awayTeam.name, awayId: g.awayTeam && g.awayTeam.id,
+      estado: st.cancelled ? 'susp' : st.finished ? 'fin' : (st.started || g.started) ? 'vivo' : 'prog',
+      marcador: st.scoreStr || '', minuto: String((st.liveTime && st.liveTime.short) || '').replace(/[‎‏]/g, ''),
+      estadio: (ib.Stadium && ib.Stadium.name) || '', ciudad: (ib.Stadium && ib.Stadium.city) || '', arbitro: (ib.Referee && ib.Referee.text) || '',
+      eventos: evs, home_eq: eq(lu.homeTeam), away_eq: eq(lu.awayTeam), alineacion: !!(lu.homeTeam && (lu.homeTeam.starters || []).length),
+    };
+    _fmDetCache[id] = { ts: Date.now(), d };
+    res.json(d);
+  } catch (e) {
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
 app.get('/api/partidos-reservados', async (req, res) => {
   try {
     const fechas = String(req.query.fechas || '').split(',').filter(f => /^\d{4}-\d{2}-\d{2}$/.test(f)).slice(0, 3);
