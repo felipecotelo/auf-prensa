@@ -897,7 +897,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .jf-pos{font-size:10.5px;font-weight:700;letter-spacing:.14em;padding:3px 11px;border-radius:999px;border:1px solid;cursor:pointer}
 .jf-st{font-size:11px;color:rgba(239,243,248,.55)}
 .jf-st b{font-family:'Space Grotesk','Inter',sans-serif;font-size:15px;color:#F4F7FB;margin-right:3px}
-.jf-les{font-size:11px;font-weight:700;color:#FCD34D;border:1px solid rgba(252,211,77,.5);border-radius:999px;padding:3px 10px;align-self:flex-start;cursor:pointer}
+.jf-les{display:inline-flex;align-items:center;gap:6px;max-width:100%;font-size:11px;font-weight:700;color:#FCA5A5;border:1px solid rgba(248,113,113,.5);background:rgba(248,113,113,.1);border-radius:999px;padding:3px 11px;align-self:flex-start;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.jf-les em{font-style:normal;font-weight:500;opacity:.8}.jf-les i{font-size:13px}
 .jf-tags{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .jf-h{font-size:10.5px;font-weight:600;border-radius:999px;padding:2px 9px}
 .jf-hj{cursor:pointer;color:#8AD8FF!important;background:rgba(0,157,216,.14)!important;border:1px solid rgba(138,216,255,.4)}
@@ -3194,10 +3194,17 @@ textarea.rd-in{height:auto;padding:10px 14px;line-height:1.45;resize:vertical}
 select.rd-in{padding:0 10px}
 .rd-lb{display:block;margin:0 0 5px 2px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.5)}
 .rd-lb em{font-style:normal;letter-spacing:.04em;text-transform:none;font-weight:500;opacity:.8}
+.ls-hd{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.ls-av{position:relative;width:54px;height:54px;border-radius:50%;flex-shrink:0;overflow:hidden;border:2px solid #F87171;box-shadow:0 0 18px rgba(248,113,113,.35);background:#1B2D50;display:inline-flex;align-items:center;justify-content:center}
+.ls-av b{font-size:14px;color:#FCA5A5}.ls-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%}
+.ls-sec{margin-bottom:16px;padding:14px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.03)}
+.ls-lb{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.6)}.ls-lb i{font-size:15px;color:#F87171}
+.ls-prev{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:999px;border:1px solid rgba(248,113,113,.4);background:linear-gradient(90deg,rgba(248,113,113,.14),rgba(248,113,113,.03));font-size:12.5px;color:rgba(239,243,248,.75)}
+.ls-prev i{font-size:18px;color:#F87171}.ls-prev b{margin-left:auto;font-family:'Space Grotesk','Inter',sans-serif;font-size:15px;color:#FCA5A5}
 .rd-opts{display:flex;flex-wrap:wrap;gap:6px}
 .rd-opt{height:30px;padding:0 13px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(239,243,248,.72);font:600 12px inherit;font-family:inherit;cursor:pointer}
 .rd-opt:hover{border-color:rgba(138,216,255,.5);color:#F4F7FB}
-.rd-opt.on{border-color:#FCD34D;background:rgba(252,211,77,.14);color:#FCD34D}
+.rd-opt.on{border-color:#F87171;background:rgba(248,113,113,.16);color:#FCA5A5}
 .rd-g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .rd-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
 .rd-f{margin-bottom:10px;position:relative}
@@ -5399,6 +5406,28 @@ const getLesionTiempos = () => [...LESION_TIEMPOS_BASE, ...stor.get(KLesionTiemp
 const _addLesionTipoCustom = (v) => { const l=stor.get(KLesionTiposCustom,[]); if(v && !LESION_TIPOS_BASE.includes(v) && !l.includes(v)){ l.push(v); stor.set(KLesionTiposCustom,l); } };
 const _addLesionTiempoCustom = (v) => { const l=stor.get(KLesionTiemposCustom,[]); if(v && !LESION_TIEMPOS_BASE.includes(v) && !l.includes(v)){ l.push(v); stor.set(KLesionTiemposCustom,l); } };
 window._lesionState = {};
+// Regreso estimado: mes de la lesión + tiempo de recuperación ('1 mes', '4-6 meses', '2 semanas'…). Indefinido o texto libre sin números → null.
+function _lesionRegreso(mes,tiempo){
+  try{
+    const t=String(tiempo||'').toLowerCase(); if(!mes||!t||/indefin/.test(t)) return null;
+    let lo,hi, m=t.match(/(\d+)\s*[-–a]\s*(\d+)\s*mes/);
+    if(m){ lo=+m[1]; hi=+m[2]; }
+    else if((m=t.match(/(\d+)\s*mes/))){ lo=hi=+m[1]; }
+    else if((m=t.match(/(\d+)\s*semana/))){ lo=hi=Math.max(1,Math.round(+m[1]/4.3)); }
+    else return null;
+    const [y,mo]=mes.split('-').map(Number); const MN=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const f=n=>{ const d=new Date(y,mo-1+n,1); return {m:MN[d.getMonth()],y:d.getFullYear()}; };
+    const A=f(lo), B=f(hi);
+    return lo===hi ? `${A.m} ${A.y}` : (A.y===B.y ? `${A.m}–${B.m} ${B.y}` : `${A.m} ${A.y} – ${B.m} ${B.y}`);
+  }catch(_){ return null; }
+}
+window._lesionPreview=function(id){
+  const st=window._lesionState[id]||{}; const el=document.getElementById(id+'-prev'); if(!el) return;
+  const tiempo=(document.getElementById(id+'-tiempo-otra')?.value||'').trim()||st.tiempo||'';
+  const mes=document.getElementById(id+'-mes')?.value||'';
+  const r=_lesionRegreso(mes,tiempo);
+  el.innerHTML=r?`<i class="ti ti-calendar-heart"></i><span>Regreso estimado</span><b>${r}</b>`:`<i class="ti ti-calendar-question"></i><span>Regreso estimado</span><b style="opacity:.55">se calcula con el tiempo y el mes</b>`;
+};
 function _editLesion(nom){
   const d=getLesiones()[nom]||{};
   const id='lesion-'+Date.now();
@@ -5413,22 +5442,28 @@ function _editLesion(nom){
   const curMes = d.mesLesion || TODAY.slice(0,7);
   window._lesionState[id] = {tipo:curTipoPreset, tiempo:curTiempoPreset};
   const chip=(field,t,cur)=>`<button type="button" class="rd-opt${t===cur?' on':''}" data-${field}-btn="${esc(t)}" onclick="window._lesionPick('${id}','${field}',this.getAttribute('data-${field}-btn'))">${esc(t)}</button>`;
+  const photo=(window._juvGetPhoto&&window._juvGetPhoto(nom))||(window._getPhotoByName&&window._getPhotoByName(nom))||'';
+  const ini=nom.split(' ').slice(0,2).map(w=>w[0]).join('');
   _rdModal(`
-    <div class="rd-eye" style="margin-bottom:6px;--cat:#FCD34D">Lesión larga</div>
-    <div class="rd-tit" style="margin-bottom:16px">${esc(nom)}</div>
-    <label class="rd-lb">Tipo de lesión</label>
-    <div id="${id}-tipos" class="rd-opts">${tipos.map(t=>chip('tipo',t,curTipoPreset)).join('')}</div>
-    <input id="${id}-tipo-otra" class="rd-in" type="text" placeholder="Otra (si la escribís, tiene prioridad y queda guardada)" value="${esc(curTipoLibre)}" style="margin:8px 0 16px">
-    <label class="rd-lb">Tiempo de recuperación estimado</label>
-    <div id="${id}-tiempos" class="rd-opts">${tiempos.map(t=>chip('tiempo',t,curTiempoPreset)).join('')}</div>
-    <input id="${id}-tiempo-otra" class="rd-in" type="text" placeholder="Otro (si lo escribís, tiene prioridad y queda guardado)" value="${esc(curTiempoLibre)}" style="margin:8px 0 16px">
-    <label class="rd-lb">Mes en que se lesionó</label>
-    <input id="${id}-mes" class="rd-in" type="month" value="${curMes}" style="margin-bottom:18px;color-scheme:dark">
-    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
+    <div class="ls-hd">
+      <span class="ls-av">${photo?`<img src="${photo}" onerror="this.remove()">`:''}<b>${ini}</b></span>
+      <div><div class="rd-eye" style="--cat:#F87171">Lesión larga</div><div class="rd-tit">${esc(nom)}</div></div>
+    </div>
+    <div class="ls-sec"><div class="ls-lb"><i class="ti ti-bandage"></i>Tipo de lesión</div>
+      <div id="${id}-tipos" class="rd-opts">${tipos.map(t=>chip('tipo',t,curTipoPreset)).join('')}</div>
+      <input id="${id}-tipo-otra" class="rd-in" type="text" placeholder="Otra (si la escribís, tiene prioridad y queda guardada)" value="${esc(curTipoLibre)}" style="margin-top:8px"></div>
+    <div class="ls-sec"><div class="ls-lb"><i class="ti ti-hourglass-high"></i>Tiempo de recuperación estimado</div>
+      <div id="${id}-tiempos" class="rd-opts">${tiempos.map(t=>chip('tiempo',t,curTiempoPreset)).join('')}</div>
+      <input id="${id}-tiempo-otra" class="rd-in" type="text" oninput="_lesionPreview('${id}')" placeholder="Otro (si lo escribís, tiene prioridad y queda guardado)" value="${esc(curTiempoLibre)}" style="margin-top:8px"></div>
+    <div class="ls-sec"><div class="ls-lb"><i class="ti ti-calendar-event"></i>Mes en que se lesionó</div>
+      <input id="${id}-mes" class="rd-in" type="month" value="${curMes}" onchange="_lesionPreview('${id}')" style="color-scheme:dark"></div>
+    <div id="${id}-prev" class="ls-prev"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:16px">
       ${(d.nota||d.meses)?`<button class="rd-btn danger sm" style="margin-right:auto" onclick="clearLesion('${nomEsc}');_rdModalClose();if(typeof _refreshAllFichaViews==='function')_refreshAllFichaViews();">Quitar lesión</button>`:''}
       <button class="rd-btn ghost" onclick="_rdModalClose()">Cancelar</button>
       <button class="rd-btn" onclick="window._lesionSave('${id}','${nomEsc}')"><i class="ti ti-check"></i>Guardar</button>
-    </div>`,{width:520,noFocus:true});
+    </div>`,{width:540,noFocus:true});
+  _lesionPreview(id);
 }
 window._lesionPick = function(id, field, val){
   const st = window._lesionState[id] = window._lesionState[id]||{};
@@ -5437,6 +5472,7 @@ window._lesionPick = function(id, field, val){
   if(container){
     [...container.children].forEach(btn=>{ btn.classList.toggle('on', btn.getAttribute('data-'+field+'-btn')===st[field]); });
   }
+  _lesionPreview(id);
 };
 window._lesionSave = function(id, nom){
   const st = window._lesionState[id]||{};
@@ -35815,7 +35851,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
       <span class="jf-st"><b>${off.pj}</b> PJ</span>
     </div>
     <div class="jf-mid">
-    ${isJuvLesion?`<div class="jf-les" onclick="event.stopPropagation();_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion.nota||'Lesión larga'} · ${isJuvLesion.meses} · Click para editar">Lesión · ${isJuvLesion.nota||isJuvLesion.meses}</div>`:''}
+    ${isJuvLesion?`<div class="jf-les" onclick="event.stopPropagation();_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion.nota||'Lesión larga'} · ${isJuvLesion.meses} · Click para editar"><i class="ti ti-bandage"></i>${isJuvLesion.nota||isJuvLesion.meses}${(()=>{ const r=_lesionRegreso(isJuvLesion.mesLesion,isJuvLesion.meses); return r?` <em>· vuelve ${r}</em>`:''; })()}</div>`:''}
     ${sb?`<div class="jf-badges">${sb}</div>`:''}
     ${_juvStatsBreakdownHTML(p.nom)}
     <div class="jf-tags">
