@@ -700,7 +700,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .rs-cr{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:none;border:none;box-sizing:border-box;padding:3px}
 .rs-cr img{max-width:100%;max-height:100%;object-fit:contain}
 .tv-w{display:flex;flex-wrap:wrap;gap:4px;align-items:center;justify-content:flex-end;margin-top:4px}
-.tv-i{display:inline-flex;align-items:center;justify-content:center;height:20px;min-width:20px;padding:2px 4px;border-radius:7px;overflow:hidden;background:#fff;border:1px solid rgba(255,255,255,.25);flex-shrink:0}.tv-i img{height:100%;width:auto;max-width:38px;object-fit:contain}.tv-i:hover{transform:scale(1.12)}
+.tv-i{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:44px;height:20px;padding:3px 5px;border-radius:7px;overflow:hidden;background:#fff;border:1px solid rgba(255,255,255,.25);flex-shrink:0}.tv-i img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.tv-i:hover{transform:scale(1.12)}
 .tv-p{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 9px 0 7px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c) 60%,transparent);background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);font:800 10px 'Inter',sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;cursor:pointer;white-space:nowrap}
 .tv-p i{font-size:11px}.tv-p:hover{background:color-mix(in srgb,var(--c) 28%,transparent)}
 .tv-no{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;border:1px dashed rgba(255,255,255,.28);color:rgba(239,243,248,.55);font-size:14px;flex-shrink:0}
@@ -7402,7 +7402,7 @@ function renderInicioHoySeleccion(dayOffset){
             const ebNom=(typeof _COMP_NOM!=='undefined'&&_COMP_NOM[m.compId])||m.torneo||('Selección '+catLbl);
             const ebDet=(m.compId==='mundial-sub15-2026'&&(!m.fase||/clasific|grupo/i.test(m.fase)))?'Partido '+(_mundI.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
             const sede=[...new Set([m.lugar,m.paisSede].filter(Boolean))].join(', ')||({'mundial-sub15-2026':'Bakú, Azerbaiyán'}[m.compId]||'');
-            partidosHoy.push({txt:`${catLbl} vs. ${m.rival}${m.hora?' · '+m.hora+'h':''}`, cat:catLbl, ck:cat, rival:m.rival, hora:m.hora||'', eb:{nom:ebNom,det:ebDet}, sede, onclick:`showSection('juveniles')`});
+            partidosHoy.push({compId:m.compId||'', txt:`${catLbl} vs. ${m.rival}${m.hora?' · '+m.hora+'h':''}`, cat:catLbl, ck:cat, rival:m.rival, hora:m.hora||'', eb:{nom:ebNom,det:ebDet}, sede, onclick:`showSection('juveniles')`});
           }
         });
       }
@@ -7531,7 +7531,7 @@ function renderInicioHoySeleccion(dayOffset){
       return `<div class="ih-match" onclick="${p.onclick||''}" style="--cat:${_catCol(p.ck)};${p.onclick?'cursor:pointer':''}">
         <span class="ih-esc">${typeof _escudoSeleccion==='function'?_escudoSeleccion(p.rival,26):''}</span>
         <span class="ih-mt">${p.eb?`<i class="ih-eb">${p.eb.nom}${p.eb.det?`<em>|</em><u>${p.eb.det}</u>`:''}</i>`:''}<b>${p.cat} vs. ${p.rival}</b>${(p.sede||hh.extra)?`<span>${p.sede?`<i class="ti ti-map-pin"></i>${p.sede}`:''}${p.sede&&hh.extra?' · ':''}${hh.extra||''}</span>`:''}</span>
-        ${hh.main?`<span class="ih-hr"><b>${hh.main}</b><span>Hora de Uruguay</span></span>`:''}
+        ${hh.main?`<span class="ih-hr"><b>${hh.main}</b><span>Hora de Uruguay</span>${p.compId?_tvHtml(p.compId,{}):''}</span>`:''}
       </div>`; }).join('');
 
     // ── Planificador de hoy ─────────────────────────────────────────────────
@@ -9201,7 +9201,7 @@ function _partidosSeleccionHoy(){
         const fin=m.gLocal!=null&&m.gRival!=null&&(m.confirmado||m.gLocal!=='');
         const nom=_COMP_NOM[m.compId]||m.torneo||('Selección '+catLbl);
         const det=(m.compId==='mundial-sub15-2026'&&(!m.fase||/clasific|grupo/i.test(m.fase)))?'Partido '+(_mund.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
-        out.push({sel:true,ck:cat,eyebrow:{nom,det},rival:m.rival,hora:_horaCortaTxt(m.hora),min:min(m.hora),gl:fin?+m.gLocal:null,gr:fin?+m.gRival:null,estado:fin?'fin':'prog'});
+        out.push({sel:true,compId:m.compId||'',ck:cat,eyebrow:{nom,det},rival:m.rival,hora:_horaCortaTxt(m.hora),min:min(m.hora),gl:fin?+m.gLocal:null,gr:fin?+m.gRival:null,estado:fin?'fin':'prog'});
       });
     }
   }catch(_){}
@@ -9499,7 +9499,7 @@ function _futDockRender(){
     return `<div ${it.res?`onclick="_resDetalle(${it.m.id})" title="Ver el detalle del partido" `:''}style="${it.res?'cursor:pointer;':''}border:1px solid ${vivo?ROSA+'80':(fin?VERDE+'8C':'var(--border)')};${fin?'border-left:4px solid '+VERDE+';':''}border-radius:12px;padding:9px 12px 8px;margin-top:8px;background:${vivo?'linear-gradient(100deg,'+ROSA+'29,rgba(255,255,255,.04) 62%)':(fin?'linear-gradient(100deg,'+VERDE+'2E,'+VERDE+'0F 70%)':'rgba(255,255,255,.04)')}">
       <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;margin-bottom:5px">
         <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 160px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${eyebrow}</div>
-        <span style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end">${estadoPill(it,hora)}${it.res?_tvResHtml(it.m):((it.sel||!it.m)?'':_tvHtml(it.m.liga,it.m))}</span>
+        <span style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end">${estadoPill(it,hora)}${it.res?_tvResHtml(it.m):(it.sel?(it.compId?_tvHtml(it.compId,{}):''):(!it.m?'':_tvHtml(it.m.liga,it.m)))}</span>
       </div>
       ${fila(esc1,n1,a,it.estado,w1,fin&&!emp&&!w1)}${fila(esc2,n2,b,it.estado,w2,fin&&!emp&&!w2)}
       ${it.res?_resChipsHtml(it.m):''}
