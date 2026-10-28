@@ -7239,6 +7239,10 @@ function renderInicioHoySeleccion(dayOffset){
           if(estSeenKeysHoy.has(p.key)) return;
           const fn=estEdits[p.key]?.fechaNac||p.fechaNac;
           if(fn && fn.length>=10 && fn.slice(5,10)===mmdd){
+            // Si ya sale arriba como jugador/DT (misma persona), no repetirlo en Estructura
+            const _nzC=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z ]/g,'').replace(/\s+/g,' ').trim();
+            const _kk=_nzC(estEdits[p.key]?.label||p.label);
+            if(cumples.some(c=>_nzC(c.nom)===_kk)) return;
             estSeenKeysHoy.add(p.key);
             cumplesEstructura.push({nom:estEdits[p.key]?.label||p.label, key:p.key, edad:hoy.getFullYear()-parseInt(fn.slice(0,4)), dept:d.dept});
           }
@@ -8260,6 +8264,7 @@ function renderInicioProximo(){
           const fn=estEdits[p.key]?.fechaNac||p.fechaNac;
           if(fn && fn.length>=10){
             estSeenKeys.add(p.key);
+            if(proxKeys.has(_nomKey(estEdits[p.key]?.label||p.label))) return;
             const fecha=nextOcurrencia(fn.slice(5,10));
             const edad=fecha.getFullYear()-parseInt(fn.slice(0,4));
             const nom=estEdits[p.key]?.label||p.label;
