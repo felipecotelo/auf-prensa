@@ -868,6 +868,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .ih-mt span .ti-map-pin{margin-right:4px;font-size:11px;vertical-align:-1px}
 .ih-mt b{display:block;font-size:13.5px;font-weight:600;color:#F4F7FB;line-height:1.25}
 .ih-mt span{display:block;margin-top:2px;font-size:11px;color:rgba(239,243,248,.55)}
+.ih-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:8px 12px;border-radius:14px;border:1px dashed rgba(34,211,238,.45);background:rgba(34,211,238,.06);color:#8AD8FF;font:700 11px 'Inter',sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}.ih-more:hover{background:rgba(34,211,238,.14)}.ih-res-extra{margin-top:0}
 .ih-hr{text-align:right;flex-shrink:0}
 .ih-hr b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1;color:#F4F7FB}
 .ih-hr span{display:block;margin-top:4px;font-size:8.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.45)}
@@ -7526,7 +7527,7 @@ function renderInicioHoySeleccion(dayOffset){
       const uy=hs.find(x=>x.z==='UY')||hs[0];
       return {main:uy.h+'h', extra:hs.filter(x=>x!==uy).map(x=>x.h+'h '+x.z).join(' · ')};
     };
-    const partidoRows=partidosHoy.map(p=>{
+    const _prHtml=partidosHoy.map(p=>{
       if(p.res){ const m=p.m; return `<div class="ih-match" style="--cat:#22D3EE;cursor:pointer;flex-wrap:wrap" onclick="_resDetalle(${m.id})" title="Ver el detalle del partido">
         <span class="ih-esc" style="display:inline-flex;align-items:center;gap:5px;width:auto;height:auto;border:none;background:none;border-radius:0">${_resFotmobLogo(m.homeId,30)}<small style="font-size:9px;font-weight:700;letter-spacing:.08em;color:rgba(239,243,248,.5);text-transform:lowercase">vs</small>${_resFotmobLogo(m.awayId,30)}</span>
         <span class="ih-mt"><i class="ih-eb">${m.liga||'Reservados'}<em>|</em><u>Reservados en juego</u></i><b>${m.home} vs. ${m.away}</b></span>
@@ -7538,7 +7539,15 @@ function renderInicioHoySeleccion(dayOffset){
         <span class="ih-esc">${typeof _escudoSeleccion==='function'?_escudoSeleccion(p.rival,26):''}</span>
         <span class="ih-mt">${p.eb?`<i class="ih-eb">${_ebNom(p.eb.nom)}${_ebDet(p.eb.det)?`<em>|</em><u>${_ebDet(p.eb.det)}</u>`:''}</i>`:''}<b>${p.cat} vs. ${p.rival}</b>${(p.sede||hh.extra)?`<span>${p.sede?`<i class="ti ti-map-pin"></i>${p.sede}`:''}${p.sede&&hh.extra?' · ':''}${hh.extra||''}</span>`:''}</span>
         ${hh.main?`<span class="ih-hr"><b>${hh.main}</b><span>Hora de Uruguay</span></span>`:''}
-      </div>`; }).join('');
+      </div>`; });
+    // Partidos de reservados: se ven 2 y el resto queda detrás de «Ver más» para no copar el Inicio
+    const _RES_VISIBLES=2, _nRes=partidosHoy.filter(p=>p.res).length;
+    let _seenRes=0;
+    const partidoRows=partidosHoy.map((p,i)=>{
+      if(!p.res) return _prHtml[i];
+      _seenRes++;
+      return _seenRes>_RES_VISIBLES?`<div class="ih-res-extra" style="display:none">${_prHtml[i]}</div>`:_prHtml[i];
+    }).join('')+(_nRes>_RES_VISIBLES?`<button type="button" class="ih-more" onclick="this.parentNode.querySelectorAll(':scope>.ih-res-extra').forEach(e=>e.style.display=e.style.display==='none'?'block':'none');this.dataset.open=this.dataset.open==='1'?'0':'1';this.querySelector('b').textContent=this.dataset.open==='1'?'Ver menos':'Ver ${_nRes-_RES_VISIBLES} más';this.querySelector('i').className='ti ti-chevron-'+(this.dataset.open==='1'?'up':'down')"><b>Ver ${_nRes-_RES_VISIBLES} más</b><i class="ti ti-chevron-down"></i></button>`:'');
 
     // ── Planificador de hoy ─────────────────────────────────────────────────
     const planHoy=[];
