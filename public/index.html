@@ -9086,7 +9086,30 @@ function _recAtencionesDerivados(){
   }catch(e){ console.warn('recordatorios de atenciones:',e); }
   return out;
 }
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados()]; }
+// Mundial Sub-15 (fase final, un MD-1 por partido): «Pedir diseño del MD-1» 2 días antes a las 10:00 y «Publicar diseño del MD-1» el día antes a las 18:00
+// (mismos horarios que los cargados a mano para la fase de grupos, que van hasta el 26/10). Se derivan de los partidos que FIFA va creando.
+function _recMd1Derivados(){
+  const out=[];
+  try{
+    const manual=stor.get('auf4_rec_manual',{});
+    let list=[]; try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_sub15_2026')||'[]'); }catch(_){ list=[]; }
+    const DIA=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    (Array.isArray(list)?list:[]).forEach(m=>{
+      if(m.compId!=='mundial-sub15-2026'||!m.rival||!m.fecha) return;
+      const D=String(m.fecha).slice(0,10); if(D<'2026-10-29'||D<_recSumarDias(TODAY,0)) return; // lo anterior se cargó a mano
+      if(m.gLocal!=null&&m.gRival!=null) return;
+      const dt=new Date(D+'T12:00:00'), cuando=`${DIA[dt.getDay()]} ${D.slice(8,10)}/${D.slice(5,7)}`;
+      const hm=String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/^\s*(\d{1,2}):(\d{2})/);
+      const det=`El partido es ${hm?hm[1]+':'+hm[2]+'h':'a confirmar'} por el Mundial${m.fase?' · '+_ebDet(m.fase):''}`;
+      [['pedir','Pedir',_recSumarDias(D,-2),'10:00'],['pub','Publicar',_recSumarDias(D,-1),'18:00']].forEach(([k,v,vence,hora])=>{
+        const id=`md1-${k}|${m.id}`, mn=manual[id]||{};
+        out.push({id,titulo:`${v} diseño MD-1 para el ${cuando} vs. ${m.rival}`,detalle:det,vence,hora,etiqueta:'Sub-15',hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+      });
+    });
+  }catch(e){ console.warn('recordatorios MD-1:',e); }
+  return out;
+}
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados()]; }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -9598,7 +9621,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|aten-pre|aten-link)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|aten-pre|aten-link|md1-pedir|md1-pub)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
