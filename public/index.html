@@ -40173,9 +40173,11 @@ function _renderVentanaRegistro(vw, list){
       if(md){
         const per=Array.isArray(md.periodistas)?md.periodistas.filter(x=>x&&x!=='luego'):[], pro=Array.isArray(md.productores)?md.productores.filter(x=>x&&x!=='luego'):[];
         const emi=(typeof _medEmisionStr==='function'?_medEmisionStr(md.emision):'')||'';
-        const ln=(ic,l,t)=>t?`<div style="display:flex;gap:8px;align-items:baseline;font-size:12px;line-height:1.5"><span style="width:116px;flex-shrink:0;white-space:nowrap;font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(239,243,248,.5)"><i class="ti ti-${ic}" style="margin-right:4px"></i>${l}</span><span style="color:rgba(239,243,248,.88)">${t}</span></div>`:'';
-        const inner=ln('microphone','Periodistas',per.join(', '))+ln('users','Productores',pro.join(', '))+ln('clock','Sale al aire',emi);
-        if(inner) progInfo=`<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.1)">${inner}</div>`;
+        const pill=(t,h)=>`<span ${h?'data-h="1" ':''}style="${h?'display:none;':''}font-size:11.5px;font-weight:600;color:rgba(239,243,248,.9);border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);border-radius:999px;padding:3px 10px;white-space:nowrap">${t}</span>`;
+        const grupo=(ic,l,arr)=>{ if(!arr.length) return ''; const N=4, vis=arr.slice(0,N), ocu=arr.slice(N);
+          return `<div style="min-width:0"><div style="display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${col};margin-bottom:6px"><i class="ti ti-${ic}" style="font-size:13px"></i>${l}</div><div style="display:flex;flex-wrap:wrap;gap:5px">${vis.map(t=>pill(t)).join('')}${ocu.map(t=>pill(t,1)).join('')}${ocu.length?`<span onclick="this.parentNode.querySelectorAll('[data-h]').forEach(e=>e.style.display='inline-block');this.remove()" style="cursor:pointer;font-size:11.5px;font-weight:700;color:${col};border:1px dashed ${col}88;border-radius:999px;padding:3px 10px">+${ocu.length} más</span>`:''}</div></div>`; };
+        const inner=grupo('microphone','Periodistas',per)+grupo('users','Productores',pro)+grupo('clock','Sale al aire',emi?[emi]:[]);
+        if(inner) progInfo=`<div style="margin-top:14px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px 18px">${inner}</div>`;
       }
     }catch(_){}
     return `<div style="--c:${col};position:relative;border-radius:20px;border:1px solid rgba(255,255,255,.14);border-left:3px solid ${col};padding:14px 16px;color:#F4F7FB;background:radial-gradient(320px 130px at 100% 0,color-mix(in srgb,${col} 16%,transparent),transparent 70%),linear-gradient(180deg,#10182C,#0A1022);${a.realizada?'opacity:.8':''}">
@@ -40190,7 +40192,7 @@ function _renderVentanaRegistro(vw, list){
       ${personasHtml?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">${personasHtml}</div>`:''}
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">${chip('calendar-event',fechaTxt)}${chip('phone-call',fmtLabel)}</div>
       ${progInfo}
-      ${a.notas?`<div style="font-size:12.5px;color:rgba(239,243,248,.8);margin-top:10px;line-height:1.45;white-space:pre-wrap">${a.notas}</div>`:''}
+      ${a.notas?`<div style="margin-top:12px;padding:2px 0 2px 12px;border-left:2px solid ${col}99;font-size:12.5px;color:rgba(239,243,248,.82);line-height:1.5;white-space:pre-wrap">${a.notas}</div>`:''}
       <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
         ${a.link?`<a href="${a.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:12px;color:#8AD8FF;display:inline-flex;align-items:center;gap:4px;text-decoration:none;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><i class="ti ti-link"></i>${a.link.replace(/^https?:\/\/(www\.)?/,'').slice(0,48)}</a>`:''}
         <span style="margin-left:auto;display:inline-flex;gap:4px">
