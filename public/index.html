@@ -8789,7 +8789,25 @@ const KRecordatorios='auf4_recordatorios';
 function _recGet(){ const v=stor.get(KRecordatorios,[]); return Array.isArray(v)?v:[]; }
 function _recDue(r){ return new Date(r.vence+'T'+(r.sinHora?'00:00':(r.hora||'09:00'))+':00'); }
 // Orden: lo importante (rojo) primero; después por vencimiento; y entre los de un mismo grupo, por paso (orden 1, 2, 3…).
-function _recCmp(a,b){ return ((b.importante?1:0)-(a.importante?1:0)) || (_recDue(a)-_recDue(b)) || ((a.orden||0)-(b.orden||0)); }
+// Nivel de importancia de un recordatorio: rojo / naranja / amarillo (o ninguno). Por defecto, lo marcado 'importante' es rojo;
+// el usuario lo puede recolorear con los botoncitos (se guarda en auf4_rec_nivel por id).
+const _REC_NIVELES={rojo:{c:'#DC2626',tx:'#B91C1C',bg:'#FEF2F2',rank:3},naranja:{c:'#EA580C',tx:'#C2410C',bg:'#FFF7ED',rank:2},amarillo:{c:'#CA8A04',tx:'#A16207',bg:'#FEFCE8',rank:1}};
+function _recNivel(r){ let o; try{ o=(stor.get('auf4_rec_nivel',{})||{})[r.id]; }catch(_){} if(o==='ninguno') return ''; if(o&&_REC_NIVELES[o]) return o; return r.importante?'rojo':''; }
+window._recNivelSet=function(id,n){
+  const m=stor.get('auf4_rec_nivel',{})||{};
+  const r=_recTodos().find(x=>String(x.id)===String(id));
+  const cur=r?_recNivel(r):(m[id]||'');
+  m[id]= cur===n ? 'ninguno' : n;
+  stor.set('auf4_rec_nivel',m,{allowShrink:true});
+  const nt=document.getElementById('rec-noti'); if(nt) nt.remove();
+  if(typeof renderInicio==='function') renderInicio();
+  if(typeof _recDockRender==='function') _recDockRender();
+};
+function _recNivelBtns(r){
+  const cur=_recNivel(r), id=String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  return `<span style="display:inline-flex;gap:3px;align-items:center;flex-shrink:0">${Object.entries(_REC_NIVELES).map(([k,v])=>`<button data-id="${id}" onclick="event.stopPropagation();_recNivelSet(this.dataset.id,'${k}')" title="Importancia: ${k}${cur===k?' (tocá para quitar)':''}" style="width:10px;height:10px;padding:0;border-radius:50%;cursor:pointer;border:1.5px solid ${v.c};background:${cur===k?v.c:'transparent'};opacity:${cur===k?1:.55}"></button>`).join('')}</span>`;
+}
+function _recCmp(a,b){ return ((_REC_NIVELES[_recNivel(b)]?.rank||0)-(_REC_NIVELES[_recNivel(a)]?.rank||0)) || (_recDue(a)-_recDue(b)) || ((a.orden||0)-(b.orden||0)); }
 // Cumpleaños como recordatorios: "Mandar a hacer diseño por cumpleaños de X" (el día antes, 10:00; si cae sábado/domingo, 2 días antes)
 // y "Publicar saludo de cumpleaños de X" (el día del cumpleaños, 09:00; sigue hasta el día siguiente si quedó pendiente).
 // Se derivan de las filas de cumpleaños de "Hoy/Ayer/Mañana en Selección" (misma fuente y mismo estado). Si el saludo
@@ -9011,7 +9029,7 @@ function _recEtiqueta(r){
   const dias=Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-hoy0)/86400000);
   const hh=(r.hora||'09:00');
   if(r.sinHora){ // sin horario (depende de otro área): solo el día; si es importante va en rojo
-    const rojo=!!r.importante;
+    const rojo=_recNivel(r)==='rojo';
     if(dias<0) return {t:`vencido ${-dias===1?'ayer':'hace '+(-dias)+' días'}`,c:rojo?'#DC2626':'#D97706',bg:rojo?'#FEE2E2':'#FEF3C7'};
     if(dias===0) return {t:'hoy',c:rojo?'#DC2626':'#0369A1',bg:rojo?'#FEE2E2':'#E0F2FE'};
     return {t:'mañana',c:rojo?'#DC2626':'#64748B',bg:rojo?'#FEE2E2':'#F1F5F9'};
@@ -9031,10 +9049,11 @@ function renderInicioRecordatorios(){
     return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px 0;${hecho?'opacity:.55':''}">
       ${_recTick(r,hecho,isMob)}
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:${r.importante&&!hecho?800:600};color:${r.importante&&!hecho?'#DC2626':(isMob?'#EFF3F8':'var(--text)')};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
+        <div style="font-size:12.5px;font-weight:${_recNivel(r)&&!hecho?800:600};color:${_recNivel(r)&&!hecho?_REC_NIVELES[_recNivel(r)].c:(isMob?'#EFF3F8':'var(--text)')};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
         ${r.detalle?`<div style="font-size:11px;color:${isMob?'rgba(239,243,248,.5)':'var(--muted)'};margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
       </div>
       <span style="font-size:10px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?(isMob?'rgba(22,163,74,.18)':'#DCFCE7'):(isMob?'rgba(255,255,255,.08)':e.bg)};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${hecho?'hecho':e.t}</span>
+      ${!hecho?`<span style="align-self:center">${_recNivelBtns(r)}</span>`:''}
       ${r.derivado&&!hecho?`<span style="align-self:center">${_recNoAplicaBtn(r,hecho)}</span>`:''}
     </div>`;
   }).join('');
@@ -9067,15 +9086,16 @@ function _recDockRender(){
     d.title=''; d.onclick=null;
     const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
       const e=_recEtiqueta(r);
-      const rojo=!!r.importante&&!hecho;
-      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px ${rojo?'6px':'0'};border-top:1px solid var(--border);${rojo?'background:#FEF2F2;border-left:3px solid #DC2626;border-radius:6px;margin:2px 0;':''}${hecho?'opacity:.55':''}">
+      const nv=hecho?'':_recNivel(r), NV=_REC_NIVELES[nv], rojo=!!NV;
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px ${rojo?'6px':'0'};border-top:1px solid var(--border);${rojo?`background:${NV.bg};border-left:3px solid ${NV.c};border-radius:6px;margin:2px 0;`:''}${hecho?'opacity:.55':''}">
         ${_recTick(r,hecho,false)}
         <div style="flex:1;min-width:0">
-          <div style="font-size:11.5px;font-weight:${rojo?800:700};color:${rojo?'#B91C1C':'var(--text)'};line-height:1.3;${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}</div>
+          <div style="font-size:11.5px;font-weight:${rojo?800:700};color:${rojo?NV.tx:'var(--text)'};line-height:1.3;${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}</div>
           ${r.detalle?`<div style="font-size:10.5px;color:var(--muted);margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
           <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
             <span style="font-size:9.5px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?'#DCFCE7':e.bg};border-radius:5px;padding:1px 6px">${hecho?'hecho':e.t}</span>
             ${r.etiqueta?(()=>{ const ck=_catDeLabel(r.etiqueta), c=ck?_catCol(ck):''; return `<span style="font-size:9.5px;font-weight:700;${c?`color:color-mix(in srgb,${c} 55%,#0B1220);background:color-mix(in srgb,${c} 24%,#fff);border:1px solid color-mix(in srgb,${c} 55%,#fff)`:'color:#0369A1;background:#E0F2FE'};border-radius:5px;padding:1px 6px">#${_recEsc(r.etiqueta)}</span>`; })():''}
+            ${hecho?'':_recNivelBtns(r)}
             ${_recNoAplicaBtn(r,hecho)}
           </div>
         </div>
