@@ -39925,20 +39925,17 @@ function _renderVentana(id){
         </div>
 
         <div style="margin-bottom:12px;position:relative">
-          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN PARTICIPÓ</label>
-          <input id="pw-sol-quien" type="text" autocomplete="off" placeholder="Tocá para ver la delegación…" onfocus="_pwSolQuienFocus(this)" oninput="_pwSolQuienInput(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-sol-quien-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
-          <div id="pw-sol-quien-sug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);max-height:200px;overflow-y:auto"></div>
+          <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN PARTICIPARÍA</label>
+          <input id="pw-sol-quien" type="text" autocomplete="off" placeholder="Elegí uno o varios (delegación, ventana, estructura…)" onfocus="_pwSolQuienFocus(this)" oninput="_pwSolQuienInput(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-sol-quien-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <div id="pw-sol-quien-sug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#0F1830;border:1px solid rgba(255,255,255,.16);border-radius:14px;margin-top:4px;box-shadow:0 12px 32px rgba(0,0,0,.5);max-height:260px;overflow-y:auto"></div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr;margin-bottom:12px">
           <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA</label>
+            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">FECHA SOLICITADA</label>
             <input id="pw-sol-recibido" type="date" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
           </div>
-          <div>
-            <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">HORA</label>
-            <input id="pw-sol-recibido-hora" type="time" lang="es-UY" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
-          </div>
+          <input id="pw-sol-recibido-hora" type="hidden">
         </div>
 
         <div style="margin-bottom:12px">
@@ -40088,16 +40085,40 @@ function _pwSolFmt(f){
     btn.style.border=on?'1.5px solid var(--cel)':'1.5px solid var(--border)';
   });
 }
+// "Quién participaría": admite varios (separados por coma). Ofrece primero a quienes ya están en la ventana de prensa (ej. Gustavo Bueno) y después a todos los que podrían ser (delegación, estructura, comité…).
+let _pwSolQuienMatches=[];
+function _pwSolQuienState(){
+  const inp=document.getElementById('pw-sol-quien');
+  const parts=(inp?inp.value:'').split(',');
+  const chosen=parts.slice(0,-1).map(x=>x.trim()).filter(Boolean);
+  let last=(parts[parts.length-1]||'').trim();
+  if(last && _pwPersonOptions().some(o=>_nomKey(o.label)===_nomKey(last))){ chosen.push(last); last=''; }
+  return {chosen,last};
+}
 function _pwSolQuienFocus(inp){ _pwSolQuienInput(inp); }
 function _pwSolQuienInput(inp){
   const sug=document.getElementById('pw-sol-quien-sug'); if(!sug) return;
-  const q=_gnavNorm(inp.value||'');
-  const all=[];
-  getDelegacion().forEach(g=>(g.people||[]).forEach(p=>all.push(p)));
-  const matches=all.filter(p=>!q||_gnavNorm(p.name).includes(q)).slice(0,15);
-  sug.style.display=matches.length?'block':'none';
-  sug.innerHTML=matches.map(p=>`<div onclick="document.getElementById('pw-sol-quien').value='${p.name.replace(/'/g,"\\'")}';document.getElementById('pw-sol-quien-sug').style.display='none'" style="padding:9px 14px;cursor:pointer;font-size:.88em;border-bottom:1px solid var(--border)">${p.name}${p.role?`<span style="color:var(--muted);font-size:.85em;margin-left:6px">${p.role}</span>`:''}</div>`).join('');
+  const {chosen,last}=_pwSolQuienState();
+  const qn=_gnavNorm(last), ya=new Set(chosen.map(_nomKey));
+  const vw=(_pwGetAll().find(v=>v.id===_pwCurId))||{};
+  const enVentana=new Set((vw.participantes||[]).map(p=>_nomKey(_pwCanonLabel(p.label))));
+  const opts=_pwPersonOptions().filter(o=>!ya.has(_nomKey(o.label)));
+  const fil=qn?opts.filter(o=>_gnavNorm(o.label).includes(qn)||_gnavNorm(o.rol||'').includes(qn)):opts;
+  const matches=[...fil.filter(o=>enVentana.has(_nomKey(o.label))),...fil.filter(o=>!enVentana.has(_nomKey(o.label)))].slice(0,60);
+  _pwSolQuienMatches=matches;
+  if(!matches.length){ sug.style.display='none'; return; }
+  sug.innerHTML=matches.map((o,i)=>`<div onmousedown="event.preventDefault();_pwSolQuienPick(${i})" style="padding:8px 13px;cursor:pointer;font-size:.85em;border-bottom:1px solid rgba(255,255,255,.06)" onmouseenter="this.style.background='rgba(255,255,255,.08)'" onmouseleave="this.style.background='transparent'"><span style="font-weight:700;color:#EFF3F8">${o.label}</span>${o.rol?`<span style="color:rgba(239,243,248,.6)"> · ${o.rol}</span>`:''}${enVentana.has(_nomKey(o.label))?'<span style="float:right;font-size:.7em;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#22D3EE">En la ventana</span>':''}</div>`).join('');
+  sug.style.display='block';
 }
+function _pwSolQuienPick(i){
+  const o=_pwSolQuienMatches[i]; if(!o) return;
+  const inp=document.getElementById('pw-sol-quien'); if(!inp) return;
+  const {chosen}=_pwSolQuienState(); chosen.push(o.label);
+  inp.value=chosen.join(', ')+', ';
+  const sug=document.getElementById('pw-sol-quien-sug'); if(sug) sug.style.display='none';
+  inp.focus();
+}
+window._pwSolQuienPick=_pwSolQuienPick;
 
 // ── Registro libre: vista y CRUD de atenciones ────────────────────────────────
 const _pwFmtAten={presencial:'Presencial',zoom:'Zoom',telefonica:'Telefónica',movil:'Móvil',escrita:'Escrita'};
@@ -40990,7 +41011,7 @@ function _pwGuardarSol(){
     programa:document.getElementById('pw-sol-programa').value.trim(),
     medio:document.getElementById('pw-sol-medio').value.trim(),
     formato:_pwSolFmtVal,
-    quien:document.getElementById('pw-sol-quien')?.value.trim()||'',
+    quien:(document.getElementById('pw-sol-quien')?.value||'').replace(/[,\s]+$/,'').trim(),
     link:document.getElementById('pw-sol-link')?.value.trim()||'',
     estado,
     notas:document.getElementById('pw-sol-notas').value.trim(),
