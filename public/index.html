@@ -9051,7 +9051,33 @@ window._covSetDesdeRec=function(tipo,catKey,D){
   else { if(i<0){ rec.link=!rec.link; } else { rec.linkExtra=rec.linkExtra||[]; rec.linkExtra[i]=!rec.linkExtra[i]; } }
   stor.set(KCovSemanal,all);
 };
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados()]; }
+// Atenciones de prensa (ventanas): aviso 2 h 30 antes (sin hora cargada: 09:00 del día) y, 3 h 30 después, «agregar el link a la atención» (sin hora: 18:00).
+// El del link se da por hecho solo cuando la atención ya tiene link cargado.
+function _recAtencionesDerivados(){
+  const out=[];
+  try{
+    const manual=stor.get('auf4_rec_manual',{}), pad=n=>String(n).padStart(2,'0');
+    const hhmm=m=>pad(Math.min(23,Math.floor(m/60)))+':'+pad(m%60);
+    (typeof _pwGetAll==='function'?_pwGetAll():[]).forEach(vw=>{
+      (vw.solicitudes||[]).forEach((a,i)=>{
+        const est=a.estado||''; if(!['aprobada','agendada','reagendada','realizada'].includes(est)) return;
+        const D=String(a.fecha||a.diaAsignado||a.recibido||'').slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(D)) return;
+        if(D<_recSumarDias(TODAY,-3)||D>_recSumarDias(TODAY,7)) return;
+        const hm=String(a.hora||a.horaAsignada||'').match(/(\d{1,2}):(\d{2})/), base=hm?parseInt(hm[1],10)*60+parseInt(hm[2],10):null;
+        const quien=a.protagonistaLabel||a.quien||((vw.personLabel&&!/,/.test(vw.personLabel))?vw.personLabel:''), prog=(a.programa||'Atención')+(a.medio?' ('+a.medio+')':'');
+        const det=`${_covDia(D)}${hm?' · '+hm[1].padStart(2,'0')+':'+hm[2]+'h':' · hora por confirmar'}${quien?' · '+quien:''}`;
+        if(est!=='realizada'){
+          const id=`aten-pre|${vw.id}|${i}`, mn=manual[id]||{};
+          out.push({id,titulo:`Atención de prensa: ${prog}${quien?' con '+quien:''}`,detalle:det,vence:D,hora:base!=null?hhmm(Math.max(6*60,base-150)):'09:00',etiqueta:'Prensa',hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+        }
+        const idL=`aten-link|${vw.id}|${i}`, mnL=manual[idL]||{}, linkOk=!!a.link||!!mnL.hecho;
+        out.push({id:idL,titulo:`Agregar el link de la nota a la atención: ${prog}`,detalle:det+' · después de que salga al aire',vence:D,hora:base!=null?hhmm(Math.min(23*60+30,base+210)):'18:00',etiqueta:'Prensa',hecho:linkOk,hechoEn:linkOk?(mnL.hechoEn||new Date().toISOString()):null});
+      });
+    });
+  }catch(e){ console.warn('recordatorios de atenciones:',e); }
+  return out;
+}
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados()]; }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -9563,7 +9589,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6])\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|aten-pre|aten-link)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
@@ -40157,7 +40183,7 @@ function _renderVentanaRegistro(vw, list){
     const _fFmt=d=>String(d||'').split('-').reverse().join('/');
     const fechaTxt=a.fecha?[fechaDisp,a.hora].filter(Boolean).join(' · '):(a.recibido?'Pedido para el '+_fFmt(a.recibido):'');
     // Quién participa: avatar + nombre + cargo (sale de la base de personas)
-    const _quienes=String(a.protagonistaLabel||a.quien||'').split(',').map(x=>x.trim()).filter(Boolean);
+    const _quienes=String(a.protagonistaLabel||a.quien||((vw.personLabel&&!/,/.test(vw.personLabel))?vw.personLabel:'')).split(',').map(x=>x.trim()).filter(Boolean);
     let _opts=[]; try{ _opts=_pwPersonOptions(); }catch(_){}
     const personasHtml=_quienes.map(n=>{
       const o=_opts.find(x=>_nomKey(x.label)===_nomKey(n))||{label:n,key:n,rol:''};
