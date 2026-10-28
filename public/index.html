@@ -1514,6 +1514,12 @@ table.fu-t tr.risk td:first-child{box-shadow:inset 3px 0 0 #F87171}
 .bk-r .bk-ch+.bk-c{margin-left:0;margin-right:12px}
 .bk-r .bk-ch+.bk-c::before{left:auto;right:-13px}
 .bk-grp{margin-top:6px}
+.bk-cm{display:flex;flex-direction:column;gap:14px;padding:4px 0 6px}
+.bk-cm-r{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bk-cm-l{width:74px;flex-shrink:0;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.5)}
+.bk-cm-a{color:rgba(239,243,248,.35);font-size:16px}
+.bk-cm-f{display:flex;flex-direction:column;gap:4px}.bk-cm-f em{font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#FCD34D;text-align:center}
+.bk-cm-n{font-size:11px;color:rgba(239,243,248,.5);line-height:1.5;max-width:560px}
 .bk-tg{display:inline-flex;gap:4px}.bk-tg button{border:1px solid rgba(255,255,255,.18);background:transparent;color:rgba(239,243,248,.6);border-radius:999px;padding:3px 11px;font:700 10px 'Inter',sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.bk-tg button.on{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.6);color:#CFF6FF}
 .gt-card{max-width:100%;margin:0 0 18px;padding:18px 20px 14px;border-radius:24px;border:1px solid rgba(255,255,255,.14);background:radial-gradient(420px 160px at 100% 0,rgba(0,157,216,.16),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
 .gt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
@@ -9228,7 +9234,7 @@ const _TV_POR_COMP={copa:['directv'],primera:['disney'],segunda:['disney'],'mund
 // Partidos de clubes del exterior (reservados): sin registro oficial. Lo que Felipe confirma que NO se ve en Uruguay se agrega acá (por equipos o por liga).
 const _TV_NO_UY=[/panathinaikos|aris thessaloniki|olympiakos|aek athens|paok|ofi crete|asteras|major league soccer/i];
 // Ligas del exterior con transmisión confirmada en Uruguay (nombre de liga de FotMob). Ampliable a medida que se confirma cada una.
-const _TV_LIGA_RES=[[/^Premier League$/i,['disney']],[/^Serie A$/,['disney']],[/^La ?Liga$|^Copa del Rey$|^Supercopa de Espa/i,['directv']],[/^S[eé]rie A$/i,['kick']]];
+const _TV_LIGA_RES=[[/^(Premier League|EFL Cup|Carabao Cup)$/i,['disney']],[/^Serie A$/,['disney']],[/^La ?Liga$|^Copa del Rey$|^Supercopa de Espa/i,['directv']],[/^S[eé]rie A$/i,['kick']]];
 function _tvResHtml(m){
   if(!m) return '';
   const _lg=_TV_LIGA_RES.find(r=>r[0].test(String(m.liga||'').trim()));
@@ -34070,7 +34076,7 @@ function _mundBracketHtml(ko){
     if(!n) return `<div class="bk-t tbd"><span class="bk-ph"></span><span class="n">A definir</span></div>`;
     return `<div class="bk-t${win?' w':''}${lose?' l':''}${n==='Uruguay'?' me':''}"><span>${_escudoSeleccion(n,16)}</span><span class="n">${n}</span>${sc!=null?`<b>${sc}${pen!=null?`<i>(${pen})</i>`:''}</b>`:''}</div>`; };
   const card=m=>{
-    const fin=m.MatchStatus===0&&m.HomeTeamScore!=null, live=m.MatchStatus!==0&&m.MatchStatus!==1&&m.HomeTeamScore!=null;
+    const fin=(m.MatchStatus===0||!!m.Winner)&&m.HomeTeamScore!=null, live=!m.Winner&&m.MatchStatus!==0&&m.MatchStatus!==1&&m.HomeTeamScore!=null;
     const hid=m.Home&&m.Home.IdTeam, wH=fin&&m.Winner&&String(m.Winner)===String(hid), wA=fin&&m.Winner&&m.Away&&String(m.Winner)===String(m.Away.IdTeam);
     const sh=(fin||live)?m.HomeTeamScore:null, sa=(fin||live)?m.AwayTeamScore:null;
     const hasPen=fin&&m.HomeTeamPenaltyScore!=null&&m.AwayTeamPenaltyScore!=null&&(m.HomeTeamPenaltyScore||m.AwayTeamPenaltyScore);
@@ -34085,11 +34091,27 @@ function _mundBracketHtml(ko){
   const L=['Dieciseisavos','Octavos','Cuartos','Semifinal'];
   const hasUY=n=>{ const m=byN[n]; if(!m) return false; if(nm(m.Home)==='Uruguay'||nm(m.Away)==='Uruguay') return true; return [m.PlaceHolderA,m.PlaceHolderB].some(p=>{ const x=/^W(\d+)$/.exec(p||''); return x&&byN[+x[1]]&&hasUY(+x[1]); }); };
   const miLado=hasUY(k[1])?1:0;
-  const vista=window._bkView||'uy';
+  const _ganado=m=>m.Winner||m.MatchStatus===0;
+  const _uyJug=Object.values(byN).filter(m=>nm(m.Home)==='Uruguay'||nm(m.Away)==='Uruguay').sort((a,b)=>String(a.Date).localeCompare(String(b.Date)));
+  const _uyUlt=[..._uyJug].reverse().find(m=>m.Winner);
+  const _uyElim=!!_uyUlt&&String(_uyUlt.Winner)!==String((nm(_uyUlt.Home)==='Uruguay'?_uyUlt.Home:_uyUlt.Away).IdTeam);
+  const vista=window._bkView||(_uyElim?'camino':'uy');
   const hora=ko.ts?new Date(ko.ts).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
-  const tg=`<span class="bk-tg">${[['uy','Lado de Uruguay'],['otro','Otro lado'],['full','Completo']].map(([v,t])=>`<button class="${vista===v?'on':''}" onclick="_bkSet('${v}')">${t}</button>`).join('')}</span>`;
+  const tg=`<span class="bk-tg">${[...(_uyJug.length?[['camino','Camino de Uruguay']]:[]),['uy','Lado de Uruguay'],['otro','Otro lado'],['full','Completo']].map(([v,t])=>`<button class="${vista===v?'on':''}" onclick="_bkSet('${v}')">${t}</button>`).join('')}</span>`;
   let cuerpo;
-  if(vista==='full'){
+  if(vista==='camino'){
+    const fwd=(n,lab)=>Object.values(byN).find(x=>(x.PlaceHolderA===lab+n||x.PlaceHolderB===lab+n));
+    const hechos=_uyJug.filter(_ganado), prox=_uyJug.find(m=>!_ganado(m));
+    const pos=n=>{ const a=2*(n-fin.MatchNumber)+1; return a+'°/'+(a+1)+'°'; };
+    const fila=(lab,sf)=>{ if(!sf) return ''; const fw=fwd(sf.MatchNumber,'W'), fl=fwd(sf.MatchNumber,'RU');
+      const fc=(f,t)=>f?`<div class="bk-cm-f">${card(f)}<em>${t} · ${pos(f.MatchNumber)} puesto</em></div>`:'';
+      return `<div class="bk-cm-r"><span class="bk-cm-l">${lab}</span>${card(sf)}<span class="bk-cm-a">›</span>${fc(fw,'Si gana')}${fc(fl,'Si pierde')}</div>`; };
+    cuerpo=`<div class="bk-cm">
+      <div class="bk-cm-r"><span class="bk-cm-l">Ya jugó</span>${hechos.map(card).join('<span class="bk-cm-a">›</span>')}</div>
+      ${prox?`<div class="bk-cm-r"><span class="bk-cm-l">Sigue</span>${card(prox)}</div>
+      ${fila('Si gana',fwd(prox.MatchNumber,'W'))}${fila('Si pierde',fwd(prox.MatchNumber,'RU'))}`:''}
+      <div class="bk-cm-n">Todos los equipos juegan hasta el final del torneo: tras perder en octavos, Uruguay sigue en el cuadro de ubicación (puestos 9° al 16°). Los puestos finales se deducen de la numeración de partidos de FIFA.</div></div>`;
+  } else if(vista==='full'){
     const lab=`<div class="bk-lb">${L.map(x=>`<span>${x}</span>`).join('')}<span class="fi">Final</span>${[...L].reverse().map(x=>`<span>${x}</span>`).join('')}</div>`;
     cuerpo=`${lab}<div class="bk"><div class="bk-l">${node(k[0])}</div><div class="bk-fin">${card(fin)}</div><div class="bk-r">${node(k[1])}</div></div>`;
   } else {
