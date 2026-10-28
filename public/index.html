@@ -39728,7 +39728,15 @@ function _renderVentana(id){
       </div>
       <div class="pw-db">${rows}${emptyMsg}</div>
     </div>`;
-  }).join('') : `<div style="color:var(--muted);font-size:.85em;padding:12px 0">Sin período definido</div>`;
+  }).join('') : `<div style="color:var(--muted);font-size:.85em;padding:12px 0">Sin período definido. Usá "Editar ventana" para poner desde y hasta y poder agendar por día.</div>`;
+
+  // ── Aprobadas todavía sin día en la agenda ────────────────────────────────
+  // La agenda solo muestra lo que tiene día y hora asignados (estado "Agendada"). Una aprobada sin día se ve acá, arriba.
+  const _porAg=sols.map((x,si)=>({x,si})).filter(({x})=>x.estado==='aprobada'&&!x.diaAsignado);
+  const porAgendarHtml=_porAg.length?`<div style="margin-bottom:14px;padding:10px 12px;border-radius:14px;border:1px solid rgba(252,211,77,.35);background:rgba(252,211,77,.07)">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#FCD34D;margin-bottom:6px">Aprobadas · falta asignarles día y hora</div>
+    ${_porAg.map(({x})=>`<div style="display:flex;align-items:baseline;gap:8px;padding:3px 0;font-size:.85em;color:#EFF3F8"><b>${x.programa||'Sin programa'}</b>${x.medio?`<span style="color:rgba(239,243,248,.6)">${x.medio}</span>`:''}${x.quien?`<span style="color:rgba(239,243,248,.6)">· ${x.quien}</span>`:''}${x.recibido?`<span style="margin-left:auto;color:rgba(239,243,248,.6);white-space:nowrap">pedido para el ${x.recibido.split('-').reverse().join('/')}</span>`:''}</div>`).join('')}
+  </div>`:'';
 
   // ── Pedidos recibidos ──────────────────────────────────────────────────────
   const solsOrdenadas = [...sols].map((s,i)=>({...s,_origIdx:i})).sort((a,b)=>{
@@ -39814,7 +39822,7 @@ function _renderVentana(id){
       <!-- Agenda por día -->
       <div class="rd-card" style="--cat:#22D3EE;margin-bottom:20px">
         <div class="rd-eye mut" style="margin-bottom:14px">Agenda</div>
-        ${agendaHtml}
+        ${porAgendarHtml}${agendaHtml}
       </div>
 
       <!-- Compartir -->
