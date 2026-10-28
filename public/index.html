@@ -34019,6 +34019,13 @@ async function _mundSyncFifa(cid,force){
       if(!ex.fifaId){ ex.fifaId=m.IdMatch; cambio=true; }
       if(fase&&!ex.fase){ ex.fase=fase; cambio=true; }
       if(ex.gLocal==null&&ex.fifaId&&rival!=='A definir'&&!mismo(ex.rival,rival)){ ex.rival=rival; cambio=true; } // sin jugar y FIFA ya publicó el rival oficial: manda FIFA
+      // Resultado final de FIFA: solo si el partido todavía no tiene marcador cargado (nunca pisa lo cargado a mano). No toca `confirmado`: las estadísticas siguen siendo manuales.
+      if(ex.gLocal==null&&ex.gRival==null&&(m.MatchStatus===0||m.Winner)&&m.HomeTeamScore!=null&&m.AwayTeamScore!=null){
+        const uH=uru===m.Home, ph=m.HomeTeamPenaltyScore, pa=m.AwayTeamPenaltyScore;
+        ex.gLocal=uH?m.HomeTeamScore:m.AwayTeamScore; ex.gRival=uH?m.AwayTeamScore:m.HomeTeamScore;
+        if(ph!=null&&pa!=null&&(ph||pa)){ ex.penales=true; ex.penGLocal=uH?ph:pa; ex.penGRival=uH?pa:ph; }
+        cambio=true;
+      }
       if(!ex.lugar&&lugar){ ex.lugar=lugar; cambio=true; }
       if(!ex.hora&&horaTxt){ ex.hora=horaTxt; if(cfg.pais){ ex.horaLocal=loc; ex.paisSede=cfg.pais; } cambio=true; }
       const mm=String(ex.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(ex.hora||'').match(/^\s*(\d{1,2}):(\d{2})/);
