@@ -9109,7 +9109,7 @@ function _recMd1Derivados(){
   }catch(e){ console.warn('recordatorios MD-1:',e); }
   return out;
 }
-// Gol de un reservado en su club: «Enviar noticia del gol de X al grupo de noticias». Se detecta con el detalle del partido (FotMob) y se guarda
+// Gol, lesión o expulsión de un reservado en su club: «Enviar noticia del gol de X al grupo de noticias». Se detecta con el detalle del partido (FotMob) y se guarda
 // en auf4_res_goles para que el aviso no desaparezca si el detalle deja de cargarse; queda 3 días.
 function _recGolesResDerivados(){
   const out=[];
@@ -9121,11 +9121,15 @@ function _recGolesResDerivados(){
       const d=((window._resDet||{})[m.id]||{}).d; if(!d||!d.ok) return;
       (m.jug||[]).forEach(n=>{
         const st=_resEstadoJugador(n,d); if(!st) return;
-        st.goles.forEach(g=>{
-          const id=`resgol|${m.id}|${_nomKey(n)}|${g}`; if(store[id]) return;
-          const min=parseInt(String(g),10), t=m.utc?new Date(new Date(m.utc).getTime()+(isNaN(min)?0:min)*60000):new Date();
+        // Incidentes de un reservado: gol, lesión (sale lesionado) y expulsión. Cada uno genera su aviso.
+        const evs=[...st.goles.map(g=>({k:'gol',g,min:parseInt(String(g),10),tit:`Enviar noticia del gol de ${_resNomCorto(n)} al grupo de noticias`,det:`gol ${g}`})),
+          ...(st.lesion&&st.salio?[{k:'les',g:st.salio+"'",min:parseInt(String(st.salio),10),tit:`Enviar noticia de la lesión de ${_resNomCorto(n)} al grupo de noticias`,det:`sale lesionado ${st.salio}'`}]:[]),
+          ...st.tr.map(g=>({k:'exp',g,min:parseInt(String(g),10),tit:`Enviar noticia de la expulsión de ${_resNomCorto(n)} al grupo de noticias`,det:`expulsado ${g}`}))];
+        evs.forEach(ev=>{
+          const id=`resgol|${m.id}|${ev.k}|${_nomKey(n)}|${ev.g}`; if(store[id]) return;
+          const t=m.utc?new Date(new Date(m.utc).getTime()+(isNaN(ev.min)?0:ev.min)*60000):new Date();
           const f=t.toLocaleDateString('en-CA',{timeZone:'America/Montevideo'}), h=t.toLocaleTimeString('en-GB',{timeZone:'America/Montevideo',hour:'2-digit',minute:'2-digit',hour12:false});
-          store[id]={id,titulo:`Enviar noticia del gol de ${_resNomCorto(n)} al grupo de noticias`,detalle:`${m.home} vs. ${m.away} · gol ${g}`,vence:f,hora:h,etiqueta:'Mayor',ts:Date.now()}; cambio=true;
+          store[id]={id,titulo:ev.tit,detalle:`${m.home} vs. ${m.away} · ${ev.det}`,vence:f,hora:h,etiqueta:'Mayor',ts:Date.now()}; cambio=true;
         });
       });
     });
