@@ -1148,7 +1148,7 @@ app.get('/api/partidos-reservados', async (req, res) => {
         const ud = st.utcTime ? new Date(st.utcTime) : null;
         const dia = ud ? ud.toLocaleDateString('en-CA', { timeZone: 'America/Montevideo' }) : f;
         out.push({
-          fecha: dia, utc: st.utcTime || null, liga: l.name || '', ccode: l.ccode || '', id: m.id,
+          fecha: dia, utc: st.utcTime || null, liga: l.name || '', lid: l.primaryId || l.id || null, ccode: l.ccode || '', id: m.id,
           home: m.home && m.home.name, homeId: m.home && m.home.id, away: m.away && m.away.name, awayId: m.away && m.away.id,
           gh: m.home && m.home.score, ga: m.away && m.away.score,
           estado: st.cancelled ? 'susp' : st.finished ? 'fin' : (st.started || st.ongoing) ? 'vivo' : 'prog',

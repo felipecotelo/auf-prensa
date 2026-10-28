@@ -9321,9 +9321,9 @@ async function _resPartidosLoad(force){
   try{
     const fechas=[TODAY,_recSumarDias(TODAY,1)];
     const cache=window._resPartidos;
-    if(!force&&cache&&cache.fecha===TODAY&&Date.now()-cache.ts<5*60000) return false;
+    if(!force&&cache&&cache.fecha===TODAY&&Date.now()-cache.ts<5*60000&&(cache.partidos||[]).every(x=>x.lid)) return false;
     let ls=null; try{ ls=JSON.parse(localStorage.getItem('auf4_res_partidos')||'null'); }catch(_){}
-    if(!force&&!cache&&ls&&ls.fecha===TODAY&&Date.now()-ls.ts<5*60000){ window._resPartidos=ls; return true; }
+    if(!force&&!cache&&ls&&ls.fecha===TODAY&&Date.now()-ls.ts<5*60000&&(ls.partidos||[]).every(x=>x.lid)){ window._resPartidos=ls; return true; }
     const res=_resReservados(); if(!res.length) return false;
     const clubs=[...new Map(res.map(r=>[r.club,r])).values()].map(r=>r.club+(r.cc?'~'+r.cc:''));
     const r=await fetch('/api/partidos-reservados?fechas='+fechas.join(',')+'&clubs='+encodeURIComponent(clubs.join(';;')),{cache:'no-store'});
@@ -9470,9 +9470,9 @@ function _futDockRender(){
   // Solo en ventanas angostas va arriba del Inicio.
   const lateral=window.innerWidth>=1400;
   const W=300, ESZ=28, NF=14, GF=22;
-  const pill=(txt,col,extra)=>`<span style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:${col};border:1px solid ${col}66;background:${col}1F;border-radius:999px;padding:2px 8px;white-space:nowrap">${extra||''}${txt}</span>`;
+  const pill=(txt,col,extra)=>`<span style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${col};border:1px solid ${col}44;background:${col}12;border-radius:999px;padding:1px 6px;white-space:nowrap">${extra||''}${txt}</span>`;
   const estadoPill=(it,hora)=>{
-    if(it.estado==='vivo') return pill('En vivo'+(it.m.minuto?' · '+it.m.minuto:''),ROSA,`<span style="width:6px;height:6px;border-radius:50%;background:${ROSA};box-shadow:0 0 8px ${ROSA};animation:futpulse 1.4s ease infinite"></span>`);
+    if(it.estado==='vivo') return pill('En vivo'+(it.m.minuto?' · '+it.m.minuto:''),ROSA,`<span style="width:5px;height:5px;border-radius:50%;background:${ROSA};box-shadow:0 0 8px ${ROSA};animation:futpulse 1.4s ease infinite"></span>`);
     if(it.estado==='fin') return `<span title="Partido finalizado" style="display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:20px;height:20px;border-radius:50%;color:#052E16;background:#4ADE80"><i class="ti ti-check" style="font-size:13px;font-weight:800"></i></span>`;
     if(it.estado==='aplazado') return pill('Aplazado','#F59E0B');
     return `<span style="flex-shrink:0;font-size:13px;font-weight:800;color:var(--text);white-space:nowrap">${hora||'—'}</span>`;
@@ -9482,7 +9482,7 @@ function _futDockRender(){
     let eyebrow, esc1, esc2, n1, n2, g1, g2, hora;
     if(it.res){
       const m=it.m, jn=(m.jug||[]).map(_resNomCorto).join(' y ');
-      eyebrow=`<span style="width:7px;height:7px;border-radius:50%;background:#22D3EE;box-shadow:0 0 8px #22D3EE88;flex-shrink:0"></span>`+_futEyebrow(m.liga||'','');
+      eyebrow=(m.lid?`<img src="https://images.fotmob.com/image_resources/logo/leaguelogo/${m.lid}.png" alt="" onerror="this.outerHTML='<span style=&quot;width:7px;height:7px;border-radius:50%;background:#22D3EE;flex-shrink:0&quot;></span>'" style="width:16px;height:16px;object-fit:contain;flex-shrink:0">`:`<span style="width:7px;height:7px;border-radius:50%;background:#22D3EE;box-shadow:0 0 8px #22D3EE88;flex-shrink:0"></span>`)+_futEyebrow(m.liga||'','');
       esc1=_resFotmobLogo(m.homeId,ESZ); esc2=_resFotmobLogo(m.awayId,ESZ); n1=m.home; n2=m.away; g1=m.gh; g2=m.ga; hora=_fmtFutbolHoraCorta(m.utc);
       const _dd=(window._resDet[m.id]||{}).d; if(_dd&&_dd.marcador){ const sc=String(_dd.marcador).match(/(\d+)\D+(\d+)/); if(sc){ g1=+sc[1]; g2=+sc[2]; } }
     } else if(it.sel){
