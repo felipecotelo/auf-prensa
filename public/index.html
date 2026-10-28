@@ -9109,7 +9109,35 @@ function _recMd1Derivados(){
   }catch(e){ console.warn('recordatorios MD-1:',e); }
   return out;
 }
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados()]; }
+// Gol de un reservado en su club: «Enviar noticia del gol de X al grupo de noticias». Se detecta con el detalle del partido (FotMob) y se guarda
+// en auf4_res_goles para que el aviso no desaparezca si el detalle deja de cargarse; queda 3 días.
+function _recGolesResDerivados(){
+  const out=[];
+  try{
+    const KG='auf4_res_goles'; let store={}; try{ store=JSON.parse(localStorage.getItem(KG)||'{}')||{}; }catch(_){ store={}; }
+    let cambio=false;
+    const hoyL=(typeof _resDe==='function'?[..._resDe(TODAY),..._resDe(_recSumarDias(TODAY,-1))]:[]);
+    hoyL.forEach(m=>{
+      const d=((window._resDet||{})[m.id]||{}).d; if(!d||!d.ok) return;
+      (m.jug||[]).forEach(n=>{
+        const st=_resEstadoJugador(n,d); if(!st) return;
+        st.goles.forEach(g=>{
+          const id=`resgol|${m.id}|${_nomKey(n)}|${g}`; if(store[id]) return;
+          const min=parseInt(String(g),10), t=m.utc?new Date(new Date(m.utc).getTime()+(isNaN(min)?0:min)*60000):new Date();
+          const f=t.toLocaleDateString('en-CA',{timeZone:'America/Montevideo'}), h=t.toLocaleTimeString('en-GB',{timeZone:'America/Montevideo',hour:'2-digit',minute:'2-digit',hour12:false});
+          store[id]={id,titulo:`Enviar noticia del gol de ${_resNomCorto(n)} al grupo de noticias`,detalle:`${m.home} vs. ${m.away} · gol ${g}`,vence:f,hora:h,etiqueta:'Mayor',ts:Date.now()}; cambio=true;
+        });
+      });
+    });
+    const lim=Date.now()-3*86400000;
+    Object.keys(store).forEach(k=>{ if((store[k].ts||0)<lim){ delete store[k]; cambio=true; } });
+    if(cambio){ try{ localStorage.setItem(KG,JSON.stringify(store)); }catch(_){} }
+    const manual=stor.get('auf4_rec_manual',{});
+    Object.values(store).forEach(g=>{ const mn=manual[g.id]||{}; out.push({id:g.id,titulo:g.titulo,detalle:g.detalle,vence:g.vence,hora:g.hora,etiqueta:g.etiqueta,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null}); });
+  }catch(e){ console.warn('recordatorios de goles:',e); }
+  return out;
+}
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados()]; }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -9621,7 +9649,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|aten-pre|aten-link|md1-pedir|md1-pub)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|aten-pre|aten-link|md1-pedir|md1-pub|resgol)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
