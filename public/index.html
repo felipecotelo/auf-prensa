@@ -1468,6 +1468,45 @@ table.fu-t tr.risk td:first-child{box-shadow:inset 3px 0 0 #F87171}
 .fu-dia b{font-weight:700;color:#8AD8FF}
 .fu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
 @media(max-width:600px){.fu-tit{font-size:24px}.fu-grid{grid-template-columns:1fr}.fu-card-h,.fu-pills{padding-left:14px;padding-right:14px}.fu-body{padding:6px 8px 12px}}
+/* Cuadro de la fase final (eliminación directa) */
+.bk-sc{overflow-x:auto;padding:4px 2px 12px;-webkit-overflow-scrolling:touch}
+.bk-in{display:inline-block;min-width:max-content}
+.bk-lb{display:flex;gap:32px;margin:0 0 10px;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.5)}
+.bk-lb span{width:150px;flex:0 0 150px;text-align:center}.bk-lb span.fi{color:#FCD34D}
+.bk{display:flex;align-items:center}
+.bk-n{display:flex;align-items:center}
+.bk-ch{display:flex;flex-direction:column;justify-content:space-around;position:relative}
+.bk-ch>.bk-n{position:relative;padding:5px 16px 5px 0}
+.bk-ch>.bk-n::after{content:'';position:absolute;right:0;top:50%;width:16px;border-top:1px solid rgba(255,255,255,.22)}
+.bk-ch::after{content:'';position:absolute;right:0;top:25%;bottom:25%;border-right:1px solid rgba(255,255,255,.22)}
+.bk-c{position:relative;width:150px;flex:0 0 150px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);overflow:hidden;font-size:11px;color:#EFF3F8}
+.bk-ch+.bk-c{margin-left:16px}
+.bk-ch+.bk-c::before{content:'';position:absolute;left:-17px;top:50%;width:16px;border-top:1px solid rgba(255,255,255,.22)}
+.bk-c.uy{border-color:rgba(34,211,238,.7);box-shadow:0 0 0 1px rgba(34,211,238,.25),0 0 18px rgba(34,211,238,.18)}
+.bk-t{display:flex;align-items:center;gap:6px;padding:0 8px;height:24px;color:rgba(239,243,248,.8)}
+.bk-t+.bk-t{border-top:1px solid rgba(255,255,255,.06)}
+.bk-t .n{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bk-t b{font-family:'Space Grotesk','Inter',sans-serif;font-size:12px}
+.bk-t b i{font-style:normal;font-weight:600;font-size:9px;opacity:.6;margin-left:2px}
+.bk-t.w{color:#fff;font-weight:700;background:rgba(255,255,255,.05)}
+.bk-t.l{color:rgba(239,243,248,.42)}
+.bk-t.tbd{color:rgba(239,243,248,.38);font-style:italic}
+.bk-t.me{background:rgba(34,211,238,.14);color:#CFF6FF}
+.bk-ph{width:16px;height:16px;border-radius:50%;border:1px dashed rgba(255,255,255,.25);flex-shrink:0}
+.bk-f{padding:2px 8px 3px;border-top:1px solid rgba(255,255,255,.08);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(239,243,248,.5);display:flex;justify-content:space-between}
+.bk-f.live{color:#F9A8D4}
+.bk-fin{margin:0 32px;position:relative;text-align:center}
+.bk-fin::before,.bk-fin::after{content:'';position:absolute;top:50%;width:32px;border-top:1px solid rgba(255,255,255,.22)}
+.bk-fin::before{left:-32px}.bk-fin::after{right:-32px}
+.bk-fin .bk-c{border-color:rgba(252,211,77,.5)}
+.bk-fin .bk-c.uy{border-color:rgba(34,211,238,.7)}
+.bk-r .bk-n{flex-direction:row-reverse}
+.bk-r .bk-ch>.bk-n{padding:5px 0 5px 16px}
+.bk-r .bk-ch>.bk-n::after{right:auto;left:0}
+.bk-r .bk-ch::after{right:auto;left:0;border-right:0;border-left:1px solid rgba(255,255,255,.22)}
+.bk-r .bk-ch+.bk-c{margin-left:0;margin-right:16px}
+.bk-r .bk-ch+.bk-c::before{left:auto;right:-17px}
+.bk-grp{margin-top:6px}
 .gt-card{max-width:100%;margin:0 0 18px;padding:18px 20px 14px;border-radius:24px;border:1px solid rgba(255,255,255,.14);background:radial-gradient(420px 160px at 100% 0,rgba(0,157,216,.16),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
 .gt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .gt-eb{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#7DD3FC}
@@ -33962,10 +34001,68 @@ window._mundSyncFifa=_mundSyncFifa;
 setTimeout(()=>Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)),7000);
 setInterval(()=>{ if(document.hidden) return; Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)); },_SYNC_MIN); // con la pestaña oculta no consulta a FIFA; al volver se pone al día
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)); });
+// ── Cuadro de la fase final del Mundial Sub-15 (Categoría A): se arma solo desde la API de FIFA ──
+window._mundKO=window._mundKO||{};
+function _mundBracketHtml(ko){
+  if(!ko||!ko.ms) return '';
+  const byN={}; ko.ms.forEach(m=>{ if(m&&m.MatchNumber!=null) byN[m.MatchNumber]=m; });
+  // La final es el partido (W vs W) que ningún otro referencia y que se juega último (los nombres de etapa vienen en el idioma pedido, no sirven para reconocerla)
+  const refd=new Set(); ko.ms.forEach(m=>[m.PlaceHolderA,m.PlaceHolderB].forEach(p=>{ const x=/^(?:W|RU)(\d+)$/.exec(p||''); if(x) refd.add(+x[1]); }));
+  const fin=ko.ms.filter(m=>/^W\d+$/.test(m.PlaceHolderA||'')&&/^W\d+$/.test(m.PlaceHolderB||'')&&!refd.has(m.MatchNumber)).sort((x,y)=>String(y.Date).localeCompare(String(x.Date))||x.MatchNumber-y.MatchNumber)[0];
+  if(!fin) return '';
+  const fmtT=iso=>{ try{ return new Date(iso).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',timeZone:'America/Montevideo',hour12:false}); }catch(_){ return ''; } };
+  const fmtD=iso=>{ try{ return new Date(iso).toLocaleDateString('es-UY',{day:'numeric',month:'numeric',timeZone:'America/Montevideo'}); }catch(_){ return ''; } };
+  const nm=t=>t&&t.ShortClubName?(_MUN15_ES[t.ShortClubName]||t.ShortClubName):'';
+  const row=(t,sc,pen,win,lose,ph)=>{
+    const n=nm(t);
+    if(!n) return `<div class="bk-t tbd"><span class="bk-ph"></span><span class="n">A definir</span></div>`;
+    return `<div class="bk-t${win?' w':''}${lose?' l':''}${n==='Uruguay'?' me':''}"><span>${_escudoSeleccion(n,16)}</span><span class="n">${n}</span>${sc!=null?`<b>${sc}${pen!=null?`<i>(${pen})</i>`:''}</b>`:''}</div>`; };
+  const card=m=>{
+    const fin=m.MatchStatus===0&&m.HomeTeamScore!=null, live=m.MatchStatus!==0&&m.MatchStatus!==1&&m.HomeTeamScore!=null;
+    const hid=m.Home&&m.Home.IdTeam, wH=fin&&m.Winner&&String(m.Winner)===String(hid), wA=fin&&m.Winner&&m.Away&&String(m.Winner)===String(m.Away.IdTeam);
+    const sh=(fin||live)?m.HomeTeamScore:null, sa=(fin||live)?m.AwayTeamScore:null;
+    const hasPen=fin&&m.HomeTeamPenaltyScore!=null&&m.AwayTeamPenaltyScore!=null&&(m.HomeTeamPenaltyScore||m.AwayTeamPenaltyScore);
+    const uy=nm(m.Home)==='Uruguay'||nm(m.Away)==='Uruguay';
+    const foot=live?'En juego':fin?(hasPen?'Final · penales':'Final'):(m.Date?fmtD(m.Date)+' · '+fmtT(m.Date)+'h':'');
+    return `<div class="bk-c${uy?' uy':''}">${row(m.Home,sh,hasPen?m.HomeTeamPenaltyScore:null,wH,wA)}${row(m.Away,sa,hasPen?m.AwayTeamPenaltyScore:null,wA,wH)}<div class="bk-f${live?' live':''}"><span>${foot}</span></div></div>`; };
+  const node=n=>{
+    const m=byN[n]; if(!m) return '';
+    const kids=[m.PlaceHolderA,m.PlaceHolderB].map(p=>/^W(\d+)$/.exec(p||'')).filter(x=>x&&byN[+x[1]]).map(x=>+x[1]);
+    return `<div class="bk-n">${kids.length?`<div class="bk-ch">${kids.map(node).join('')}</div>`:''}${card(m)}</div>`; };
+  const k=[fin.PlaceHolderA,fin.PlaceHolderB].map(p=>+(/^W(\d+)$/.exec(p)||[])[1]);
+  const L=['Dieciseisavos','Octavos','Cuartos','Semifinal'];
+  const lab=`<div class="bk-lb">${L.map(x=>`<span>${x}</span>`).join('')}<span class="fi">Final</span>${[...L].reverse().map(x=>`<span>${x}</span>`).join('')}</div>`;
+  const hora=ko.ts?new Date(ko.ts).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
+  return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">Fase final · Categoría A<em>|</em><u>eliminación directa</u></span><span class="gt-upd">FIFA · actualizado ${hora}h</span></div>
+    <div class="bk-sc"><div class="bk-in">${lab}<div class="bk"><div class="bk-l">${node(k[0])}</div><div class="bk-fin">${card(fin)}</div><div class="bk-r">${node(k[1])}</div></div></div></div></div>`;
+}
+window._mundKoRefresh=async function(cid){
+  const cfg=_MUND_CFG[cid]; if(!cfg||!cfg.team) return;
+  try{
+    let st=(window._mundKoStage||(window._mundKoStage={}))[cid];
+    if(!st){
+      const r0=await fetch(`https://api.fifa.com/api/v3/calendar/matches?language=es&count=100&idSeason=${cfg.season}&idTeam=${cfg.team}`,{cache:'no-store'}); const j0=await r0.json();
+      const k=((j0&&j0.Results)||[]).find(m=>m.IdStage&&String(m.IdStage)!==String(cfg.stage)&&!/^(Group|Grupo) /i.test(((m.GroupName||[{}])[0].Description)||'')&&!/Qualif|clasific/i.test(((m.StageName||[{}])[0].Description)||''));
+      if(!k) return; st=window._mundKoStage[cid]=k.IdStage;
+    }
+    const r=await fetch(`https://api.fifa.com/api/v3/calendar/matches?language=es&count=100&idSeason=${cfg.season}&idStage=${st}`,{cache:'no-store'}); const j=await r.json();
+    if(j&&Array.isArray(j.Results)&&j.Results.length) window._mundKO[cid]={ts:Date.now(),ms:j.Results};
+  }catch(_){}
+};
+// Repinta el cuadro conservando el scroll horizontal; la primera vez lo deja centrado en la Final (Uruguay queda a la vista)
+function _mun15Set(el,cid){
+  const old=el.querySelector('.bk-sc'), keep=old?old.scrollLeft:null;
+  el.innerHTML=_mun15Full(cid);
+  const sc=el.querySelector('.bk-sc'); if(!sc) return;
+  if(keep!=null&&window._bkTouched) sc.scrollLeft=keep;
+  else { const f=sc.querySelector('.bk-fin'); if(f) sc.scrollLeft=f.offsetLeft+f.offsetWidth/2-sc.clientWidth/2; }
+  sc.addEventListener('scroll',()=>{ window._bkTouched=true; },{once:true,passive:true});
+}
+function _mun15Full(cid){ return _mundBracketHtml(window._mundKO[cid])+`<div class="bk-grp">${_mun15Html(window._mundData[cid])}</div>`; }
 window._mun15Mount=function(){
   const el=document.getElementById('mun15-grupo'); if(!el) return;
   const D=window._mundData[window._mundCur];
-  el.innerHTML=_mun15Html(D);
+  _mun15Set(el,window._mundCur);
   const viejo=!D||(Date.now()-D.ts)>45000;
   if(viejo) window._mun15Refresh();
   if(!window._mun15Timer) window._mun15Timer=setInterval(()=>{ if(document.getElementById('mun15-grupo')) window._mun15Refresh(); },60000);
@@ -33973,6 +34070,7 @@ window._mun15Mount=function(){
 window._mun15Refresh=async function(){
   if(window._mun15Busy) return; window._mun15Busy=true;
   const cid=window._mundCur, cfg=_mundCfg();
+  const _koP=window._mundKoRefresh(cid).then(()=>{ const e=document.getElementById('mun15-grupo'); if(e&&window._mundCur===cid) _mun15Set(e,cid); });
   try{
     const u=`https://api.fifa.com/api/v3/calendar/matches?language=es&count=100&idSeason=${cfg.season}&idStage=${cfg.stage}&idGroup=${cfg.group}`;
     const r=await fetch(u,{cache:'no-store'}); const j=await r.json();
@@ -33980,7 +34078,7 @@ window._mun15Refresh=async function(){
     window._mundData[cid]={ts:Date.now(),ms:j.Results};
   }catch(e){ window._mundData[cid]=window._mundData[cid]?{...window._mundData[cid],error:true}:{error:true}; }
   window._mun15Busy=false;
-  const el=document.getElementById('mun15-grupo'); if(el&&window._mundCur===cid) el.innerHTML=_mun15Html(window._mundData[cid]);
+  const el=document.getElementById('mun15-grupo'); if(el&&window._mundCur===cid) _mun15Set(el,cid);
 };
 
 // ── Mundial Sub-15 · Diseño: a quién se usa en cada pieza (2 jugadores para el MD-1 + 1 para el informe si se ganó) y cuántas veces se usó cada uno ──
@@ -34013,8 +34111,10 @@ window._mun15DisenoHtml=function(){
   const dm=f=>{ const x=String(f||'').slice(0,10).split('-'); return x.length===3?[parseInt(x[2],10),MES[parseInt(x[1],10)-1]]:['','']; };
   const sh=n=>{ const q=String(n).trim().split(/\s+/); return q.length>1?q[0][0]+'. '+q.slice(1).join(' '):n; };
   const ab=r=>String(r).slice(0,3).toUpperCase();
-  const dias=[]; ms.forEach((m,i)=>{ const f=String(m.fecha).slice(0,10); let g=dias.find(x=>x.f===f); if(!g){ g={f,ms:[]}; dias.push(g); } g.ms.push({...m,_n:i+1}); });
-  const md1Of=g=>{ const e=d['d_'+g.f]; if(e) return e; const prev=g.ms.map(m=>d[m.id]).find(x=>x&&(x.md1||[]).length); return prev||{md1:[],inf:[],l1:'',l2:''}; };
+  // En la fase de grupos el MD-1 es uno por día; en la fase final (octavos, cuartos…) es uno por partido.
+  const _esGrp=m=>!m.fase||/clasific|primera fase|grupo/i.test(m.fase);
+  const dias=[], _legacy=new Set(); ms.forEach((m,i)=>{ const f=String(m.fecha).slice(0,10); let k=f; if(!_esGrp(m)){ if(d['d_'+f]&&!_legacy.has(f)) _legacy.add(f); else k=f+'_'+m.id; } let g=dias.find(x=>x.k===k); if(!g){ g={f,k,ms:[]}; dias.push(g); } g.ms.push({...m,_n:i+1}); });
+  const md1Of=g=>{ const e=d['d_'+g.k]; if(e) return e; const prev=g.ms.map(m=>d[m.id]).find(x=>x&&(x.md1||[]).length); return prev||{md1:[],inf:[],l1:'',l2:''}; };
   // uso por jugador
   const uso={}; pool.forEach(p=>uso[p.nom]={md1:[],inf:[]});
   const U=n=>uso[n]||(uso[n]={md1:[],inf:[]});
@@ -34032,7 +34132,7 @@ window._mun15DisenoHtml=function(){
       <input type="text" class="dz-lnk" value="${(lnk||'').replace(/"/g,'&quot;')}" placeholder="Link al diseño (X, Drive, etc.)" onchange="_mun15DisLink('${key}','${stage}',this)">
     </div>`; };
   const cards=dias.map(g=>{
-    const f=dm(g.f), e1=md1Of(g), key1='d_'+g.f;
+    const f=dm(g.f), e1=md1Of(g), key1='d_'+g.k;
     const rivales=g.ms.map(m=>m.rival).join(' y ');
     const resumen=g.ms.map(m=>(m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='')?`${m.gLocal}–${m.gRival}`:'').filter(Boolean).join(' · ');
     const nums=g.ms.map(m=>m._n);
