@@ -9014,6 +9014,18 @@ function _recPartidosDerivados(){
 }
 // Recordatorios fijos de cada semana (clave): para el domingo y como máximo el lunes, cargar las convocatorias de la semana y la semana de actividades juveniles.
 // Cada semana tiene su propio recordatorio (id con la fecha del domingo); el de la semana que pasó sigue visible hasta el miércoles si no se hizo.
+// ¿Ya hay una convocatoria cargada en la app para esa categoría que caiga en la semana lunes–domingo [ini,fin]? Se lee el rango del título («… · 2-4 nov 2026»).
+function _recConvCargada(cat,ini,fin){
+  try{
+    const MES={ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,set:9,oct:10,nov:11,dic:12};
+    const C=(typeof JUVENILES!=='undefined'&&JUVENILES[cat])?JUVENILES[cat]:null; if(!C) return false;
+    return Object.values(C.anos||{}).some(a=>(a.convocatorias||[]).some(c=>{
+      const m=String(c.fecha||'').match(/(\d{1,2})(?:\s*-\s*\d{1,2})?\s+(ene|feb|mar|abr|may|jun|jul|ago|sep|set|oct|nov|dic)[a-z]*\.?\s+(\d{4})/i); if(!m) return false;
+      const d=`${m[3]}-${String(MES[m[2].toLowerCase()]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+      return d>=ini&&d<=fin&&(c.jugadores||[]).length>0;
+    }));
+  }catch(_){ return false; }
+}
 function _recSemanalesDerivados(){
   const out=[];
   try{
@@ -9023,7 +9035,15 @@ function _recSemanalesDerivados(){
     const semanas=[]; if(dow<=3) semanas.push(domPasado); semanas.push(domProx);
     semanas.forEach(S=>{
       const f=S.split('-').reverse().slice(0,2).join('/');
-      [['conv','Cargar las convocatorias de esta semana a la plataforma','Convocatorias de la semana del '+f],['act','Cargar la semana de actividades juveniles','Actividades juveniles de la semana del '+f]].forEach(([k,tit,det])=>{
+      // Convocatorias: una por categoría activa. No se piden si ya están cargadas en la app para esa semana, ni si el jueves se marcó «no hay».
+      const T=_recSumarDias(S,-3), ini=_recSumarDias(S,1), fin=_recSumarDias(S,7);
+      _REC_CONVJ_CATS.forEach(([ck,lbl])=>{
+        if((manual[`convj|${ck}|${T}`]||{}).no) return;
+        if(_recConvCargada(ck,ini,fin)) return;
+        const id=`sem|conv|${ck}|${S}`, mn=manual[id]||{};
+        out.push({id,titulo:`Subir la convocatoria de la semana a la plataforma: ${lbl.toLowerCase()}`,detalle:`Semana del ${f} al ${fin.split('-').reverse().slice(0,2).join('/')} · para el domingo, máximo el lunes`,vence:S,hora:'10:00',etiqueta:lbl,importante:true,hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
+      });
+      [['act','Cargar la semana de actividades juveniles','Actividades juveniles de la semana del '+f]].forEach(([k,tit,det])=>{
         const id='sem|'+k+'|'+S, mn=manual[id]||{};
         out.push({id,titulo:tit,detalle:det+' · para el domingo, máximo el lunes',vence:S,hora:'10:00',etiqueta:'Juveniles',importante:true,hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
       });
@@ -29533,6 +29553,40 @@ const JUVENILES = {
         // microciclo nuevo hay que cargarlo en los DOS lugares (acá arriba de
         // todo, y en SUD17_2027_VIS.convocados + convocadosFecha).
         convocatorias: [
+          {fecha:'Microciclo 07 · lunes a miércoles · 2-4 nov 2026', jugadores:[
+            {nom:'Benjamín Berrospe', club:'Montevideo City Torque'},
+            {nom:'Guillermo Spinelli', club:'Defensor Sporting'},
+            {nom:'Tomás Brolio', club:'Albion'},
+            {nom:'Franco Assanelli', club:'Peñarol'},
+            {nom:'Ignacio Herosa', club:''},
+            {nom:'Felipe Botta', club:'Peñarol'},
+            {nom:'Matías Gargano', club:'Montevideo City Torque'},
+            {nom:'Facundo Sequeira', club:'Deportivo Maldonado'},
+            {nom:'Ignacio Ramos', club:'Nacional'},
+            {nom:'Tomás Inthamoussu', club:'Nacional'},
+            {nom:'Facundo Guillén', club:'Liverpool'},
+            {nom:'Felipe Pallero', club:'Montevideo City Torque'},
+            {nom:'Benjamín Delgado', club:'Deportivo Maldonado'},
+            {nom:'Juan Felipe Lazo', club:'Nacional'},
+            {nom:'Ygor Alves', club:'Defensor Sporting'},
+            {nom:'Valentín Moliterno', club:'Defensor Sporting'},
+            {nom:'Facundo Quartiani', club:'Nacional'},
+            {nom:'Juan Ignacio Varo', club:'Defensor Sporting'},
+            {nom:'Diego Arrillaga', club:'Boston River'},
+            {nom:'Dilan Correa', club:'Boston River'},
+            {nom:'Joaquín Canale', club:'Nacional'},
+            {nom:'Benjamín Silvera', club:'Danubio'},
+            {nom:'Juan Andrés Rodríguez', club:'Montevideo City Torque'},
+            {nom:'Alessio Cartagena', club:'Montevideo City Torque'},
+            {nom:'Luciano Adán', club:'Defensor Sporting'},
+            {nom:'Nicolás González Souza', club:'Nacional'},
+            {nom:'Nicolás González', club:'Peñarol'},
+            {nom:'Fabricio Mederos', club:'Nacional'},
+            {nom:'Santiago García', club:'Defensor Sporting'},
+            {nom:'Ramiro Rolan', club:'Defensor Sporting'},
+            {nom:'Valentín Marchesi', club:'Peñarol'},
+            {nom:'Bruno Díaz', club:''},
+          ]},
           {fecha:'Microciclo 06 · lunes a miércoles · 26-28 oct 2026', jugadores:[
             {nom:'Benjamín Berrospe', club:'Montevideo City Torque'},
             {nom:'Guillermo Spinelli', club:'Defensor Sporting'},
@@ -30564,28 +30618,27 @@ const SUD17_2027_VIS = {
   // es la citación real a entrenamientos. Se actualiza semana a semana: acá
   // queda solo la vigente (convocadosFecha + convocados, siempre juntos); el
   // historial de microciclos vive en JUVENILES.sub16.anos['2026-2027'].convocatorias.
-  convocadosFecha:'Microciclo 06 · lunes a miércoles · 26-28 oct 2026',
+  convocadosFecha:'Microciclo 07 · lunes a miércoles · 2-4 nov 2026',
   convocados:[
     {nom:'Benjamín Berrospe', club:'Montevideo City Torque'},
     {nom:'Guillermo Spinelli', club:'Defensor Sporting'},
     {nom:'Tomás Brolio', club:'Albion'},
     {nom:'Franco Assanelli', club:'Peñarol'},
+    {nom:'Ignacio Herosa', club:''},
     {nom:'Felipe Botta', club:'Peñarol'},
     {nom:'Matías Gargano', club:'Montevideo City Torque'},
-    {nom:'Thiago Fernández Silva', club:'Nacional'},
+    {nom:'Facundo Sequeira', club:'Deportivo Maldonado'},
     {nom:'Ignacio Ramos', club:'Nacional'},
     {nom:'Tomás Inthamoussu', club:'Nacional'},
     {nom:'Facundo Guillén', club:'Liverpool'},
     {nom:'Felipe Pallero', club:'Montevideo City Torque'},
+    {nom:'Benjamín Delgado', club:'Deportivo Maldonado'},
     {nom:'Juan Felipe Lazo', club:'Nacional'},
-    {nom:'Valentín Marchesi', club:'Peñarol'},
     {nom:'Ygor Alves', club:'Defensor Sporting'},
     {nom:'Valentín Moliterno', club:'Defensor Sporting'},
     {nom:'Facundo Quartiani', club:'Nacional'},
-    {nom:'Franco Díaz', club:'Liverpool'},
     {nom:'Juan Ignacio Varo', club:'Defensor Sporting'},
     {nom:'Diego Arrillaga', club:'Boston River'},
-    {nom:'Manuel Pereira', club:'Liverpool'},
     {nom:'Dilan Correa', club:'Boston River'},
     {nom:'Joaquín Canale', club:'Nacional'},
     {nom:'Benjamín Silvera', club:'Danubio'},
@@ -30597,6 +30650,8 @@ const SUD17_2027_VIS = {
     {nom:'Fabricio Mederos', club:'Nacional'},
     {nom:'Santiago García', club:'Defensor Sporting'},
     {nom:'Ramiro Rolan', club:'Defensor Sporting'},
+    {nom:'Valentín Marchesi', club:'Peñarol'},
+    {nom:'Bruno Díaz', club:''},
   ],
   // Pool amplio de seguimiento/scouting (sin convocatoria formal) — se mantiene
   // aparte de `convocados` de arriba, que ya es una citación real confirmada.
