@@ -5384,7 +5384,8 @@ const JUV_NAC_DATES = {
   'Juan Felipe Lazo':'2010-09-06', 'Tomás Inthamoussu':'2010-02-03', 'Antú Daguer':'2010-04-11',
   'Alessio Cartagena':'2010-07-31', 'Benjamín Azambuja':'2010-04-24', 'Facundo Quartiani':'2010-02-22',
   'Nicolás González Souza':'2010-05-06',
-  // Sub-16, confirmadas por el usuario el 29/10/2026 (Tomás Brolio: queda pendiente, la fecha enviada decía 2006)
+  // Sub-16, confirmadas por el usuario el 29/10/2026
+  'Tomás Brolio':'2010-09-21', 'Valentín Moliterno':'2010-05-16',
   'Guillermo Spinelli':'2010-08-13', 'Franco Assanelli':'2010-07-08', 'Santiago García':'2010-05-31', 'Dilan Correa':'2010-01-09',
   'Nicolás González':'2010-07-11', 'Manuel Pereira':'2010-05-17', 'Luciano Adán':'2010-04-07', 'Ygor Alves':'2010-02-16',
   'Juan Andrés Rodríguez':'2010-03-13', 'Diego Arrillaga':'2010-06-22',
@@ -25567,7 +25568,7 @@ const CLUBES_DB=[
  'Atlético de Madrid|es|Atlético Madrid;Club Atlético de Madrid;Atletico de Madrid;Atletico Madrid;Atl. Madrid',
  // — agregados el 29/10/2026 (por el país que ya tenían cargado los jugadores) —
  'Atlético Malagueño|es|At. Malagueño;Atletico Malagueño;Atlético Malagueño (filial del Málaga)',
- 'Soccer International Academy|es|',
+ 'Soccer International Academy|es|International Soccer Academy;ISA;Soccer International Academy ISA',
  'CD Raqui|es|Raqui;C.D. Raqui'
 ];
 const _CLUB_SIN_CLUB=/^(sin club|retirad[oa]|retired|libre|without club|mls pool|—|-|)$/i;
@@ -25859,6 +25860,7 @@ function _nomScoreBase(tin,tk){
 // ctx: {club, cat, nac (año o fecha), pos}. → {estado:'ok'|'dudoso'|'nuevo', nom, score, motivo, cands:[{nom,score,club,nac}], difiere}
 // Equivalencias fijas confirmadas por Felipe: «Agustín Pérez» es solo el de la Sub-17 (hay otro, ya viejo, con segundo apellido).
 const _NOM_ALIAS_FIJOS={'agustin perez':'Agustín Pérez'};
+const _NOM_PEND_IGNORAR=['kevin zxcvbn']; // entrada de prueba, no es un jugador
 function _resolverJugador(raw, ctx){
   ctx=ctx||{}; const tin=_nomTokens(raw); const U=_nomUniverso();
   const rawT=String(raw||'').trim();
@@ -25924,7 +25926,7 @@ function _nombresPendientes(res){
 }
 function _recNombresDerivados(){
   try{ const arr=JSON.parse(localStorage.getItem('auf4_nombres_pend')||'[]'); if(!Array.isArray(arr)) return [];
-    return arr.filter(x=>x&&!x.res&&!_NOM_ALIAS_FIJOS[x.id]).map(x=>({id:'nom|'+x.id,titulo:(x.estado==='nuevo'?'Jugador nuevo o sin identificar: ':'Jugador ambiguo: ')+x.a,detalle:x.cands&&x.cands.length?'Candidatos: '+x.cands.join(' · '):'Sin candidatos parecidos en la base',vence:TODAY,hora:'09:00',etiqueta:'Jugadores',derivado:true,nomPend:x.id,hecho:false})); }catch(e){ return []; }
+    return arr.filter(x=>x&&!x.res&&!_NOM_ALIAS_FIJOS[x.id]&&!_NOM_PEND_IGNORAR.includes(x.id)).map(x=>({id:'nom|'+x.id,titulo:(x.estado==='nuevo'?'Jugador nuevo o sin identificar: ':'Jugador ambiguo: ')+x.a,detalle:x.cands&&x.cands.length?'Candidatos: '+x.cands.join(' · '):'Sin candidatos parecidos en la base',vence:TODAY,hora:'09:00',etiqueta:'Jugadores',derivado:true,nomPend:x.id,hecho:false})); }catch(e){ return []; }
 }
 function _nombreResolverModal(id){
   const arr=JSON.parse(localStorage.getItem('auf4_nombres_pend')||'[]'); const x=arr.find(y=>y.id===id); if(!x) return;
