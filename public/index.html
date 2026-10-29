@@ -8977,7 +8977,7 @@ function _recPartidosDerivados(){
             ['tv4',-90,'Publicar la alineación de '+lbl,'Partido '+fD+' · 1:30 h antes del inicio',false,true],
             ['tv5',120,'Cargar en la app resultado, goles e ingresos de '+lbl,'Partido '+fD+' · al terminar',resultadoCargado,false],
             ['tv6',150,'Publicar informe post-partido de '+lbl,'Partido '+fD+' · después de cargar el resultado',false,false],
-            ['tw6',180,'Enviar link de tuit '+lbl+' por Whatsapp','Informe del partido '+fD+' · después de publicarlo · al '+_REC_TW_DEST,false,false],
+            ['tw6',180,'Enviar link de tuit '+lbl+' por Whatsapp','Informe del '+D.split('-').reverse().slice(0,2).join('/'),false,false],
           ];
           pasos.forEach(([k,off,tit,det,auto,pre],i)=>{
             if(k==='tw6'&&D<'2026-10-29') return;
@@ -8985,7 +8985,7 @@ function _recPartidosDerivados(){
             // La alineación no sale 24 h antes: por lo general aparece la noche anterior (tv1 18:00, tv2 18:30, tv3 19:00 del día previo: horario laboral, nada después de las 19)
             const _prev={tv1:'18:00',tv2:'18:30',tv3:'19:00'};
             const id=k+'|'+uid, mn=manual[id]||{}, dt=_prev[k]?{vence:_recSumarDias(D,-1),hora:_prev[k]}:en(off);
-            out.push({id,titulo:tit,detalle:det,vence:dt.vence,hora:dt.hora,etiqueta:metaCat(cat),importante:true,orden:i+1,
+            out.push({id,titulo:tit,detalle:det,vence:dt.vence,hora:dt.hora,etiqueta:metaCat(cat),importante:true,orden:i+1,derivado:k==='tw6',
               hecho:!!auto||!!mn.hecho,hechoEn:(!auto&&mn.hecho)?mn.hechoEn:null});
           });
           return;
@@ -9009,7 +9009,7 @@ function _recPartidosDerivados(){
             hecho:!!mp.hecho,hechoEn:mp.hecho?mp.hechoEn:null});
           const idw='tw|'+uid, mw=manual[idw]||{}, w2=_recMasMin(_vF,_hF,30);
           if(D>='2026-10-29') // el aviso de enviar el tuit rige desde el 29/10/2026 (lo anterior ya se resolvió)
-          out.push({id:idw,titulo:'Enviar link de tuit '+lbl+' por Whatsapp',detalle:'Informe del partido '+D.split('-').reverse().join('/')+' · después de publicarlo · al '+_REC_TW_DEST,vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),
+          out.push({id:idw,titulo:'Enviar link de tuit '+lbl+' por Whatsapp',detalle:'Informe del '+D.split('-').reverse().slice(0,2).join('/'),vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),derivado:true,
             hecho:!!mw.hecho,hechoEn:mw.hecho?mw.hechoEn:null});
         }
       });
@@ -9174,7 +9174,7 @@ function _recMd1Derivados(){
         out.push({id,titulo:`${v} diseño MD-1 para el ${cuando} vs. ${m.rival}`,detalle:det,vence,hora,etiqueta:'Sub-15',hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
       });
       { const idt=`md1-tw|${m.id}`, mt=manual[idt]||{}, w=_recMasMin(_recSumarDias(D,-1),'18:00',30);
-        out.push({id:idt,titulo:`Enviar link de tuit MD-1 vs. ${m.rival} por Whatsapp`,detalle:`Después de publicar el MD-1 · al ${_REC_TW_DEST}`,vence:w.vence,hora:w.hora,etiqueta:'Sub-15',hecho:!!mt.hecho,hechoEn:mt.hecho?(mt.hechoEn||new Date().toISOString()):null}); }
+        out.push({id:idt,titulo:`Enviar link de tuit MD-1 vs. ${m.rival} por Whatsapp`,detalle:`MD-1 · ${cuando}`,vence:w.vence,hora:w.hora,etiqueta:'Sub-15',derivado:true,hecho:!!mt.hecho,hechoEn:mt.hecho?(mt.hechoEn||new Date().toISOString()):null}); }
     });
   }catch(e){ console.warn('recordatorios MD-1:',e); }
   return out;
@@ -9226,7 +9226,25 @@ function _recHechosHoy(){
 }
 // Cada 5 min se vuelve a pintar el panel para que los que cumplieron las 12 h salgan solos, sin recargar.
 if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },300000);
+// Link del tuit de un MD-1 o informe publicado: se pega una vez desde el recordatorio y después se copia con un toque para mandarlo por WhatsApp.
+function _recTwBtns(r){
+  const L=stor.get('auf4_tw_links',{})||{}, u=L[r.id], id=String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const st='border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px';
+  return u?`<button data-id="${id}" onclick="window._recTwCopy(this.dataset.id)" title="${String(u).replace(/"/g,'&quot;')}" style="${st}">copiar link</button> <button data-id="${id}" onclick="window._recTwLink(this.dataset.id)" title="Cambiar el link" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">editar</button>`
+    :`<button data-id="${id}" onclick="window._recTwLink(this.dataset.id)" style="${st}">+ link del tuit</button>`;
+}
+window._recTwLink=function(id){
+  const L=stor.get('auf4_tw_links',{})||{}; const v=prompt('Pegá el link del tuit',L[id]||''); if(v===null) return;
+  if(v.trim()) L[id]=v.trim(); else delete L[id]; stor.set('auf4_tw_links',L);
+  const n=document.getElementById('rec-noti'); if(n) n.remove();
+  if(typeof renderInicio==='function') renderInicio(); if(typeof _recDockRender==='function') _recDockRender();
+};
+window._recTwCopy=async function(id){
+  const u=(stor.get('auf4_tw_links',{})||{})[id]; if(!u) return;
+  try{ await navigator.clipboard.writeText(u); if(typeof toast==='function') toast('Link copiado'); }catch(_){ prompt('Copiá el link',u); }
+};
 function _recNoAplicaBtn(r,hecho){
+  if(/^(tw|tw6|md1-tw)\|/.test(String(r.id))&&!hecho) return _recTwBtns(r);
   if(r.clubRaw&&!hecho) return `<button data-n="${String(r.clubRaw).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_clubResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
   if(r.nomPend&&!hecho) return `<button data-n="${String(r.nomPend).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_nombreResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
   if(/^convj\|/.test(String(r.id))&&!hecho) return `<button data-id="${String(r.id)}" onclick="window._recNoHay(this.dataset.id)" title="Esa semana no entrenan: se da por resuelto" style="border:1px solid #F59E0B;background:none;color:#B45309;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">no hay</button>`;
