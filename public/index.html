@@ -8977,7 +8977,7 @@ function _recPartidosDerivados(){
             ['tv4',-90,'Publicar la alineación de '+lbl,'Partido '+fD+' · 1:30 h antes del inicio',false,true],
             ['tv5',120,'Cargar en la app resultado, goles e ingresos de '+lbl,'Partido '+fD+' · al terminar',resultadoCargado,false],
             ['tv6',150,'Publicar informe post-partido de '+lbl,'Partido '+fD+' · después de cargar el resultado',false,false],
-            ['tw6',180,'Enviar por Whatsapp el link del tuit del informe '+lbl,'',false,false],
+            ['tw6',180,'Enviar por Whatsapp el link del tuit del informe '+lbl,_recResTxt(m),false,false],
           ];
           pasos.forEach(([k,off,tit,det,auto,pre],i)=>{
             if(k==='tw6'&&D<'2026-10-29') return;
@@ -9009,7 +9009,7 @@ function _recPartidosDerivados(){
             hecho:!!mp.hecho,hechoEn:mp.hecho?mp.hechoEn:null});
           const idw='tw|'+uid, mw=manual[idw]||{}, w2=_recMasMin(_vF,_hF,30);
           if(D>='2026-10-29') // el aviso de enviar el tuit rige desde el 29/10/2026 (lo anterior ya se resolvió)
-          out.push({id:idw,titulo:'Enviar por Whatsapp el link del tuit del informe '+lbl,detalle:'',vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),
+          out.push({id:idw,titulo:'Enviar por Whatsapp el link del tuit del informe '+lbl,detalle:_recResTxt(m),vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),
             hecho:!!mw.hecho,hechoEn:mw.hecho?mw.hechoEn:null});
         }
       });
@@ -9154,6 +9154,12 @@ function _recAtencionesDerivados(){
 // Mundial Sub-15 (fase final, un MD-1 por partido): «Pedir diseño del MD-1» 2 días antes a las 10:00 y «Publicar diseño del MD-1» el día antes a las 18:00
 // (mismos horarios que los cargados a mano para la fase de grupos, que van hasta el 26/10). Se derivan de los partidos que FIFA va creando.
 // Después de publicar en redes (MD-1 o informe): mandar el link del tuit a la prensa, al canal de difusión y a los grupos de noticias de los CT (de la Mayor a la sub-15)
+// Resultado de un partido de Uruguay para el detalle de un recordatorio («Resultado: 2-2», con penales si los hubo); vacío si todavía no está cargado
+function _recResTxt(m){
+  if(!m||m.gLocal==null||m.gRival==null||m.gLocal==='') return '';
+  const pen=(m.penales&&m.penGLocal!=null&&m.penGRival!=null)?` (pen. ${m.penGLocal}-${m.penGRival})`:'';
+  return `Resultado: ${m.gLocal}-${m.gRival}${pen}`;
+}
 var _REC_TW_DEST='grupo de prensa, canal de difusión y grupos de noticias de los CT (de la Mayor a la sub-15)';
 function _recMasMin(vence,hora,min){ const d=new Date(vence+'T'+(hora||'12:00')+':00'); d.setMinutes(d.getMinutes()+min); return {vence:d.toLocaleDateString('en-CA'),hora:String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}; }
 function _recMd1Derivados(){
@@ -9174,7 +9180,7 @@ function _recMd1Derivados(){
         out.push({id,titulo:`${v} diseño MD-1 para el ${cuando} vs. ${m.rival}`,detalle:det,vence,hora,etiqueta:'Sub-15',hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
       });
       { const idt=`md1-tw|${m.id}`, mt=manual[idt]||{}, w=_recMasMin(_recSumarDias(D,-1),'18:00',30);
-        out.push({id:idt,titulo:`Enviar por Whatsapp el link del tuit del MD-1 vs. ${m.rival}`,detalle:'',vence:w.vence,hora:w.hora,etiqueta:'Sub-15',hecho:!!mt.hecho,hechoEn:mt.hecho?(mt.hechoEn||new Date().toISOString()):null}); }
+        out.push({id:idt,titulo:`Enviar por Whatsapp el link del tuit del MD-1 vs. ${m.rival}`,detalle:`Partido del ${cuando}${hm?' · '+hm[1]+':'+hm[2]+'h':''}`,vence:w.vence,hora:w.hora,etiqueta:'Sub-15',hecho:!!mt.hecho,hechoEn:mt.hecho?(mt.hechoEn||new Date().toISOString()):null}); }
     });
   }catch(e){ console.warn('recordatorios MD-1:',e); }
   return out;
