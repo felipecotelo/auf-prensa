@@ -3509,6 +3509,11 @@ select.rd-in{padding:0 10px}
 .estf select{border:1px solid rgba(255,255,255,.16)!important;border-radius:12px!important;background:rgba(255,255,255,.04)!important;color:#F4F7FB!important;color-scheme:dark}
 
 .bn-hd-m{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.bn-hd-c{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:9px}
+.bn-hd-c>span:first-child{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.45);margin-right:4px}
+.bn-cl{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(239,243,248,.72);border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);border-radius:999px;padding:2px 8px 2px 6px}
+.bn-cl img{width:13px;height:13px;object-fit:contain}
+.bn-cl b{font-family:'Space Grotesk','Inter',sans-serif;font-size:11px;color:#EFF3F8}
 .bn-ms{margin:-4px 0 18px}
 .bn-ms .jm-card{margin-bottom:8px}
 </style>
@@ -36606,7 +36611,11 @@ function _convInfo(pp, activos, juvPos){
   (activos||[]).forEach(a=>{ const ps=a.pos||(juvPos&&juvPos[a.nom])||''; if(cnt[ps]!=null){ cnt[ps]++; conPos++; } });
   const PC={POR:'#FCD34D',DEF:'#4ADE80',MED:'#67E8F9',DEL:'#F87171'};
   const posHtml=conPos?Object.entries(cnt).filter(([,n])=>n>0).map(([k,n])=>`<span class="rd-pill" style="--c:${PC[k]}">${k} ${n}</span>`).join(''):'';
-  return {rango:r,sub,tipoHtml,posHtml};
+  // Cuántos jugadores hay por club (sutil: pastillas chicas, de más a menos)
+  const porClub=new Map();
+  (activos||[]).forEach(a=>{ const raw=(a&&a.club)||''; const n=raw?_clubCorto(raw):'Sin club'; porClub.set(n,(porClub.get(n)||0)+1); });
+  const clubsHtml=porClub.size?[...porClub].sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0])).map(([n,c])=>{ const esc=n==='Sin club'?null:(typeof _escudoLocal==='function'?_escudoLocal(n):null); return `<span class="bn-cl">${esc?`<img src="${esc}" alt="" onerror="this.remove()">`:''}${n}<b>${c}</b></span>`; }).join(''):'';
+  return {rango:r,sub,tipoHtml,posHtml,clubsHtml};
 }
 function _convMatchCard(m,col,comp){
   const gl=m.gLocal, gr=m.gRival, hasRes=gl!=null&&gr!=null;
@@ -37901,7 +37910,8 @@ function _buildJuvCompBody(compId, color, catData){
       const cards=partidos.map(m=>_convMatchCard(m,col,comp)).join('');
       return `
       <div class="bn-hd" style="--cat:${col}"><div class="bn-hd-eye">Convocatoria vigente</div><div class="bn-hd-t">${_pp[0]}</div><div class="bn-hd-s">${info.sub||_pp.slice(1).join(' · ')}</div>
-        <div class="bn-hd-m">${info.tipoHtml}<span class="rd-pill" style="--c:#E5ECF6"><i class="ti ti-users"></i>${activos.length} jugadores</span>${info.posHtml}</div></div>
+        <div class="bn-hd-m">${info.tipoHtml}<span class="rd-pill" style="--c:#E5ECF6"><i class="ti ti-users"></i>${activos.length} jugadores</span>${info.posHtml}</div>
+        ${info.clubsHtml?`<div class="bn-hd-c"><span>Por club</span>${info.clubsHtml}</div>`:''}</div>
       ${cards?`<div class="bn-ms" style="--cat:${col}">${cards}</div>`:''}`; })() : '';
     content = _bannerFecha + _bannerRojo + _bannerSuave + `
       <div style="font-size:.68em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
