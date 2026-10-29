@@ -34505,7 +34505,9 @@ window._assignJuvP = function(cat, year, matchId, leg, slotId, nom){
   _amistPatch(cat, year, matchId, m=>{
     const sfx = leg===2?'2':'';
     if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat,m),starters:{}};
-    if(slotId) m['lineup'+sfx].starters[slotId] = nom;
+    // Partidos creados con lineup vacío ({}): completar las partes que falten para poder asignar
+    const _L=m['lineup'+sfx]; if(!_L.starters) _L.starters={}; if(!_L.formation) _L.formation=_juvDefForm(cat,m);
+    if(slotId) _L.starters[slotId] = nom;
   });
   _closeJuvSP();
 };
@@ -34523,6 +34525,7 @@ window._setJuvCaptainByName = function(cat, year, matchId, leg, nom){
   _amistPatch(cat, year, matchId, m=>{
     const sfx = leg===2?'2':'';
     if(!m['lineup'+sfx]) m['lineup'+sfx]={formation:_juvDefForm(cat,m),starters:{}};
+    if(!m['lineup'+sfx].starters) m['lineup'+sfx].starters={};
     m['lineup'+sfx].captain = nom||null;
   });
 };
