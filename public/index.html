@@ -35840,11 +35840,37 @@ function _showUpdateBanner(){
   b.innerHTML = '<span style="min-width:0"><span style="display:block;font-size:13px;font-weight:700;line-height:1.25">Hay una versión más nueva de la app</span><span style="display:block;font-size:11.5px;color:rgba(239,243,248,.62);margin-top:1px">Actualizá para ver los últimos cambios</span></span>'
     + '<button data-act="upd" style="background:#009DD8;color:#060814;border:none;border-radius:999px;padding:8px 16px;font-family:inherit;font-weight:800;cursor:pointer;font-size:12.5px;white-space:nowrap;flex-shrink:0">Actualizar</button>'
     + '<button data-act="cls" title="Cerrar" style="background:none;border:none;color:rgba(239,243,248,.5);cursor:pointer;font-size:16px;line-height:1;padding:4px;flex-shrink:0"><i class="ti ti-x"></i></button>';
-  b.querySelector('[data-act="upd"]').onclick = () => location.reload();
+  b.querySelector('[data-act="upd"]').onclick = () => { try{ _aufGuardarVista(); }catch(_){} location.reload(); };
   b.querySelector('[data-act="cls"]').onclick = () => b.remove();
   document.body.appendChild(b);
 }
 window._showUpdateBanner=_showUpdateBanner;
+// «Actualizar» recarga la página, pero te deja donde estabas: sección, pestaña, categoría/competencia de Juveniles, ventana de prensa abierta y scroll.
+function _aufGuardarVista(){
+  const act=document.querySelector('.section.active');
+  const v={tab:act?act.id:'inicio',y:window.scrollY||0,t:Date.now()};
+  try{ v.juv={cat:_juvCat,year:_juvYear,comp:_juvComp,compTab:_juvCompTab,det:window._amistDetailOpen||null}; }catch(_){}
+  try{ v.pw={view:_pwView,id:_pwCurId}; }catch(_){}
+  sessionStorage.setItem('auf_resume',JSON.stringify(v));
+}
+window._aufGuardarVista=_aufGuardarVista;
+(function(){
+  let tocado=false; ['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>{ tocado=true; },{once:true,capture:true}));
+  function aplicar(){
+    let raw=null; try{ raw=sessionStorage.getItem('auf_resume'); }catch(_){}
+    if(!raw) return; try{ sessionStorage.removeItem('auf_resume'); }catch(_){}
+    let v; try{ v=JSON.parse(raw); }catch(_){ return; }
+    if(!v||Date.now()-(v.t||0)>5*60000||tocado) return;
+    try{
+      if(v.juv&&/juveniles/.test(v.tab)){ _juvCat=v.juv.cat||_juvCat; _juvYear=v.juv.year||_juvYear; _juvComp=v.juv.comp||null; _juvCompTab=v.juv.compTab||'convocados'; window._amistDetailOpen=v.juv.det||null; }
+      if(v.pw&&/prensa/.test(v.tab)){ _pwView=v.pw.view||'list'; _pwCurId=v.pw.id||null; }
+      const m=String(v.tab).match(/^(fifa[a-z]+\d+)-/); if(m&&typeof showTournament==='function') showTournament(m[1]);
+      if(v.tab&&v.tab!=='inicio') showTab(v.tab);
+      setTimeout(()=>{ try{ window.scrollTo({top:v.y||0,behavior:'auto'}); }catch(_){} },400);
+    }catch(e){ console.warn('restaurar vista:',e); }
+  }
+  setTimeout(aplicar,3500); // el script corre al arrancar la página (el evento load puede haber pasado ya)
+})();
 setTimeout(_checkForNewVersion, 15000);
 setInterval(_checkForNewVersion, 120000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden) _checkForNewVersion(); });
