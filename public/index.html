@@ -8961,8 +8961,10 @@ function _recPartidosDerivados(){
             ['tv4',-90,'Publicar la alineación de '+lbl,'Partido '+fD+' · 1:30 h antes del inicio',false,true],
             ['tv5',120,'Cargar en la app resultado, goles e ingresos de '+lbl,'Partido '+fD+' · al terminar',resultadoCargado,false],
             ['tv6',150,'Publicar informe post-partido de '+lbl,'Partido '+fD+' · después de cargar el resultado',false,false],
+            ['tw6',180,'Enviar link de tuit '+lbl+' por Whatsapp','Informe del partido '+fD+' · después de publicarlo · al '+_REC_TW_DEST,false,false],
           ];
           pasos.forEach(([k,off,tit,det,auto,pre],i)=>{
+            if(k==='tw6'&&D<'2026-10-29') return;
             if(pre ? !(D>=TODAY && D<=_recSumarDias(TODAY,10)) : !(D<=TODAY && D>=_recSumarDias(TODAY,-10))) return;
             // La alineación no sale 24 h antes: por lo general aparece la noche anterior (tv1 18:00, tv2 18:30, tv3 19:00 del día previo: horario laboral, nada después de las 19)
             const _prev={tv1:'18:00',tv2:'18:30',tv3:'19:00'};
@@ -8989,6 +8991,10 @@ function _recPartidosDerivados(){
           const idp='pub|'+uid, mp=manual[idp]||{};
           out.push({id:idp,titulo:'Publicar informe de partido '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar el partido, con el resultado y la ficha cargados',vence:_vF,hora:_hF,etiqueta:metaCat(cat),
             hecho:!!mp.hecho,hechoEn:mp.hecho?mp.hechoEn:null});
+          const idw='tw|'+uid, mw=manual[idw]||{}, w2=_recMasMin(_vF,_hF,30);
+          if(D>='2026-10-29') // el aviso de enviar el tuit rige desde el 29/10/2026 (lo anterior ya se resolvió)
+          out.push({id:idw,titulo:'Enviar link de tuit '+lbl+' por Whatsapp',detalle:'Informe del partido '+D.split('-').reverse().join('/')+' · después de publicarlo · al '+_REC_TW_DEST,vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),
+            hecho:!!mw.hecho,hechoEn:mw.hecho?mw.hechoEn:null});
         }
       });
     }
@@ -9088,6 +9094,9 @@ function _recAtencionesDerivados(){
 }
 // Mundial Sub-15 (fase final, un MD-1 por partido): «Pedir diseño del MD-1» 2 días antes a las 10:00 y «Publicar diseño del MD-1» el día antes a las 18:00
 // (mismos horarios que los cargados a mano para la fase de grupos, que van hasta el 26/10). Se derivan de los partidos que FIFA va creando.
+// Después de publicar en redes (MD-1 o informe): mandar el link del tuit a la prensa, al canal de difusión y a los grupos de noticias de los CT (de la Mayor a la sub-15)
+var _REC_TW_DEST='grupo de prensa, canal de difusión y grupos de noticias de los CT (de la Mayor a la sub-15)';
+function _recMasMin(vence,hora,min){ const d=new Date(vence+'T'+(hora||'12:00')+':00'); d.setMinutes(d.getMinutes()+min); return {vence:d.toLocaleDateString('en-CA'),hora:String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}; }
 function _recMd1Derivados(){
   const out=[];
   try{
@@ -9105,6 +9114,8 @@ function _recMd1Derivados(){
         const id=`md1-${k}|${m.id}`, mn=manual[id]||{};
         out.push({id,titulo:`${v} diseño MD-1 para el ${cuando} vs. ${m.rival}`,detalle:det,vence,hora,etiqueta:'Sub-15',hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
       });
+      { const idt=`md1-tw|${m.id}`, mt=manual[idt]||{}, w=_recMasMin(_recSumarDias(D,-1),'18:00',30);
+        out.push({id:idt,titulo:`Enviar link de tuit MD-1 vs. ${m.rival} por Whatsapp`,detalle:`Después de publicar el MD-1 · al ${_REC_TW_DEST}`,vence:w.vence,hora:w.hora,etiqueta:'Sub-15',hecho:!!mt.hecho,hechoEn:mt.hecho?(mt.hechoEn||new Date().toISOString()):null}); }
     });
   }catch(e){ console.warn('recordatorios MD-1:',e); }
   return out;
@@ -9653,7 +9664,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|aten-pre|aten-link|md1-pedir|md1-pub|resgol)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
