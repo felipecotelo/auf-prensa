@@ -35151,6 +35151,16 @@ function _matchTorneoPool(m){
     const conv=(JUVENILES.sub17?.anos?.['2025-2026']?.convocatorias||[]).find(c=>(c.fecha||'').startsWith('Viajeros a España'));
     if(conv) return conv.jugadores;
   }
+  // Cualquier otro viaje ("Viaje a Chile · oct 2026", etc.): se usa la convocatoria "Viajeros a <destino> · …" de la misma categoría.
+  const _vj=String(m.torneo||'').match(/^Viaje a (.+?)\s*·/);
+  if(_vj && typeof JUVENILES!=='undefined'){
+    for(const cd of Object.values(JUVENILES)){
+      for(const ad of Object.values(cd.anos||{})){
+        const c=(ad.convocatorias||[]).find(c=>(c.fecha||'').startsWith('Viajeros a '+_vj[1]) && (c.jugadores||[]).length);
+        if(c) return c.jugadores;
+      }
+    }
+  }
   return null;
 }
 // Pool de jugadores para "Amistosos prep." de una competencia (comp): primero la
