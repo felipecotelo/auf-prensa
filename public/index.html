@@ -7848,7 +7848,7 @@ function _futbolDiaLabel(utcTime){
 // Escudos oficiales de la Escudoteca PN (paladarnegro.net/escudoteca/uruguay), copiados a /escudos: son los vigentes y de un mismo estilo.
 // Se eligen por nombre del club (el orden importa: "cerro largo" antes que "cerro", "plaza colonia" antes que "colon"); si el club
 // no está en la lista se usa el escudo de 365scores como antes.
-const _ESCUDOS_UY=[['durazno','x_durazno'],['nacional florida','x_florida'],['plaza colonia','plazacolonia'],['cerro largo','cerrolargo'],['cerrito','cerrito'],['cerro','cerro'],['colon','colon'],
+const _ESCUDOS_UY=[['durazno','x_durazno'],['dfc','x_durazno'],['terremoto','terremoto'],['centro atletico lito','lito'],['lito','lito'],['cooper','cooper'],['liffa','liffa'],['nacional florida','x_florida'],['plaza colonia','plazacolonia'],['cerro largo','cerrolargo'],['cerrito','cerrito'],['cerro','cerro'],['colon','colon'],
   ['albion','albion'],['boston','bostonriver'],['central espanol','central_espanol'],['danubio','danubio'],['defensor','defensor'],['def sporting','defensor'],['maldonado','maldonado'],
   ['juventud','juventud'],['liverpool','liverpool'],['city torque','montevideocity'],['montevideo city','montevideocity'],['torque','montevideocity'],
   ['wanderers','wanderers'],['nacional','nacional'],['penarol','penarol'],['progreso','progreso'],['racing','racing'],
@@ -25365,6 +25365,10 @@ const CLUBES_DB=[
  'Danubio|uy|Danubio FC;Danubio Fútbol Club;CA Danubio',
  'Terremoto|uy|CA Terremoto;Club Atlético Terremoto',
  'Lito|uy|Centro Atlético Lito;CA Lito',
+ 'Cooper|uy|Club Social y Deportivo Cooper;Cooper FC',
+ 'Liffa|uy|Liffa Club',
+ 'Colón|uy|Colón FC;Colón Fútbol Club;Colon Futbol Club',
+ 'DFC|uy|Durazno FC;Durazno Fútbol Club;Durazno Futbol Club',
  'Wanderers|uy|Montevideo Wanderers;Montevideo Wanderers FC;Montevideo Wanderers Fútbol Club;CA Wanderers',
  'Liverpool|uy|Liverpool FC Montevideo;Liverpool Montevideo;Liverpool Fútbol Club;Liverpool Fútbol Club Montevideo;Liverpool FC (URU)',
  'Boston River|uy|CA Boston River;Club Atlético Boston River',
@@ -25391,7 +25395,7 @@ const CLUBES_DB=[
  'Salto|uy|Salto FC',
  'Atenas|uy|Atenas SAD;Atenas de San Carlos;CA Atenas',
  'Artigas|uy|Artigas SAD;CA Artigas',
- 'Oriental de la Paz|uy|',
+ 'Oriental de la Paz|uy|Oriental;Club Oriental',
  'Paso de la Arena|uy|CA Paso de la Arena',
  'La Luz|uy|La Luz FC',
  'San Eugenio|uy|San Eugenio FC',
@@ -25562,7 +25566,7 @@ const CLUBES_DB=[
  'León|mx|Club León;Club Leon;León FC;Leon FC;Club León FC;Club de Fútbol León',
  'Atlético de Madrid|es|Atlético Madrid;Club Atlético de Madrid;Atletico de Madrid;Atletico Madrid;Atl. Madrid',
  // — agregados el 29/10/2026 (por el país que ya tenían cargado los jugadores) —
- 'Atlético Malagueño|ar|At. Malagueño;Atletico Malagueño',
+ 'Atlético Malagueño|es|At. Malagueño;Atletico Malagueño;Atlético Malagueño (filial del Málaga)',
  'Soccer International Academy|es|',
  'CD Raqui|es|Raqui;C.D. Raqui'
 ];
@@ -25853,11 +25857,13 @@ function _nomScoreBase(tin,tk){
   return [0,''];
 }
 // ctx: {club, cat, nac (año o fecha), pos}. → {estado:'ok'|'dudoso'|'nuevo', nom, score, motivo, cands:[{nom,score,club,nac}], difiere}
+// Equivalencias fijas confirmadas por Felipe: «Agustín Pérez» es solo el de la Sub-17 (hay otro, ya viejo, con segundo apellido).
+const _NOM_ALIAS_FIJOS={'agustin perez':'Agustín Pérez'};
 function _resolverJugador(raw, ctx){
   ctx=ctx||{}; const tin=_nomTokens(raw); const U=_nomUniverso();
   const rawT=String(raw||'').trim();
   if(tin.length<2) return {estado:'dudoso',nom:rawT,score:0,motivo:'nombre incompleto',cands:[],difiere:false};
-  const al=U.alias.get(tin.join(' ')); if(al) return {estado:'ok',nom:al,score:100,motivo:'alias confirmado',cands:[],difiere:al!==rawT};
+  const al=U.alias.get(tin.join(' '))||_NOM_ALIAS_FIJOS[tin.join(' ')]; if(al) return {estado:'ok',nom:al,score:100,motivo:'alias confirmado',cands:[],difiere:al!==rawT};
   const nacIn=String(ctx.nac||'').slice(0,4), clubIn=ctx.club?_clubKey(_clubCorto(ctx.club)):'', cat=ctx.cat||'';
   const cands=[];
   U.grupos.forEach(g=>{
@@ -25918,7 +25924,7 @@ function _nombresPendientes(res){
 }
 function _recNombresDerivados(){
   try{ const arr=JSON.parse(localStorage.getItem('auf4_nombres_pend')||'[]'); if(!Array.isArray(arr)) return [];
-    return arr.filter(x=>x&&!x.res).map(x=>({id:'nom|'+x.id,titulo:(x.estado==='nuevo'?'Jugador nuevo o sin identificar: ':'Jugador ambiguo: ')+x.a,detalle:x.cands&&x.cands.length?'Candidatos: '+x.cands.join(' · '):'Sin candidatos parecidos en la base',vence:TODAY,hora:'09:00',etiqueta:'Jugadores',derivado:true,nomPend:x.id,hecho:false})); }catch(e){ return []; }
+    return arr.filter(x=>x&&!x.res&&!_NOM_ALIAS_FIJOS[x.id]).map(x=>({id:'nom|'+x.id,titulo:(x.estado==='nuevo'?'Jugador nuevo o sin identificar: ':'Jugador ambiguo: ')+x.a,detalle:x.cands&&x.cands.length?'Candidatos: '+x.cands.join(' · '):'Sin candidatos parecidos en la base',vence:TODAY,hora:'09:00',etiqueta:'Jugadores',derivado:true,nomPend:x.id,hecho:false})); }catch(e){ return []; }
 }
 function _nombreResolverModal(id){
   const arr=JSON.parse(localStorage.getItem('auf4_nombres_pend')||'[]'); const x=arr.find(y=>y.id===id); if(!x) return;
