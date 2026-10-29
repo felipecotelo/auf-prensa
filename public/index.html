@@ -868,6 +868,11 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .ih-mt span .ti-map-pin{margin-right:4px;font-size:11px;vertical-align:-1px}
 .ih-mt b{display:block;font-size:13.5px;font-weight:600;color:#F4F7FB;line-height:1.25}
 .ih-mt span{display:block;margin-top:2px;font-size:11px;color:rgba(239,243,248,.55)}
+.auf-ld{position:fixed;inset:0;z-index:7000;background:#060814;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .16s ease}
+.auf-ld.on{opacity:1}
+.auf-ld div{display:flex;flex-direction:column;align-items:center;gap:12px;font:700 10px 'Inter',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:rgba(239,243,248,.55)}
+.auf-ld i{width:26px;height:26px;border-radius:50%;border:3px solid rgba(255,255,255,.14);border-top-color:#22D3EE;animation:aufspin .8s linear infinite}
+@keyframes aufspin{to{transform:rotate(360deg)}}
 .ih-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:8px;padding:8px 12px;border-radius:14px;border:1px dashed rgba(34,211,238,.45);background:rgba(34,211,238,.06);color:#8AD8FF;font:700 11px 'Inter',sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}.ih-more:hover{background:rgba(34,211,238,.14)}.ih-res-extra{margin-top:0}
 .ih-hr{text-align:right;flex-shrink:0}
 .ih-hr b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1;color:#F4F7FB}
@@ -9308,7 +9313,10 @@ function _partidosSeleccionHoy(){
         const fin=m.gLocal!=null&&m.gRival!=null&&(m.confirmado||m.gLocal!=='');
         const nom=_COMP_NOM[m.compId]||m.torneo||('Selección '+catLbl);
         const det=(m.compId==='mundial-sub15-2026'&&(!m.fase||/clasific|grupo/i.test(m.fase)))?'Partido '+(_mund.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
-        out.push({sel:true,compId:m.compId||'',ck:cat,eyebrow:{nom,det},rival:m.rival,hora:_horaCortaTxt(m.hora),min:min(m.hora),gl:fin?+m.gLocal:null,gr:fin?+m.gRival:null,estado:fin?'fin':'prog'});
+        // En juego: por la hora de inicio (+75 min el Mundial Sub-15, +130 el resto) y, si FIFA ya dio marcador en vivo, con el resultado y el minuto
+        const _lv=(window._mundLive||{})[String(m.fifaId||'')], _ahora=new Date(), _nowMin=_ahora.getHours()*60+_ahora.getMinutes(), _ini=min(m.hora), _dur=m.compId==='mundial-sub15-2026'?75:130;
+        const _vivo=!fin&&_ini<9999&&_nowMin>=_ini&&_nowMin<=_ini+_dur&&!(_lv&&_lv.fin);
+        out.push({sel:true,compId:m.compId||'',ck:cat,eyebrow:{nom,det},rival:m.rival,hora:_horaCortaTxt(m.hora),min:_ini,gl:fin?+m.gLocal:(_vivo?(_lv?_lv.gl:0):null),gr:fin?+m.gRival:(_vivo?(_lv?_lv.gr:0):null),estado:fin?'fin':(_vivo?'vivo':'prog'),minTxt:_vivo?((_lv&&_lv.min)||(Math.max(1,_nowMin-_ini)+"'")):''});
       });
     }
   }catch(_){}
@@ -9579,7 +9587,7 @@ function _futDockRender(){
   const W=300, ESZ=28, NF=14, GF=22;
   const pill=(txt,col,extra)=>`<span style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0;font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${col};border:1px solid ${col}44;background:${col}12;border-radius:999px;padding:1px 6px;white-space:nowrap">${extra||''}${txt}</span>`;
   const estadoPill=(it,hora)=>{
-    if(it.estado==='vivo') return `<span title="En vivo" style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;font-size:11px;font-weight:800;color:${ROSA};white-space:nowrap"><span style="width:5px;height:5px;border-radius:50%;background:${ROSA};box-shadow:0 0 6px ${ROSA};animation:futpulse 1.4s ease infinite"></span>${(it.m&&it.m.minuto)||'Vivo'}</span>`;
+    if(it.estado==='vivo') return `<span title="En vivo" style="display:inline-flex;align-items:center;gap:5px;flex-shrink:0;font-size:11px;font-weight:800;color:${ROSA};white-space:nowrap"><span style="width:5px;height:5px;border-radius:50%;background:${ROSA};box-shadow:0 0 6px ${ROSA};animation:futpulse 1.4s ease infinite"></span>${(it.m&&it.m.minuto)||it.minTxt||'Vivo'}</span>`;
     if(it.estado==='fin') return `<span title="Partido finalizado" style="display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:20px;height:20px;border-radius:50%;color:#052E16;background:#4ADE80"><i class="ti ti-check" style="font-size:13px;font-weight:800"></i></span>`;
     if(it.estado==='aplazado'||it.estado==='susp') return pill('Aplazado','#F59E0B');
     return `<span style="flex-shrink:0;font-size:13px;font-weight:800;color:var(--text);white-space:nowrap">${hora||'—'}</span>`;
@@ -35845,6 +35853,54 @@ function _showUpdateBanner(){
   document.body.appendChild(b);
 }
 window._showUpdateBanner=_showUpdateBanner;
+// Marcador en vivo del Mundial Sub-15 (FIFA): mientras hay un partido de Uruguay en juego, se consulta cada 40 s y se refresca «Partidos de hoy».
+(function(){
+  window._mundLive=window._mundLive||{};
+  async function tick(){
+    try{
+      if(document.hidden) return;
+      let list=[]; try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_sub15_2026')||'[]'); }catch(_){}
+      const ahora=new Date(), nowMin=ahora.getHours()*60+ahora.getMinutes();
+      const hoy=(Array.isArray(list)?list:[]).filter(m=>m.compId==='mundial-sub15-2026'&&m.fifaId&&String(m.fecha).slice(0,10)===TODAY&&m.gLocal==null);
+      let cambio=false;
+      for(const m of hoy){
+        const hm=String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/^\s*(\d{1,2}):(\d{2})/); if(!hm) continue;
+        const ini=parseInt(hm[1],10)*60+parseInt(hm[2],10); if(nowMin<ini-2||nowMin>ini+90) continue;
+        const st=(window._mundKoStage&&window._mundKoStage['mundial-sub15-2026'])||'294212';
+        const r=await fetch(`https://api.fifa.com/api/v3/live/football/109/293575/${st}/${m.fifaId}?language=es`,{cache:'no-store'}); if(!r.ok) continue;
+        const j=await r.json(); if(!j||!j.HomeTeam) continue;
+        const uH=j.HomeTeam.IdCountry==='URU', sc=(x)=>(x&&x.Score!=null?+x.Score:0);
+        const fin=!!j.Winner||j.MatchStatus===0;
+        const nv={gl:uH?sc(j.HomeTeam):sc(j.AwayTeam),gr:uH?sc(j.AwayTeam):sc(j.HomeTeam),min:j.MatchTime?String(j.MatchTime).replace(/[^0-9+']/g,''):'',fin};
+        const ant=window._mundLive[String(m.fifaId)]; if(!ant||ant.gl!==nv.gl||ant.gr!==nv.gr||ant.fin!==nv.fin||ant.min!==nv.min){ window._mundLive[String(m.fifaId)]=nv; cambio=true; }
+        if(fin&&typeof window._mundSyncFifa==='function') window._mundSyncFifa('mundial-sub15-2026',true);
+      }
+      if(cambio&&document.getElementById('inicio')?.classList.contains('active')&&typeof _futDockRender==='function') _futDockRender();
+    }catch(_){}
+  }
+  setInterval(tick,40000); setTimeout(tick,9000);
+})();
+// Pantalla de carga simple: cuando una pantalla se arma con imágenes (fotos, escudos, logos) que todavía no cargaron, se tapa con «Cargando…»
+// y se muestra recién cuando ya está todo cargado (máx. 3 s; si una imagen falla o tarda, no se espera más).
+(function(){
+  const MAX=3000; let box=null, showing=false, t0=0, poll=null, cool=0, deb=null;
+  function mk(){ if(box) return; box=document.createElement('div'); box.className='auf-ld'; box.innerHTML='<div><i></i>Cargando</div>'; document.body.appendChild(box); }
+  function pendientes(){
+    const sec=document.querySelector('.section.active'); if(!sec) return [];
+    return [...sec.querySelectorAll('img')].filter(im=>{
+      const src=im.getAttribute('src'); if(!src||/^data:/.test(src)||im.complete) return false;
+      if(im.closest('[style*="display:none"]')) return false;
+      const r=im.getBoundingClientRect(); return (r.width>0||r.height>0)&&r.top<window.innerHeight*1.2&&r.bottom>-200;
+    });
+  }
+  function ocultar(){ showing=false; clearInterval(poll); poll=null; if(box) box.classList.remove('on'); cool=Date.now()+900; }
+  function mostrar(){ mk(); showing=true; t0=Date.now(); box.classList.add('on');
+    poll=setInterval(()=>{ if(!pendientes().length||Date.now()-t0>MAX) ocultar(); },90); }
+  function revisar(){ if(showing||Date.now()<cool) return; if(pendientes().length) mostrar(); }
+  new MutationObserver(()=>{ clearTimeout(deb); deb=setTimeout(revisar,40); }).observe(document.body,{childList:true,subtree:true});
+  window._aufCargando=revisar;
+})();
+
 // «Actualizar» recarga la página, pero te deja donde estabas: sección, pestaña, categoría/competencia de Juveniles, ventana de prensa abierta y scroll.
 function _aufGuardarVista(){
   const act=document.querySelector('.section.active');
