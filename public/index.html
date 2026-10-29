@@ -9077,6 +9077,29 @@ window._covSetDesdeRec=function(tipo,catKey,D){
   else { if(i<0){ rec.link=!rec.link; } else { rec.linkExtra=rec.linkExtra||[]; rec.linkExtra[i]=!rec.linkExtra[i]; } }
   stor.set(KCovSemanal,all);
 };
+// Los jueves: pedir la convocatoria de la semana que viene de cada categoría activa (sub-20, sub-17, sub-16 y sub-15). Si esa semana no entrenan, «no hay» lo da por resuelto.
+const _REC_CONVJ_CATS=[['sub20','Sub-20'],['sub17','Sub-17'],['sub16','Sub-16'],['sub15','Sub-15']];
+function _recConvJuevesDerivados(){
+  const out=[];
+  try{
+    const manual=stor.get('auf4_rec_manual',{});
+    const dow=new Date(TODAY+'T12:00:00').getDay(), jue=_recSumarDias(TODAY,-((dow-4+7)%7));
+    [jue,_recSumarDias(jue,7)].forEach(T=>{
+      if(T<TODAY?T<_recSumarDias(TODAY,-4):false) return; // el del jueves pasado se ve hasta el lunes
+      const lun=_recSumarDias(T,4), dom=_recSumarDias(T,10), f=d=>d.split('-').reverse().slice(0,2).join('/');
+      _REC_CONVJ_CATS.forEach(([k,lbl])=>{
+        const id=`convj|${k}|${T}`, mn=manual[id]||{};
+        out.push({id,titulo:`Pedir la convocatoria de la semana que viene: ${lbl.toLowerCase()}${mn.no?' · no hay':''}`,detalle:`Semana del ${f(lun)} al ${f(dom)} · si no entrenan, tocá «no hay»`,vence:T,hora:'10:00',etiqueta:lbl,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+      });
+    });
+  }catch(e){ console.warn('recordatorios de convocatorias del jueves:',e); }
+  return out;
+}
+window._recNoHay=function(id){
+  const man=stor.get('auf4_rec_manual',{}); man[id]={hecho:true,no:true,hechoEn:new Date().toISOString()}; stor.set('auf4_rec_manual',man);
+  const n=document.getElementById('rec-noti'); if(n) n.remove();
+  if(typeof renderInicio==='function') renderInicio(); if(typeof _recDockRender==='function') _recDockRender();
+};
 // Atenciones de prensa (ventanas): aviso 2 h 30 antes (sin hora cargada: 09:00 del día) y, 3 h 30 después, «agregar el link a la atención» (sin hora: 18:00).
 // El del link se da por hecho solo cuando la atención ya tiene link cargado.
 function _recAtencionesDerivados(){
@@ -9163,7 +9186,7 @@ function _recGolesResDerivados(){
   }catch(e){ console.warn('recordatorios de goles:',e); }
   return out;
 }
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados()]; }
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados()]; }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -9181,6 +9204,7 @@ if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeo
 function _recNoAplicaBtn(r,hecho){
   if(r.clubRaw&&!hecho) return `<button data-n="${String(r.clubRaw).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_clubResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
   if(r.nomPend&&!hecho) return `<button data-n="${String(r.nomPend).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_nombreResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
+  if(/^convj\|/.test(String(r.id))&&!hecho) return `<button data-id="${String(r.id)}" onclick="window._recNoHay(this.dataset.id)" title="Esa semana no entrenan: se da por resuelto" style="border:1px solid #F59E0B;background:none;color:#B45309;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">no hay</button>`;
   if(!r.derivado||hecho) return '';
   return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoAplica(this.dataset.id)" title="No aplica saludo: lo saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no aplica</button>`;
 }
@@ -9679,7 +9703,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol|convj)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
