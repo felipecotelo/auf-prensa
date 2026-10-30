@@ -38946,8 +38946,8 @@ function _redesConclusionesGenerales(){
     const ig=_redesAudiencia('instagram'), tt=_redesAudiencia('tiktok');
     if(ig&&ig.sexo&&tt&&tt.sexo) bullets.push(`Perfil de los seguidores (todos los países): las mujeres son el <b>${String(ig.sexo.mujeres).replace('.',',')}%</b> en Instagram y el <b>${String(tt.sexo.mujeres).replace('.',',')}%</b> en TikTok, dos redes donde CIFRA registra más usuarias que usuarios en Uruguay: es el hueco más claro para crecer en casa.`);
     if(typeof REDES_IG_FORMATOS!=='undefined'){
-      const T=_redesIgFormatosTot();
-      bullets.push(`En el Instagram de AUF durante la gira de Asia (${REDES_IG_FORMATOS.total} publicaciones), los <b>${T.reelN} reels</b> (propios y en colaboración) fueron el ${Math.round(T.reelVistas/T.vistas*100)}% de las vistas pero explican el <b>${Math.round(T.reelSeg/T.seg*100)}%</b> de los seguidores atribuidos por Meta: para crecer en seguidores rinde el reel; las fotos y carruseles dan alcance y marca.`);
+      const T=_redesIgFormatosTot(), FU=_redesIgFormatosFuente();
+      bullets.push(`En el Instagram de AUF (${FU.ventana}, ${FU.total} publicaciones), los <b>${T.reelN} reels</b> (propios y en colaboración) fueron el ${Math.round(T.reelVistas/T.vistas*100)}% de las vistas pero explican el <b>${Math.round(T.reelSeg/T.seg*100)}%</b> de los seguidores atribuidos por Meta: para crecer en seguidores rinde el reel; las fotos y carruseles dan alcance y marca.`);
     }
   }
   const last=snaps[snaps.length-1];
@@ -39175,14 +39175,23 @@ const REDES_IG_FORMATOS = {
     {k:'historia',label:'Historias',n:157,vistas:14343828,alcance:11477210,inter:114030,seg:188}
   ]
 };
+function _redesIgFormatosFuente(){
+  const sn=_redesSnaps().filter(x=>x.instagram&&Array.isArray(x.instagram.formatos)&&x.instagram.formatos.length);
+  const l=sn[sn.length-1];
+  if(l&&l.fecha_snapshot>REDES_IG_FORMATOS.hasta){
+    const fl=l.instagram.formatos;
+    return {fecha:l.fecha_snapshot,desde:l.rango_desde,hasta:l.rango_hasta,total:fl.reduce((a,r)=>a+(r.n||0),0),filas:fl,ventana:l.corto||l.label,seg_ventana:l.instagram.seguidores_nuevos};
+  }
+  return Object.assign({ventana:'gira de Asia'},REDES_IG_FORMATOS);
+}
 function _redesIgFormatosTot(){
-  const f=REDES_IG_FORMATOS.filas, S=(c)=>f.reduce((a,r)=>a+r[c],0);
+  const f=_redesIgFormatosFuente().filas, S=(c)=>f.reduce((a,r)=>a+r[c],0);
   const reels=f.filter(r=>r.k.startsWith('reel'));
   const R=(c)=>reels.reduce((a,r)=>a+r[c],0);
   return {vistas:S('vistas'),alcance:S('alcance'),seg:S('seg'),reelVistas:R('vistas'),reelAlcance:R('alcance'),reelSeg:R('seg'),reelN:R('n')};
 }
 function _redesIgFormatos(){
-  const f=REDES_IG_FORMATOS.filas, T=_redesIgFormatosTot();
+  const FU=_redesIgFormatosFuente(), f=FU.filas, T=_redesIgFormatosTot();
   const maxSeg=Math.max(...f.map(r=>r.seg/(r.alcance/1e5)));
   const filas=f.map(r=>{
     const alc=Math.round(r.alcance/r.n/1000), s100=r.seg/(r.alcance/1e5), it=(r.inter/r.alcance*100);
@@ -39194,7 +39203,7 @@ function _redesIgFormatos(){
   <div class="rm-card">
     <div class="rm-eye">Instagram de AUF · por formato</div>
     <div class="rm-tit">Los reels traen seguidores; fotos y carruseles, vistas</div>
-    <div class="rm-sub">${REDES_IG_FORMATOS.total} publicaciones de la cuenta entre el ${_redesFmtFecha(REDES_IG_FORMATOS.desde)} y el ${_redesFmtFecha(REDES_IG_FORMATOS.hasta)}, con las cifras de Meta al ${_redesFmtFechaCorta(REDES_IG_FORMATOS.fecha)}.</div>
+    <div class="rm-sub">${FU.total} publicaciones de la cuenta entre el ${_redesFmtFecha(FU.desde)} y el ${_redesFmtFecha(FU.hasta)} (${FU.ventana}), con las cifras de Meta al ${_redesFmtFechaCorta(FU.fecha)}.</div>
     <div class="rm-tw"><table class="rm-t"><thead><tr><th>Formato</th><th>Pub.</th><th>Alcance por pub.</th><th>Interacción / alcance</th><th>Seguidores atribuidos</th><th>Seguidores por cada 100 mil personas alcanzadas</th></tr></thead><tbody>${filas}</tbody></table></div>
     <div class="rm-call"><span>Los <b>${T.reelN} reels</b> (propios y en colaboración) son el <b>${pVis}%</b> de las vistas y el <b>${pAlc}%</b> del alcance sumado, pero explican el <b>${pSeg}%</b> de los seguidores atribuidos. Con alcance parecido por publicación (fotos y reels propios rondan las 175-185 mil personas), el reel convierte mucho mejor en seguidores. Para <b>crecer en seguidores</b>, el reel; para <b>llegar a más gente con la marca</b>, la foto distribuida por jugadores y clubes.</span></div>
     <div class="rm-src">Meta Business Suite → Contenido. Las vistas de fotos y carruseles cuentan cada aparición en pantalla (cada imagen del carrusel por separado) y las de reels cada reproducción: no son equivalentes, por eso se compara por alcance (personas). Las colaboraciones comparten métricas con la otra cuenta. No incluye lo que publican jugadores y clubes en sus propias cuentas. Una publicación fuera de estos formatos (1) no figura.</div>
