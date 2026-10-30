@@ -4950,6 +4950,12 @@ async function _tmSyncAll(force){
       });
     });
   }
+  // Competencias históricas con la ficha conectada a Transfermarkt (comp.sincTM): su gente sigue activa y el club tiene que seguir al día.
+  if(typeof COMP_DATA!=='undefined'){
+    Object.values(COMP_DATA).filter(cd=>cd&&cd.sincTM).forEach(cd=>['convocados','preparacion','lista'].forEach(k=>(cd[k]||[]).forEach(j=>{
+      if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId}); }
+    })));
+  }
   const juvSyncList=juvList
     .filter(j=>force||!lastSync[j.tmId]||now-lastSync[j.tmId]>TM_TTL)
     .map(j=>({nom:j.nom,tmId:j.tmId,source:'juv'}));
@@ -4962,7 +4968,12 @@ async function _tmSyncAll(force){
       const r=await fetch(`/api/tm/${tmId}`);
       if(!r.ok) continue;
       const data=await r.json();
-      const clubName=data.club?.name;
+      // Si el perfil de Transfermarkt no es de esta persona (tmId mal cargado), no se toca nada.
+      const _nk=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().split(/[^a-z]+/).filter(w=>w.length>=4);
+      if(data.name && !_nk(nom).some(w=>_nk(data.name).includes(w))){ console.warn('TM: el tmId '+tmId+' es de "'+data.name+'", no de "'+nom+'"'); continue; }
+      let clubName=(data.club?.name||'').trim();
+      if(data.retired) clubName='Retirado'; else if(/^sin (equipo|club)$/i.test(clubName)) clubName='Sin club';
+      if(data.retired){ const _rt=stor.get('auf4_retirado',{}); if(!_rt[nom]){ _rt[nom]=true; stor.set('auf4_retirado',_rt,{allowShrink:true}); } }
       const countryName=data.league?.countryName||data.club?.countryName;
       if(clubName){
         if(source==='mayor'){
@@ -4982,7 +4993,7 @@ async function _tmSyncAll(force){
           // Juveniles: guardar en KJuvClub
           if(!juvClubOvr[nom]) juvClubOvr[nom]={exClubs:[]};
           const prevJuv=juvClubOvr[nom].actual;
-          if(prevJuv && prevJuv!==clubName){
+          if(prevJuv && _clubCorto(prevJuv)!==_clubCorto(clubName) && !/^(sin club|retirado)$/i.test(prevJuv)){
             const exListJ=juvClubOvr[nom].exClubs||[];
             if(!exListJ.includes(prevJuv)) exListJ.push(prevJuv);
             juvClubOvr[nom].exClubs=exListJ;
@@ -5352,6 +5363,9 @@ const getMayorNac = () => { const stored=stor.get(KMayorNac,{}); return {...MAYO
 
 // Fechas de nacimiento de jugadores juveniles (todas las generaciones conocidas)
 const JUV_NAC_DATES = {
+  'Álvaro Rodríguez':'2004-07-14',
+  // Campeones del Mundo Sub-20 2023 (Transfermarkt)
+  'Facundo Machado':'2004-01-19', 'Sebastián Boselli':'2003-12-04', 'Mateo Antoni':'2003-04-22', 'Mateo Ponte':'2003-05-24', 'Fabricio Díaz':'2003-02-03', 'Mathías De Ritis':'2003-01-31', 'Rodrigo Chagas':'2003-08-20', 'Andrés Ferrari':'2003-01-03', 'Franco González':'2004-06-22', 'Juan De Los Santos':'2003-02-22', 'Randall Rodríguez':'2003-11-29', 'Damián García':'2003-07-15', 'Ignacio Sosa':'2003-08-31', 'Facundo González':'2003-06-06', 'Matías Abaldo':'2004-04-03', 'Santiago Homenchenko':'2003-08-30', 'Luciano Rodríguez Rosales':'2003-07-16', 'José Arbío':'2003-01-21',
   // Generación 2011 — Sub-15 actual, planilla oficial AUF (nutrición) 2026
   'Alfonzo Portillo':'2011-11-06', 'Axel Sosa':'2011-02-16', 'Bautista Casco':'2011-10-28',
   'Bautista González':'2011-07-15', 'Benjamín Martínez':'2011-05-31', 'Benjamín Suárez':'2011-05-07',
@@ -21690,7 +21704,7 @@ const BIELSA_CONVOCATORIAS=[
     {nom:'Sergio Rochet'},{nom:'Franco Israel', club:'Torino FC', pais:'it'},{nom:'Santiago Mele', club:'CA Independiente', pais:'ar', fechaNac:'1997-09-06'},
     {nom:'Randall Rodríguez',sub20:true},
     {nom:'Bruno Méndez', club:'Deportivo Toluca FC', pais:'mx', fechaNac:'1999-09-10'},{nom:'Mauricio Lemos'},
-    {nom:'Sebastián Boselli',sub20:true},{nom:'Facundo González',sub20:true, tmId:1232131, fechaNac:'2005-05-10'},
+    {nom:'Sebastián Boselli',sub20:true},{nom:'Facundo González',sub20:true, tmId:825199, fechaNac:'2003-06-06'},
     {nom:'Santiago Mouriño',nota:'citado más tarde por lesión de Ponte'},
     {nom:'Sebastián Cáceres', club:'RC Celta de Vigo', pais:'es', fechaNac:'1999-08-18'},{nom:'Guillermo Varela', club:'CR Flamengo', pais:'br', fechaNac:'1993-03-24'},{nom:'José Luis Rodríguez', club:'CR Vasco da Gama', pais:'br', fechaNac:'1997-03-14'},
     {nom:'Mateo Ponte',sub20:true,nota:'solo recuperación de la lesión'},
@@ -25612,8 +25626,12 @@ const CLUBES_DB=[
  'Celta de Vigo|es|RC Celta de Vigo;RC Celta;Celta',
  'Deportivo de La Coruña|es|RC Deportivo de La Coruña;Deportivo A Coruña;Deportivo La Coruña;RC Deportivo',
  'Getafe|es|Getafe CF',
+ 'Alianza Lima|pe|Club Alianza Lima;CA Alianza Lima',
+ 'San Lorenzo|ar|CA San Lorenzo de Almagro;Club Atlético San Lorenzo de Almagro;San Lorenzo de Almagro',
+ 'Shabab Al-Ahli|ae|Shabab Al-Ahli Club;Shabab Al Ahli;Shabab Al-Ahli Dubai',
+ 'Al-Jazira|ae|Al-Jazira Club;Al Jazira;Al Jazira Club',
  'Real Madrid|es|Real Madrid CF',
- 'Racing de Santander|es|Racing Club Santander;Racing Club de Santander;Real Racing Club de Santander;Racing Santander',
+ 'Racing de Santander|es|Racing Club Santander;Racing Club de Santander;Real Racing Club de Santander;Real Racing Club;Racing Santander',
  'Real Betis|es|Real Betis Balompié;Betis',
  'Espanyol|es|RCD Espanyol;RCD Espanyol Barcelona;Espanyol Barcelona',
  'Atlético de Madrid|es|Atlético;Atleti;Atlético Madrid;Atlético Madrileño;Club Atlético de Madrid;Atletico Madrid',
@@ -27998,7 +28016,7 @@ const JUVENILES = {
           titulo: '🏆 Mundial Sub-20 Argentina 2023',
           cuando: 'Mayo – Junio de 2023 · Argentina',
           resultado: '🏆 CAMPEÓN DEL MUNDO',
-          desc: 'Uruguay conquistó el Campeonato Mundial Sub-20 de la FIFA en Argentina 2023, su segundo título mundial en la categoría. Disputó el Grupo E junto a Irak, Inglaterra y Túnez.',
+          desc: 'Uruguay conquistó el Campeonato Mundial Sub-20 de la FIFA en Argentina 2023, su primer título mundial en la categoría. Disputó el Grupo E junto a Irak, Inglaterra y Túnez.',
         },
         convocatorias: [
           {fecha:'Lista larga — Preparación Sudamericano y Mundial 2023', jugadores:[
@@ -28072,7 +28090,7 @@ const JUVENILES = {
             {nom:'Valentín Gauthier',        club:'Juventud'},
             {nom:'Tiago Glattli',            club:'Plaza Colonia'},
             {nom:'Daniel Peluffo',           club:''},
-            {nom:'Facundo González',         club:'Racing Club Santander',           pais:'es', tmId:1232131, fechaNac:'2005-05-10'},
+            {nom:'Facundo González',         club:'Racing Club Santander',           pais:'es', tmId:825199, fechaNac:'2003-06-06'},
           ]},
           {fecha:'Mayo 2023 — Mundial Sub-20 Argentina', jugadores:[
             {nom:'Facundo Machado',     club:'Nacional',              num:1},
@@ -28090,7 +28108,7 @@ const JUVENILES = {
             {nom:'Alan Matturro',       club:'Shakhtar Donetsk',                num:13, fechaNac:'2004-10-11'},
             {nom:'Damián García',       club:'Peñarol',               num:14},
             {nom:'Ignacio Sosa',        club:'Fénix',                 num:15, fechaNac:'2003-08-31'},
-            {nom:'Facundo González',    club:'Racing Club Santander',              num:16, tmId:1232131, fechaNac:'2005-05-10'},
+            {nom:'Facundo González',    club:'Racing Club Santander',              num:16, tmId:825199, fechaNac:'2003-06-06'},
             {nom:'Matías Abaldo',       club:'CA Independiente',     num:17},
             {nom:'Santiago Homenchenko',club:'Querétaro FC',               num:18},
             {nom:'Luciano Rodríguez Rosales',   club:'Cruzeiro Esporte Clube',             num:19},
@@ -28174,7 +28192,7 @@ const JUVENILES = {
             {nom:'Renzo Machado',             club:'Liverpool', tmId:1103696, fechaNac:'2005-09-21'},
             {nom:'Agustín Pereira',           club:'Liverpool', fechaNac:'2006-08-28'},
             {nom:'Edqui Amaro',               club:'Fénix'},
-            {nom:'Facundo González',          club:'Racing Club Santander', tmId:1232131, fechaNac:'2005-05-10'},
+            {nom:'Facundo González',          club:'Racing Club Santander', tmId:825199, fechaNac:'2003-06-06'},
             {nom:'Joaquín Lavega',            club:'Coritiba Foot Ball Club', tmId:895926, fechaNac:'2005-02-03'},
             {nom:'Ignacio Campos',            club:'River Plate'},
             {nom:'Ian Colina',                club:'River Plate', fechaNac:'2007-05-26'},
@@ -31224,7 +31242,7 @@ const COTIF_2024 = {
     {num:1,  nom:'Kevin Martínez',       club:'Danubio', fechaNac:'2005-11-26'},
     {num:2,  nom:'Tomás Viera',          club:'Nacional', fechaNac:'2006-03-18'},
     {num:3,  nom:'Nicolás Ramos',        club:'Rentistas', tmId:1247310, fechaNac:'2005-04-01'},
-    {num:4,  nom:'Facundo González',     club:'Racing Club Santander', tmId:1232131, fechaNac:'2005-05-10'},
+    {num:4,  nom:'Facundo González',     club:'Racing Club Santander', tmId:825199, fechaNac:'2003-06-06'},
     {num:5,  nom:'Axel Frugone',         club:'Nacional', fechaNac:'2005-04-01'},
     {num:6,  nom:'Mauricio Amaro',       club:'Defensor Sporting', fechaNac:'2005-07-19'},
     {num:7,  nom:'Lucas Agazzi',         club:'Defensor Sporting', tmId:1106327, fechaNac:'2005-05-02'},
@@ -32332,65 +32350,77 @@ const PRE_OLIMPICO_2024 = {
 };
 
 const MUNDIAL_SUB20_2023 = {
+  sincTM:true, // fichas conectadas a Transfermarkt (tmId de cada jugador): club, retiro
   id:'mundial-sub20-2023', label:'Mundial Sub-20 Argentina 2023', icon:'🏆', color:'#B45309',
   tipo:'oficial', fecha:'Mayo – Junio de 2023 · Argentina',
   resultado:'🏆 CAMPEÓN',
   grupo:'E — vs. Irak 🇮🇶, Inglaterra 🏴󠁧󠁢󠁥󠁮󠁧󠁿, Túnez 🇹🇳',
+  cierre:{puesto:1, campeon:true, de:24, titulo:'Copa Mundial Sub-20', cuando:'20 may – 11 jun 2023', donde:'Argentina', cat:'sub20', dt:'Marcelo Broli',
+    nota:'Primer título mundial de Uruguay en la categoría (había sido finalista en 1997 y 2013). Final: 1–0 a Italia en La Plata, gol de Luciano Rodríguez a los 86′.',
+    partidos:[
+      {fecha:'2023-05-22', rival:'Irak',           lugar:'Estadio de La Plata · La Plata', gLocal:4, gRival:0, goles:{'Matías Abaldo':1,'Andrés Ferrari':1,'Alan Matturro':1,'__EC__':1}},
+      {fecha:'2023-05-25', rival:'Inglaterra',     lugar:'Estadio de La Plata · La Plata', gLocal:2, gRival:3, goles:{'Franco González':1,'Matías Abaldo':1}},
+      {fecha:'2023-05-28', rival:'Túnez',          lugar:'Estadio de Mendoza · Mendoza',   gLocal:1, gRival:0, goles:{'Franco González':1}},
+      {fecha:'2023-06-01', rival:'Gambia',         lugar:'Estadio de Santiago del Estero', gLocal:1, gRival:0, goles:{'Anderson Duarte':1}},
+      {fecha:'2023-06-04', rival:'Estados Unidos', lugar:'Estadio de Santiago del Estero', gLocal:2, gRival:0, goles:{'Anderson Duarte':1,'__EC__':1}},
+      {fecha:'2023-06-08', rival:'Israel',         lugar:'Estadio de La Plata · La Plata', gLocal:1, gRival:0, goles:{'Anderson Duarte':1}},
+      {fecha:'2023-06-11', rival:'Italia',         lugar:'Estadio Único Diego Armando Maradona · La Plata', gLocal:1, gRival:0, goles:{'Luciano Rodríguez Rosales':1}},
+    ]},
   ct:[
     {iso:'uy', name:'Marcelo Broli', rol:'Director técnico', dt:true},
   ],
   staff:[],
   convocados:[
-    {num:1,  nom:'Facundo Machado',     club:'Nacional',              pos:'POR'},
-    {num:2,  nom:'Sebastián Boselli',   club:'Getafe CF'},
-    {num:3,  nom:'Mateo Antoni',        club:'Liverpool'},
-    {num:4,  nom:'Mateo Ponte',         club:'Botafogo de Futebol e Regatas'},
-    {num:5,  nom:'Fabricio Díaz',       club:'Al-Gharafa SC'},
-    {num:6,  nom:'Mathías De Ritis',    club:'Peñarol'},
-    {num:7,  nom:'Anderson Duarte',     club:'Atlético de San Luis', fechaNac:'2004-03-23'},
-    {num:8,  nom:'Rodrigo Chagas',      club:'Nacional'},
-    {num:9,  nom:'Andrés Ferrari',      club:'Defensor Sporting',     destaque:true},
-    {num:10, nom:'Franco González',     club:'Danubio'},
-    {num:11, nom:'Juan De Los Santos',  club:'River Plate'},
-    {num:12, nom:'Randall Rodríguez',   club:'Peñarol',               pos:'POR'},
-    {num:13, nom:'Alan Matturro',       club:'Shakhtar Donetsk',                destaque:true, fechaNac:'2004-10-11'},
-    {num:14, nom:'Damián García',       club:'Peñarol'},
-    {num:15, nom:'Ignacio Sosa',        club:'Fénix', fechaNac:'2003-08-31'},
-    {num:16, nom:'Facundo González',    club:'Racing Club Santander', tmId:1232131, fechaNac:'2005-05-10'},
-    {num:17, nom:'Matías Abaldo',       club:'CA Independiente'},
-    {num:18, nom:'Santiago Homenchenko',club:'Querétaro FC',               destaque:true},
-    {num:19, nom:'Luciano Rodríguez Rosales',   club:'Cruzeiro Esporte Clube'},
-    {num:20, nom:'Nicolás Siri',        club:'Montevideo City Torque', fechaNac:'2004-04-17'},
-    {num:21, nom:'José Arbío',          club:'River Plate'},
+    {num:1, nom:'Facundo Machado', club:'Racing', pos:'POR', tmId:837685, fechaNac:'2004-01-19'},
+    {num:2, nom:'Sebastián Boselli', club:'Getafe', pos:'DEF', tmId:898352, fechaNac:'2003-12-04'},
+    {num:3, nom:'Mateo Antoni', club:'Alianza Lima', pos:'DEF', tmId:988661, fechaNac:'2003-04-22'},
+    {num:4, nom:'Mateo Ponte', club:'Botafogo', pos:'DEF', tmId:856047, fechaNac:'2003-05-24'},
+    {num:5, nom:'Fabricio Díaz', club:'Al-Gharafa', pos:'MED', tmId:741567, fechaNac:'2003-02-03'},
+    {num:6, nom:'Mathías De Ritis', club:'San Lorenzo', pos:'DEF', tmId:981054, fechaNac:'2003-01-31'},
+    {num:7, nom:'Anderson Duarte', club:'Atlético de San Luis', pos:'DEL', tmId:928648, fechaNac:'2004-03-23'},
+    {num:8, nom:'Rodrigo Chagas', club:'Juventud', pos:'MED', tmId:1030317, fechaNac:'2003-08-20'},
+    {num:9, nom:'Andrés Ferrari', club:'Sporting de Gijón', pos:'DEL', tmId:973805, fechaNac:'2003-01-03', destaque:true},
+    {num:10, nom:'Franco González', club:'Peñarol', pos:'MED', tmId:928621, fechaNac:'2004-06-22'},
+    {num:11, nom:'Juan De Los Santos', club:'Al-Jazira', pos:'DEL', tmId:988662, fechaNac:'2003-02-22'},
+    {num:12, nom:'Randall Rodríguez', club:'sin club', pos:'POR', tmId:657751, fechaNac:'2003-11-29'},
+    {num:13, nom:'Alan Matturro', club:'Shakhtar Donetsk', pos:'DEF', tmId:861981, fechaNac:'2004-10-11', destaque:true},
+    {num:14, nom:'Damián García', club:'Shabab Al-Ahli', pos:'MED', tmId:981056, fechaNac:'2003-07-15'},
+    {num:15, nom:'Ignacio Sosa', club:'Bragantino', pos:'MED', tmId:881645, fechaNac:'2003-08-31'},
+    {num:16, nom:'Facundo González', club:'Racing de Santander', pos:'DEF', tmId:825199, fechaNac:'2003-06-06'},
+    {num:17, nom:'Matías Abaldo', club:'Independiente', pos:'DEL', tmId:928647, fechaNac:'2004-04-03'},
+    {num:18, nom:'Santiago Homenchenko', club:'Querétaro', pos:'MED', tmId:895679, fechaNac:'2003-08-30', destaque:true},
+    {num:19, nom:'Luciano Rodríguez Rosales', club:'Cruzeiro', pos:'DEL', tmId:856143, fechaNac:'2003-07-16'},
+    {num:20, nom:'Nicolás Siri', club:'Boston River', pos:'DEL', tmId:815381, fechaNac:'2004-04-17'},
+    {num:21, nom:'José Arbío', club:'River Plate', pos:'POR', tmId:988667, fechaNac:'2003-01-21'},
   ],
   preparacion:[
-    {nom:'Randall Rodríguez',   club:'Peñarol'},
-    {nom:'Facundo Machado',     club:'Nacional'},
-    {nom:'José Arbío',          club:'River Plate'},
+    {nom:'Randall Rodríguez', club:'sin club', tmId:657751, fechaNac:'2003-11-29'},
+    {nom:'Facundo Machado', club:'Racing', tmId:837685, fechaNac:'2004-01-19'},
+    {nom:'José Arbío', club:'River Plate', tmId:988667, fechaNac:'2003-01-21'},
     {nom:'Kevin Martínez',      club:'Danubio',                destaque:true, fechaNac:'2005-11-26'},
     {nom:'Valentín Gauthier',   club:'Juventud de las Piedras'},
-    {nom:'Sebastián Boselli',   club:'Getafe CF'},
-    {nom:'Mateo Antoni',        club:'Liverpool'},
-    {nom:'Mateo Ponte',         club:'Botafogo de Futebol e Regatas'},
-    {nom:'Mathías De Ritis',    club:'Peñarol'},
+    {nom:'Sebastián Boselli', club:'Getafe', tmId:898352, fechaNac:'2003-12-04'},
+    {nom:'Mateo Antoni', club:'Alianza Lima', tmId:988661, fechaNac:'2003-04-22'},
+    {nom:'Mateo Ponte', club:'Botafogo', tmId:856047, fechaNac:'2003-05-24'},
+    {nom:'Mathías De Ritis', club:'San Lorenzo', tmId:981054, fechaNac:'2003-01-31'},
     {nom:'Rodrigo Cabrera',     club:'Defensor Sporting', fechaNac:'2004-08-07'},
-    {nom:'Fabricio Díaz',       club:'Al-Gharafa SC'},
-    {nom:'Rodrigo Chagas',      club:'Nacional'},
-    {nom:'Damián García',       club:'Peñarol'},
-    {nom:'Ignacio Sosa',        club:'Fénix', fechaNac:'2003-08-31'},
-    {nom:'Santiago Homenchenko',club:'Querétaro FC',                destaque:true},
-    {nom:'Juan De Los Santos',  club:'River Plate'},
-    {nom:'Matías Abaldo',       club:'CA Independiente'},
-    {nom:'Anderson Duarte',     club:'Atlético de San Luis', fechaNac:'2004-03-23'},
+    {nom:'Fabricio Díaz', club:'Al-Gharafa', tmId:741567, fechaNac:'2003-02-03'},
+    {nom:'Rodrigo Chagas', club:'Juventud', tmId:1030317, fechaNac:'2003-08-20'},
+    {nom:'Damián García', club:'Shabab Al-Ahli', tmId:981056, fechaNac:'2003-07-15'},
+    {nom:'Ignacio Sosa', club:'Bragantino', tmId:881645, fechaNac:'2003-08-31'},
+    {nom:'Santiago Homenchenko', club:'Querétaro', tmId:895679, fechaNac:'2003-08-30', destaque:true},
+    {nom:'Juan De Los Santos', club:'Al-Jazira', tmId:988662, fechaNac:'2003-02-22'},
+    {nom:'Matías Abaldo', club:'Independiente', tmId:928647, fechaNac:'2004-04-03'},
+    {nom:'Anderson Duarte', club:'Atlético de San Luis', tmId:928648, fechaNac:'2004-03-23'},
     {nom:'Joaquín Lavega',      club:'Coritiba Foot Ball Club',            destaque:true, tmId:895926, fechaNac:'2005-02-03'},
-    {nom:'Franco González',     club:'Danubio'},
-    {nom:'Luciano Rodríguez Rosales',   club:'Cruzeiro Esporte Clube'},
-    {nom:'Nicolás Siri',        club:'Montevideo City Torque', fechaNac:'2004-04-17'},
+    {nom:'Franco González', club:'Peñarol', tmId:928621, fechaNac:'2004-06-22'},
+    {nom:'Luciano Rodríguez Rosales', club:'Cruzeiro', tmId:856143, fechaNac:'2003-07-16'},
+    {nom:'Nicolás Siri', club:'Boston River', tmId:815381, fechaNac:'2004-04-17'},
     {nom:'Emiliano Rodríguez',  club:'Boston River'},
-    {nom:'Andrés Ferrari',      club:'Defensor Sporting',      destaque:true},
-    {nom:'Facundo González',    club:'Racing Club Santander', tmId:1232131, fechaNac:'2005-05-10'},
-    {nom:'Alan Matturro',       club:'Shakhtar Donetsk',                 destaque:true, fechaNac:'2004-10-11'},
-    {nom:'Álvaro Rodríguez',    club:'AFC Bournemouth',            nota:'No cedido por el club'},
+    {nom:'Andrés Ferrari', club:'Sporting de Gijón', tmId:973805, fechaNac:'2003-01-03', destaque:true},
+    {nom:'Facundo González', club:'Racing de Santander', tmId:825199, fechaNac:'2003-06-06'},
+    {nom:'Alan Matturro', club:'Shakhtar Donetsk', tmId:861981, fechaNac:'2004-10-11', destaque:true},
+    {nom:'Álvaro Rodríguez',    club:'AFC Bournemouth', tmId:948275, fechaNac:'2004-07-14', nota:'No cedido por el club'},
     {nom:'Diego Abreu',         club:'Club Tijuana',           destaque:true, fechaNac:'2003-08-27'},
     {nom:'Kevin Altéz',         club:'Montevideo City Torque', destaque:true},
     {nom:'Augusto Cambón',      club:'Defensor Sporting',      destaque:true, fechaNac:'2005-01-17'},
@@ -32408,9 +32438,13 @@ const MUNDIAL_SUB20_2023 = {
   ],
   goleadores:[],
   partidos:[
-    {fase:'Grupo E', fecha:'22/05/2023', rival:'Irak',       rivalBandera:'🇮🇶', res:'', sede:'La Plata',  goles:[]},
-    {fase:'Grupo E', fecha:'25/05/2023', rival:'Inglaterra', rivalBandera:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', res:'', sede:'La Plata',  goles:[]},
-    {fase:'Grupo E', fecha:'28/05/2023', rival:'Túnez',      rivalBandera:'🇹🇳', res:'', sede:'Mendoza',  goles:[]},
+    {fase:'Grupo E', fecha:'22/05/2023', rival:'Irak',       rivalBandera:'🇮🇶', res:'4-0', sede:'La Plata',  goles:[]},
+    {fase:'Grupo E', fecha:'25/05/2023', rival:'Inglaterra', rivalBandera:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', res:'2-3', sede:'La Plata',  goles:[]},
+    {fase:'Grupo E', fecha:'28/05/2023', rival:'Túnez',      rivalBandera:'🇹🇳', res:'1-0', sede:'Mendoza',  goles:[]},
+    {fase:'Octavos de final', fecha:'01/06/2023', rival:'Gambia',         rivalBandera:'🇬🇲', res:'1-0', sede:'Santiago del Estero', goles:[]},
+    {fase:'Cuartos de final', fecha:'04/06/2023', rival:'Estados Unidos', rivalBandera:'🇺🇸', res:'2-0', sede:'Santiago del Estero', goles:[]},
+    {fase:'Semifinal',        fecha:'08/06/2023', rival:'Israel',         rivalBandera:'🇮🇱', res:'1-0', sede:'La Plata', goles:[]},
+    {fase:'Final',            fecha:'11/06/2023', rival:'Italia',         rivalBandera:'🇮🇹', res:'1-0', sede:'La Plata', goles:[]},
   ],
   logistica:{
     hoteles:[
@@ -34275,6 +34309,7 @@ window._setJuvTab = function(tab){
 };
 function _defaultJuvCompTab(id){
   if(typeof _MUND_CFG!=='undefined'&&_MUND_CFG[id]&&_MUND_CFG[id].cierre) return 'resumen';
+  if(COMP_DATA[id]&&COMP_DATA[id].cierre) return 'resumen';
   const comp = COMP_DATA[id];
   if(!comp) return 'convocados';
   const hasConv = (comp.convocados||[]).filter(j=>!j.descartado).length > 0;
@@ -34539,9 +34574,10 @@ window._mun15DisLink=function(key,stage,inp){
 // El MD-1 es uno por día de partidos (si hay dos partidos el mismo día, la pieza del MD-1 es una sola); el informe de victoria es uno por partido.
 // Resumen del torneo cerrado: puesto final, números, camino partido a partido y goleadores (todo sale de los partidos cargados)
 window._mundResumenHtml=function(cid){
-  const cfg=_MUND_CFG[cid], c=cfg&&cfg.cierre; if(!c) return '';
-  const col=_catCol(cfg.cat);
-  const ms=_getAmistosos(cfg.cat,cfg.year).filter(m=>m.compId===cid&&m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='').sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+  // Torneos con partidos cargados a mano (_MUND_CFG) o históricos con el cierre y los partidos dentro de la propia competencia (COMP_DATA[cid].cierre)
+  const cfg=_MUND_CFG[cid]||null, c=(cfg&&cfg.cierre)||(COMP_DATA[cid]&&COMP_DATA[cid].cierre); if(!c) return '';
+  const col=_catCol(cfg?cfg.cat:c.cat);
+  const ms=(cfg?_getAmistosos(cfg.cat,cfg.year).filter(m=>m.compId===cid):(c.partidos||[]).map((m,i)=>({...m,id:'cz'+i,_sinClick:true}))).filter(m=>m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='').sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
   let g=0,e=0,p=0,gf=0,gc=0; const sc={}; let ec=0;
   ms.forEach(m=>{ const a=+m.gLocal,b=+m.gRival; gf+=a; gc+=b; if(a>b) g++; else if(a===b) e++; else p++; Object.entries(m.goles||{}).forEach(([n,v])=>{ if(n==='__EC__') ec+=+v; else sc[n]=(sc[n]||0)+(+v); }); });
   const top=Object.entries(sc).sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0])), max=top.length?top[0][1]:1;
@@ -34550,8 +34586,8 @@ window._mundResumenHtml=function(cid){
   const gl=top.map(([n,v])=>`<div class="cz-g"><span class="n">${n}</span><i style="--w:${Math.round(v/max*100)}%"></i><b>${v}</b></div>`).join('')+(ec?`<div class="cz-g"><span class="n" style="opacity:.6">En contra del rival</span><i style="--w:${Math.round(ec/max*100)}%"></i><b>${ec}</b></div>`:'');
   return `<div class="cz-wrap" style="--cat:${col}">
     <div class="cz-hero">
-      <div class="cz-eye">Copa Mundial Sub-15 · Torneo cerrado</div>
-      <div class="cz-pos"><b>${c.puesto}°</b><span>puesto de ${c.de} selecciones<br><em>${c.cat}</em></span></div>
+      <div class="cz-eye">${c.titulo||'Copa Mundial Sub-15'} · Torneo cerrado</div>
+      <div class="cz-pos"><b>${c.puesto}°</b><span>${c.campeon?'Campeón del Mundo<br><em>'+c.de+' selecciones':'puesto de '+c.de+' selecciones<br><em>'+c.cat}</em></span></div>
       <div class="cz-pills"><span><i class="ti ti-calendar-event"></i>${c.cuando}</span><span><i class="ti ti-map-pin"></i>${c.donde}</span><span><i class="ti ti-whistle"></i>DT ${c.dt}</span></div>
       ${c.nota?`<div class="cz-note">${c.nota}</div>`:''}
     </div>
@@ -36822,11 +36858,11 @@ function _convMatchCard(m,col,comp){
   const rc=(a,b)=>a>b?'#86EFAC':a===b?'#FCD34D':'#FCA5A5', vl=(a,b)=>a>b?'Victoria':a===b?'Empate':'Derrota';
   const right=hasRes?`<span class="jm-sc"><b style="color:${rc(gl,gr)}">${gl}–${gr}</b><em style="color:${rc(gl,gr)};border-color:${rc(gl,gr)}66">${vl(gl,gr)}</em></span>`:(h?`<span class="jm-sc"><b>${h}h</b><em>Por jugar</em></span>`:`<span class="jm-sc"><b style="color:rgba(239,243,248,.4)">–</b><em>Hora por confirmar</em></span>`);
   const sub=[m.lugar].filter(Boolean).join(' · ');
-  return `<div class="jm-card" style="--cat:${col}" onclick="_convIrPizarra(${m.id},${m.compId?`'${m.compId}'`:'null'})" title="Abrir la Pizarra de este partido">
+  return `<div class="jm-card" style="--cat:${col}${m._sinClick?';cursor:default':''}"${m._sinClick?'':` onclick="_convIrPizarra(${m.id},${m.compId?`'${m.compId}'`:'null'})" title="Abrir la Pizarra de este partido"`}>
     <span class="pz-d"><b>${parseInt(f[2],10)}</b><span>${MES[parseInt(f[1],10)-1]||''}</span></span>
     <span class="jm-esc jm-esc2">${_escudoSeleccion('Uruguay',38)}<i>vs</i>${_escudoSeleccion(m.rival,38)}</span>
     <span class="jm-mt"><b>Uruguay vs. <em>${m.rival}</em></b><span>${sub||'&nbsp;'}</span></span>
-    ${(!hasRes&&(m.compId==='mundial-sub15-2026'||m.tv==='none'||m.yt))?right.replace(/<\/span>$/,_tvHtml(m.compId,m)+'</span>'):right}<i class="ti ti-chevron-right jm-ch"></i></div>`;
+    ${(!hasRes&&(m.compId==='mundial-sub15-2026'||m.tv==='none'||m.yt))?right.replace(/<\/span>$/,_tvHtml(m.compId,m)+'</span>'):right}${m._sinClick?'':'<i class="ti ti-chevron-right jm-ch"></i>'}</div>`;
 }
 window._convIrPizarra=function(id,compId){
   // Lleva a la Pizarra del partido: pestaña Fixture si es de una competencia oficial, Amistosos prep. si es de preparación
@@ -37187,7 +37223,7 @@ function _renderJuvenilesSafe(el){
         if(comp.infoGeneral||comp.grupos) CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
         if(comp.estiloMundial) CTABS = _juvCompTabsMundial(comp);
         else if(_MUND_CFG[_juvComp]) CTABS.push({id:'posiciones',label:'Posiciones',icon:'ti-list-numbers'},{id:'diseno',label:'Diseño',icon:'ti-photo'});
-        if(_MUND_CFG[_juvComp]&&_MUND_CFG[_juvComp].cierre) CTABS.unshift({id:'resumen',label:'Resumen',icon:'ti-trophy'});
+        if((_MUND_CFG[_juvComp]&&_MUND_CFG[_juvComp].cierre)||comp.cierre) CTABS.unshift({id:'resumen',label:'Resumen',icon:'ti-trophy'});
         // Orden fijo en todas las categorías (la memoria muscular no cambia según el torneo); lo que no aplica a una competencia simplemente no aparece
         const _CT_ORD=['resumen','convocados','jugadores','fixture','posiciones','diseno','goleadores','ct_del','amistosos','info'];
         const _ctPos=id=>{ const i=_CT_ORD.indexOf(id); return i<0?(id==='info'?60:50):i; };
@@ -38002,7 +38038,7 @@ function _buildJuvCompBody(compId, color, catData){
     setTimeout(()=>window._mun15Mount&&window._mun15Mount(),0);
   }
 
-  else if(_juvCompTab==='resumen' && _MUND_CFG[compId] && _MUND_CFG[compId].cierre){
+  else if(_juvCompTab==='resumen' && ((_MUND_CFG[compId] && _MUND_CFG[compId].cierre) || (COMP_DATA[compId] && COMP_DATA[compId].cierre))){
     window._mundCur=compId;
     content = window._mundResumenHtml(compId);
   }

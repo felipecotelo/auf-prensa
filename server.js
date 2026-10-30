@@ -565,21 +565,59 @@ app.get('/api/calendar.ics', async (req, res) => {
   console.log('Endpoint /api/parse-boletin activo (upload + Dropbox URL)');
 })();
 
-// ── Proxy Transfermarkt API (evita CORS en cliente) ─────────────────────────
-app.get('/api/tm/:id', (req, res) => {
+// ── Transfermarkt (evita CORS en cliente) ────────────────────────────────────
+// La ficha de cada jugador queda conectada a Transfermarkt por su tmId: club actual, fecha de nacimiento,
+// posición y si se retiró. Lee el perfil público de transfermarkt.es (la API de terceros que se usaba antes devolvía 403).
+const _tmCache = new Map(); // id -> {ts, data}
+const _TM_TTL = 12 * 3600 * 1000;
+const _TM_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+function fetchTmHtml(url, hops) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': _TM_UA, 'Accept-Language': 'es', 'Accept': 'text/html' } }, (r) => {
+      if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && (hops || 0) < 4) {
+        r.resume();
+        return fetchTmHtml(new URL(r.headers.location, url).toString(), (hops || 0) + 1).then(resolve, reject);
+      }
+      if (r.statusCode !== 200) { r.resume(); return reject(new Error('Transfermarkt respondió ' + r.statusCode)); }
+      let data = '';
+      r.setEncoding('utf8');
+      r.on('data', chunk => data += chunk);
+      r.on('end', () => resolve(data));
+    }).on('error', reject);
+  });
+}
+function parseTmProfile(html) {
+  const txt = h => String(h || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  const clubSpan = (html.match(/data-header__club"[^>]*>([\s\S]*?)<\/span>/) || [])[1] || '';
+  const clubTxt = txt(clubSpan);
+  const clubTitle = (clubSpan.match(/<a title="([^"]+)"/) || [])[1] || null;
+  const retired = /^retirado$/i.test(clubTxt);
+  const dob = html.match(/itemprop="birthDate"[^>]*>\s*(\d{2})\/(\d{2})\/(\d{4})/);
+  const pos = (html.match(/Posición:\s*<span[^>]*>\s*([^<]+?)\s*</) || [])[1] || null;
+  const nom = (html.match(/<title>([^<]+?) - Perfil/) || [])[1] || null;
+  return {
+    name: nom,
+    club: { name: retired ? 'Retirado' : (clubTitle || clubTxt || null) },
+    retired,
+    dateOfBirth: dob ? `${dob[3]}-${dob[2]}-${dob[1]}` : null,
+    position: pos,
+  };
+}
+app.get('/api/tm/:id', async (req, res) => {
   const id = req.params.id.replace(/[^0-9]/g, '');
   if (!id) return res.status(400).json({ error: 'id inválido' });
-  const url = `https://transfermarkt-api.fly.dev/players/${id}/profile`;
-  https.get(url, { headers: { 'Accept': 'application/json', 'User-Agent': 'auf-prensa/1.0' } }, (r) => {
-    let data = '';
-    r.on('data', chunk => data += chunk);
-    r.on('end', () => {
-      try {
-        res.setHeader('Cache-Control', 'public, max-age=86400'); // 24h
-        res.json(JSON.parse(data));
-      } catch(e) { res.status(500).json({ error: 'parse error' }); }
-    });
-  }).on('error', e => res.status(502).json({ error: e.message }));
+  const hit = _tmCache.get(id);
+  if (hit && Date.now() - hit.ts < _TM_TTL) return res.json(hit.data);
+  try {
+    const html = await fetchTmHtml(`https://www.transfermarkt.es/x/profil/spieler/${id}`);
+    const data = parseTmProfile(html);
+    if (!data.club.name) return res.status(502).json({ error: 'sin club en el perfil' });
+    _tmCache.set(id, { ts: Date.now(), data });
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.json(data);
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
 });
 
 // ── Contador de idas a AUF / Complejo / Fecha FIFA (lee el iCal privado de Felipe) ──
