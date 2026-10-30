@@ -9168,6 +9168,15 @@ function _recPartidosDerivados(){
           if(D>='2026-10-29') // el aviso de enviar el tuit rige desde el 29/10/2026 (lo anterior ya se resolvió)
           out.push({id:idw,titulo:'Enviar por Whatsapp el link del tuit del informe '+lbl,detalle:_recResTxt(m),vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),
             hecho:!!mw.hecho,hechoEn:mw.hecho?mw.hechoEn:null});
+          // Amistosos juveniles que NO van por AUFtv (Felipe, 30/10/2026): pedir el video de los goles → mandar a hacer el clip para redes → publicarlo.
+          // No salen si ya se sabe que Uruguay no hizo goles (0 a favor).
+          if(D>='2026-10-29' && !m.compId && !m.oficial && !(m.gLocal!=null && Number(m.gLocal)===0)){ // rige desde el 29/10/2026 (lo anterior ya se resolvió)
+            const _gd='Partido '+D.split('-').reverse().join('/')+' · amistoso sin AUFtv'+((m.gLocal!=null&&m.gRival!=null)?' · '+m.gLocal+'–'+m.gRival:'');
+            [['gol1','Pedir video de los goles de la '+lbl,30],['gol2','Mandar a hacer clip para redes de los goles de la '+lbl,90],['gol3','Publicar clip de los goles de la '+lbl,180]].forEach(([k,tit,mm])=>{
+              const idg=k+'|'+uid, mg=manual[idg]||{}, wg=_recMasMin(_vF,_hF,mm);
+              out.push({id:idg,titulo:tit,detalle:_gd,vence:wg.vence,hora:wg.hora,etiqueta:metaCat(cat),hecho:!!mg.hecho,hechoEn:mg.hecho?mg.hechoEn:null});
+            });
+          }
         }
       });
     }
@@ -9894,7 +9903,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol|convj)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol|convj)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
