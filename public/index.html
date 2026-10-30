@@ -3511,8 +3511,11 @@ select.rd-in{padding:0 10px}
 .bn-hd-m{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .bn-hd-c{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:9px}
 .bn-hd-c>span:first-child{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.45);margin-right:4px}
-.bn-clb{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(239,243,248,.72);border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);border-radius:999px;padding:2px 8px 2px 6px}
+.bn-clb{font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(239,243,248,.72);border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);border-radius:999px;padding:2px 8px 2px 6px}
 .bn-clb img{width:13px;height:13px;object-fit:contain}
+.bn-clb:hover,.bn-clb.on{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.28);color:#fff}
+.bn-hd-cn{display:none;margin-top:8px;padding:9px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);font-size:12px;line-height:1.7;color:rgba(239,243,248,.85)}
+.bn-hd-cn b{display:block;font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.45);margin-bottom:2px}
 .bn-clb b{font-family:'Space Grotesk','Inter',sans-serif;font-size:11px;color:#EFF3F8}
 .bn-ms{margin:-4px 0 18px}
 .bn-ms .jm-card{margin-bottom:8px}
@@ -36604,6 +36607,16 @@ function _convRango(txt){
   const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   return [iso(d1),iso(d2),d1,d2];
 }
+// Toque sobre un club de «Por club»: lista simple con los nombres de sus jugadores (otro toque, o otro club, la cierra / cambia)
+window._convClubToggle=function(btn){
+  const hd=btn.closest('.bn-hd'); if(!hd) return; const box=hd.querySelector('.bn-hd-cn'); if(!box) return;
+  const abierto=btn.classList.contains('on');
+  hd.querySelectorAll('.bn-clb.on').forEach(b=>b.classList.remove('on'));
+  if(abierto){ box.style.display='none'; return; }
+  btn.classList.add('on');
+  const nombres=String(btn.dataset.j||'').split('|').filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  box.innerHTML=`<b>${btn.dataset.n}</b>${nombres.join(' · ')}`; box.style.display='block';
+};
 function _convInfo(pp, activos, juvPos){
   const nombre=String(pp[0]||''), r=_convRango(pp.join(' · '));
   let sub=''; if(r){ const [,,d1,d2]=r; const dias=Math.round((d2-d1)/86400000)+1; const f=d=>d.getDate()+' '+_CONV_MESN[d.getMonth()];
@@ -36622,8 +36635,9 @@ function _convInfo(pp, activos, juvPos){
   const posHtml=conPos?Object.entries(cnt).filter(([,n])=>n>0).map(([k,n])=>`<span class="rd-pill" style="--c:${PC[k]}">${k} ${n}</span>`).join(''):'';
   // Cuántos jugadores hay por club (sutil: pastillas chicas, de más a menos)
   const porClub=new Map();
-  (activos||[]).forEach(a=>{ const raw=(a&&a.club)||''; const n=raw?_clubCorto(raw):'Sin club'; porClub.set(n,(porClub.get(n)||0)+1); });
-  const clubsHtml=porClub.size?[...porClub].sort((x,y)=>y[1]-x[1]||x[0].localeCompare(y[0])).map(([n,c])=>{ const esc=n==='Sin club'?null:(typeof _escudoLocal==='function'?_escudoLocal(n):null); return `<span class="bn-clb">${esc?`<img src="${esc}" alt="" onerror="this.remove()">`:''}${n}<b>${c}</b></span>`; }).join(''):'';
+  (activos||[]).forEach(a=>{ const raw=(a&&a.club)||''; const n=raw?_clubCorto(raw):'Sin club'; if(!porClub.has(n)) porClub.set(n,[]); porClub.get(n).push((a&&a.nom)||''); });
+  const _eq=t=>String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const clubsHtml=porClub.size?[...porClub].sort((x,y)=>y[1].length-x[1].length||x[0].localeCompare(y[0])).map(([n,l])=>{ const esc=n==='Sin club'?null:(typeof _escudoLocal==='function'?_escudoLocal(n):null); return `<button type="button" class="bn-clb" data-n="${_eq(n)}" data-j="${_eq(l.join('|'))}" onclick="window._convClubToggle(this)" title="Ver los jugadores">${esc?`<img src="${esc}" alt="" onerror="this.remove()">`:''}${n}<b>${l.length}</b></button>`; }).join(''):'';
   return {rango:r,sub,tipoHtml,posHtml,clubsHtml};
 }
 function _convMatchCard(m,col,comp){
@@ -37920,7 +37934,7 @@ function _buildJuvCompBody(compId, color, catData){
       return `
       <div class="bn-hd" style="--cat:${col}"><div class="bn-hd-eye">Convocatoria vigente</div><div class="bn-hd-t">${_pp[0]}</div><div class="bn-hd-s">${info.sub||_pp.slice(1).join(' · ')}</div>
         <div class="bn-hd-m">${info.tipoHtml}<span class="rd-pill" style="--c:#E5ECF6"><i class="ti ti-users"></i>${activos.length} jugadores</span>${info.posHtml}</div>
-        ${info.clubsHtml?`<div class="bn-hd-c"><span>Por club</span>${info.clubsHtml}</div>`:''}</div>
+        ${info.clubsHtml?`<div class="bn-hd-c"><span>Por club</span>${info.clubsHtml}</div><div class="bn-hd-cn"></div>`:''}</div>
       ${cards?`<div class="bn-ms" style="--cat:${col}">${cards}</div>`:''}`; })() : '';
     content = _bannerFecha + _bannerRojo + _bannerSuave + `
       <div style="font-size:.68em;font-weight:800;color:${cc};text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
