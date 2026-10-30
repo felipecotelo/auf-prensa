@@ -8915,7 +8915,10 @@ function _recCumplesDerivados(){
         const D=m[1], nom=m[2], info=row.children[1];
         const sub=info&&info.children[1]?info.children[1].textContent.replace(/\s+/g,' ').trim():'';
         if(D>TODAY){
-          out.push({id:'cumple-dis|'+k,titulo:'Mandar a hacer diseño por cumpleaños de '+nom,detalle:sub,vence:_recDiaPedirDiseno(D),hora:'10:00',etiqueta:'Cumpleaños',hecho:!!st.diseno,hechoEn:st.diseno?(st.disenoEn||new Date().toISOString()):null,derivado:true});
+          // El día exacto del cumpleaños va explícito (no «mañana»): si cae domingo o lunes el diseño se pide el viernes, y se aclara.
+          const _dw=new Date(D+'T12:00:00'), _dn=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][_dw.getDay()], _dm=D.slice(8,10)+'/'+D.slice(5,7);
+          const _sub=sub.replace(/(cumpl\w+\s+\d+\s+años)\s+.*$/,`$1 el ${_dn} ${_dm}`)+((_dw.getDay()===0||_dw.getDay()===1)?' · se pide el viernes':'');
+          out.push({id:'cumple-dis|'+k,titulo:'Mandar a hacer diseño por cumpleaños de '+nom,detalle:_sub,vence:_recDiaPedirDiseno(D),hora:'10:00',etiqueta:'Cumpleaños',hecho:!!st.diseno,hechoEn:st.diseno?(st.disenoEn||new Date().toISOString()):null,derivado:true});
         } else {
           out.push({id:'cumple-pub|'+k,titulo:'Publicar saludo de cumpleaños de '+nom,detalle:sub,vence:D,hora:'09:00',etiqueta:'Cumpleaños',hecho:estado==='saludado',hechoEn:estado==='saludado'?new Date().toISOString():null,derivado:true});
         }
