@@ -7960,6 +7960,17 @@ function _escudoLocal(nombre){
   const h=_ESCUDOS_UY.find(([k])=>n.includes(k));
   return h?'./escudos/'+h[1]+'.png':null;
 }
+// Escudo del club (solo con los escudos ya cargados: uruguayos en ./escudos y algunos del exterior en ./escudos-club). Si no hay escudo, no se muestra nada.
+// El país sale de la base de clubes: «Racing de Santander» o «Liverpool» de otro país no deben tomar el escudo uruguayo.
+const _ESCUDOS_EXT=[['atletico de madrid','atleticomadrid'],['atletico madrid','atleticomadrid'],['cerezo osaka','cerezoosaka'],['independiente','independiente'],['inter de milan','intermilan'],['inter milan','intermilan'],['internazionale','intermilan'],['internacional de porto','internacional'],['kitchee','kitchee'],['manchester united','manchesterunited'],['mumbai city','mumbaicity'],['villarreal','villarreal']];
+function _clubShield(raw,sz){
+  sz=sz||22; const c=_clubCanon(raw); const nombre=c?c.n:_clubCorto(raw); if(!nombre) return '';
+  const pais=c?c.pais:_clubPaisAuto(raw);
+  let src=null;
+  if(pais==='uy') src=_escudoLocal(nombre);
+  else{ const n=String(nombre).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,'').trim(); const h=_ESCUDOS_EXT.find(([k])=>n===k||n.includes(k)); if(h) src='./escudos-club/'+h[1]+'.png'; }
+  return src?`<img class="cl-sh" src="${src}" alt="" title="${nombre}" style="width:${sz}px;height:${sz}px;object-fit:contain;flex-shrink:0" onerror="this.style.display='none'">`:'';
+}
 function _futbolEscudo(id,sz,nombre){
   sz=sz||20;
   const remoto=`https://imagecache.365scores.com/image/upload/f_png,w_${sz*2},h_${sz*2},c_limit,q_auto:eco,dpr_2,d_Competitors:default1.png/v2/Competitors/${id}`;
@@ -38071,7 +38082,7 @@ function _buildJuvCompBody(compId, color, catData){
       const clubTxt = _clubCorto(_clubRaw);
       const pais = _clubPaisAuto(_clubRaw, _ov&&_ov.pais) || (_ov&&_ov.pais) || 'uy';
       const pos = _jpos[j.nom]||''; const pc=_PCc[pos]||'rgba(239,243,248,.5)';
-      const shirt = (!off&&j.num!=null&&_dis[j.num])?`<span title="${_dis[j.num]===1?'1ª camiseta':'2ª camiseta'}">${_dis[j.num]===1?_sh1:_sh2}</span>`:'';
+      const shirt = _clubShield(_clubRaw,20);
       return `<div class="jf${off?' jf-off':''}">
         <div class="jf-top">${off?'<i class="ti ti-bandage" style="font-size:20px;color:#F87171"></i>':(j.num!=null?`<span class="jf-num">${j.num}</span>`:'<span></span>')}<span class="jf-ico">${j.asc?'<span class="jf-tag" title="Ascendido desde la Sub-16">ex-16</span>':''}${shirt}</span></div>
         <div class="jf-who">
@@ -38093,7 +38104,7 @@ function _buildJuvCompBody(compId, color, catData){
       const _clubRaw = (_ov&&(_ov.actual??(typeof _ov==='string'?_ov:undefined)))??(j.club||'');
       const pais = _clubPaisAuto(_clubRaw, _ov&&_ov.pais) || (_ov&&_ov.pais) || 'uy';
       const pos = _jpos[j.nom]||''; const pc=_PCc[pos]||'rgba(239,243,248,.5)';
-      const shirt = (!off&&j.num!=null&&_dis[j.num])?`<span class="cv-sh" title="${_dis[j.num]===1?'1ª camiseta':'2ª camiseta'}">${_dis[j.num]===1?_sh1:_sh2}</span>`:'';
+      const shirt = _clubShield(_clubRaw,22); // a la derecha de la fila: escudo del club (antes iba la remerita 1ª/2ª camiseta)
       const nac = j.fechaNac||(typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES[j.nom]:'')||'';
       const edad = nac&&typeof _nacAge==='function'?_nacAge(nac):null;
       return `<div class="sh-row${off?' off':''}" style="--pcol:${pc}">
