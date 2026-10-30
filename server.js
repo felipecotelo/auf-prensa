@@ -603,6 +603,36 @@ function parseTmProfile(html) {
     position: pos,
   };
 }
+// Búsqueda de jugadores en Transfermarkt: devuelve hasta 5 candidatos con fecha de nacimiento, club, posición y nacionalidad
+// (sirve para cargar el tmId de un jugador nuevo y verificar que sea la misma persona). Uso: /api/tm/buscar?q=Nombre+Apellido
+const _tmBusqCache = new Map();
+app.get('/api/tm/buscar', async (req, res) => {
+  const q = String(req.query.q || '').trim().slice(0, 80);
+  if (q.length < 3) return res.status(400).json({ error: 'consulta muy corta' });
+  const hit = _tmBusqCache.get(q.toLowerCase());
+  if (hit && Date.now() - hit.ts < _TM_TTL) return res.json(hit.data);
+  try {
+    const html = await fetchTmHtml('https://www.transfermarkt.es/schnellsuche/ergebnis/schnellsuche?query=' + encodeURIComponent(q));
+    const k = html.indexOf('Jugadores');
+    const seg = html.slice(k < 0 ? 0 : k, (k < 0 ? 0 : k) + 60000);
+    const ids = [];
+    for (const m of seg.matchAll(/href="\/[a-z0-9-]+\/profil\/spieler\/(\d+)"/g)) if (!ids.includes(m[1])) ids.push(m[1]);
+    const out = [];
+    for (const id of ids.slice(0, 5)) {
+      try {
+        const h = await fetchTmHtml(`https://www.transfermarkt.es/x/profil/spieler/${id}`);
+        const d = parseTmProfile(h);
+        const nat = (h.match(/itemprop="nationality"[^>]*>([\s\S]*?)<\/span>/) || [])[1] || '';
+        out.push({ id, ...d, nat: [...nat.matchAll(/title="([^"]+)"/g)].map(x => x[1]) });
+      } catch (e) { /* un perfil que falla no corta la búsqueda */ }
+      await new Promise(r => setTimeout(r, 400));
+    }
+    _tmBusqCache.set(q.toLowerCase(), { ts: Date.now(), data: out });
+    res.json(out);
+  } catch (e) {
+    res.status(502).json({ error: e.message });
+  }
+});
 app.get('/api/tm/:id', async (req, res) => {
   const id = req.params.id.replace(/[^0-9]/g, '');
   if (!id) return res.status(400).json({ error: 'id inválido' });
