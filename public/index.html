@@ -3511,6 +3511,9 @@ select.rd-in{padding:0 10px}
 .rd-pn b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:15.5px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;line-height:1.2}
 .rd-pn span{display:block;margin-top:3px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.55)}
 .jf.jf-off{border-color:rgba(248,113,113,.4)}
+.jf.jf-nc{border-color:#FB923C!important;box-shadow:0 0 0 1px rgba(251,146,60,.28),0 10px 26px rgba(251,146,60,.08)}
+.jf-ncl{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#FDBA74;border:1px solid rgba(251,146,60,.5);background:rgba(251,146,60,.1);border-radius:999px;padding:2px 9px}
+.jf-ncl i{font-size:12px}
 .jf.jf-off .jf-ph-in img{filter:grayscale(.8)}
 .rd-add{width:100%;height:34px;margin-bottom:12px;border-radius:999px;border:1px solid rgba(138,216,255,.5);background:rgba(0,157,216,.1);color:#8AD8FF;font:600 12px inherit;font-family:inherit;letter-spacing:.02em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 .rd-add:hover{background:rgba(0,157,216,.2)}
@@ -32320,12 +32323,11 @@ const PRE_OLIMPICO_2024 = {
     {num:17,nom:'Matías Abaldo',        club:'CA Independiente'},
     {num:18,nom:'Santiago Homenchenko', club:'Querétaro FC'},
     {num:19,nom:'Luciano Rodríguez Rosales',    club:'Cruzeiro Esporte Clube'},
-    {num:20,nom:'Cristian Olivera',     club:'Esporte Clube Bahia'},
+    {num:20,nom:'Cristian Olivera',     club:'Esporte Clube Bahia', fechaNac:'2002-04-17', noCedido:true, nota:'Convocado, pero Los Angeles FC (MLS) retiró la cesión antes del viaje: no jugó el torneo. Uruguay lo afrontó con 22 jugadores.'},
     {num:21,nom:'Renzo Sánchez',        club:'Nacional'},
     {num:22,nom:'Fredy Martínez',       club:'Nacional', fechaNac:'2001-05-01', tmId:815382},
     {num:23,nom:'Fabrizio Correa',      club:'La Luz', fechaNac:'2001-01-18', tmId:743953},
     {nom:'Rodrigo Dudok',               club:'Estrela da Amadora', descartado:'No convocado final', fechaNac:'2007-07-23', tmId:1062317},
-    {nom:'Cristian Olivera',            club:'Esporte Clube Bahia',    descartado:''},
   ],
   preparacion:[
     {nom:'Ignacio Suárez',club:'Nacional', fechaNac:'2002-02-05'},{nom:'Randall Rodríguez',club:'Peñarol'},
@@ -32576,7 +32578,7 @@ const MUNDIAL_SUB20_2023 = {
     {nom:'Andrés Ferrari', club:'Sporting de Gijón', tmId:973805, fechaNac:'2003-01-03', destaque:true},
     {nom:'Facundo González', club:'Racing de Santander', tmId:825199, fechaNac:'2003-06-06'},
     {nom:'Alan Matturro', club:'Shakhtar Donetsk', tmId:861981, fechaNac:'2004-10-11', destaque:true},
-    {nom:'Álvaro Rodríguez',    club:'AFC Bournemouth', tmId:948275, fechaNac:'2004-07-14', nota:'No cedido por el club'},
+    {nom:'Álvaro Rodríguez',    club:'AFC Bournemouth', tmId:948275, fechaNac:'2004-07-14', noCedido:true, nota:'AFC Bournemouth no lo cedió para el Mundial Sub-20 (no fue de la lista final).'},
     {nom:'Diego Abreu',         club:'Club Tijuana',           destaque:true, fechaNac:'2003-08-27'},
     {nom:'Kevin Altéz',         club:'Montevideo City Torque', destaque:true},
     {nom:'Augusto Cambón',      club:'Defensor Sporting',      destaque:true, fechaNac:'2005-01-17', tmId:1108738},
@@ -37128,7 +37130,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const _btnC=`<button class="jf-c${isJuvCapitan?' on':''}" onclick="event.stopPropagation();_toggleJuvCapitan('${nomSafe}')" title="${isJuvCapitan?'Quitar capitán':'Marcar como capitán'}">C</button>`;
   const _btnS=`<button class="jf-star${isJuvLeyenda?' on':''}" onclick="event.stopPropagation();_toggleJuvLeyenda('${nomSafe}')" title="${isJuvLeyenda?'Quitar leyenda':'Marcar como leyenda'}"><i class="ti ti-star${isJuvLeyenda?'-filled':''}"></i></button>`;
   const _nonum=p.num==null;
-  return `<div class="jf${_nonum?' jf-nonum':''}" style="${isJuvLesion?'border-color:#EF4444;':''}">
+  return `<div class="jf${_nonum?' jf-nonum':''}${p.noCedido?' jf-nc':''}" style="${isJuvLesion?'border-color:#EF4444;':''}">
     <div class="jf-top">
       ${_nonum?'<span></span>':`<span class="jf-num">${p.num}</span>`}
       <span class="jf-ico">
@@ -37164,6 +37166,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
     ${sb?`<div class="jf-badges">${sb}</div>`:''}
     ${_juvStatsBreakdownHTML(p.nom)}
     <div class="jf-tags">
+      ${p.noCedido?`<span class="jf-ncl" title="${String(p.nota||'').replace(/"/g,'&quot;')}"><i class="ti ti-ban"></i>No cedido por su club</span>`:''}
       ${(()=>{const T=(off.torneos||[]); if(!hasOficial||!T.length) return ''; const col=t=>{const m=String(t.cat||'').toLowerCase().match(/sub-?(\d+)/); return (typeof CAT_PAL!=='undefined'&&m&&CAT_PAL['sub'+m[1]])||'#94A3B8';}; if(T.length===1){const c=col(T[0]); return `<span class="jf-h jf-of" style="color:${c};background:${c}22;border:1px solid ${c}55" onclick="event.stopPropagation();_juvOficialInfo('${nomEnc}')" title="Ver torneos oficiales">${T[0].label}</span>`;} return `<span class="jf-h jf-hj jf-of" onclick="event.stopPropagation();_juvOficialInfo('${nomEnc}')" title="Ver torneos oficiales">${T.map(t=>`<i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col(t)};margin-right:3px"></i>`).join('')} ${T.length} torneos oficiales</span>`;})()}
       ${hist.filter(h=>/^(Mayor|Local)$/i.test(h.label)).map(h=>`<span class="jf-h" style="color:${h.color};background:${h.color}22">${h.label}</span>`).join('')}
       ${(()=>{const jh=hist.filter(h=>!/^(Mayor|Local)$/i.test(h.label)); if(!jh.length) return ''; if(jh.length===1) return `<span class="jf-h" style="color:${jh[0].color};background:${jh[0].color}22">${jh[0].label}</span>`; return `<span class="jf-h jf-hj" onclick="event.stopPropagation();_juvHistInfo('${nomEnc}')" title="Ver procesos en juveniles">${jh.map(h=>`<i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${h.color};margin-right:3px"></i>`).join('')} Juveniles · ${jh.length} procesos</span>`;})()}
@@ -38285,18 +38288,18 @@ function _buildJuvCompBody(compId, color, catData){
     const allMap = {};
     // 1. convocados activos primero (formal, última convocatoria, o preparacion completa)
     formalConv.forEach(j=>{
-      allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:true, num:j.num, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
+      allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:true, num:j.num, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, noCedido:!!j.noCedido, nota:j.nota||'', paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
     });
     lastCall.forEach(j=>{
-      allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:true, fechaNac:j.fechaNac||'', tmId:j.tmId||null, paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
+      allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:true, fechaNac:j.fechaNac||'', tmId:j.tmId||null, noCedido:!!j.noCedido, nota:j.nota||'', paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
     });
     // 2. preparacion (activo si no hay otra fuente de activos)
     (comp.preparacion||[]).forEach(j=>{
-      if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:prepAsActive, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
+      if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:prepAsActive, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, noCedido:!!j.noCedido, nota:j.nota||'', paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
     });
     // 3. lista larga
     (comp.lista||[]).forEach(j=>{
-      if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
+      if(!allMap[j.nom]) allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, noCedido:!!j.noCedido, nota:j.nota||'', paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
     });
     // Mundial (convocatoria que queda guardada): además de los convocados, todos los que estuvieron en el proceso
     // del ciclo (convocatorias de la categoría) quedan abajo como pool, con la ficha de siempre.
@@ -38304,7 +38307,7 @@ function _buildJuvCompBody(compId, color, catData){
       const _enMapa = new Set(Object.values(allMap).map(p=>_nomKey(p.nom)));
       cycleConvocatorias.forEach(c=>(c.jugadores||[]).forEach(j=>{
         const k=_nomKey(j.nom); if(_enMapa.has(k)) return; _enMapa.add(k);
-        allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
+        allMap[j.nom] = {nom:j.nom, club:j.club||'', activo:false, asc:j.asc, fechaNac:j.fechaNac||'', tmId:j.tmId||null, noCedido:!!j.noCedido, nota:j.nota||'', paisSec:j.paisSec||null, paisSecLabel:j.paisSecLabel||null};
       }));
     }
     // Bajas del proceso actual (p. ej. pasó al Femenino): no figuran en la preparación; en competencias con lista final histórica se conservan
