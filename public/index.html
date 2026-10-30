@@ -914,6 +914,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .jm-card .pz-d{min-width:40px}
 .jm-card .pz-d b{font-size:24px}
 .jm-esc{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);flex-shrink:0}
+.jm-esc2{width:auto;height:auto;border:0;background:none;border-radius:0;gap:8px;min-width:68px}
+.jm-esc2 img{display:block;object-fit:contain;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35))}
 .jm-mt{flex:1;min-width:0}
 .jm-mt b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:17px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;line-height:1.2}
 .jm-mt b em{font-style:normal;color:#38BDF8}
@@ -36681,6 +36683,40 @@ function _convInfo(pp, activos, juvPos){
   const clubsHtml=porClub.size?[...porClub].sort((x,y)=>y[1].length-x[1].length||x[0].localeCompare(y[0])).map(([n,l])=>{ const esc=n==='Sin club'?null:(typeof _escudoLocal==='function'?_escudoLocal(n):null); return `<button type="button" class="bn-clb" data-n="${_eq(n)}" data-j="${_eq(l.join('|'))}" onclick="window._convClubToggle(this)" title="Ver los jugadores">${esc?`<img src="${esc}" alt="" onerror="this.remove()">`:''}${n}<b>${l.length}</b></button>`; }).join(''):'';
   return {rango:r,sub,tipoHtml,posHtml,clubsHtml};
 }
+// Título, subtítulo y sobretítulo del encabezado «Convocatoria vigente»: lo que importa es qué se hace y cuándo, no el número del microciclo.
+// Entrenamientos: «Entrenamientos en el Complejo Celeste» + días de la semana + fechas + salvedades (lo que sobre en la cadena de convocadosFecha, ej. «concentración el martes»).
+// Viaje: «Viaje a X por amistosos internacionales» + fechas + días de los partidos.
+function _convTitulo(pp, info, partidos){
+  const nombre=String(pp[0]||''), resto=pp.slice(1);
+  const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const cap=t=>t?t.charAt(0).toUpperCase()+t.slice(1):t;
+  const fd=d=>d.getDate()+' '+_CONV_MESN[d.getMonth()];
+  const mv=nombre.match(/^\s*(?:viajeros?|viaje|gira)\s+(?:a|por|de)\s+(.+)$/i);
+  const esViaje=!!mv||/^\s*(viajeros?|viaje|gira)\b/i.test(nombre);
+  const esEntr=!esViaje&&(/^\s*microciclo\b/i.test(nombre)||/entrenamiento/i.test(nombre));
+  const base={t:nombre,s:info.sub||resto.join(' · '),eye:'Convocatoria vigente'};
+  if(esViaje){
+    const dest=mv?mv[1].trim():'';
+    const amist=partidos&&partidos.length&&partidos.every(m=>!m.compId);
+    const dp=(partidos||[]).map(m=>{ const d=new Date(String(m.fecha).slice(0,10)+'T12:00:00'); return isNaN(d)?'':DIAS[d.getDay()]+' '+fd(d); }).filter(Boolean);
+    return {t:dest?'Viaje a '+dest+(amist?' por amistosos internacionales':''):nombre,
+      s:[info.sub,dp.length?(amist?'Amistosos: ':'Partidos: ')+dp.join(' · '):''].filter(Boolean).join(' · '),eye:base.eye};
+  }
+  if(esEntr){
+    const rx=/^\s*(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i;
+    const diasTxt=resto.find(x=>rx.test(x));
+    let dias=diasTxt||'';
+    if(!dias&&info.rango){ const [,,d1,d2]=info.rango; dias=d1.getTime()===d2.getTime()?DIAS[d1.getDay()]:DIAS[d1.getDay()]+' a '+DIAS[d2.getDay()]; }
+    const iDate=resto.findIndex(x=>_convRango(x));
+    const salv=resto.filter((x,i)=>x!==diasTxt&&i!==iDate);
+    const fechas=(info.sub||'').replace(/^\d+ días · /,'');
+    const n=nombre.match(/^\s*microciclo\s+(\S+)/i);
+    return {t:'Entrenamientos en el Complejo Celeste',
+      s:[cap(dias),fechas,...salv.map(cap)].filter(Boolean).join(' · '),
+      eye:'Convocatoria vigente'+(n?' · Microciclo '+n[1]:'')};
+  }
+  return base;
+}
 function _convMatchCard(m,col,comp){
   const gl=m.gLocal, gr=m.gRival, hasRes=gl!=null&&gr!=null;
   const MES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
@@ -36691,7 +36727,7 @@ function _convMatchCard(m,col,comp){
   const sub=[m.lugar].filter(Boolean).join(' · ');
   return `<div class="jm-card" style="--cat:${col}" onclick="_convIrPizarra(${m.id},${m.compId?`'${m.compId}'`:'null'})" title="Abrir la Pizarra de este partido">
     <span class="pz-d"><b>${parseInt(f[2],10)}</b><span>${MES[parseInt(f[1],10)-1]||''}</span></span>
-    <span class="jm-esc" style="display:inline-flex;gap:3px">${_escudoSeleccion('Uruguay',28)}${_escudoSeleccion(m.rival,28)}</span>
+    <span class="jm-esc jm-esc2">${_escudoSeleccion('Uruguay',30)}${_escudoSeleccion(m.rival,30)}</span>
     <span class="jm-mt"><b>Uruguay vs. <em>${m.rival}</em></b><span>${sub||'&nbsp;'}</span></span>
     ${(!hasRes&&(m.compId==='mundial-sub15-2026'||m.tv==='none'||m.yt))?right.replace(/<\/span>$/,_tvHtml(m.compId,m)+'</span>'):right}<i class="ti ti-chevron-right jm-ch"></i></div>`;
 }
@@ -37978,8 +38014,9 @@ function _buildJuvCompBody(compId, color, catData){
       // Amistosos / partidos de la convocatoria: los cargados con fecha dentro del rango; cada tarjeta lleva a la Pizarra de ese partido
       let partidos=[]; if(info.rango){ try{ partidos=_getAmistosos(_juvCat,_juvYear).filter(m=>m.fecha&&String(m.fecha).slice(0,10)>=info.rango[0]&&String(m.fecha).slice(0,10)<=info.rango[1]).sort((x,y)=>String(x.fecha).localeCompare(String(y.fecha))||String(x.hora||'').localeCompare(String(y.hora||''))); }catch(_){} }
       const cards=partidos.map(m=>_convMatchCard(m,col,comp)).join('');
+      const _tt=_convTitulo(_pp,info,partidos);
       return `
-      <div class="bn-hd" style="--cat:${col}"><div class="bn-hd-eye">Convocatoria vigente</div><div class="bn-hd-t">${_pp[0]}</div><div class="bn-hd-s">${info.sub||_pp.slice(1).join(' · ')}</div>
+      <div class="bn-hd" style="--cat:${col}"><div class="bn-hd-eye">${_tt.eye}</div><div class="bn-hd-t">${_tt.t}</div><div class="bn-hd-s">${_tt.s}</div>
         <div class="bn-hd-m">${info.tipoHtml}<span class="rd-pill" style="--c:#E5ECF6"><i class="ti ti-users"></i>${activos.length} jugadores</span>${info.posHtml}</div>
         ${info.clubsHtml?`<div class="bn-hd-c"><span>Por club</span>${info.clubsHtml}</div><div class="bn-hd-cn"></div>`:''}</div>
       ${cards?`<div class="bn-ms" style="--cat:${col}">${cards}</div>`:''}`; })() : '';
