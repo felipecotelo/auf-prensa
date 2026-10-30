@@ -5537,7 +5537,7 @@ const FAMILIA_PARES = [
   {a:'Santiago Bueno',        relA:'sobrino de', b:'Gustavo Bueno',      relB:'tío de'},
   {a:'Antú Daguer',           relA:'hermano de', b:'Julio Daguer',       relB:'hermano de'},
   {a:'Benjamín Azambuja',     relA:'hermano de', b:'Nicolás Azambuja',   relB:'hermano de'},
-  {a:'Mateo Alcoba',          relA:'hermano de', b:'Pablo Alcoba',       relB:'hermano de'},
+  {a:'Mateo Alcoba',          relA:'mellizo de', b:'Pablo Alcoba',       relB:'mellizo de'},
   {a:'Francisco Sorondo',     relA:'hijo de',    b:'Gonzalo Sorondo',    relB:'padre de'},
   {a:'Juan Manuel Sanabria',  relA:'hermano de', b:'Lucas Sanabria',     relB:'hermano de'},
   {a:'Maximiliano Araújo',    relA:'hermano de', b:'César Araújo',       relB:'hermano de'},
@@ -9366,7 +9366,7 @@ function _recGolesResDerivados(){
   }catch(e){ console.warn('recordatorios de goles:',e); }
   return out;
 }
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados()]; }
+function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados()]; }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -9382,6 +9382,7 @@ function _recHechosHoy(){
 // Cada 5 min se vuelve a pintar el panel para que los que cumplieron las 12 h salgan solos, sin recargar.
 if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },300000);
 function _recNoAplicaBtn(r,hecho){
+  if(r.fnacCat&&!hecho) return `<button data-n="${String(r.fnacCat)}" onclick="_fnacModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">cargar</button>`;
   if(r.clubRaw&&!hecho) return `<button data-n="${String(r.clubRaw).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_clubResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
   if(r.nomPend&&!hecho) return `<button data-n="${String(r.nomPend).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_nombreResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
   if(/^convj\|/.test(String(r.id))&&!hecho) return `<button data-id="${String(r.id)}" onclick="window._recNoHay(this.dataset.id)" title="Esa semana no entrenan: se da por resuelto" style="border:1px solid #F59E0B;background:none;color:#B45309;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">no hay</button>`;
@@ -25954,6 +25955,64 @@ function _clubJugadoresDe(name){
   Object.entries(leer('auf4_jug_exclubs')).forEach(([nom,l])=>{ if(Array.isArray(l)&&l.some(x=>typeof x==='string'&&_clubKey(x)===k)) add(nom,'ex club'); });
   return out;
 }
+// Fechas de nacimiento que faltan (Felipe, 30/10/2026): un aviso por juvenil de una categoría activa (último ciclo) sin fecha en ninguna fuente de la ficha.
+function _fnacTodas(){
+  const c=window._fnacMapa; if(c&&Date.now()-c.t<60000) return c.v;
+  const m=new Map(); const add=(n,f)=>{ if(n&&f&&!m.has(n)) m.set(n,f); };
+  try{ Object.entries(JUV_NAC_DATES||{}).forEach(([n,f])=>add(n,f)); }catch(_){}
+  try{ Object.entries(MAYOR_NAC_DEFAULT||{}).forEach(([n,f])=>add(n,f)); }catch(_){}
+  try{ Object.entries(getMayorNac()||{}).forEach(([n,f])=>add(n,f)); }catch(_){}
+  try{ Object.entries(JUGADORES||{}).forEach(([n,j])=>add(n,j&&j.fechaNac)); }catch(_){}
+  const ent=j=>{ if(j&&j.nom) add(j.nom,j.fechaNac); };
+  try{ Object.values(JUVENILES||{}).forEach(cd=>Object.values(cd.anos||{}).forEach(ad=>{ (ad.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(ent)); (ad.lista||[]).forEach(ent); })); }catch(_){}
+  try{ Object.values(window.COMP_DATA||{}).forEach(cp=>['convocados','preparacion','lista'].forEach(k=>(cp[k]||[]).forEach(ent))); }catch(_){}
+  if(window.COMP_DATA) window._fnacMapa={t:Date.now(),v:m}; // no se guarda si todavía no están cargados los torneos
+  return m;
+}
+// Un aviso por categoría activa (no uno por jugador): cantidad de juveniles sin fecha; el botón abre la lista para cargarlas de una vez.
+function _fnacFaltantes(){
+  const mapa=_fnacTodas(); const res={}, vistos=new Set();
+  Object.entries(JUVENILES||{}).forEach(([cat,cd])=>{
+    if(!cd||!cd.activa) return;
+    const ys=Object.keys(cd.anos||{}).sort((a,b)=>parseInt(b)-parseInt(a)); const ad=cd.anos[ys[0]]; if(!ad) return;
+    const lista=[]; const push=(j,vig)=>{ if(!j||!j.nom||j.descartado||vistos.has(j.nom)) return; vistos.add(j.nom); if(mapa.has(j.nom)) return; lista.push({nom:j.nom,club:j.club||'',vigente:vig}); };
+    const cv=ad.convocatorias||[]; if(cv[0]) (cv[0].jugadores||[]).forEach(j=>push(j,true));
+    (ad.competencias||[]).forEach(c=>{ const cp=(window.COMP_DATA||{})[c.id]; if(cp) (cp.convocados||[]).forEach(j=>push(j,true)); });
+    cv.slice(1).forEach(c=>(c.jugadores||[]).forEach(j=>push(j,false))); (ad.lista||[]).forEach(j=>push(j,false));
+    (ad.competencias||[]).forEach(c=>{ const cp=(window.COMP_DATA||{})[c.id]; if(cp) (cp.preparacion||[]).forEach(j=>push(j,false)); });
+    if(lista.length) res[cat]={label:cd.label||cat,lista};
+  });
+  return res;
+}
+function _recFechasDerivados(){
+  // Felipe (30/10/2026): demasiados avisos; las fechas faltantes se tachan por el chat. El aviso queda apagado (pantalla de carga: window._fnacModal('sub20')).
+  return [];
+  try{
+    return Object.entries(_fnacFaltantes()).map(([cat,o])=>{
+      const vig=o.lista.filter(j=>j.vigente).length;
+      return {id:'fnac|'+cat,titulo:'Cargar fechas de nacimiento · '+o.label+' ('+o.lista.length+' jugador'+(o.lista.length===1?'':'es')+')',detalle:(vig?vig+' de la convocatoria vigente · ':'')+o.lista.slice(0,3).map(j=>j.nom).join(', ')+(o.lista.length>3?' y más':'')+' · para edad y cumpleaños',vence:TODAY,hora:'09:00',etiqueta:'Fichas',derivado:true,fnacCat:cat,hecho:false};
+    });
+  }catch(e){ return []; }
+}
+window._fnacModal=function(cat){
+  const esc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const o=_fnacFaltantes()[cat]; if(!o){ toast('No quedan fechas por cargar en '+cat); return; }
+  window._fnacCat=cat;
+  const fila=(j,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-top:1px solid rgba(255,255,255,.07)"><div style="flex:1;min-width:0"><b style="font-size:13px;color:#F4F7FB">${esc(j.nom)}</b><div style="font-size:11px;color:rgba(239,243,248,.5)">${esc(j.club?_clubCorto(j.club):'')}${j.vigente?' · convocatoria vigente':''}</div></div><input type="date" class="fnac-in" data-n="${esc(j.nom)}" style="height:32px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:#F4F7FB;padding:0 8px;font:600 12.5px inherit;font-family:inherit"></div>`;
+  _rdModal(`<div class="rd-eye" style="margin-bottom:6px">Fechas de nacimiento · ${esc(o.label)}</div>
+    <div class="rd-sub" style="margin-bottom:10px">Cargá las que tengas; las que dejes vacías siguen pendientes. Se guardan en la ficha única (edad, cumpleaños, recordatorios).</div>
+    <div style="max-height:56vh;overflow:auto;padding-right:4px">${o.lista.map(fila).join('')}</div>
+    <div id="fnac-err" class="rd-sub" style="color:#FCA5A5;min-height:16px;margin-top:6px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="rd-btn ghost sm" onclick="_rdModalClose()">Cerrar</button><button class="rd-btn sm" onclick="_fnacGuardar()">Guardar las cargadas</button></div>`,{width:560});
+};
+window._fnacGuardar=function(){
+  const err=document.getElementById('fnac-err'); let ok=0, mal=null; const yMax=new Date().getFullYear();
+  document.querySelectorAll('.fnac-in').forEach(i=>{ const v=(i.value||'').trim(); if(!v) return; const y=+v.slice(0,4); if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||y<1990||y>yMax){ mal=i.dataset.n; return; } setMayorNac(i.dataset.n,v); ok++; });
+  if(mal){ err.textContent='La fecha de '+mal+' no parece correcta.'; if(!ok) return; }
+  window._fnacMapa=null;
+  if(ok){ _rdModalClose(); toast(ok+' fecha'+(ok===1?'':'s')+' guardada'+(ok===1?'':'s')); try{ _recDockRender(); }catch(_){} try{ if(typeof _rerenderTab==='function') _rerenderTab(); }catch(_){} }
+  else err.textContent='Cargá al menos una fecha.';
+};
 function _recClubesDerivados(){
   // Felipe (30/10/2026): los clubes sin normalizar NO van a Recordatorios; se los consulta por el chat y se cargan en la base (alias o club nuevo).
   return [];
@@ -34121,6 +34180,7 @@ const COMP_DATA = {
   'torneo-desarrollo-sub15-2026': TORNEO_DESARROLLO_SUB15_2026,
   'mundial-sub15-2026': MUNDIAL_SUB15_2026,
 };
+window.COMP_DATA=COMP_DATA; // lo leen los recordatorios (fechas de nacimiento faltantes)
 
 // ── Estado de navegación Juveniles
 let _juvCat = stor.get('auf4_juvCat','sub17');
