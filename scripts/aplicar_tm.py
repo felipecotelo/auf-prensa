@@ -1,12 +1,16 @@
 # Aplica los datos de Transfermarkt (tmId, fecha, club actual) a TODAS las apariciones de un jugador en public/index.html.
 # Uso: python3 -I scripts/aplicar_tm.py "Nombre en la app" tmId [club_manual]
+#      python3 -I scripts/aplicar_tm.py "Nombre en la app" tmId --datos "Club TM" AAAA-MM-DD   (datos ya leídos de Transfermarkt desde el navegador, sin pasar por el servidor)
 import re,sys,json,subprocess,html,unicodedata
 P='public/index.html'; nom=sys.argv[1]; tm=int(sys.argv[2]); club_manual=sys.argv[3] if len(sys.argv)>3 else None
-r=subprocess.run(['curl','-s','-m','60','https://baseceleste.up.railway.app/api/tm/%d'%tm],capture_output=True,text=True).stdout
-d=json.loads(r)
-if d.get('error'): print('TM:',d['error']); sys.exit(1)
-fn=d.get('dateOfBirth'); club=(d.get('club') or {}).get('name') or ''
-if d.get('retired'): club='Retirado'
+if club_manual=='--datos':
+    club=sys.argv[4]; fn=sys.argv[5]; club_manual=None
+else:
+    r=subprocess.run(['curl','-s','-m','60','https://baseceleste.up.railway.app/api/tm/%d'%tm],capture_output=True,text=True).stdout
+    d=json.loads(r)
+    if d.get('error'): print('TM:',d['error']); sys.exit(1)
+    fn=d.get('dateOfBirth'); club=(d.get('club') or {}).get('name') or ''
+    if d.get('retired'): club='Retirado'
 if club in ('Sin equipo','Desconocido',''): club='sin club'
 if club_manual: club=club_manual
 s=open(P,encoding='utf-8').read()
