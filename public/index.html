@@ -5367,6 +5367,12 @@ const getMayorNac = () => { const stored=stor.get(KMayorNac,{}); return {...MAYO
 
 // Fechas de nacimiento de jugadores juveniles (todas las generaciones conocidas)
 const JUV_NAC_DATES = {
+  'César Araújo':'2001-04-02',
+  'Ronald Araujo':'1999-03-07',
+  'Ignacio Laquintana':'1999-02-01',
+  'Nicolás Marichal':'2001-03-17',
+  'Kevin Amaro':'2004-03-03',
+  'Sebastián Coates':'1990-10-07',
   'Mauricio Lemos':'1995-12-28',
   'Alexander Gutiérrez':'2012-04-16',
   'Enzo Miglierina':'2012-02-01',
@@ -32078,7 +32084,7 @@ const SUD20_2019 = {
     {num:3,  nom:'Sebastián Cáceres',       club:'RC Celta de Vigo', pais:'es',                     pos:'DEF', fechaNac:'1999-08-18', tmId:532389},
     {num:4,  nom:'Ezequiel Busquets',       club:'Montevideo City Torque', pais:'uy',                     pos:'DEF', fechaNac:'2000-10-24', tmId:589687},
     {num:5,  nom:'Martín Barrios',          club:'',                     pos:'DEF'},
-    {num:6,  nom:'Maximiliano Araújo',      club:'Sporting de Lisboa',   pos:'DEF', pais:'pt', fechaNac:'2000-01-27'},
+    {num:6,  nom:'Maximiliano Araújo',      club:'Sporting de Lisboa',   pos:'DEF', pais:'pt', fechaNac:'2000-02-15', tmId:572675},
     {num:13, nom:'Emiliano Ancheta',        club:'Club Nacional', pais:'uy',                     pos:'DEF', fechaNac:'1999-06-09'},
     {num:15, nom:'Edgar Elizalde',          club:'Millonarios FC', pais:'co',                     pos:'DEF', fechaNac:'2000-02-27', tmId:465677},
     {num:22, nom:'Mathías Laborda',         club:'Vancouver Whitecaps FC', pais:'ca',                     pos:'DEF', fechaNac:'1999-09-15', tmId:577405},
@@ -32759,7 +32765,7 @@ const JJOO_2012 = {
     {num:18, nom:'Leandro Gelpi',           club:'Deportivo Villa Española', pais:'uy',       pos:'POR', fechaNac:'1991-02-27', tmId:188158},
     {num:2,  nom:'Ramón Arias',             club:'CA Tigre', pais:'ar',                     pos:'DEF', fechaNac:'1992-07-27', tmId:131095},
     {num:3,  nom:'Diego Polenta',           club:'',                     pos:'DEF', fechaNac:'1989-08-14'},
-    {num:4,  nom:'Sebastián Coates',        club:'Nacional',             pos:'DEF', pais:'uy', fechaNac:'1991-10-07'},
+    {num:4,  nom:'Sebastián Coates',        club:'Nacional',             pos:'DEF', pais:'uy', fechaNac:'1990-10-07', tmId:102427},
     {num:5,  nom:'Emiliano Albín',          club:'',  retirado:true,    pos:'DEF', fechaNac:'1991-07-22'},
     {num:6,  nom:'Alexis Rolín',            club:'',                     pos:'DEF', fechaNac:'1990-04-12'},
     {num:15, nom:'Diego Rodríguez',         club:'',                     pos:'DEF', fechaNac:'1991-03-08'},
@@ -36758,6 +36764,15 @@ const JUV_FOTO_BLOQUEADA = new Set([
 // Misma persona con y sin segundo nombre: se muestra y guarda con el nombre corto, y el completo queda como dato.
 // Alias de foto: una foto cargada con el nombre completo también sirve para el corto.
 window.JUV_NOMBRE_COMPLETO = {'Alexander Velázquez':'Alexander Ezequiel Velázquez','Pablo Cardozo':'Pablo Rodrigo Cardozo','Facundo Martínez':'Facundo Martínez Borges','Juan Gancheff':'Juan Pablo Gancheff','Bautista Pérez':'Bautista Pérez del Castillo','Damián García':'Damián García Graña'};
+// Fechas de nacimiento que traen las fichas juveniles (convocatorias y torneos), por nombre; se arma una vez que los torneos están cargados.
+window._juvFnSet=function(){
+  if(window._juvFnCache) return window._juvFnCache;
+  const m={}; const ent=j=>{ if(j&&j.nom&&j.fechaNac){ (m[j.nom]=m[j.nom]||[]); if(!m[j.nom].includes(j.fechaNac)) m[j.nom].push(j.fechaNac); } };
+  try{ Object.values(JUVENILES||{}).forEach(cd=>Object.values(cd.anos||{}).forEach(ad=>{ (ad.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(ent)); (ad.lista||[]).forEach(ent); })); }catch(_){}
+  try{ Object.values(window.COMP_DATA||{}).forEach(cp=>['convocados','preparacion','lista'].forEach(k=>(cp[k]||[]).forEach(ent))); }catch(_){}
+  if(window.COMP_DATA) window._juvFnCache=m;
+  return m;
+};
 window._juvGetPhoto = function(nom){
   if(!nom) return null;
   if(JUV_FOTO_BLOQUEADA.has(nom)) return null;
@@ -36783,6 +36798,7 @@ window._juvGetPhoto = function(nom){
     const _jg=(typeof JUGADORES!=='undefined')?JUGADORES[nom]:null;
     const _fj=_jg&&_jg.foto, _nj=_jg&&(_jg.fechaNac||(typeof MAYOR_NAC_DEFAULT!=='undefined'?MAYOR_NAC_DEFAULT[nom]:null)), _nv=(typeof JUV_NAC_DATES!=='undefined'&&JUV_NAC_DATES[nom])||null;
     if(_fj && _nj && _nv && _nj===_nv) return _fj;
+    if(_fj && _nj && (window._juvFnSet()[nom]||[]).includes(_nj)) return _fj; // la propia ficha juvenil trae la misma fecha de nacimiento que la Mayor
   }catch(_){}
   // NO caer a _getPhotoByName acá — ese fallback busca por nombre en Estructura/
   // Mayor/IDB histórico, que es exactamente el cruce de homónimos que causaba
