@@ -29821,6 +29821,7 @@ const JUVENILES = {
     label: 'Sub-16', icon: '🟡', activa: true,
     anos: {
       '2023-2024': {
+        enlaces: [{texto:'Ciclo Sub-15 2022-2023 (el que preparó este torneo)', cat:'sub15', year:'2022-2023'}],
         ct: [
           {iso:'uy', name:'Edgardo López Báez', rol:'Director técnico', dt:true},
           {iso:'uy', name:'Álvaro Fernández', rol:'Ayudante técnico'},
@@ -30095,6 +30096,7 @@ const JUVENILES = {
     label: 'Sub-15', icon: '🟠', activa: true,
     anos: {
       '2022-2023': {
+        enlaces: [{texto:'Sudamericano Sub-15 2023 · se jugó en 2024 como Sub-16', cat:'sub16', year:'2023-2024', comp:'sud16-2024'}],
         ct: [],
         info: {titulo:'Ciclo 2022-2023', cuando:'', resultado:'', desc:''},
         convocatorias: [
@@ -35112,6 +35114,16 @@ window._mun15DisenoHtml=function(){
   return `<div class="dz-wrap"><div class="dz-main"><div class="gt-eb" style="margin-bottom:10px">Diseño · 2 jugadores para el MD-1 de cada día y 1 para el informe de cada victoria</div>${cards}</div>
     <aside class="dz-side"><div class="gt-eb" style="margin-bottom:10px">Uso por jugador<em>|</em><u>primero los menos usados</u></div>${lista}</aside></div>`;
 };
+// Ir a una categoría / ciclo / competencia desde un enlace (ej. de un ciclo al torneo que preparó).
+window._juvIrA = function(cat, year, comp){
+  _juvGlobalPlayers=false; _juvGlobalStats=false; _juvGlobalCT=false; _juvGlobalCal=false; window._juvGlobalQ='';
+  _juvCat=cat; stor.set('auf4_juvCat',cat);
+  _juvYear=year; stor.set('auf4_juvYear',year);
+  if(comp){ _juvComp=comp; _juvCompTab=_defaultJuvCompTab(comp); }
+  else { _juvComp=null; _juvTab=_juvDefaultTab(cat,year); stor.set('auf4_juvTab',_juvTab); }
+  window.renderJuveniles();
+  try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(_){}
+};
 window._openJuvComp = function(id){
   _juvComp = id;
   _juvCompTab = _defaultJuvCompTab(id);
@@ -37785,6 +37797,16 @@ function _renderJuvenilesSafe(el){
     navL2 = _juvTabsBar(TABS, _juvTab, '_setJuvTab');
   }
 
+  // Enlaces entre ciclos y torneos relacionados (un clic para ir de uno al otro)
+  try{
+    const _enl=(catData.anos[_juvYear]?.enlaces)||[];
+    if(_enl.length){
+      eventosBar += `<div style="display:flex;align-items:center;min-height:34px;border-bottom:1px solid var(--border);gap:6px;flex-wrap:wrap;padding:4px 0">
+        <span class="nav-l1-label" style="flex-shrink:0;padding-left:0">Relacionado</span>
+        ${_enl.map(e=>`<button onclick="_juvIrA('${e.cat}','${e.year}'${e.comp?`,'${e.comp}'`:''})" class="nav-t-pill" style="display:inline-flex;align-items:center;gap:5px"><i class="ti ti-arrow-up-right" style="font-size:12px"></i>${e.texto}</button>`).join('')}
+      </div>`;
+    }
+  }catch(_){}
   // ── Contenido del tab activo ──
   let body = '';
 
