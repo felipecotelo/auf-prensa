@@ -34667,6 +34667,8 @@ function _gnavPhotoFor(r){
   try{
     const key=r.extra?.key;
     if(r.section==='juveniles') return r.foto || window._juvGetPhoto?.(r.nom) || null; // ficha juvenil: solo la foto que le corresponde (no la de un homónimo)
+    // ficha de jugador de la Mayor que además es DT (Forlán, Diego Pérez…): primero su foto de jugador ('mayor:'), nunca la de DT
+    if(r.section==='mayor'){ const _sl=String(r.nom||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); const _c=window._estPhotoCache||{}; if(r.foto||_c['mayor:'+_sl]) return r.foto||_c['mayor:'+_sl]; }
     // cuerpo técnico de Juveniles que además fue jugador (Diego Pérez…): solo la foto de su ficha de DT, nunca la del jugador
     if(r.section==='juv_ct'){ const _ek=(typeof JUGADORES!=='undefined'&&JUGADORES[r.nom]&&JUGADORES[r.nom].estKey)||null; if(_ek){ const _c=window._estPhotoCache||{}; return r.foto||_c[_ek]||_c[window._sbSafeKey?window._sbSafeKey(_ek):_ek]||null; } }
     // ficha de Estructura de alguien que además es jugador (Forlán, Álvaro Fernández…): solo su foto propia de DT, nunca la del jugador
@@ -44759,7 +44761,7 @@ function _mobGetPhoto(nom){
 function _mobRenderRow(r,closeCall){
   // fichas de DT/cuerpo técnico de alguien que también fue jugador: su foto propia, no la del jugador
   const _esDT=(r.section==='estructura'||r.section==='juv_ct')&&typeof JUGADORES!=='undefined'&&JUGADORES[r.nom]&&JUGADORES[r.nom].estKey;
-  const foto=(_esDT&&window._gnavPhotoFor)?window._gnavPhotoFor({...r,extra:{...(r.extra||{}),key:(r.extra&&r.extra.key)||JUGADORES[r.nom].estKey}}):_mobGetPhoto(r.nom);
+  const foto=((_esDT||r.section==='mayor')&&window._gnavPhotoFor)?window._gnavPhotoFor({...r,extra:{...(r.extra||{}),key:(r.extra&&r.extra.key)||JUGADORES[r.nom].estKey}}):_mobGetPhoto(r.nom);
   const ini=r.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const av=foto
     ?`<img src="${foto}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid rgba(0,157,216,.2);flex-shrink:0" onerror="this.style.display='none'">`
