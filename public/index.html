@@ -37659,7 +37659,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
     <div class="jf-stats">
       <span class="jf-pos" onclick="_cycleJuvPos('${nomSafe}',this,event)" title="Tocar para cambiar posición" style="color:${pc};border-color:${pc}66;background:${pc==='rgba(239,243,248,.5)'?'transparent':pc+'14'}">${p.pos||'—'}</span>
       <span class="jf-st"><b>${off.conv}</b> conv.</span>
-      <span class="jf-st"><b>${off.pj}</b> PJ</span>
+      <span class="jf-st" ${off.pj===0&&off.sinAlin?'title="Sin alineaciones cargadas de ese torneo: no se sabe cuántos partidos jugó"':''}><b>${off.pj===0&&off.sinAlin?'–':off.pj}</b> PJ</span>
     </div>
     <div class="jf-mid">
     ${isJuvLesion?`<div class="jf-les" onclick="event.stopPropagation();_toggleJuvLesionado('${nomSafe}')" title="${isJuvLesion.nota||'Lesión larga'} · estimado inicial ${isJuvLesion.meses}${(()=>{ const r=_lesionRegreso(isJuvLesion.mesLesion,isJuvLesion.meses); return r?' · regreso '+r:''; })()} · Click para editar"><i class="ti ti-bandage"></i>${isJuvLesion.nota?isJuvLesion.nota+' <em>·</em> ':''}${_lesionRestante(isJuvLesion.mesLesion,isJuvLesion.meses)}</div>`:''}
@@ -37751,7 +37751,7 @@ function _juvPlayerHistory(nom){
 // Stats oficiales de un jugador de Juveniles: solo cuentan competencias tipo:'oficial'
 // (Sudamericanos, Mundiales). Los amistosos (Pioneros de Albion, etc.) no suman.
 function _juvOfficialStats(nom){
-  let conv=0, pj=0;
+  let conv=0, pj=0, sinAlin=0; // sinAlin: torneos donde está convocado pero no hay alineaciones cargadas (no se sabe cuántos jugó)
   const cats = new Set(); const torneos=[];
   Object.entries(JUVENILES).forEach(([catKey,catData])=>{
     Object.entries(catData.anos||{}).forEach(([yr,anoData])=>{
@@ -37779,6 +37779,7 @@ function _juvOfficialStats(nom){
         conv++;
         cats.add(`${catData.label} ${yr}`);
         const _pj0=pj;
+        if(!(comp.partidos||[]).some(p=>(p.tit||[]).length||(p.sup||[]).length) && !amistMatches.some(m=>m.confirmado)) sinAlin++;
         (comp.partidos||[]).forEach(p=>{
           const t = (p.tit||[]).some(pl=>pl.n===jugador.num);
           const s = (p.sup||[]).some(pl=>pl.n===jugador.num && pl.in);
@@ -37794,7 +37795,7 @@ function _juvOfficialStats(nom){
       });
     });
   });
-  return {conv, pj, cats:[...cats], torneos};
+  return {conv, pj, sinAlin, cats:[...cats], torneos};
 }
 function _juvPlayerRow(p,destacado,color){
   return `<div style="display:flex;align-items:center;justify-content:space-between;background:${destacado?color+'14':'var(--card)'};border:1px solid ${destacado?color+'55':'var(--border)'};border-radius:8px;padding:7px 12px">
