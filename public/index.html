@@ -34675,6 +34675,7 @@ function _gnavPhotoFor(r){
   }
   catch(_){ return null; }
 }
+window._gnavPhotoFor=_gnavPhotoFor;
 const _gnavBadge = {mayor:'Mayor',local:'Local',juveniles:'Juvenil',estructura:'Estructura',juv_ct:'Juvenil'};
 function _gnavRowHTML(r, isJug, theme){
   const foto = _gnavPhotoFor(r);
@@ -44756,7 +44757,9 @@ function _mobGetPhoto(nom){
 }
 
 function _mobRenderRow(r,closeCall){
-  const foto=_mobGetPhoto(r.nom);
+  // fichas de DT/cuerpo técnico de alguien que también fue jugador: su foto propia, no la del jugador
+  const _esDT=(r.section==='estructura'||r.section==='juv_ct')&&typeof JUGADORES!=='undefined'&&JUGADORES[r.nom]&&JUGADORES[r.nom].estKey;
+  const foto=(_esDT&&window._gnavPhotoFor)?window._gnavPhotoFor({...r,extra:{...(r.extra||{}),key:(r.extra&&r.extra.key)||JUGADORES[r.nom].estKey}}):_mobGetPhoto(r.nom);
   const ini=r.nom.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const av=foto
     ?`<img src="${foto}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;border:2px solid rgba(0,157,216,.2);flex-shrink:0" onerror="this.style.display='none'">`
