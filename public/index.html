@@ -21632,7 +21632,7 @@ const JUGADORES={
   //  LEYENDAS HISTÓRICAS
   // ═══════════════════════════════════════════════════════
   'Diego Forlán':            {auf:'diego-forlan',           pos:'DEL',total:{pj:112,g:36},comp:{wc:{pj:16,g:6}},estKey:'ct-p:diego-forlan',fechaNac:'1979-05-19'},
-  'Diego Alonso':            {auf:'diego-alonso',           pos:'DEL',retirado:true,total:{pj:7,g:0},dtId:'alonso',fechaNac:'1975-04-16',foto:'https://auf.org.uy/imagenes/img_contenido/seleccion_jugador/a/diego_alonso_un.jpg'},
+  'Diego Alonso':            {auf:'diego-alonso',           pos:'DEL',retirado:true,total:{pj:7,g:0},dtId:'alonso',fechaNac:'1975-04-16'},
   'Ignacio María González':        {auf:'ignacio-gonzalez',        pos:'MED',tmId:67648,total:{pj:18,min:1013,g:1},estKey:'ct-p:ignacio-gonzalez',fechaNac:'1982-05-14'},
   'Gustavo Munúa':                 {auf:'gustavo-munua',           pos:'POR',total:{pj:21,g:0},fechaNac:'1978-01-27',wc26:false},
   'César Pellegrín':               {auf:'cesar-pellegrin',         pos:'DEF',total:{pj:1,g:0},wc26:false},
@@ -34653,6 +34653,13 @@ function _gnavCollectResults(q, mode){
         });
       });
     }catch(_){}
+    try{ // directores técnicos de la Mayor (Técnicos) y su cuerpo técnico por ciclo
+      if(typeof DT_CATALOG!=='undefined') DT_CATALOG.forEach(dt=>addCT(dt.full, 'Técnicos · Director técnico Selección Mayor', 'estructura', {key:'dt:'+dt.id}));
+      [['alonso','CT_MAYOR_ALONSO','Ciclo Alonso'],['bielsa','CT_MAYOR_BIELSA','Ciclo Bielsa'],['forlan','CT_MAYOR_FORLAN','Interino Forlán']].forEach(([id,cn,lab])=>{
+        let arr=[]; try{ arr=eval('typeof '+cn+"!=='undefined'?"+cn+':[]'); }catch(_){}
+        arr.forEach(m=>addCT(m.name, 'Técnicos · '+nr(m.rol)+' · '+lab, 'estructura', {key:'dt:'+id}));
+      });
+    }catch(_){}
     try{
       if(typeof BIELSA_CONVOCATORIAS!=='undefined') BIELSA_CONVOCATORIAS.forEach(c=>{
         (c.ct||[]).forEach(m=>addCT(m.name, 'Mayor · '+(c.titulo||c.competencia||'')+' · '+nr(m.rol), 'estructura', {}));
@@ -34667,6 +34674,12 @@ function _gnavPhotoFor(r){
   try{
     const key=r.extra?.key;
     if(r.section==='juveniles') return r.foto || window._juvGetPhoto?.(r.nom) || null; // ficha juvenil: solo la foto que le corresponde (no la de un homónimo)
+    if(r.section==='estructura' && /^dt:/.test(key||'')){ // DT/ayudante de la Mayor: foto del DT (catálogo) o la que se haya cargado para su ficha de DT; nunca la de jugador
+      const _id=key.slice(3), _dt=(typeof DT_CATALOG!=='undefined')?DT_CATALOG.find(x=>x.id===_id&&x.full===r.nom):null;
+      if(_dt) return (typeof getDTFoto==='function'&&getDTFoto(_id,_dt.foto))||_dt.foto||null;
+      const _sl=String(r.nom||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); const _c=window._estPhotoCache||{};
+      return _c['ct-p:'+_sl]||null;
+    }
     // ficha de jugador de la Mayor que además es DT (Forlán, Diego Pérez…): primero su foto de jugador ('mayor:'), nunca la de DT
     if(r.section==='mayor'){ const _sl=String(r.nom||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); const _c=window._estPhotoCache||{}; if(r.foto||_c['mayor:'+_sl]) return r.foto||_c['mayor:'+_sl]; }
     // cuerpo técnico de Juveniles que además fue jugador (Diego Pérez…): solo la foto de su ficha de DT, nunca la del jugador
@@ -34760,6 +34773,10 @@ window._gnavCTGo = function(section, nomEnc, keyEnc){
   const q = document.getElementById('gnav-q'); if(q) q.value='';
   const nom = decodeURIComponent(nomEnc);
   const key = decodeURIComponent(keyEnc||'');
+  // Resultado de DT / cuerpo técnico de la Mayor: va a su perfil en Técnicos (no a la ficha de jugador)
+  if(/^dt:/.test(key)){ showSection('mayor'); showTab('tecnicos'); setTimeout(()=>{ try{ selectDT(key.slice(3)); }catch(_){} },80); return; }
+  // Si tiene ficha de DT en Estructura (ct-p:), ir a ella aunque también sea jugador
+  if(/^ct-p:/.test(key)){ window._goToEstFicha?.(key); return; }
   // Si es jugador Mayor, ir a su ficha de jugador
   if(typeof JUGADORES!=='undefined' && JUGADORES[nom]){
     showSection('mayor'); showTab('jugadores');
