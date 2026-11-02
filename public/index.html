@@ -9848,7 +9848,17 @@ function _futDockRender(){
   const liga=_futLigaHoy().map(m=>({sel:false,m,min:mvdMin(m.utcTime),estado:m.estado}));
   if(enInicio&&!window._resLoading){ window._resLoading=true; _resPartidosLoad().then(async ch=>{ const en=await _resEnriquecer(); window._resLoading=false; if(ch||en) _futDockRender(); }).catch(()=>{ window._resLoading=false; }); }
   if(enInicio&&!window._resEnT){ window._resEnT=setInterval(async()=>{ try{ if(document.hidden||!document.getElementById('inicio')?.classList.contains('active')) return; if(await _resEnriquecer()) _futDockRender(); }catch(_){} },60000); }
-  const resHoy=_resDe(TODAY).map(m=>({res:true,m,min:mvdMin(m.utc),estado:m.estado}));
+  const resHoy0=_resDe(TODAY).map(m=>({res:true,m,min:mvdMin(m.utc),estado:m.estado}));
+  // Un partido de Liga con reservados salía dos veces (una de la liga, con su canal de TV, y otra de reservados): se junta en una sola tarjeta
+  // —la de la liga— y se le suma la fila de reservados.
+  const _nk=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\b(club|deportivo|cd|fc|ca|csd|sad|atletico|futbol)\b/g,'').replace(/[^a-z0-9]/g,'');
+  const _igual=(x,y)=>{ x=_nk(x); y=_nk(y); return !!x&&!!y&&(x===y||(x.length>=4&&y.length>=4&&(x.includes(y)||y.includes(x)))); };
+  const resHoy=[];
+  resHoy0.forEach(r=>{
+    const hit=liga.find(l=>!l.resM&&l.m&&_igual(l.m.home,r.m.home)&&_igual(l.m.away,r.m.away)&&Math.abs((l.min||0)-(r.min||0))<=120);
+    if(hit){ hit.resM=r.m; if((r.estado==='vivo'||r.estado==='fin')&&hit.estado!=='vivo'&&hit.estado!=='fin') hit.estado=r.estado; }
+    else resHoy.push(r);
+  });
   const items=[..._partidosSeleccionHoy(), ...liga, ...resHoy].sort((a,b)=>((b.estado==='vivo')-(a.estado==='vivo'))||(a.min-b.min)); // el que se está jugando va primero; el resto por hora
   const hayVivo=items.some(it=>it.estado==='vivo');
   const libre=ib?ib.getBoundingClientRect().left:0;
@@ -9890,13 +9900,14 @@ function _futDockRender(){
     const fin=it.estado==='fin', emp=a===b;
     const w1=fin&&a>b, w2=fin&&b>a;
     const vivo=it.estado==='vivo', VERDE='#4ADE80';
-    return `<div ${it.res?`onclick="_resDetalle(${it.m.id})" title="Ver el detalle del partido" `:''}style="${it.res?'cursor:pointer;':''}border:1px solid ${vivo?ROSA+'80':(fin?VERDE+'8C':'var(--border)')};${fin?'border-left:4px solid '+VERDE+';':(it.sel&&!vivo?'border-left:3px solid #38BDF8;':'')}border-radius:12px;padding:9px 12px 8px;margin-top:8px;background:${vivo?'linear-gradient(100deg,'+ROSA+'29,rgba(255,255,255,.04) 62%)':(fin?'linear-gradient(100deg,'+VERDE+'2E,'+VERDE+'0F 70%)':(it.sel?'linear-gradient(100deg,rgba(0,157,216,.17),rgba(255,255,255,.04) 62%)':'rgba(255,255,255,.04)'))}">
+    const _rid=it.res?it.m.id:(it.resM?it.resM.id:null);
+    return `<div ${_rid!=null?`onclick="_resDetalle(${_rid})" title="Ver el detalle del partido" `:''}style="${_rid!=null?'cursor:pointer;':''}border:1px solid ${vivo?ROSA+'80':(fin?VERDE+'8C':'var(--border)')};${fin?'border-left:4px solid '+VERDE+';':(it.sel&&!vivo?'border-left:3px solid #38BDF8;':'')}border-radius:12px;padding:9px 12px 8px;margin-top:8px;background:${vivo?'linear-gradient(100deg,'+ROSA+'29,rgba(255,255,255,.04) 62%)':(fin?'linear-gradient(100deg,'+VERDE+'2E,'+VERDE+'0F 70%)':(it.sel?'linear-gradient(100deg,rgba(0,157,216,.17),rgba(255,255,255,.04) 62%)':'rgba(255,255,255,.04)'))}">
       <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;margin-bottom:5px">
         <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 160px;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${eyebrow}</div>
         <span style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end">${estadoPill(it,hora)}${it.res?(it.estado==='susp'?'':_tvResHtml(it.m)):(it.sel?(it.compId?_tvHtml(it.compId,{}):''):(!it.m?'':_tvHtml(it.m.liga,it.m)))}</span>
       </div>
       ${fila(esc1,n1,a,it.estado,w1,fin&&!emp&&!w1)}${fila(esc2,n2,b,it.estado,w2,fin&&!emp&&!w2)}
-      ${it.res?_resChipsHtml(it.m):''}
+      ${it.res?_resChipsHtml(it.m):(it.resM?_resChipsHtml(it.resM):'')}
     </div>`;
   }).join('');
   // Mañana: partidos de clubes con reservados (compacto)
