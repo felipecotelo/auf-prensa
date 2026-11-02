@@ -3515,6 +3515,7 @@ select.rd-in{padding:0 10px}
 .rd-pn b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:15.5px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;line-height:1.2}
 .rd-pn span{display:block;margin-top:3px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.55)}
 .jf.jf-ret{border:1px dashed rgba(148,163,184,.5);background:linear-gradient(180deg,rgba(148,163,184,.07),rgba(148,163,184,.02))}.jf.jf-ret .jf-ph-in img{filter:grayscale(.9) opacity(.8)}.jf.jf-ret .jf-nm,.jf.jf-ret .jf-num{opacity:.6}.jf.jf-ret .jf-tag{border-style:dashed;color:#94A3B8}
+.jf.jf-ot{border:1px dashed rgba(96,165,250,.55);background:linear-gradient(180deg,rgba(96,165,250,.08),rgba(96,165,250,.02))}.jf.jf-ot .jf-ph-in img{filter:grayscale(.5) opacity(.88)}.jf.jf-ot .jf-num{opacity:.6}
 .jf.jf-off{border-color:rgba(248,113,113,.4)}
 .jf.jf-nc{border-color:#FB923C!important;box-shadow:0 0 0 1px rgba(251,146,60,.28),0 10px 26px rgba(251,146,60,.08)}
 .jf-ncl{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#FDBA74;border:1px solid rgba(251,146,60,.5);background:rgba(251,146,60,.1);border-radius:999px;padding:2px 9px}
@@ -37623,6 +37624,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const juvPais = _clubPaisAuto(clubShow, _storedPais||p.pais) || ((_storedPais && _storedPais !== 'uy') ? _storedPais : (p.pais || _storedPais || 'uy')); // la bandera sale de la base de clubes
   const sparringEvts = getJuvSparring()[p.nom]||[];
   const isJuvRetirado = p.retirado || !!(stor.get('auf4_retirado',{})[p.nom]);
+  const _juvSelOtra = (typeof JUGADORES!=='undefined'&&JUGADORES[p.nom]&&JUGADORES[p.nom].selOtra)||null; // eligió otra selección (ej. nacionalizado paraguayo)
   const isJuvFallecido = p.fallecido || !!(stor.get('auf4_fallecido',{})[p.nom]);
   const isJuvLesion = getLesiones()[p.nom]||null;
   const isJuvLesionado = !!isJuvLesion || !!(stor.get('auf4_juv_lesionado',{})[p.nom]);
@@ -37636,6 +37638,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
     isFinal13?tag('Finalista','Finalista Mundial Sub-20 · Turquía 2013'):'',
     isJuvFallecido?tag('Fallecido','Fallecido'):'',
     isJuvRetirado?tag('Retirado','Retirado del fútbol profesional'):'',
+    _juvSelOtra?tag(({py:'🇵🇾',ar:'🇦🇷',br:'🇧🇷',es:'🇪🇸',it:'🇮🇹',pt:'🇵🇹',fr:'🇫🇷',de:'🇩🇪',us:'🇺🇸',mx:'🇲🇽'}[_juvSelOtra]||'🏳️')+' Otra selección','Se nacionalizó y eligió representar a otra selección','blue'):'',
     p.inv?tag('Invitado','Jugador invitado (uruguayo en el exterior)','blue'):'',
   ].join('');
   const ageHtml=(()=>{const fn=p.fechaNac||(typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES[p.nom]:null)||(typeof MAYOR_NAC_DEFAULT!=='undefined'?MAYOR_NAC_DEFAULT[p.nom]:null)||(typeof getMayorNac==='function'?getMayorNac()[p.nom]:null)||(window._LOCAL_NAC_DATES||{})[p.nom]||((typeof JUGADORES!=='undefined'&&JUGADORES[p.nom])||{}).fechaNac||(window._juvFnSet?(window._juvFnSet()[p.nom]||[])[0]:null);if(!fn)return'';const d=new Date(/^\d{4}-\d{2}-\d{2}$/.test(fn)?fn+'T12:00:00':fn);const today=new Date();let age=today.getFullYear()-d.getFullYear();if(today<new Date(today.getFullYear(),d.getMonth(),d.getDate()))age--;const month=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()];return`<div class="jf-age">${d.getDate()} ${month} ${d.getFullYear()} · <b>${age} años</b></div>`;})();
@@ -37648,7 +37651,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const _btnC=`<button class="jf-c${isJuvCapitan?' on':''}" onclick="event.stopPropagation();_toggleJuvCapitan('${nomSafe}')" title="${isJuvCapitan?'Quitar capitán':'Marcar como capitán'}">C</button>`;
   const _btnS=`<button class="jf-star${isJuvLeyenda?' on':''}" onclick="event.stopPropagation();_toggleJuvLeyenda('${nomSafe}')" title="${isJuvLeyenda?'Quitar leyenda':'Marcar como leyenda'}"><i class="ti ti-star${isJuvLeyenda?'-filled':''}"></i></button>`;
   const _nonum=p.num==null;
-  return `<div class="jf${_nonum?' jf-nonum':''}${p.noCedido?' jf-nc':''}${isJuvRetirado?' jf-ret':''}" style="${isJuvLesion?'border-color:#EF4444;':''}">
+  return `<div class="jf${_nonum?' jf-nonum':''}${p.noCedido?' jf-nc':''}${isJuvRetirado?' jf-ret':''}${_juvSelOtra?' jf-ot':''}" style="${isJuvLesion?'border-color:#EF4444;':''}">
     <div class="jf-top">
       ${_nonum?'<span></span>':`<span class="jf-num">${p.num}</span>`}
       <span class="jf-ico">
