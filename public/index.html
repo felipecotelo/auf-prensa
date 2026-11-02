@@ -32934,7 +32934,7 @@ const JJOO_2012 = {
   sincTM:true, // fichas conectadas a Transfermarkt (tmId de cada jugador)
   id:'jjoo-2012', label:'Juegos Olímpicos Londres 2012', icon:'🏅', color:'#92400E',
   tipo:'oficial', fecha:'26 de julio – 1 de agosto de 2012 · Londres, Reino Unido',
-  cierre:{etapa:'Eliminado en la fase de grupos', detalle:'3.º del Grupo A · 1 victoria y 2 derrotas · 16 selecciones', titulo:'Juegos Olímpicos', cuando:'26 jul – 1 ago 2012', donde:'Londres (Reino Unido)', cat:'sub23', dt:'Óscar W. Tabárez',
+  cierre:{banderas:true, etapa:'Eliminado en la fase de grupos', detalle:'3.º del Grupo A · 1 victoria y 2 derrotas · 16 selecciones', titulo:'Juegos Olímpicos', cuando:'26 jul – 1 ago 2012', donde:'Londres (Reino Unido)', cat:'sub23', dt:'Óscar W. Tabárez',
     nota:'Uruguay llegó a los Juegos con tres refuerzos mayores: Luis Suárez, Edinson Cavani y Egidio Arévalo Ríos. Debutó con victoria 2–1 sobre Emiratos Árabes en Old Trafford (Ramírez y Lodeiro), pero cayó 0–2 con Senegal y 0–1 con Gran Bretaña en Cardiff y quedó fuera.',
     partidos:[
       {fecha:'2012-07-26', rival:'Emiratos Árabes', lugar:'Old Trafford · Mánchester', gLocal:2, gRival:1, goles:{'Gastón Ramírez':1,'Nicolás Lodeiro':1}},
@@ -37551,6 +37551,15 @@ function _convTitulo(pp, info, partidos){
   }
   return base;
 }
+// Juegos Olímpicos: en lugar del escudo de la selección se usa la bandera del país (cierre.banderas)
+const _BANDERAS_ES={'uruguay':'uy','emiratos arabes':'ae','emiratos arabes unidos':'ae','senegal':'sn','gran bretana':'gb','reino unido':'gb','mexico':'mx','brasil':'br','espana':'es','japon':'jp','honduras':'hn','egipto':'eg','corea del sur':'kr','belarus':'by','bielorrusia':'by','marruecos':'ma','gabon':'ga','suiza':'ch','nueva zelanda':'nz','argentina':'ar','china':'cn','italia':'it','francia':'fr','alemania':'de'};
+function _convEscT(nombre,sz,comp){
+  if(comp&&comp.cierre&&comp.cierre.banderas){
+    const n=String(nombre||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(), iso=_BANDERAS_ES[n];
+    if(iso) return `<img src="https://flagcdn.com/w80/${iso}.png" alt="${nombre}" title="${nombre}" style="width:${sz}px;height:${Math.round(sz*.7)}px;object-fit:cover;border-radius:4px;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,.18)">`;
+  }
+  return _escudoSeleccion(nombre,sz);
+}
 function _convMatchCard(m,col,comp){
   const gl=m.gLocal, gr=m.gRival, hasRes=gl!=null&&gr!=null;
   const MES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
@@ -37563,7 +37572,7 @@ function _convMatchCard(m,col,comp){
   const sub=[m.lugar].filter(Boolean).join(' · ');
   return `<div class="jm-card" style="--cat:${col}${m._sinClick?';cursor:default':''}"${m._sinClick?'':` onclick="_convIrPizarra(${m.id},${m.compId?`'${m.compId}'`:'null'})" title="Abrir la Pizarra de este partido"`}>
     <span class="pz-d"><b>${parseInt(f[2],10)}</b><span>${MES[parseInt(f[1],10)-1]||''}</span></span>
-    <span class="jm-esc jm-esc2">${_escudoSeleccion('Uruguay',38)}<i>vs</i>${_escudoSeleccion(m.rival,38)}</span>
+    <span class="jm-esc jm-esc2">${(typeof _convEscT==='function')?_convEscT('Uruguay',38,comp):_escudoSeleccion('Uruguay',38)}<i>vs</i>${(typeof _convEscT==='function')?_convEscT(m.rival,38,comp):_escudoSeleccion(m.rival,38)}</span>
     <span class="jm-mt"><b>Uruguay vs. <em>${m.rival}</em></b><span>${sub||'&nbsp;'}</span></span>
     ${(!hasRes&&(m.compId==='mundial-sub15-2026'||m.tv==='none'||m.yt))?right.replace(/<\/span>$/,_tvHtml(m.compId,m)+'</span>'):right}${m._sinClick?'':'<i class="ti ti-chevron-right jm-ch"></i>'}</div>`;
 }
