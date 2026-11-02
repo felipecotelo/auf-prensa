@@ -9116,6 +9116,16 @@ function _recCumplesDerivados(){
 //  · "Completar la ficha de X vs. Y" (solo Juveniles): después del partido, hasta que estén resultado, titulares, capitán, DT,
 //    ingresos y goles —los minutos de goles e ingresos NO se exigen—.
 // Tildar uno a mano también lo da por hecho (se guarda en auf4_rec_manual).
+// «de Brizuela» / «de Barreiro y Gancheff» / «de los goles»: los goleadores de Uruguay cargados en el partido (apellido), para que el recordatorio diga de qué gol se trata.
+function _recGolDe(m){
+  try{
+    const g=m&&m.goles||{}; const ap=n=>{ const w=String(n).trim().split(/\s+/); return w.length>1?w.slice(1).join(' '):w[0]; };
+    const ns=Object.keys(g).filter(k=>k&&k!=='__EC__'&&Number(g[k])>0).map(ap);
+    if(g.__EC__&&Number(g.__EC__)>0) ns.push('gol en contra rival');
+    if(!ns.length) return 'de los goles';
+    return (ns.length===1?'del gol':'de los goles')+' de '+(ns.length>1?ns.slice(0,-1).join(', ')+' y '+ns[ns.length-1]:ns[0]);
+  }catch(_){ return 'de los goles'; }
+}
 function _recPartidosDerivados(){
   const out=[];
   try{
@@ -9148,6 +9158,13 @@ function _recPartidosDerivados(){
             ['tv6',150,'Publicar informe post-partido de '+lbl,'Partido '+fD+' · después de cargar el resultado',false,false],
             ['tw6',180,'Enviar por Whatsapp el link del tuit del informe '+lbl,_recResTxt(m),false,false],
           ];
+          // Goles de amistosos con AUFtv (Felipe, 2/11/2026): igual hay que conseguir el video del gol, mandarlo a hacer y publicarlo. No salen si Uruguay no hizo goles.
+          if(D>='2026-10-29' && !m.compId && !m.oficial && !(m.gLocal!=null && Number(m.gLocal)===0)){
+            const _gde=_recGolDe(m);
+            pasos.push(['gol1',150,'Conseguir el video '+_gde+' ('+lbl+')','Partido '+fD+' · amistoso con AUFtv · se saca de la transmisión',false,false],
+                       ['gol2',240,'Mandar a hacer el clip para redes '+_gde+' ('+lbl+')','Partido '+fD+' · amistoso con AUFtv',false,false],
+                       ['gol3',330,'Publicar el clip '+_gde+' ('+lbl+')','Partido '+fD+' · amistoso con AUFtv',false,false]);
+          }
           pasos.forEach(([k,off,tit,det,auto,pre],i)=>{
             if(k==='tw6'&&D<'2026-10-29') return;
             if(pre ? !(D>=TODAY && D<=_recSumarDias(TODAY,10)) : !(D<=TODAY && D>=_recSumarDias(TODAY,-10))) return;
@@ -9184,7 +9201,7 @@ function _recPartidosDerivados(){
           // No salen si ya se sabe que Uruguay no hizo goles (0 a favor).
           if(D>='2026-10-29' && !m.compId && !m.oficial && !(m.gLocal!=null && Number(m.gLocal)===0)){ // rige desde el 29/10/2026 (lo anterior ya se resolvió)
             const _gd='Partido '+D.split('-').reverse().join('/')+' · amistoso sin AUFtv'+((m.gLocal!=null&&m.gRival!=null)?' · '+m.gLocal+'–'+m.gRival:'');
-            [['gol1','Pedir video de los goles de la '+lbl,30],['gol2','Mandar a hacer clip para redes de los goles de la '+lbl,90],['gol3','Publicar clip de los goles de la '+lbl,180]].forEach(([k,tit,mm])=>{
+            [['gol1','Pedir video '+_recGolDe(m)+' ('+lbl+')',30],['gol2','Mandar a hacer clip para redes '+_recGolDe(m)+' ('+lbl+')',90],['gol3','Publicar clip '+_recGolDe(m)+' ('+lbl+')',180]].forEach(([k,tit,mm])=>{
               const idg=k+'|'+uid, mg=manual[idg]||{}, wg=_recMasMin(_vF,_hF,mm);
               out.push({id:idg,titulo:tit,detalle:_gd,vence:wg.vence,hora:wg.hora,etiqueta:metaCat(cat),hecho:!!mg.hecho,hechoEn:mg.hecho?mg.hechoEn:null});
             });
