@@ -3516,6 +3516,7 @@ select.rd-in{padding:0 10px}
 .rd-pn span{display:block;margin-top:3px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.55)}
 .jf.jf-ret{border:1px dashed rgba(148,163,184,.4);background:linear-gradient(180deg,rgba(148,163,184,.04),rgba(148,163,184,.01))}.jf.jf-ret .jf-ph-in img{filter:grayscale(.3) opacity(.92)}.jf.jf-ret .jf-nm,.jf.jf-ret .jf-num{opacity:.85}.jf.jf-ret .jf-tag{border-style:dashed;color:#94A3B8}
 .jf.jf-ot{border:1px dashed rgba(96,165,250,.55);background:linear-gradient(180deg,rgba(96,165,250,.08),rgba(96,165,250,.02))}.jf.jf-ot .jf-ph-in img{filter:grayscale(.5) opacity(.88)}.jf.jf-ot .jf-num{opacity:.6}
+.jf-dt{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font:700 10.5px inherit;font-family:inherit;letter-spacing:.06em;text-transform:uppercase;color:#5EEAD4;background:rgba(45,212,191,.14);border:1px solid rgba(45,212,191,.55);border-radius:999px;padding:3px 10px}.jf-dt:hover{background:rgba(45,212,191,.26);color:#99F6E4}.jf-dt i{font-size:12px}.jf-dt.sm{padding:1px 8px;font-size:9.5px}
 .jf.jf-off{border-color:rgba(248,113,113,.4)}
 .jf.jf-nc{border-color:#FB923C!important;box-shadow:0 0 0 1px rgba(251,146,60,.28),0 10px 26px rgba(251,146,60,.08)}
 .jf-ncl{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#FDBA74;border:1px solid rgba(251,146,60,.5);background:rgba(251,146,60,.1);border-radius:999px;padding:2px 9px}
@@ -37554,6 +37555,18 @@ function _convTitulo(pp, info, partidos){
   }
   return base;
 }
+// Retirados que hoy tienen perfil de DT/cuerpo técnico (estKey de JUGADORES): etiqueta de color que lleva a ese perfil
+window._juvDtLink=function(nom){
+  try{
+    const j=(typeof JUGADORES!=='undefined')?JUGADORES[nom]:null; if(!j||!j.estKey||!/^ct-p:/.test(j.estKey)) return null;
+    if(nom==='Diego Forlán') return "showSection('mayor');showTab('tecnicos');selectDT('forlan')";
+    return "showSection('estructura');setTimeout(()=>_estOpenFicha('"+j.estKey+"'),80)";
+  }catch(_){ return null; }
+};
+window._juvDtTag=function(nom,compact){
+  const f=window._juvDtLink(nom); if(!f) return '';
+  return `<button type="button" class="jf-dt${compact?' sm':''}" onclick="event.stopPropagation();${f}" title="Ver su perfil de director técnico / cuerpo técnico"><i class="ti ti-whistle"></i>DT</button>`;
+};
 // Juegos Olímpicos: en lugar del escudo de la selección se usa la bandera del país (cierre.banderas)
 const _BANDERAS_ES={'uruguay':'uy','emiratos arabes':'ae','emiratos arabes unidos':'ae','senegal':'sn','gran bretana':'gb','reino unido':'gb','mexico':'mx','brasil':'br','espana':'es','japon':'jp','honduras':'hn','egipto':'eg','corea del sur':'kr','belarus':'by','bielorrusia':'by','marruecos':'ma','gabon':'ga','suiza':'ch','nueva zelanda':'nz','argentina':'ar','china':'cn','italia':'it','francia':'fr','alemania':'de'};
 function _convEscT(nombre,sz,comp){
@@ -37638,6 +37651,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
     isFinal13?tag('Finalista','Finalista Mundial Sub-20 · Turquía 2013'):'',
     isJuvFallecido?tag('Fallecido','Fallecido'):'',
     isJuvRetirado?tag('Retirado','Retirado del fútbol profesional'):'',
+    window._juvDtTag(p.nom),
     _juvSelOtra?tag(({py:'🇵🇾',ar:'🇦🇷',br:'🇧🇷',es:'🇪🇸',it:'🇮🇹',pt:'🇵🇹',fr:'🇫🇷',de:'🇩🇪',us:'🇺🇸',mx:'🇲🇽'}[_juvSelOtra]||'🏳️')+' Otra selección','Se nacionalizó y eligió representar a otra selección','blue'):'',
     p.inv?tag('Invitado','Jugador invitado (uruguayo en el exterior)','blue'):'',
   ].join('');
@@ -38733,7 +38747,7 @@ function _buildJuvCompBody(compId, color, catData){
         <span class="sh-rk" style="width:auto;min-width:32px;border-radius:999px;padding:0 8px;background:color-mix(in srgb,${_catCol(_juvCat)} 18%,transparent);color:${_catCol(_juvCat)};font-weight:700;font-size:13px">${off?'<i class="ti ti-bandage" style="font-size:15px;color:#F87171"></i>':(j.num!=null?j.num:'–')}</span>
         <span class="sh-av" style="--pc:${pc};cursor:pointer" onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto"><span>${ini}</span>${photo?`<img src="${photo}" decoding="async" onerror="this.remove()">`:''}</span>
         <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
-        <span class="sh-nm"><button onclick="_openJuvDetail('${nomEnc}')">${(window.JUV_NOMBRE_MOSTRAR&&JUV_NOMBRE_MOSTRAR[j.nom])||j.nom}</button>${j.asc?'<em class="sh-tg navy" title="Ascendido desde la Sub-16">ex-16</em>':''}${off&&j.descartado?`<em class="sh-tg" style="color:#FCA5A5;border-color:rgba(248,113,113,.4)">${j.descartado}</em>`:''}</span>
+        <span class="sh-nm"><button onclick="_openJuvDetail('${nomEnc}')">${(window.JUV_NOMBRE_MOSTRAR&&JUV_NOMBRE_MOSTRAR[j.nom])||j.nom}</button>${j.asc?'<em class="sh-tg navy" title="Ascendido desde la Sub-16">ex-16</em>':''}${window._juvDtTag(j.nom,true)}${off&&j.descartado?`<em class="sh-tg" style="color:#FCA5A5;border-color:rgba(248,113,113,.4)">${j.descartado}</em>`:''}</span>
         <span style="flex:0 0 64px;text-align:right;font-size:12px;color:rgba(239,243,248,.5)">${edad!=null?edad+' años':''}</span>
         <span class="jf-pos" style="flex:0 0 54px;justify-content:center;text-align:center;color:${pc};border-color:${pc}66;background:${pc==='rgba(239,243,248,.5)'?'transparent':pc+'14'};cursor:default">${pos||'—'}</span>
         <span style="display:inline-flex;align-items:center;gap:6px;flex:0 0 190px;width:190px;overflow:hidden;white-space:nowrap;justify-content:flex-end;font-size:12.5px;color:rgba(239,243,248,.7)">${_ret?'<em class="sh-ret">Retirado</em>':(_clubCorto(_clubRaw)||'— sin club —')}</span>
