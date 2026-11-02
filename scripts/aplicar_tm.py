@@ -25,6 +25,8 @@ for i,l in enumerate(lines):
     for mm in list(ent.finditer(l)):
         o=mm.group(0)
         if not re.search(r"\b(club|pos|num):",o) or re.search(r"\bclubPais|\bbajaGira",o): continue
+        fm=re.search(r"fechaNac:'([^']*)'",o)
+        if fm and fn and fm.group(1)!=fn: continue   # otra persona con el mismo nombre: no se toca
         new=o
         new=re.sub(r"club:'[^']*'","club:'%s'"%(cn or club),new,1) if "club:'" in new else new
         new=re.sub(r",\s*retirado:true","",new) if club!='Retirado' else new
