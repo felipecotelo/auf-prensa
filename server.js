@@ -660,9 +660,11 @@ function fetchText(url) {
       if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
         return fetchText(r.headers.location).then(resolve, reject);
       }
-      let data = '';
-      r.on('data', chunk => data += chunk);
-      r.on('end', () => resolve(data));
+      // Se juntan los bytes y se decodifica UTF-8 una sola vez al final: si se decodificaba cada trozo por separado,
+      // una letra con tilde partida entre dos trozos salía como «��» (ej. «Am��rica»).
+      const chunks = [];
+      r.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+      r.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     }).on('error', reject);
   });
 }
