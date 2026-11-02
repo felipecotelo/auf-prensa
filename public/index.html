@@ -19941,7 +19941,7 @@ function renderJugadores(){
       ...(typeof _isFinalistMun20_2013==='function'&&_isFinalistMun20_2013(nom)?[`<span class="jf-h" title="Finalista Mundial Sub-20 · Turquía 2013" style="color:#CBD5E1;background:rgba(203,213,225,.14)">Mundial Sub-20 2013</span>`]:[]),
     ].join('');
     const _juvHtml=_allJuvBadges.map(b=>`<span class="jf-h" style="color:${b.color};background:${b.color}22">${b.label}</span>`).join('');
-    return `<div class="jf${isRetOrDead?' off':''}" onclick="showJugador('${nomSafe}')" style="--cat:#22D3EE;cursor:pointer;${lesion?'border-color:#EF4444;':''}">
+    return `<div class="jf${isRetOrDead?' off':''}${isFallecido?' jf-fal':(selOtra?' jf-ot':(isRetirado?' jf-ret':''))}" onclick="showJugador('${nomSafe}')" style="--cat:#22D3EE;cursor:pointer;${lesion?'border-color:#EF4444;':''}">
     <div class="jf-top"><span></span><span class="jf-ico">
       <button class="jf-c${isCapitan?' on':''}" onclick="event.stopPropagation();_toggleCapitan('${nomSafe}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}">C</button>
       <button class="jf-star${isLeyenda?' on':''}" onclick="event.stopPropagation();_toggleLeyenda('${nomSafe}')" title="${isLeyenda?'Quitar leyenda':'Marcar como leyenda'}"><i class="ti ti-star${isLeyenda?'-filled':''}"></i></button>
@@ -19973,7 +19973,7 @@ function renderJugadores(){
       <div class="jf-tags">
         ${_logrosHtml}${_juvHtml}
         <span class="jf-add" onclick="event.stopPropagation();_editMayorJuvTags('${nomSafe}')" title="Categorías juveniles">${_allJuvBadges.length?'✎':'+ juvenil'}</span>
-        ${d.estKey?`<span class="jf-add" onclick="event.stopPropagation();_goToEstFicha('${d.estKey}')">Perfil DT</span>`:''}
+        ${window._juvDtTag(nom)||(d.estKey?`<span class="jf-add" onclick="event.stopPropagation();_goToEstFicha('${d.estKey}')">Perfil DT</span>`:'')}
       </div>
     </div>
     <div class="jf-foot">
@@ -20023,7 +20023,6 @@ function renderJugadores(){
     <!-- Sync TM -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.6)">${entries.length} jugador${entries.length!==1?'es':''}</div>
-      <button id="tm-sync-btn" class="rd-btn ghost sm" onclick="_tmSyncManual()"><i class="ti ti-refresh"></i>Sincronizar clubes (TM)</button>
     </div>
     <div style="display:grid;grid-template-columns:${isMob?'repeat(3,1fr)':'repeat(auto-fill,minmax(205px,1fr))'};gap:${isMob?'6':'10px'};margin-bottom:16px">
       ${entries.map(([nom,d])=>playerCard(nom,d)).join('')}
@@ -27548,7 +27547,6 @@ function _renderLocalHome(){
     <div>
       ${_localTab==='jugadores' ? `
         <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-          <button id="tm-sync-btn" class="rd-btn ghost sm" onclick="_tmSyncManual()"><i class="ti ti-refresh"></i>Sincronizar clubes (TM)</button>
         </div>
         <div style="display:grid;grid-template-columns:${isMob?'repeat(3,1fr)':'repeat(auto-fill,minmax(205px,1fr))'};gap:${isMob?'6':'10px'}">${jugCards}</div>
       ` : cards}
@@ -37565,17 +37563,24 @@ function _convTitulo(pp, info, partidos){
   return base;
 }
 // Retirados que hoy tienen perfil de DT/cuerpo técnico (estKey de JUGADORES): etiqueta de color que lleva a ese perfil
-window._juvDtLink=function(nom){
+window._juvDtInfo=function(nom){
+  // {call,label}: a dónde lleva y cómo se llama la etiqueta (DT, o Ayudante técnico del ciclo en que estuvo)
   try{
-    const j=(typeof JUGADORES!=='undefined')?JUGADORES[nom]:null; if(j&&j.dtId) return "showSection('mayor');showTab('tecnicos');selectDT('"+j.dtId+"')";
-    if(!j||!j.estKey||!/^ct-p:/.test(j.estKey)) return null;
-    if(nom==='Diego Forlán') return "showSection('mayor');showTab('tecnicos');selectDT('forlan')";
-    return "showSection('estructura');setTimeout(()=>_estOpenFicha('"+j.estKey+"'),80)";
-  }catch(_){ return null; }
+    const j=(typeof JUGADORES!=='undefined')?JUGADORES[nom]:null;
+    if(j&&j.dtId) return {call:"showSection('mayor');showTab('tecnicos');selectDT('"+j.dtId+"')",label:'DT'};
+    const ciclos=[['alonso',typeof CT_MAYOR_ALONSO!=='undefined'?CT_MAYOR_ALONSO:[],'Alonso'],['bielsa',typeof CT_MAYOR_BIELSA!=='undefined'?CT_MAYOR_BIELSA:[],'Bielsa'],['forlan',typeof CT_MAYOR_FORLAN!=='undefined'?CT_MAYOR_FORLAN:[],'Forlán']];
+    for(const [id,arr,nm] of ciclos){ const m=arr.find(x=>x.name===nom); if(m) return {call:"showSection('mayor');showTab('tecnicos');selectDT('"+id+"')",label:/director/i.test(m.rol||'')?'DT':'Ayudante de '+nm}; }
+    if(j&&j.estKey&&/^ct-p:/.test(j.estKey)){
+      if(nom==='Diego Forlán') return {call:"showSection('mayor');showTab('tecnicos');selectDT('forlan')",label:'DT'};
+      return {call:"showSection('estructura');setTimeout(()=>_estOpenFicha('"+j.estKey+"'),80)",label:'DT'};
+    }
+  }catch(_){}
+  return null;
 };
+window._juvDtLink=function(nom){ const i=window._juvDtInfo(nom); return i?i.call:null; };
 window._juvDtTag=function(nom,compact){
-  const f=window._juvDtLink(nom); if(!f) return '';
-  return `<button type="button" class="jf-dt${compact?' sm':''}" onclick="event.stopPropagation();${f}" title="Ver su perfil de director técnico / cuerpo técnico"><i class="ti ti-whistle"></i>DT</button>`;
+  const i=window._juvDtInfo(nom); if(!i) return '';
+  return `<button type="button" class="jf-dt${compact?' sm':''}" onclick="event.stopPropagation();${i.call}" title="Ver su perfil de director técnico / cuerpo técnico"><i class="ti ti-whistle"></i>${i.label}</button>`;
 };
 // Juegos Olímpicos: en lugar del escudo de la selección se usa la bandera del país (cierre.banderas)
 const _BANDERAS_ES={'uruguay':'uy','emiratos arabes':'ae','emiratos arabes unidos':'ae','senegal':'sn','gran bretana':'gb','reino unido':'gb','mexico':'mx','brasil':'br','espana':'es','japon':'jp','honduras':'hn','egipto':'eg','corea del sur':'kr','belarus':'by','bielorrusia':'by','marruecos':'ma','gabon':'ga','suiza':'ch','nueva zelanda':'nz','argentina':'ar','china':'cn','italia':'it','francia':'fr','alemania':'de'};
