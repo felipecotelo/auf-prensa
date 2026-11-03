@@ -12685,6 +12685,10 @@ async function savePE(){
     // Mayor grid card surgical update
     const mayorAv = document.getElementById('mayor-av-'+enc);
     if(mayorAv) mayorAv.innerHTML = `<img src="${dataUrl}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;object-position:top center">`;
+    if(estKey.startsWith('mayor:')){
+      if(document.getElementById('fifasep26-plantel')?.classList.contains('active') && typeof window.renderFifaSep26Plantel==='function') window.renderFifaSep26Plantel();
+      if(document.getElementById('fifanov26-plantel')?.classList.contains('active') && typeof window.renderFifaNov26Plantel==='function') window.renderFifaNov26Plantel();
+    }
     window.renderEstructura?.();
     window.renderJuveniles?.();
     // Re-render jugadores grid so mayor: photos appear immediately
@@ -15236,7 +15240,7 @@ function renderFifaSep26(tabId){
         // (ver _openJuvSP / bajaSet).
         const bajaGris = enFinal && !!(p.lesionEnGira || p.bajaGira);
         const bajaActiva = enFinal && !!p.lesionEnGira;
-        const cardBorder = nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null);
+        const cardBorder = inj==='red' ? '#DC2626' : (inj==='yellow' ? '#F59E0B' : (nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null))); // lesión = rojo · molestia = amarillo · disponible = normal
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
         // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
         const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
@@ -15254,11 +15258,11 @@ function renderFifaSep26(tabId){
           <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <div class="p-card-num" title="${_fifaSepNumMap[p.nom]!=null?'Número de esta gira':'Todavía sin número asignado'}">${_fifaSepNumMap[p.nom]!=null?_fifaSepNumMap[p.nom]:'#'}</div>
-              <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
+              <div onclick="event.stopPropagation();_clickFifaPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
                 ${photoSrc?`<img src="${photoSrc}" alt="${p.nom}" loading="lazy" decoding="async" style="object-position:center 15%" onerror="this.style.display='none'">`:''}
                 <div class="p-avatar-ini">${initialsOf(p.nom)}</div>
                 <span style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
-                <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
+                <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_fifaPhotoSelected('${nomEnc}',this)">
               </div>
               <div class="p-card-right">
                 <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin:0">${p.pos||''}</span>
@@ -15294,7 +15298,7 @@ function renderFifaSep26(tabId){
             </div>
           </div>
         </div>`;
-        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':(p.lesionEnGira?'Lesionado — regresa a su club':'Dado de baja — regresa a su club'))}">${cardHtml}</div>` : cardHtml;
+        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${inj==='red'?'Lesionado':(inj==='yellow'?'Molestia':(nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':(p.lesionEnGira?'Lesionado — regresa a su club':'Dado de baja — regresa a su club'))))}">${cardHtml}</div>` : cardHtml;
       };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
       const allPos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
@@ -17464,7 +17468,7 @@ function renderFifaNov26(tabId){
         // (ver _openJuvSP / bajaSet).
         const bajaGris = enFinal && !!(p.lesionEnGira || p.bajaGira);
         const bajaActiva = enFinal && !!p.lesionEnGira;
-        const cardBorder = nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null);
+        const cardBorder = inj==='red' ? '#DC2626' : (inj==='yellow' ? '#F59E0B' : (nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null))); // lesión = rojo · molestia = amarillo · disponible = normal
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
         // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
         const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
@@ -17482,11 +17486,11 @@ function renderFifaNov26(tabId){
           <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <div class="p-card-num" title="${_fifaNovNumMap[p.nom]!=null?'Número de esta gira':'Todavía sin número asignado'}">${_fifaNovNumMap[p.nom]!=null?_fifaNovNumMap[p.nom]:'#'}</div>
-              <div onclick="event.stopPropagation();_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
+              <div onclick="event.stopPropagation();_clickFifaPhoto('${nomEnc}')" title="Click para cargar/editar foto" class="p-avatar" style="cursor:pointer">
                 ${photoSrc?`<img src="${photoSrc}" alt="${p.nom}" loading="lazy" decoding="async" style="object-position:center 15%" onerror="this.style.display='none'">`:''}
                 <div class="p-avatar-ini">${initialsOf(p.nom)}</div>
                 <span style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
-                <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
+                <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_fifaPhotoSelected('${nomEnc}',this)">
               </div>
               <div class="p-card-right">
                 <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin:0">${p.pos||''}</span>
@@ -17522,7 +17526,7 @@ function renderFifaNov26(tabId){
             </div>
           </div>
         </div>`;
-        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':(p.lesionEnGira?'Lesionado — regresa a su club':'Dado de baja — regresa a su club'))}">${cardHtml}</div>` : cardHtml;
+        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${inj==='red'?'Lesionado':(inj==='yellow'?'Molestia':(nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':(p.lesionEnGira?'Lesionado — regresa a su club':'Dado de baja — regresa a su club'))))}">${cardHtml}</div>` : cardHtml;
       };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
       const allPos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
@@ -27576,11 +27580,9 @@ function _localNameToKey(nom){
 window._getPhotoByName = function(nom){
   // 0. Jugador de la Mayor con homónimo juvenil (ej. Federico Pereira, Toluca vs. el Sub-15): primero SU foto de Mayor, nunca la del juvenil
   try{
-    if(typeof JUGADORES!=='undefined' && JUGADORES[nom]){
-      const _s0=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
-      const _m0=(window._estPhotoCache||{})['mayor:'+_s0]; if(_m0) return _m0;
-      if(JUGADORES[nom].foto) return JUGADORES[nom].foto;
-    }
+    const _s0=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+    const _m0=(window._estPhotoCache||{})['mayor:'+_s0]; if(_m0) return _m0; // foto cargada a mano para la Mayor (clave 'mayor:')
+    if(typeof JUGADORES!=='undefined' && JUGADORES[nom] && JUGADORES[nom].foto) return JUGADORES[nom].foto;
   }catch(_){}
   // 1. Juveniles (keyed by name)
   if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
@@ -37551,6 +37553,23 @@ window._clickJuvPhoto = function(nomEncoded){
   if(cached){ openPE('juv:'+nom, cached); return; }
   // No photo yet — open file picker immediately (must be sync from user gesture)
   document.getElementById('juv-photo-input-'+nomEncoded)?.click();
+};
+// Tarjetas de la Fecha FIFA (reservados / convocados de la Mayor): el recuadro «Ajustar foto» abre la MISMA foto que se ve en la tarjeta y lo que se guarde
+// va a la clave de la Mayor ('mayor:<slug>'), la que la tarjeta lee primero. Antes se guardaba como juvenil ('juv:<nombre>') y la tarjeta seguía mostrando otra.
+window._fifaPhotoKey = function(nom){ return 'mayor:'+nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); };
+window._clickFifaPhoto = function(nomEncoded){
+  const nom = decodeURIComponent(nomEncoded);
+  const shown = (window._getPhotoByName&&window._getPhotoByName(nom)) || ((typeof JUGADORES!=='undefined'&&JUGADORES[nom]&&JUGADORES[nom].foto)||'');
+  // Solo se puede recortar una foto propia (cargada o en la nube); una foto estática de AUF no se puede guardar recortada: se elige un archivo nuevo.
+  if(shown && (String(shown).startsWith('data:') || String(shown).includes('/storage/v1/object/public/'))){ openPE('est:'+window._fifaPhotoKey(nom), shown); return; }
+  document.getElementById('juv-photo-input-'+nomEncoded)?.click();
+};
+window._fifaPhotoSelected = function(nomEncoded, input){
+  const file = input.files[0]; if(!file) return;
+  input.value='';
+  const reader = new FileReader();
+  reader.onload = ev => openPE('est:'+window._fifaPhotoKey(decodeURIComponent(nomEncoded)), ev.target.result);
+  reader.readAsDataURL(file);
 };
 window._juvPhotoSelected = function(nomEncoded, input){
   const file = input.files[0]; if(!file) return;
