@@ -3516,7 +3516,7 @@ select.rd-in{padding:0 10px}
 .rd-pn span{display:block;margin-top:3px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.55)}
 .jf.jf-ret{border:1px dashed rgba(148,163,184,.4);background:linear-gradient(180deg,rgba(148,163,184,.04),rgba(148,163,184,.01))}.jf.jf-ret .jf-ph-in img{filter:grayscale(.3) opacity(.92)}.jf.jf-ret .jf-nm,.jf.jf-ret .jf-num{opacity:.85}.jf.jf-ret .jf-tag{border-style:dashed;color:#94A3B8}
 .jf.jf-ot{border:1px dashed rgba(96,165,250,.55);background:linear-gradient(180deg,rgba(96,165,250,.08),rgba(96,165,250,.02))}.jf.jf-ot .jf-ph-in img{filter:grayscale(.5) opacity(.88)}.jf.jf-ot .jf-num{opacity:.6}
-.jf-dt{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font:700 10.5px inherit;font-family:inherit;letter-spacing:.06em;text-transform:uppercase;color:#5EEAD4;background:rgba(45,212,191,.14);border:1px solid rgba(45,212,191,.55);border-radius:999px;padding:3px 10px}.jf-dt:hover{background:rgba(45,212,191,.26);color:#99F6E4}.jf-dt i{font-size:12px}.jf-dt.sm{padding:1px 8px;font-size:9.5px}
+.jf-dt{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:10.5px;font-weight:700;line-height:1.2;font-family:inherit;white-space:nowrap;letter-spacing:.06em;text-transform:uppercase;color:#5EEAD4;background:rgba(45,212,191,.14);border:1px solid rgba(45,212,191,.55);border-radius:999px;padding:3px 10px}.jf-dt:hover{background:rgba(45,212,191,.26);color:#99F6E4}.jf-dt i{font-size:12px}.jf-dt.sm{padding:1px 8px;font-size:9.5px}.jf-tags .jf-dt{align-self:center}
 .jf.jf-fal{border:1px solid rgba(148,163,184,.3);background:linear-gradient(180deg,rgba(100,116,139,.14),rgba(100,116,139,.05))}.jf.jf-fal .jf-ph-in img{filter:grayscale(1) opacity(.7)}.jf.jf-fal .jf-nm,.jf.jf-fal .jf-num{opacity:.55}.jf.jf-fal .jf-tag{color:#94A3B8;border-color:rgba(148,163,184,.4)}
 .jf.jf-off{border-color:rgba(248,113,113,.4)}
 .jf.jf-nc{border-color:#FB923C!important;box-shadow:0 0 0 1px rgba(251,146,60,.28),0 10px 26px rgba(251,146,60,.08)}
@@ -34654,10 +34654,12 @@ function _gnavCollectResults(q, mode){
       });
     }catch(_){}
     try{ // directores técnicos de la Mayor (Técnicos) y su cuerpo técnico por ciclo
-      if(typeof DT_CATALOG!=='undefined') DT_CATALOG.forEach(dt=>addCT(dt.full, 'Técnicos · Director técnico Selección Mayor', 'estructura', {key:'dt:'+dt.id}));
+      const _estKeys=new Set(); try{ _estBuildAllSections().forEach(d=>d.personas.forEach(x=>_estKeys.add(x.key))); }catch(_){}
+      const _kEst=(nom,fb)=>{ const k='ct-p:'+String(nom).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); return _estKeys.has(k)?k:fb; };
+      if(typeof DT_CATALOG!=='undefined') DT_CATALOG.forEach(dt=>addCT(dt.full, 'Técnicos · Director técnico Selección Mayor', 'estructura', {key:_kEst(dt.full,'dt:'+dt.id)}));
       [['alonso','CT_MAYOR_ALONSO','Ciclo Alonso'],['bielsa','CT_MAYOR_BIELSA','Ciclo Bielsa'],['forlan','CT_MAYOR_FORLAN','Interino Forlán']].forEach(([id,cn,lab])=>{
         let arr=[]; try{ arr=eval('typeof '+cn+"!=='undefined'?"+cn+':[]'); }catch(_){}
-        arr.forEach(m=>addCT(m.name, 'Técnicos · '+nr(m.rol)+' · '+lab, 'estructura', {key:'dt:'+id}));
+        arr.forEach(m=>addCT(m.name, 'Técnicos · '+nr(m.rol)+' · '+lab, 'estructura', {key:_kEst(m.name,'dt:'+id)}));
       });
     }catch(_){}
     try{
@@ -37584,9 +37586,13 @@ window._juvDtInfo=function(nom){
   // {call,label}: a dónde lleva y cómo se llama la etiqueta (DT, o Ayudante técnico del ciclo en que estuvo)
   try{
     const j=(typeof JUGADORES!=='undefined')?JUGADORES[nom]:null;
-    if(j&&j.dtId) return {call:"showSection('mayor');showTab('tecnicos');selectDT('"+j.dtId+"')",label:'DT'};
+    const _sl=String(nom).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+    let _estK=null; try{ _estBuildAllSections().forEach(d=>d.personas.forEach(x=>{ if(x.key==='ct-p:'+_sl) _estK=x.key; })); }catch(_){}
+    const _goEst=k=>"showSection('estructura');setTimeout(()=>_estOpenFicha('"+k+"'),80)";
+    if(j&&j.dtId&&!_estK) return {call:"showSection('mayor');showTab('tecnicos');selectDT('"+j.dtId+"')",label:'DT'};
     const ciclos=[['alonso',typeof CT_MAYOR_ALONSO!=='undefined'?CT_MAYOR_ALONSO:[],'Alonso'],['bielsa',typeof CT_MAYOR_BIELSA!=='undefined'?CT_MAYOR_BIELSA:[],'Bielsa'],['forlan',typeof CT_MAYOR_FORLAN!=='undefined'?CT_MAYOR_FORLAN:[],'Forlán']];
-    for(const [id,arr,nm] of ciclos){ const m=arr.find(x=>x.name===nom); if(m) return {call:"showSection('mayor');showTab('tecnicos');selectDT('"+id+"')",label:/director/i.test(m.rol||'')?'DT':'Ayudante de '+nm}; }
+    for(const [id,arr,nm] of ciclos){ const m=arr.find(x=>x.name===nom); if(m) return {call:_estK?_goEst(_estK):"showSection('mayor');showTab('tecnicos');selectDT('"+id+"')",label:/director/i.test(m.rol||'')?'DT':'Ayudante de '+nm}; }
+    if(_estK) return {call:_goEst(_estK),label:'DT'};
     if(j&&j.estKey&&/^ct-p:/.test(j.estKey)){
       if(nom==='Diego Forlán') return {call:"showSection('mayor');showTab('tecnicos');selectDT('forlan')",label:'DT'};
       return {call:"showSection('estructura');setTimeout(()=>_estOpenFicha('"+j.estKey+"'),80)",label:'DT'};
