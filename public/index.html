@@ -9436,7 +9436,13 @@ function _recGolesResDerivados(){
   }catch(e){ console.warn('recordatorios de goles:',e); }
   return out;
 }
-function _recTodos(){ return [..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados()]; }
+// Pasos de un grupo con `secuencial:true`: se muestra solo el paso que toca (el de menor orden sin hacer); los siguientes aparecen cuando se tilda el anterior, para que no se apilen.
+function _recSecuenciales(arr){
+  const sig={};
+  arr.forEach(r=>{ if(r&&r.secuencial&&r.grupo&&!r.hecho){ const o=+r.orden||0; if(!(r.grupo in sig)||o<sig[r.grupo]) sig[r.grupo]=o; } });
+  return arr.filter(r=>!(r&&r.secuencial&&r.grupo&&!r.hecho&&(+r.orden||0)>sig[r.grupo]));
+}
+function _recTodos(){ return _recSecuenciales([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados()]); }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
