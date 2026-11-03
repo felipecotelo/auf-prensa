@@ -27568,6 +27568,14 @@ function _localNameToKey(nom){
 }
 // Foto universal por nombre — busca en todos los sistemas de fotos
 window._getPhotoByName = function(nom){
+  // 0. Jugador de la Mayor con homónimo juvenil (ej. Federico Pereira, Toluca vs. el Sub-15): primero SU foto de Mayor, nunca la del juvenil
+  try{
+    if(typeof JUGADORES!=='undefined' && JUGADORES[nom]){
+      const _s0=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+      const _m0=(window._estPhotoCache||{})['mayor:'+_s0]; if(_m0) return _m0;
+      if(JUGADORES[nom].foto) return JUGADORES[nom].foto;
+    }
+  }catch(_){}
   // 1. Juveniles (keyed by name)
   if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
   // 2. Local/Estructura/Mayor histórico (keyed by slug — 'ct-p:' o 'mayor:' según de dónde se cargó)
