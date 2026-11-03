@@ -1344,6 +1344,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .jg-ci{flex:1;min-width:0}
 .jg-cc.off{opacity:.55}.jg-cc.off .jg-ph{filter:grayscale(1);border-color:rgba(255,255,255,.2)}.jg-cc.off .jg-en{filter:grayscale(.7)}
 /* Colores por tipo de día y por estado (Fechas FIFA) */
+:is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-day.tp-previo-act{border:1px solid rgba(34,211,238,.6)!important;background:radial-gradient(420px 150px at 100% 0,rgba(34,211,238,.16),transparent 70%),linear-gradient(180deg,#0F2230,#0A1420)!important}
+:is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-day.tp-previo-act .cal-date{color:#67E8F9!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-day.tp-previo{border:1px dashed rgba(148,163,184,.4)!important;background:linear-gradient(135deg,#171C2B,#0E1220 70%)!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-day.tp-previo .cal-date{color:#94A3B8!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-day.tp-previo .cal-badge{color:#94A3B8!important;border-color:rgba(148,163,184,.4)!important;border-style:dashed!important}
@@ -16278,10 +16280,10 @@ window._fifaNovConfirmStats=function(cat,year,matchId){
 // fechas de los partidos; cuando se confirmen se les pone tipo/lugar/rival.
 const FIFANOV26_CAL_DAYS = [
   // Días previos al período oficial FIFA (9–17/11): no son parte de la Fecha FIFA, pero a veces llega algún jugador.
-  {date:'2026-11-05', dow:'Jue', label:'5 nov',  tipo:'previo', lugar:'Viajan los primeros jugadores convocados', eventos:[]},
-  {date:'2026-11-06', dow:'Vie', label:'6 nov',  tipo:'previo', lugar:'Uruguay · primer entrenamiento (fuera de la ventana FIFA)', eventos:[]},
-  {date:'2026-11-07', dow:'Sáb', label:'7 nov',  tipo:'previo', lugar:'Uruguay · entrenamiento', eventos:[]},
-  {date:'2026-11-08', dow:'Dom', label:'8 nov',  tipo:'previo', lugar:'Día libre', eventos:[]},
+  {date:'2026-11-05', dow:'Jue', label:'5 nov',  tipo:'previo', act:true, tag:'Previo · viaje',        badge:'cb-viaje',   lugar:'', eventos:[]},
+  {date:'2026-11-06', dow:'Vie', label:'6 nov',  tipo:'previo', act:true, tag:'Previo · entrenamiento', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
+  {date:'2026-11-07', dow:'Sáb', label:'7 nov',  tipo:'previo', act:true, tag:'Previo · entrenamiento', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
+  {date:'2026-11-08', dow:'Dom', label:'8 nov',  tipo:'previo', tag:'Previo · libre', badge:'cb-descanso', lugar:'', eventos:[]},
   {date:'2026-11-09', dow:'Lun', label:'9 nov',  tipo:'tbd', lugar:'Uruguay · arranca la Fecha FIFA con normalidad', eventos:[]},
   {date:'2026-11-10', dow:'Mar', label:'10 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-11', dow:'Mié', label:'11 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
@@ -17780,14 +17782,14 @@ function renderFifaNovCal(){
     const isMD1 = day.tipo!=='partido' && FIFANOV26_CAL_DAYS.some(d2=>d2.tipo==='partido' && d2.date===_nextDateStr(day.date));
     const dayTypeLabel = (day.llegadas && day.tipo==='entreno') ? 'Llegadas + Entrenamiento' : FIFANOV_TYPE_LABELS[day.tipo];
     const div=document.createElement('div');
-    div.className='cal-day'+((isToday||openDates.has(day.date))?' today open':'')+(day.tipo==='partido'?' tipo-partido':isMD1?' tipo-md1':'')+(day.tipo==='previo'?' tp-previo':'')+' st-'+dayState;
+    div.className='cal-day'+((isToday||openDates.has(day.date))?' today open':'')+(day.tipo==='partido'?' tipo-partido':isMD1?' tipo-md1':'')+(day.tipo==='previo'?(day.act?' tp-previo-act':' tp-previo'):'')+' st-'+dayState;
     div.dataset.date=day.date;
     div.innerHTML=`
       <div class="cal-day-hdr" onclick="event.target.closest('.cal-day-hdr')===this&&toggleCalDay(this.parentElement)">
         <div class="cal-dow">${day.dow}</div>
         <div class="cal-date">${day.label}</div>
         ${isMD1?`<span class="cal-badge cb-md1">MD-1</span>`:''}
-        <span class="cal-badge ${FIFANOV_TYPE_BADGE[day.tipo]}">${dayTypeLabel}</span>
+        <span class="cal-badge ${day.badge||FIFANOV_TYPE_BADGE[day.tipo]}">${day.tag||dayTypeLabel}</span>
         <div class="cal-rival" style="flex:1">${rival}</div>
         ${(day.tipo!=='partido'&&day.tipo!=='previo')?`<button class="day-closed-btn ${dayState}"
           onclick="event.stopPropagation();_fnovToggleDayClosed('${day.date}')"
