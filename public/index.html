@@ -19160,7 +19160,7 @@ function _openJuvDetail(nomEnc){
   const clubOverride = _juvClubEntry?.actual ?? (_juvClubEntry && typeof _juvClubEntry==='string' ? _juvClubEntry : undefined);
   const _jugEntry = typeof JUGADORES!=='undefined' ? JUGADORES[nom] : null;
   const clubShow = clubOverride !== undefined ? clubOverride : (_jugEntry?.club || '');
-  const isRet = !!(stor.get('auf4_retirado',{})[nom]);
+  const isRet = !!(stor.get('auf4_retirado',{})[nom]) || /^retirado$/i.test(String(clubShow||'').trim());
   const isFall = !!(stor.get('auf4_fallecido',{})[nom]);
   const posColors = {POR:'#0F4C81',DEF:'#15803D',MED:'#0E7490',DEL:'#B45309'};
   const posLabel = _jugEntry?.pos || '';
@@ -37933,6 +37933,7 @@ setTimeout(_autoBackupPhotosToSupabase, 30 * 1000);
 const JUV_FOTO_AUF = {
   'Guzmán Pereira':       _AUF_FOTO+'guzman_pereira_gettyimages.jpg',  // 16/05/1991
   'Cristopher Fiermarín': _AUF_FOTO+'fiermarin-cristopher.jpg',        // 01/01/1998
+  'Horacio Peralta':      _AUF_FOTO+'horacio_peralta_.jpg',            // 03/06/1982 (7 PJ en la Mayor)
 };
 const JUV_FOTO_BLOQUEADA = new Set([
   // 'Nicolás López' (Sub-16, Wanderers) estuvo acá porque la foto guardada era la de OTRO Nicolás López (Alonso, de la Mayor);
@@ -38609,7 +38610,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const _storedPais = _juvClubEntry?.pais;
   const juvPais = _clubPaisAuto(clubShow, _storedPais||p.pais) || ((_storedPais && _storedPais !== 'uy') ? _storedPais : (p.pais || _storedPais || 'uy')); // la bandera sale de la base de clubes
   const sparringEvts = getJuvSparring()[p.nom]||[];
-  const isJuvRetirado = p.retirado || !!(stor.get('auf4_retirado',{})[p.nom]);
+  const isJuvRetirado = p.retirado || /^retirado$/i.test(String(clubShow||'').trim()) || !!(stor.get('auf4_retirado',{})[p.nom]); // el club «Retirado» también enciende la R, aunque el pool no traiga el flag
   const _juvSelOtra = (typeof JUGADORES!=='undefined'&&JUGADORES[p.nom]&&JUGADORES[p.nom].selOtra)||null; // eligió otra selección (ej. nacionalizado paraguayo)
   const isJuvFallecido = p.fallecido || !!(stor.get('auf4_fallecido',{})[p.nom]);
   const isJuvLesion = getLesiones()[p.nom]||null;
