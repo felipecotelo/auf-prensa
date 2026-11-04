@@ -41900,6 +41900,33 @@ function _redesHistorial(){
 const PW_ACTIVIDAD_TIPOS = {
   'entreno-abierto-zona-mixta': {label:'Entreno abierto + zona mixta', bg:'#FEF3C7', color:'#92400E'},
 };
+// Color de la etiqueta de categoría en la lista de ventanas. Sigue los colores de
+// PLAN_CATS (Mayor/Sub-20/Sub-17/Sub-15) en versión clara para el fondo oscuro;
+// el resto de los cuerpos técnicos y estructuras tiene su propio color.
+function _pwCatColor(cat){
+  const c=String(cat||'').toLowerCase().replace(/[\s_]/g,'');
+  if(/sub-?20/.test(c)) return '#60A5FA';
+  if(/sub-?17/.test(c)) return '#4ADE80';
+  if(/sub-?15/.test(c)) return '#FB923C';
+  if(/mayor/.test(c)) return '#2DD4BF';
+  if(/gerencia/.test(c)) return '#F472B6';
+  if(/juvenil/.test(c)) return '#FBBF24';
+  return '#94A3B8';
+}
+// Nombres de quienes ya participaron: protagonistas de las atenciones marcadas
+// como realizadas, sin repetir y en el orden en que se fueron haciendo. Se suman
+// solos a medida que se tilda cada atención.
+function _pwParticiparon(pw){
+  const vistos=new Set(), nombres=[];
+  (pw.solicitudes||[]).filter(a=>a.tipo==='atencion'&&a.realizada).forEach(a=>{
+    String(a.protagonistaLabel||'').split(',').map(n=>n.trim()).filter(Boolean).forEach(n=>{
+      if(!vistos.has(n)){ vistos.add(n); nombres.push(n); }
+    });
+  });
+  if(!nombres.length) return '';
+  const col=_pwCatColor(pw.cat);
+  return `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">${nombres.map(n=>`<span style="font-size:.72em;font-weight:700;color:${col};background:${col}1F;border:1px solid ${col}55;border-radius:20px;padding:2px 9px"><i class="ti ti-check" style="font-size:.95em"></i> ${n}</span>`).join('')}</div>`;
+}
 function _renderListaPrensa(){
   const el = document.getElementById('prensa-body');
   if(!el) return;
@@ -41937,9 +41964,10 @@ function _renderListaPrensa(){
     return `${_sep}
     <div onclick="_pwOpenVentana('${pw.id}')" style="background:${isCerrada?'rgba(255,255,255,.02)':'#fff'};border:1px solid ${isCerrada?'rgba(255,255,255,.07)':'var(--border)'};border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px">
       <div style="flex:1;min-width:0${isCerrada?';opacity:.55':''}">
-        <div style="font-size:.68em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${pw.cat||''}</div>
+        ${pw.cat?`<span style="display:inline-block;font-size:.68em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${_pwCatColor(pw.cat)};background:${_pwCatColor(pw.cat)}22;border:1px solid ${_pwCatColor(pw.cat)}66;border-radius:20px;padding:2px 9px">${pw.cat}</span>`:''}
         <div style="font-size:.98em;font-weight:900;color:var(--text);margin-top:1px">${displayName}</div>
         <div style="font-size:.75em;color:var(--muted);margin-top:2px">${subLabel ? subLabel+' · ' : ''}${periodo}</div>
+        ${_pwParticiparon(pw)}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         ${isCerrada?`<span style="font-size:.72em;font-weight:700;background:rgba(74,222,128,.16);color:${VERDE};border-radius:20px;padding:2px 9px;border:1px solid rgba(74,222,128,.5)"><i class="ti ti-circle-check" style="font-size:.95em"></i> Terminada</span>`:badge}
