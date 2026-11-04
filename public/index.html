@@ -21,7 +21,7 @@
 <link rel="dns-prefetch" href="https://wsiudiexcodrhyejevco.supabase.co">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 @font-face {
@@ -4761,9 +4761,11 @@ function toggleMatchLock(matchId){
   toast(newVal?'🔒 Partido cerrado — ESPN desactivado':'🔓 Desbloqueado — ESPN puede sincronizar');
 }
 // Auto-bloquear si el partido ya pasó y tiene 11 titulares (sin necesitar botón)
+// Fecha de HOY en hora local (YYYY-MM-DD). new Date().toISOString() usa UTC y, pasadas las 21:00 en Uruguay, devolvía el día siguiente.
+function _hoyLocal(){ return new Date().toLocaleDateString('en-CA'); }
 function autoLockIfComplete(matchId){
   if(isMatchLocked(matchId)||_sessionUnlocked.has(matchId)) return;
-  const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const today=_hoyLocal().replace(/-/g,'');
   const mDate=ESPN_MATCH_DATES[matchId];
   if(!mDate||mDate>=today) return;
   const st=getLineup()[matchId]?.starters||{};
@@ -4992,7 +4994,7 @@ async function _tmSyncAll(force){
   if(!force) toSync=toSync.slice(0,60);
   if(!toSync.length) return 0;
   let updated=0;
-  const juvPosTM={}; const _juvPosMap=getJuvPos();
+  const juvPosTM={}; const _juvPosMap=stor.get('auf4_juvPos',{});
   for(const {nom,tmId,source,pos:posEstatico} of toSync){
     try{
       const r=await fetch(`/api/tm/${tmId}`);
@@ -5045,7 +5047,7 @@ async function _tmSyncAll(force){
     stor.set(KJugExClubs,exClubs);
     if(localList.length) stor.set(KLocalClub,localClubOvr);
     if(juvSyncList.length) stor.set(KJuvClub,juvClubOvr);
-    if(Object.keys(juvPosTM).length){ const _jp=getJuvPos(); Object.entries(juvPosTM).forEach(([n,p])=>{ if(!_jp[n]) _jp[n]=p; }); stor.set('auf4_juvPos',_jp,{allowShrink:true}); }
+    if(Object.keys(juvPosTM).length){ const _jp=stor.get('auf4_juvPos',{}); Object.entries(juvPosTM).forEach(([n,p])=>{ if(!_jp[n]) _jp[n]=p; }); stor.set('auf4_juvPos',_jp,{allowShrink:true}); }
     stor.set(KTmSync,lastSync);
   }
   return updated;
@@ -6716,7 +6718,7 @@ async function cloudPush(key,value,opts){
             }
           }
         }
-      }catch(_){}
+      }catch(err){ console.warn('cloudPush: no se pudo comparar "'+key+'" con el servidor (el guardado sigue)',err&&err.message); }
     } else if(value && typeof value==='object'){
       // Igual que en el array (ver comentario de arriba): NO usar "_lastServerSnapshot"
       // para decidir esto — un campo que cambia en cada guardado legítimo (ej: "ts" de
@@ -6766,7 +6768,7 @@ async function cloudPush(key,value,opts){
             }
           }
         }
-      }catch(_){}
+      }catch(err){ console.warn('cloudPush: no se pudo comparar "'+key+'" con el servidor (el guardado sigue)',err&&err.message); }
     }
     await _sb.from('sync_data').upsert({key,value:JSON.stringify(value),updated_at:new Date().toISOString()},{onConflict:'key'});
     if(Array.isArray(value)) _snapshotArray(key,value);
@@ -6861,7 +6863,7 @@ async function cloudPull(){
               if(Array.isArray(parsed)) _snapshotArray(row.key,parsed);
               else if(parsed && typeof parsed==='object') _snapshotObject(row.key,parsed);
             }
-          }catch(e){}
+          }catch(e){ console.warn('cloudPull: no se pudo tomar la copia de seguridad de "'+row.key+'"',e&&e.message); }
         }
       });
     }
@@ -6872,7 +6874,7 @@ async function cloudPull(){
 // ──────────────────────────────────────────────────────────────────────────────
 
 const stor = {
-  get:(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}},
+  get:(k,d=[])=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(err){console.warn('stor.get: no se pudo leer "'+k+'" (JSON inválido o storage bloqueado); se usa el valor por defecto',err&&err.message);return d}},
   // opts (opcional): {allowShrink:true} para guardados donde un array/objeto
   // más chico es intencional (un borrado real del usuario, o reacomodar
   // índices tras un borrado) — sin esto, cloudPush lo trata como posible
@@ -7267,6 +7269,7 @@ function _rerenderTab(id){
   else if(id==='jugadores'){renderJugadores()}
   else if(id==='tecnicos'){renderTecnicos()}
 }
+
 
 // ── Actualización en vivo ────────────────────────────────────────────────────
 // Mientras la app queda abierta, revisa cada 20s si cambió algo en otro dispositivo
@@ -10715,7 +10718,7 @@ async function fetchWCDay(isoDate){
   const ts=cache[isoDate]?.ts||0;
   // "allCompleted" solo si todos tienen resultado con score — si hay completed sin score, re-fetch igual
   const allCompleted=cache[isoDate]?.games?.length>0&&cache[isoDate].games.every(g=>g.completed&&g.score);
-  const isPast=isoDate<new Date().toISOString().slice(0,10);
+  const isPast=isoDate<_hoyLocal();
   // Para fechas pasadas con partidos sin completar, refetch cada 15 min. Para el resto, cache 1h.
   const ttl=(isPast&&!allCompleted)?900000:3600000;
   if(Date.now()-ts<ttl&&cache[isoDate]?.games) return;
@@ -26842,7 +26845,7 @@ function _revisarResolucionesModal(){
   setInterval(()=>{ if(!_autoSyncInterval) autoSyncCheck(); }, 300000);
   // Carga forzada de incidentes para partidos pasados sin datos guardados
   (async()=>{
-    const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const today=_hoyLocal().replace(/-/g,'');
     const stored=getMatchEvents();
     for(const [matchId,date] of Object.entries(ESPN_MATCH_DATES)){
       if(date>=today) continue; // partido futuro, saltar
@@ -38443,7 +38446,7 @@ function _compCargarListaFinal(id){
 }
 function _compCargarListaFinalOk(id){
   let cur={}; try{ cur=JSON.parse(localStorage.getItem('auf4_juv_lista_final')||'{}')||{}; }catch(_){}
-  stor.set('auf4_juv_lista_final',{...cur,[id]:{t:new Date().toISOString().slice(0,10)}});
+  stor.set('auf4_juv_lista_final',{...cur,[id]:{t:_hoyLocal()}});
   _rdModalClose(); toast('Lista definitiva marcada'); try{ window.renderJuveniles(); }catch(_){}
 }
 // Barra de pestañas única para todas las categorías (Sub-13/15/16/17/20): compacta y legible (≥12 px). Con más de 7 pestañas, las secundarias van en un menú "Más".
@@ -42199,7 +42202,7 @@ function _renderVentana(id){
   const sols = vw.solicitudes||[];
 
   // ── Agenda por día ─────────────────────────────────────────────────────────
-  const TODAY_STR = new Date().toISOString().slice(0,10);
+  const TODAY_STR = _hoyLocal();
   const agendaNotes = vw.agenda||{};
 
   const agendaHtml = dias.length ? dias.map(dia=>{
@@ -42996,7 +42999,7 @@ function _pwAtenResetForm(){
   _pwAtenFmtVal=''; _pwAtenEstVal=''; _pwAtenDias=[]; _pwAtenFranjaVal=''; _pwAtenCoordSet(false);
   ['pw-aten-programa','pw-aten-medio','pw-aten-notas','pw-aten-link','pw-aten-emailtxt','pw-aten-email'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('pw-aten-fmtsol').value='';
-  const _hoy=new Date().toISOString().slice(0,10).split('-');
+  const _hoy=_hoyLocal().split('-');
   document.getElementById('pw-aten-fecha-yyyy').value=_hoy[0];
   document.getElementById('pw-aten-fecha-mm').value=_hoy[1];
   document.getElementById('pw-aten-fecha-dd').value=_hoy[2];
@@ -45933,7 +45936,20 @@ if(window.innerWidth<=600){ try{ _mobSimpleGo('hoy'); }catch(_){} }
   const mq=window.matchMedia('(min-width:601px)');
   const parse=c=>{ const m=String(c).match(/rgba?\(([^)]+)\)/); if(!m) return null; const p=m[1].split(',').map(x=>parseFloat(x)); return {r:p[0],g:p[1],b:p[2],a:p.length>3?p[3]:1}; };
   const lum=c=>(.2126*c.r+.7152*c.g+.0722*c.b)/255;
-  const bgLum=e=>{ while(e&&e.nodeType===1){ const p=parse(getComputedStyle(e).backgroundColor); if(p&&p.a>.6) return lum(p); e=e.parentElement; } return .03; };
+  // Luminancia del fondo efectivo de cada elemento. Se cachea durante una pasada (bgC): antes cada elemento volvía a subir por todos sus
+  // ancestros con getComputedStyle; ahora cada ancestro se calcula una sola vez por pasada. El resultado es el mismo.
+  let bgC=null;
+  const bgLum=e0=>{
+    const cache=bgC||(bgC=new Map()), path=[]; let e=e0, res=.03;
+    while(e&&e.nodeType===1){
+      if(cache.has(e)){ res=cache.get(e); break; }
+      const p=parse(getComputedStyle(e).backgroundColor);
+      if(p&&p.a>.6){ res=lum(p); cache.set(e,res); break; }
+      path.push(e); e=e.parentElement;
+    }
+    path.forEach(x=>cache.set(x,res)); return res;
+  };
+  const conCache=fn=>{ bgC=new Map(); try{ fn(); }finally{ bgC=null; } };
   function lighten(c){
     const r=c.r/255,g=c.g/255,b=c.b/255, mx=Math.max(r,g,b), mn=Math.min(r,g,b); let h=0,s=0,l=(mx+mn)/2;
     if(mx!==mn){ const d=mx-mn; s=l>.5?d/(2-mx-mn):d/(mx+mn); h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4; h/=6; }
@@ -45952,9 +45968,9 @@ if(window.innerWidth<=600){ try{ _mobSimpleGo('hoy'); }catch(_){} }
     }
   }
   let q=new Set(), t=0;
-  const flush=()=>{ t=0; const list=Array.from(q); q=new Set(); list.forEach(fix); };
+  const flush=()=>{ t=0; const list=Array.from(q); q=new Set(); conCache(()=>list.forEach(fix)); };
   new MutationObserver(ms=>{ ms.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1) q.add(n); })); if(!t) t=requestAnimationFrame(flush); }).observe(document.body,{childList:true,subtree:true});
-  if(document.readyState!=='loading') fix(document.body); else document.addEventListener('DOMContentLoaded',()=>fix(document.body));
+  if(document.readyState!=='loading') conCache(()=>fix(document.body)); else document.addEventListener('DOMContentLoaded',()=>conCache(()=>fix(document.body)));
 })();
 </script>
 <script type="text/plain" id="legacy-code">
