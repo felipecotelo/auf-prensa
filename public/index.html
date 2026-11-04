@@ -4930,6 +4930,15 @@ const TM_FLAG={
   'United Arab Emirates':'🇦🇪','Kazakhstan':'🇰🇿','Cyprus':'🇨🇾','Finland':'🇫🇮',
   'Malaysia':'🇲🇾','India':'🇮🇳',
 };
+// Puesto de Transfermarkt («Defensa central», «Pivote», «Extremo derecho»…) al grupo que usa la app.
+function _tmPosGrupo(p){
+  p=String(p||'').toLowerCase();
+  if(/portero|arquero/.test(p)) return 'POR';
+  if(/defens|lateral/.test(p)) return 'DEF';
+  if(/pivote|mediocentro|mediapunta|interior|centrocampista/.test(p)) return 'MED';
+  if(/extremo|delantero|punta/.test(p)) return 'DEL';
+  return '';
+}
 async function _tmSyncAll(force){
   const lastSync=stor.get(KTmSync,{});
   const now=Date.now();
@@ -4957,10 +4966,10 @@ async function _tmSyncAll(force){
     Object.values(JUVENILES).forEach(catData=>{
       Object.values(catData.anos||{}).forEach(anoData=>{
         (anoData.convocatorias||[]).forEach(c=>(c.jugadores||[]).forEach(j=>{
-          if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId}); }
+          if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId,pos:j.pos}); }
         }));
         (anoData.lista||[]).forEach(j=>{
-          if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId}); }
+          if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId,pos:j.pos}); }
         });
       });
     });
@@ -4968,19 +4977,20 @@ async function _tmSyncAll(force){
   // Competencias históricas con la ficha conectada a Transfermarkt (comp.sincTM): su gente sigue activa y el club tiene que seguir al día.
   if(typeof COMP_DATA!=='undefined'){
     Object.values(COMP_DATA).filter(cd=>cd&&cd.sincTM).forEach(cd=>['convocados','preparacion','lista'].forEach(k=>(cd[k]||[]).forEach(j=>{
-      if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId}); }
+      if(j.tmId && !juvSeenTm.has(j.tmId)){ juvSeenTm.add(j.tmId); juvList.push({nom:j.nom,tmId:j.tmId,pos:j.pos}); }
     })));
   }
   const juvSyncList=juvList
     .filter(j=>force||!lastSync[j.tmId]||now-lastSync[j.tmId]>TM_TTL)
-    .map(j=>({nom:j.nom,tmId:j.tmId,source:'juv'}));
+    .map(j=>({nom:j.nom,tmId:j.tmId,source:'juv',pos:j.pos}));
 
   // Juveniles primero (las fichas de torneos), después Mayor y Local; de a 60 por vez para no saturar Transfermarkt.
   let toSync=[...juvSyncList,...mayorList,...localList];
   if(!force) toSync=toSync.slice(0,60);
   if(!toSync.length) return 0;
   let updated=0;
-  for(const {nom,tmId,source} of toSync){
+  const juvPosTM={}; const _juvPosMap=getJuvPos();
+  for(const {nom,tmId,source,pos:posEstatico} of toSync){
     try{
       const r=await fetch(`/api/tm/${tmId}`);
       if(!r.ok) continue;
@@ -5016,6 +5026,8 @@ async function _tmSyncAll(force){
             juvClubOvr[nom].exClubs=exListJ;
           }
           juvClubOvr[nom].actual=clubName;
+          // Puesto: si al jugador no se le cargó ninguno (ni en su ficha ni a mano), se toma el que dice Transfermarkt.
+          if(!posEstatico && !_juvPosMap[nom]){ const _pg=_tmPosGrupo(data.position); if(_pg) juvPosTM[nom]=_pg; }
           // Nota: TM_FLAG da emoji (para Mayor); Juveniles usa código ISO de 2 letras
           // para flagcdn.com, así que acá no tocamos "pais" — se deja el que ya tenía.
         }
@@ -5030,6 +5042,7 @@ async function _tmSyncAll(force){
     stor.set(KJugExClubs,exClubs);
     if(localList.length) stor.set(KLocalClub,localClubOvr);
     if(juvSyncList.length) stor.set(KJuvClub,juvClubOvr);
+    if(Object.keys(juvPosTM).length){ const _jp=getJuvPos(); Object.entries(juvPosTM).forEach(([n,p])=>{ if(!_jp[n]) _jp[n]=p; }); stor.set('auf4_juvPos',_jp,{allowShrink:true}); }
     stor.set(KTmSync,lastSync);
   }
   return updated;
@@ -13870,7 +13883,7 @@ const FIFASEP26 = {
       {nom:'Facundo Pellistri', club:'Panathinaikos', clubPais:'🇬🇷', num:11},
       {nom:'Luciano Rodríguez Rosales', club:'Cruzeiro', clubPais:'🇧🇷', fechaNac:'2003-07-16', tmId:856143},
       {nom:'Maximiliano Araújo', club:'Sporting de Lisboa', clubPais:'🇵🇹', num:20, fechaNac:'2000-02-15', tmId:572675},
-      {nom:'Lucas Villalba', club:'Botafogo', clubPais:'🇧🇷', tmId:874844},
+      {nom:'Lucas Villalba', club:'Botafogo', clubPais:'🇧🇷', tmId:874844, pos:'DEL'},
       {nom:'Brian Rodríguez', club:'CF América', clubPais:'🇲🇽', num:18, bajaGira:true, fechaNac:'2000-05-20', tmId:465818},
       {nom:'Rodrigo Zalazar', club:'Sporting de Lisboa', clubPais:'🇵🇹', num:17, tmId:606752, fechaNac:'1999-08-12'},
       {nom:'Diego Rossi', club:'CF Monterrey', clubPais:'🇲🇽'},
@@ -16072,7 +16085,7 @@ const FIFANOV26 = {
     ],
     DEL: [
       {nom:'Martín Satriano', club:'Getafe CF', clubPais:'🇪🇸'},
-      {nom:'Bruno Damiani', club:'Philadelphia Union', clubPais:'🇺🇸', tmId:1110360},
+      {nom:'Bruno Damiani', club:'Philadelphia Union', clubPais:'🇺🇸', tmId:1110360, pos:'DEL'},
       {nom:'Miguel Merentiel', club:'CA Boca Juniors', clubPais:'🇦🇷'},
       {nom:'Rodrigo Aguirre', club:'Tigres UANL', clubPais:'🇲🇽'},
       {nom:'Álvaro Rodríguez', club:'AFC Bournemouth', clubPais:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', fechaNac:'2004-07-14', tmId:948275},
@@ -26999,7 +27012,7 @@ const SUB20_LISTA_LARGA = [
 // ── SELECCIÓN LOCAL ──────────────────────────────────────────────────────────
 const SELECCION_LOCAL = {
   resumen: {pj:3, g:1, e:2, p:0, gf:3, gc:2},
-  goleadores: [{nom:'Bruno Damiani',g:2, tmId:1110360},{nom:'Lucas Pino',g:1, tmId:1072711, tmId:1072711, fechaNac:'2005-10-30'}],
+  goleadores: [{nom:'Bruno Damiani',g:2, tmId:1110360, pos:'DEL'},{nom:'Lucas Pino',g:1, tmId:1072711, tmId:1072711, fechaNac:'2005-10-30'}],
   partidos: [
     {
       id:'local-costa-rica-2024',
@@ -27029,24 +27042,24 @@ const SELECCION_LOCAL = {
       convocados:[
         {num:1,  nom:'Randall Rodríguez', club:'sin club',                  titular:true,  pos:'POR', tmId:657751, fechaNac:'2003-11-29'},
         {num:2,  nom:'Mauro Brasil',      club:'Cerro',              titular:true, tmId:440835},
-        {num:3,  nom:'Gian Allala',       club:'Boston River',             titular:true,  cap:true, tmId:407582},
-        {num:4,  nom:'Agustín Amado',     club:'Boston River',             titular:true, tmId:902024},
+        {num:3,  nom:'Gian Allala',       club:'Boston River',             titular:true,  cap:true, tmId:407582, pos:'DEF'},
+        {num:4,  nom:'Agustín Amado',     club:'Boston River',             titular:true, tmId:902024, pos:'MED'},
         {num:5,  nom:'Franco Pizzichillo',club:'Montevideo City Torque',   titular:true, tmId:294889, fechaNac:'1996-01-03'},
         {num:6,  nom:'Juan Martín Rodríguez',    club:'Cagliari Calcio', pais:'it',   titular:true, tmId:1228231, fechaNac:'2005-05-30'},
         {num:7,  nom:'Emiliano Gómez',    club:'Tigres', pais:'mx',             titular:true, tmId:577489, fechaNac:'2001-09-18'},
         {num:8,  nom:'Facundo Bernal',    club:'Real Betis Balompié',        titular:true, tmId:898350},
-        {num:9,  nom:'Bruno Damiani',     club:'Philadelphia Union',             titular:true, tmId:1110360},
+        {num:9,  nom:'Bruno Damiani',     club:'Philadelphia Union',             titular:true, tmId:1110360, pos:'DEL'},
         {num:10, nom:'Matías Fonseca',    club:'Wanderers',     titular:true, tmId:538919, fechaNac:'2001-03-12'},
-        {num:11, nom:'Leandro Suhr',      club:'Boston River',             titular:true, tmId:463444},
+        {num:11, nom:'Leandro Suhr',      club:'Boston River',             titular:true, tmId:463444, pos:'DEL'},
         {num:12, nom:'Mauro Silveira',    club:'Montevideo Wanderers', pais:'co',       titular:false, pos:'POR', tmId:465682, fechaNac:'2000-05-06'},
-        {num:13, nom:'Nahuel Furtado',    club:'Cerro Largo',              titular:false, tmId:653191},
+        {num:13, nom:'Nahuel Furtado',    club:'Cerro Largo',              titular:false, tmId:653191, pos:'DEF'},
         {num:14, nom:'Francisco Ginella', club:'Montevideo Wanderers',                 titular:false, tmId:538091},
-        {num:15, nom:'Guillermo Pereira', club:'Fénix',                    titular:false, tmId:881652},
+        {num:15, nom:'Guillermo Pereira', club:'Fénix',                    titular:false, tmId:881652, pos:'DEF'},
         {num:16, nom:'Santiago Cartagena',club:'Deportivo Maldonado',      titular:false, tmId:657747, fechaNac:'2002-09-01'},
         {num:17, nom:'',                  club:'',                         titular:false},
-        {num:18, nom:'Nahuel Acosta',     club:'Peñarol',                  titular:false, tmId:678966},
+        {num:18, nom:'Nahuel Acosta',     club:'Peñarol',                  titular:false, tmId:678966, pos:'DEL'},
         {num:19, nom:'José Neris',        club:'River Plate',                  titular:false, tmId:492315, fechaNac:'2000-03-13'},
-        {num:20, nom:'Walter Domínguez',  club:'Soriano OFI',              titular:false, tmId:1269721},
+        {num:20, nom:'Walter Domínguez',  club:'Soriano OFI',              titular:false, tmId:1269721, pos:'DEL'},
         {num:21, nom:'Rodrigo Chagas',    club:'Juventud',                 titular:false, tmId:1030317, fechaNac:'2003-08-20'},
         {num:22, nom:'Andrew Teuten',     club:'Montevideo City Torque',   titular:false, tmId:564735},
         {num:23, nom:'Federico Bonilla',  club:'Nacional',                 titular:false, pos:'POR', tmId:1247306, tmId:1247306, fechaNac:'2005-12-08'},
@@ -27085,22 +27098,22 @@ const SELECCION_LOCAL = {
       convocados:[
         {num:1,  nom:'Mauro Silveira',        club:'Montevideo Wanderers', pais:'co',      titular:false, pos:'POR', tmId:465682, fechaNac:'2000-05-06'},
         {num:2,  nom:'Hugo Magallanes',       club:'Racing',                  titular:true, tmId:340102},
-        {num:3,  nom:'Lucas Monzón',          club:'Racing',                  titular:true, tmId:796973},
+        {num:3,  nom:'Lucas Monzón',          club:'Racing',                  titular:true, tmId:796973, pos:'DEF'},
         {num:4,  nom:'Tomás Viera',           club:'Nacional',                titular:false, nuevo:true, tmId:1310240, fechaNac:'2006-03-18'},
         {num:5,  nom:'Franco Pizzichillo',    club:'Montevideo City Torque',  titular:true, tmId:294889, fechaNac:'1996-01-03'},
         {num:6,  nom:'Lucas Morales',         club:'Sportivo Luqueño',               titular:false, tmId:809082, fechaNac:'1999-11-25'},
         {num:7,  nom:'Wiston Fernández',     club:'Defensor Sporting',                   titular:false, tmId:402082, fechaNac:'1998-01-04'},
         {num:8,  nom:'Santiago Cartagena',    club:'Deportivo Maldonado',     titular:true, tmId:657747, fechaNac:'2002-09-01'},
-        {num:9,  nom:'Lucas Villalba',        club:'Botafogo',  titular:false, tmId:874844},
+        {num:9,  nom:'Lucas Villalba',        club:'Botafogo',  titular:false, tmId:874844, pos:'DEL'},
         {num:10, nom:'Nicolás Schiappacasse', club:'Paysandu SC',        titular:false, tmId:345473, fechaNac:'1999-01-12'},
         {num:11, nom:'Matías Fonseca',        club:'Wanderers',               titular:true, tmId:538919, fechaNac:'2001-03-12'},
         {num:12, nom:'Guillermo De Amores',   club:'Deportivo Maldonado',                 titular:true,  pos:'POR', tmId:189425, fechaNac:'1994-10-19'},
-        {num:13, nom:'Guillermo Pereira',     club:'Fénix',                   titular:false, tmId:881652},
+        {num:13, nom:'Guillermo Pereira',     club:'Fénix',                   titular:false, tmId:881652, pos:'DEF'},
         {num:14, nom:'Agustín Alfaro',        club:'Fénix',                   titular:false, tmId:745241},
         {num:15, nom:'Facundo Pérez',         club:'Juventud de las Piedras', titular:false, nuevo:true, tmId:1066536},
         {num:16, nom:'Lucas Pino',            club:'Montevideo City Torque',  titular:true,  nuevo:true, goles:1, tmId:1072711, tmId:1072711, fechaNac:'2005-10-30'},
         {num:17, nom:'Luciano Cosentino',     club:'Cerro Largo',             titular:true, tmId:1022058},
-        {num:18, nom:'Franco Catarozzi',      club:'Montevideo City Torque',  titular:true, tmId:833886},
+        {num:18, nom:'Franco Catarozzi',      club:'Montevideo City Torque',  titular:true, tmId:833886, pos:'MED'},
         {num:19, nom:'Nicolás Roberto Fernández', club:'Peñarol',            titular:false, tmId:400677, fechaNac:'1998-03-02'},
         {num:20, nom:'Gonzalo Larrazabal',    club:'Deportivo Maldonado',     titular:true, tmId:1115964},
         {num:21, nom:'Diego Romero',          club:'Deportivo Maldonado',     titular:true, tmId:855489},
@@ -27119,7 +27132,7 @@ const SELECCION_LOCAL = {
       estadio:'Estadio Atilio Paiva Olivera',
       arbitro:'Nicolás Varela',
       tipo:'Amistoso',
-      goles:[{nom:'Bruno Damiani',g:2, tmId:1110360},{nom:'Leandro Suhr',asistencia:true, tmId:463444}],
+      goles:[{nom:'Bruno Damiani',g:2, tmId:1110360, pos:'DEL'},{nom:'Leandro Suhr',asistencia:true, tmId:463444, pos:'DEL'}],
       ct:[
         {name:'Diego Pérez',       rol:'Director técnico', dt:true},
         {name:'Álvaro Fernández',  rol:'Ayudante técnico'},
@@ -27141,22 +27154,22 @@ const SELECCION_LOCAL = {
       convocados:[
         {num:1,  nom:'Mauro Silveira',      club:'Montevideo Wanderers', pais:'co',     titular:true,  pos:'POR', tmId:465682, fechaNac:'2000-05-06'},
         {num:2,  nom:'Leandro Costa',       club:'Boston River',           titular:true, tmId:800720},
-        {num:3,  nom:'Lucas Monzón',        club:'Racing',                 titular:true, tmId:796973},
+        {num:3,  nom:'Lucas Monzón',        club:'Racing',                 titular:true, tmId:796973, pos:'DEF'},
         {num:4,  nom:'Emiliano Ancheta',    club:'Club Nacional', pais:'uy',                titular:false, entro:true, tmId:577406, fechaNac:'1999-06-09'},
         {num:5,  nom:'Franco Pizzichillo',  club:'Montevideo City Torque', titular:true, tmId:294889, fechaNac:'1996-01-03'},
-        {num:6,  nom:'Mateo Acosta',        club:'Wanderers',              titular:false, entro:true, tmId:1332383},
+        {num:6,  nom:'Mateo Acosta',        club:'Wanderers',              titular:false, entro:true, tmId:1332383, pos:'DEF'},
         {num:7,  nom:'Gonzalo Larrazabal',  club:'Deportivo Maldonado',    titular:true, tmId:1115964},
         {num:8,  nom:'Diego Romero',        club:'Deportivo Maldonado',    titular:true, tmId:855489},
-        {num:9,  nom:'Bruno Damiani',       club:'Philadelphia Union',           titular:true,  goles:2, tmId:1110360},
-        {num:10, nom:'Agustín Amado',       club:'Boston River',           titular:true, tmId:902024},
-        {num:11, nom:'Leandro Suhr',        club:'Boston River',           titular:true,  asistencias:1, tmId:463444},
+        {num:9,  nom:'Bruno Damiani',       club:'Philadelphia Union',           titular:true,  goles:2, tmId:1110360, pos:'DEL'},
+        {num:10, nom:'Agustín Amado',       club:'Boston River',           titular:true, tmId:902024, pos:'MED'},
+        {num:11, nom:'Leandro Suhr',        club:'Boston River',           titular:true,  asistencias:1, tmId:463444, pos:'DEL'},
         {num:12, nom:'Santiago Silva Azambuja', club:'Boston River', pais:'uy', titular:false, pos:'POR', entro:true, tmId:733323},
         {num:13, nom:'Ramiro Brazionis',    club:'Danubio',                titular:false, entro:true, tmId:1102014},
         {num:14, nom:'Facundo Kidd',        club:'Plaza Colonia',          titular:false, entro:true, tmId:458766},
         {num:15, nom:'Lucas Morales',       club:'Sportivo Luqueño',              titular:false, entro:true, tmId:809082, fechaNac:'1999-11-25'},
         {num:16, nom:'Erik de los Santos',  club:'Peñarol',                 titular:true, tmId:577261, fechaNac:'1999-01-16'},
         {num:17, nom:'Luciano Cosentino',   club:'Cerro Largo',            titular:false, entro:true, tmId:1022058},
-        {num:18, nom:'Franco Catarozzi',    club:'Montevideo City Torque', titular:true,  cap:true, tmId:833886},
+        {num:18, nom:'Franco Catarozzi',    club:'Montevideo City Torque', titular:true,  cap:true, tmId:833886, pos:'MED'},
         {num:19, nom:'Nicolás Roberto Fernández', club:'Peñarol',          titular:false, entro:true, tmId:400677, fechaNac:'1998-03-02'},
         {num:20, nom:'Juan De Los Santos',  club:'Al-Jazira',            titular:false, entro:true, tmId:988662, fechaNac:'2003-02-22'},
         {num:22, nom:'Alexander Machado',   club:'Banfield',       titular:false, entro:true, tmId:657755, fechaNac:'2002-05-28'},
@@ -27805,25 +27818,25 @@ const JUVENILES = {
         convocatorias: [
           {fecha:'Enero-Febrero 2003 — Sudamericano Sub-20 Uruguay', jugadores:[
             {nom:'Martín Silva',         club:'sin club',  pos:'POR', tmId:76398, fechaNac:'1983-03-25'},
-            {nom:'Sebastián Viera',      club:'Retirado',           pos:'POR', tmId:33531, fechaNac:'1983-03-07'},
-            {nom:'Ignacio Ithurralde',   club:'Retirado',  pos:'DEF', tmId:54848, fechaNac:'1983-05-30'},
-            {nom:'Andrés Rodríguez',     club:'Retirado',  pos:'DEF', tmId:76778, fechaNac:'1983-01-21'},
-            {nom:'Guillermo Rodríguez',  club:'Retirado',            pos:'DEF', tmId:37633, fechaNac:'1984-03-21'},
+            {nom:'Sebastián Viera',      club:'Retirado',           pos:'POR', tmId:33531, fechaNac:'1983-03-07', retirado:true},
+            {nom:'Ignacio Ithurralde',   club:'Retirado',  pos:'DEF', tmId:54848, fechaNac:'1983-05-30', retirado:true},
+            {nom:'Andrés Rodríguez',     club:'Retirado',  pos:'DEF', tmId:76778, fechaNac:'1983-01-21', retirado:true},
+            {nom:'Guillermo Rodríguez',  club:'Retirado',            pos:'DEF', tmId:37633, fechaNac:'1984-03-21', retirado:true},
             {nom:'Nelson Semperena',     club:'sin club',  pos:'DEF', tmId:76590, fechaNac:'1984-02-19'},
-            {nom:'Carlos Grossmüller',   club:'Retirado',            pos:'DEF', tmId:50791, fechaNac:'1983-05-04'},
+            {nom:'Carlos Grossmüller',   club:'Retirado',            pos:'DEF', tmId:50791, fechaNac:'1983-05-04', retirado:true},
             {nom:'William Ferreira',     club:'sin club',           pos:'MED', tmId:76687, fechaNac:'1983-02-25'},
-            {nom:'Cristian Rodríguez',   club:'Retirado',            pos:'MED', tmId:33448, fechaNac:'1985-09-30'},
-            {nom:'Marcelo López',        club:'Retirado',        pos:'MED', tmId:1190064, fechaNac:'1983-01-05'},
-            {nom:'Carlos Diogo',         club:'Retirado',        pos:'MED', tmId:32233, fechaNac:'1983-07-18'},
-            {nom:'Marcelo Guerrero',     club:'Retirado',     pos:'MED', tmId:30682, fechaNac:'1983-05-20'},
-            {nom:'Jorge Martínez',       club:'Retirado',           pos:'MED', fechaNac:'1983-04-05', tmId:55800},
-            {nom:'Álvaro Alonso',        club:'Retirado',            pos:'DEL', tmId:76857, fechaNac:'1984-03-25'},
-            {nom:'Carlos Valdez',        club:'Retirado',           pos:'DEL', tmId:35709, fechaNac:'1983-05-02'},
-            {nom:'Agustín Viana',        club:'Retirado',        pos:'DEL', tmId:64669, fechaNac:'1983-08-23'},
-            {nom:'Eduardo Fernández',    club:'Retirado',        pos:'DEL', tmId:67459, fechaNac:'1983-04-15'},
+            {nom:'Cristian Rodríguez',   club:'Retirado',            pos:'MED', tmId:33448, fechaNac:'1985-09-30', retirado:true},
+            {nom:'Marcelo López',        club:'Retirado',        pos:'MED', tmId:1190064, fechaNac:'1983-01-05', retirado:true},
+            {nom:'Carlos Diogo',         club:'Retirado',        pos:'MED', tmId:32233, fechaNac:'1983-07-18', retirado:true},
+            {nom:'Marcelo Guerrero',     club:'Retirado',     pos:'MED', tmId:30682, fechaNac:'1983-05-20', retirado:true},
+            {nom:'Jorge Martínez',       club:'Retirado',           pos:'MED', fechaNac:'1983-04-05', tmId:55800, retirado:true},
+            {nom:'Álvaro Alonso',        club:'Retirado',            pos:'DEL', tmId:76857, fechaNac:'1984-03-25', retirado:true},
+            {nom:'Carlos Valdez',        club:'Retirado',           pos:'DEL', tmId:35709, fechaNac:'1983-05-02', retirado:true},
+            {nom:'Agustín Viana',        club:'Retirado',        pos:'DEL', tmId:64669, fechaNac:'1983-08-23', retirado:true},
+            {nom:'Eduardo Fernández',    club:'Retirado',        pos:'DEL', tmId:67459, fechaNac:'1983-04-15', retirado:true},
             {nom:'Diego Montenegro',     club:'Racing',             pos:'DEF', pais:'uy'},
-            {nom:'Richard Porta',        club:'Retirado',        pos:'DEF', tmId:59305, fechaNac:'1983-08-01'},
-            {nom:'Ruben Olivera',        club:'Retirado',           pos:'MED', tmId:5768, fechaNac:'1983-05-04'},
+            {nom:'Richard Porta',        club:'Retirado',        pos:'DEF', tmId:59305, fechaNac:'1983-08-01', retirado:true},
+            {nom:'Ruben Olivera',        club:'Retirado',           pos:'MED', tmId:5768, fechaNac:'1983-05-04', retirado:true},
           ]},
         ],
         competencias: [
@@ -27841,19 +27854,19 @@ const JUVENILES = {
         convocatorias: [
           {fecha:'Enero-Febrero 2005 — Sudamericano Sub-20 Colombia', jugadores:[
             {nom:'Fernando Muslera',   club:'Estudiantes de La Plata',    pos:'POR', fechaNac:'1986-06-16', tmId:58088},
-            {nom:'Sergio Rodríguez',   club:'Retirado',                  pos:'DEF', tmId:72588, fechaNac:'1985-01-05'},
-            {nom:'Diego Godín',        club:'Retirado',         pos:'DEF', fechaNac:'1986-02-16', tmId:54928},
-            {nom:'Álvaro Pereira',     club:'Retirado',           pos:'DEF', fechaNac:'1985-11-28', tmId:54859},
-            {nom:'Martín Rodríguez Telis', club:'Retirado',              pos:'DEF', fechaNac:'1985-02-10', tmId:65163},
-            {nom:'Jorge García',       club:'Retirado',                  pos:'DEF', tmId:72576, fechaNac:'1986-08-19'},
-            {nom:'Ribair Rodríguez',   club:'Retirado',                  pos:'MED', tmId:72587, fechaNac:'1987-10-04'},
-            {nom:'Luis Aguiar',        club:'Retirado',                  pos:'MED', tmId:51454, fechaNac:'1985-11-17'},
-            {nom:'Leandro Ezquerra',   club:'Retirado',                  pos:'MED', fechaNac:'1986-06-05', tmId:59263},
-            {nom:'Cristian Rodríguez', club:'Retirado',                  pos:'MED', tmId:33448, fechaNac:'1985-09-30'},
+            {nom:'Sergio Rodríguez',   club:'Retirado',                  pos:'DEF', tmId:72588, fechaNac:'1985-01-05', retirado:true},
+            {nom:'Diego Godín',        club:'Retirado',         pos:'DEF', fechaNac:'1986-02-16', tmId:54928, retirado:true},
+            {nom:'Álvaro Pereira',     club:'Retirado',           pos:'DEF', fechaNac:'1985-11-28', tmId:54859, retirado:true},
+            {nom:'Martín Rodríguez Telis', club:'Retirado',              pos:'DEF', fechaNac:'1985-02-10', tmId:65163, retirado:true},
+            {nom:'Jorge García',       club:'Retirado',                  pos:'DEF', tmId:72576, fechaNac:'1986-08-19', retirado:true},
+            {nom:'Ribair Rodríguez',   club:'Retirado',                  pos:'MED', tmId:72587, fechaNac:'1987-10-04', retirado:true},
+            {nom:'Luis Aguiar',        club:'Retirado',                  pos:'MED', tmId:51454, fechaNac:'1985-11-17', retirado:true},
+            {nom:'Leandro Ezquerra',   club:'Retirado',                  pos:'MED', fechaNac:'1986-06-05', tmId:59263, retirado:true},
+            {nom:'Cristian Rodríguez', club:'Retirado',                  pos:'MED', tmId:33448, fechaNac:'1985-09-30', retirado:true},
             {nom:'Jorge Rodríguez',    club:'sin club',                  pos:'MED', fechaNac:'1985-01-13', tmId:74265},
             {nom:'Juan Albín',         club:'Universitario',                  pos:'MED', fechaNac:'1986-07-17', tmId:44139},
-            {nom:'Matías Alonso',      club:'Retirado',                  pos:'DEL', tmId:73113, fechaNac:'1985-04-16'},
-            {nom:'Álvaro Navarro',     club:'Retirado',                  pos:'DEL', tmId:76721, fechaNac:'1985-01-28'},
+            {nom:'Matías Alonso',      club:'Retirado',                  pos:'DEL', tmId:73113, fechaNac:'1985-04-16', retirado:true},
+            {nom:'Álvaro Navarro',     club:'Retirado',                  pos:'DEL', tmId:76721, fechaNac:'1985-01-28', retirado:true},
           ]},
         ],
         competencias: [
@@ -27878,43 +27891,43 @@ const JUVENILES = {
             {nom:'Alejandro González',     club:'Sportivo Bella Italia', pais:'uy',              pos:'DEF', num:4, fechaNac:'1988-03-23', tmId:100497},
             {nom:'Marcel Román',           club:'sin club',              pos:'DEF', num:5, tmId:59312, fechaNac:'1988-02-07'},
             {nom:'Damián Suárez',          club:'CA Cerro', pais:'uy',    pos:'DEF', num:8, fechaNac:'1988-04-27', tmId:76746},
-            {nom:'Juan Manuel Díaz',       club:'Retirado',            pos:'DEF', num:13, tmId:65986, fechaNac:'1987-10-28'},
-            {nom:'Martín Díaz',            club:'Retirado',    pos:'DEF', num:15, tmId:143960, fechaNac:'1988-03-17'},
+            {nom:'Juan Manuel Díaz',       club:'Retirado',            pos:'DEF', num:13, tmId:65986, fechaNac:'1987-10-28', retirado:true},
+            {nom:'Martín Díaz',            club:'Retirado',    pos:'DEF', num:15, tmId:143960, fechaNac:'1988-03-17', retirado:true},
             {nom:'Gary Kagelmacher',       club:'Montevideo City Torque', pais:'uy',              pos:'MED', num:6, fechaNac:'1988-04-21', tmId:58890},
-            {nom:'Mathías Cardacio',      club:'Retirado',             pos:'MED', num:7, tmId:72648, fechaNac:'1987-10-02'},
+            {nom:'Mathías Cardacio',      club:'Retirado',             pos:'MED', num:7, tmId:72648, fechaNac:'1987-10-02', retirado:true},
             {nom:'Diego Arismendi',        club:'CA Terremoto', pais:'uy',             pos:'MED', num:14, fechaNac:'1988-01-25', tmId:72645},
-            {nom:'Federico Laens',         club:'Retirado',             pos:'DEL', num:16, tmId:76703, fechaNac:'1988-01-14'},
-            {nom:'Cristian Paz',           club:'Retirado',             pos:'MED', num:17, tmId:774944, fechaNac:'1988-01-28'},
+            {nom:'Federico Laens',         club:'Retirado',             pos:'DEL', num:16, tmId:76703, fechaNac:'1988-01-14', retirado:true},
+            {nom:'Cristian Paz',           club:'Retirado',             pos:'MED', num:17, tmId:774944, fechaNac:'1988-01-28', retirado:true},
             {nom:'Enzo Scorza',            club:'San Eugenio FC', pais:'uy',              pos:'MED', num:18, fechaNac:'1988-03-01', tmId:147752},
-            {nom:'Gerardo Vonder Putten',  club:'Retirado',              pos:'MED', num:10, tmId:76750, fechaNac:'1988-02-28'},
+            {nom:'Gerardo Vonder Putten',  club:'Retirado',              pos:'MED', num:10, tmId:76750, fechaNac:'1988-02-28', retirado:true},
             {nom:'Edinson Cavani',         club:'sin club',              pos:'DEL', num:9, fechaNac:'1987-02-14', tmId:48280},
-            {nom:'Elías Figueroa',         club:'Retirado',            pos:'DEL', num:11, tmId:38537, fechaNac:'1988-01-26'},
-            {nom:'Juan Surraco',           club:'Retirado',              pos:'DEL', num:2, tmId:44375, fechaNac:'1987-08-14'},
+            {nom:'Elías Figueroa',         club:'Retirado',            pos:'DEL', num:11, tmId:38537, fechaNac:'1988-01-26', retirado:true},
+            {nom:'Juan Surraco',           club:'Retirado',              pos:'DEL', num:2, tmId:44375, fechaNac:'1987-08-14', retirado:true},
             {nom:'Maximiliano Lombardi',   club:'Uruguay Montevideo FC', pais:'uy',             pos:'DEL', num:20, fechaNac:'1987-05-11', tmId:76876},
-            {nom:'Leandro Silva',          club:'Retirado',          pos:'DEL', num:21, tmId:74270, fechaNac:'1987-03-13'},
+            {nom:'Leandro Silva',          club:'Retirado',          pos:'DEL', num:21, tmId:74270, fechaNac:'1987-03-13', retirado:true},
           ]},
           {fecha:'Julio 2007 — Mundial Sub-20 Canadá', jugadores:[
             {nom:'Mauro Goicoechea',       club:'Danubio',              pos:'POR', num:1, tmId:72578, fechaNac:'1988-03-27'},
             {nom:'Yonatan Irrazábal',      club:'Cerro',             pos:'POR', num:12, tmId:102439, fechaNac:'1988-02-12'},
             {nom:'Bruno Montelongo',       club:'CD Parque',    pos:'MED', num:16, tmId:74257, fechaNac:'1987-09-12'},
-            {nom:'Mauricio Prieto',        club:'Retirado',             pos:'DEF', num:2, tmId:74261, fechaNac:'1987-09-26'},
+            {nom:'Mauricio Prieto',        club:'Retirado',             pos:'DEF', num:2, tmId:74261, fechaNac:'1987-09-26', retirado:true},
             {nom:'Martín Cáceres',         club:'CA Juventud', pais:'uy',    pos:'DEF', num:3, fechaNac:'1987-04-07', tmId:54935},
             {nom:'Alejandro González',     club:'Sportivo Bella Italia', pais:'uy',              pos:'DEF', num:4, fechaNac:'1988-03-23', tmId:100497},
             {nom:'Marcel Román',           club:'sin club',              pos:'DEF', num:5, tmId:59312, fechaNac:'1988-02-07'},
             {nom:'Damián Suárez',          club:'CA Cerro', pais:'uy',    pos:'DEF', num:8, fechaNac:'1988-04-27', tmId:76746},
-            {nom:'Juan Manuel Díaz',       club:'Retirado',            pos:'DEF', num:13, tmId:65986, fechaNac:'1987-10-28'},
+            {nom:'Juan Manuel Díaz',       club:'Retirado',            pos:'DEF', num:13, tmId:65986, fechaNac:'1987-10-28', retirado:true},
             {nom:'Enzo Ruiz',              club:'Barracas FC',              pos:'DEF', num:15, tmId:74246, fechaNac:'1988-08-31'},
-            {nom:'Emiliano Alfaro',        club:'Retirado',             pos:'DEL', num:20, tmId:74354, fechaNac:'1988-04-28'},
+            {nom:'Emiliano Alfaro',        club:'Retirado',             pos:'DEL', num:20, tmId:74354, fechaNac:'1988-04-28', retirado:true},
             {nom:'Gary Kagelmacher',       club:'Montevideo City Torque', pais:'uy',              pos:'MED', num:6, fechaNac:'1988-04-21', tmId:58890},
-            {nom:'Mathías Cardacio',      club:'Retirado',             pos:'MED', num:7, tmId:72648, fechaNac:'1987-10-02'},
-            {nom:'Gerardo Vonder Putten',  club:'Retirado',              pos:'MED', num:10, tmId:76750, fechaNac:'1988-02-28'},
+            {nom:'Mathías Cardacio',      club:'Retirado',             pos:'MED', num:7, tmId:72648, fechaNac:'1987-10-02', retirado:true},
+            {nom:'Gerardo Vonder Putten',  club:'Retirado',              pos:'MED', num:10, tmId:76750, fechaNac:'1988-02-28', retirado:true},
             {nom:'Diego Arismendi',        club:'CA Terremoto', pais:'uy',             pos:'MED', num:14, fechaNac:'1988-01-25', tmId:72645},
             {nom:'Tabaré Viudez',          club:'sin club',    pos:'MED', num:19, fechaNac:'1989-09-08', tmId:76749},
             {nom:'Yaí Fontes',             club:'sin club', pos:'MED', num:21, tmId:39590, fechaNac:'1988-04-22'},
             {nom:'Edinson Cavani',         club:'sin club',              pos:'DEL', num:9, fechaNac:'1987-02-14', tmId:48280},
-            {nom:'Elías Figueroa',         club:'Retirado',            pos:'DEL', num:11, tmId:38537, fechaNac:'1988-01-26'},
+            {nom:'Elías Figueroa',         club:'Retirado',            pos:'DEL', num:11, tmId:38537, fechaNac:'1988-01-26', retirado:true},
             {nom:'Luis Suárez',            club:'Inter Miami',            pos:'DEL', num:18, fechaNac:'1987-01-24', tmId:44352},
-            {nom:'Juan Surraco',           club:'Retirado',              pos:'DEL', num:17, tmId:44375, fechaNac:'1987-08-14'},
+            {nom:'Juan Surraco',           club:'Retirado',              pos:'DEL', num:17, tmId:44375, fechaNac:'1987-08-14', retirado:true},
           ]},
         ],
         competencias: [
@@ -27938,8 +27951,8 @@ const JUVENILES = {
             {nom:'Martín Rodríguez',         club:'sin club', pos:'POR', num:12, tmId:127829, fechaNac:'1989-09-20'},
             {nom:'Martín Campaña',           club:'Liverpool FC Montevideo', pais:'uy',          pos:'POR', num:21, fechaNac:'1989-05-29', tmId:91755},
             {nom:'Robert Herrera',           club:'sin club',    pos:'DEF', num:2, tmId:102438, fechaNac:'1989-03-01'},
-            {nom:'Marcelo Silva',            club:'Retirado',              pos:'DEF', num:3, tmId:76743, fechaNac:'1989-03-21'},
-            {nom:'Adrián Gunino',            club:'Retirado',         pos:'DEF', num:4, tmId:76699, fechaNac:'1989-02-03'},
+            {nom:'Marcelo Silva',            club:'Retirado',              pos:'DEF', num:3, tmId:76743, fechaNac:'1989-03-21', retirado:true},
+            {nom:'Adrián Gunino',            club:'Retirado',         pos:'DEF', num:4, tmId:76699, fechaNac:'1989-02-03', retirado:true},
             {nom:'Diego Rodríguez',          club:'sin club',    pos:'DEF', num:5, fechaNac:'1989-09-04', tmId:127828},
             {nom:'Leandro Cabrera',          club:'RCD Espanyol',   pos:'DEF', num:6, pais:'es', fechaNac:'1991-06-17', tmId:102423},
             {nom:'Matías Aguirregaray',      club:'San Eugenio FC', pais:'uy',              pos:'DEF', num:13, fechaNac:'1989-04-01', tmId:74232},
@@ -27949,9 +27962,9 @@ const JUVENILES = {
             {nom:'Maximiliano Calzada',      club:'IA Río Negro',             pos:'MED', num:8, fechaNac:'1990-04-21', tmId:102425},
             {nom:'Gastón Ramírez',           club:'CA Boston River', pais:'uy',              pos:'MED', num:10, fechaNac:'1990-12-02', tmId:123742},
             {nom:'Nicolás Lodeiro',          club:'Club Nacional', pais:'uy',             pos:'MED', num:14, fechaNac:'1989-03-21', tmId:72653},
-            {nom:'Mauricio Pereyra',         club:'Retirado',             pos:'MED', num:15, tmId:102452, fechaNac:'1990-03-15'},
+            {nom:'Mauricio Pereyra',         club:'Retirado',             pos:'MED', num:15, tmId:102452, fechaNac:'1990-03-15', retirado:true},
             {nom:'Matías Mirabaje',          club:'City Escaldes',               pos:'MED', num:18, tmId:91776, fechaNac:'1989-03-06'},
-            {nom:'Jonathan Charquero',       club:'', pos:'DEL', num:9, fechaNac:'1989-02-21', retirado:true, tmId:76827},
+            {nom:'Jonathan Charquero',       club:'Retirado', pos:'DEL', num:9, fechaNac:'1989-02-21', retirado:true, tmId:76827},
             {nom:'Abel Hernández',           club:'CA Peñarol',              pos:'DEL', num:11, pais:'uy', fechaNac:'1990-08-08', tmId:76608},
             {nom:'Jonathan Urretaviscaya',   club:'Montevideo Wanderers',              pos:'DEL', num:17, pais:'uy', fechaNac:'1990-03-19', tmId:74621},
             {nom:'Santiago García Correa',   club:'Nacional',             pos:'DEL', num:20, fallecido:true},
@@ -27977,8 +27990,8 @@ const JUVENILES = {
             {nom:'Salvador Ichazo',         club:'Independiente Medellín', pais:'co',                pos:'POR', num:1, fechaNac:'1992-01-26', tmId:131098},
             {nom:'Leandro Gelpi',           club:'Deportivo Villa Española', pais:'uy',               pos:'POR', num:12, fechaNac:'1991-02-27', tmId:188158},
             {nom:'Jhony da Silva',         club:'Miramar Misiones', pais:'uy',            pos:'POR', num:21, fechaNac:'1991-08-21', tmId:127439},
-            {nom:'Federico Platero',        club:'Retirado',     pos:'DEF', num:2, tmId:181593, fechaNac:'1991-02-07'},
-            {nom:'Diego Polenta',           club:'Retirado',                 pos:'DEF', num:3, fechaNac:'1992-02-06', tmId:78506},
+            {nom:'Federico Platero',        club:'Retirado',     pos:'DEF', num:2, tmId:181593, fechaNac:'1991-02-07', retirado:true},
+            {nom:'Diego Polenta',           club:'Retirado',                 pos:'DEF', num:3, fechaNac:'1992-02-06', tmId:78506, retirado:true},
             {nom:'Guillermo de los Santos', club:'Defensor Sporting Club', pais:'uy',                 pos:'DEF', num:4, fechaNac:'1991-02-15', tmId:179276},
             {nom:'Leandro Cabrera',         club:'RCD Espanyol',              pos:'DEF', num:6, pais:'es', fechaNac:'1991-06-17', tmId:102423},
             {nom:'Maximiliano Olivera',     club:'CA Peñarol', pais:'uy',  pos:'DEF', num:13, fechaNac:'1992-03-05', tmId:179757},
@@ -28073,7 +28086,7 @@ const JUVENILES = {
             {nom:'Diego Fagúndez',     club:'New England Revolution',  pos:'MED', num:14, fechaNac:'1995-02-14', tmId:170100},
             {nom:'Gastón Faber',       club:'Sportivo Bella Italia',  pos:'MED', num:15, fechaNac:'1996-04-21', tmId:294856},
             {nom:'Enrique Etcheverry', club:'Deportivo LSM',  pos:'MED', num:16, fechaNac:'1996-05-10', tmId:294855},
-            {nom:'Diego Poyet',        club:'Retirado',  pos:'MED', num:6, fechaNac:'1995-04-08', tmId:183286},
+            {nom:'Diego Poyet',        club:'Retirado',  pos:'MED', num:6, fechaNac:'1995-04-08', tmId:183286, retirado:true},
             {nom:'Jaime Báez',         club:'Latina Calcio 1932',  pos:'DEL', num:9, fechaNac:'1995-04-25', tmId:238654},
             {nom:'Gastón Pereiro',     club:'',  pos:'DEL', num:10, fechaNac:'1995-06-11'},
             {nom:'Franco Acosta',      club:'sin club',  pos:'DEL', num:11, fechaNac:'1996-03-05', tmId:294820},
@@ -28360,7 +28373,7 @@ const JUVENILES = {
             {nom:'Rodrigo Rey',              club:'Racing'},
             {nom:'Ignacio Lema',             club:'Racing', fechaNac:'2003-01-24', tmId:822664},
             {nom:'Diago Fernández',          club:'Fénix'},
-            {nom:'Martín Fernández Benítez',         club:'Boston River', fechaNac:'2003-06-23', tmId:822141},
+            {nom:'Martín Fernández Benítez',         club:'Boston River', fechaNac:'2003-06-23', tmId:822141, pos:'MED'},
             {nom:'Pablo Fernández',          club:'Boston River'},
             {nom:'Emiliano Rodríguez',       club:'Cerro', fechaNac:'2003-07-16', tmId:982198},
             {nom:'Nicolás Fuica',            club:'Deportivo Maldonado'},
@@ -28953,9 +28966,9 @@ const JUVENILES = {
             {nom:'Martín Campaña',         club:'Liverpool FC Montevideo', pais:'uy',                pos:'POR', num:1, fechaNac:'1989-05-29', tmId:91755},
             {nom:'Leandro Gelpi',          club:'Deportivo Villa Española', pais:'uy',                    pos:'POR', num:18, fechaNac:'1991-02-27', tmId:188158},
             {nom:'Ramón Arias',            club:'CA Tigre', pais:'ar',          pos:'DEF', num:2, fechaNac:'1992-07-27', tmId:131095},
-            {nom:'Diego Polenta',          club:'Retirado',                  pos:'DEF', num:3, fechaNac:'1992-02-06', tmId:78506},
+            {nom:'Diego Polenta',          club:'Retirado',                  pos:'DEF', num:3, fechaNac:'1992-02-06', tmId:78506, retirado:true},
             {nom:'Sebastián Coates',       club:'Nacional',               pos:'DEF', num:4,  pais:'gb-eng', fechaNac:'1990-10-07', tmId:102427},
-            {nom:'Emiliano Albín',         club:'Retirado',                 pos:'DEF', num:5, fechaNac:'1989-01-24', tmId:125125},
+            {nom:'Emiliano Albín',         club:'Retirado',                 pos:'DEF', num:5, fechaNac:'1989-01-24', tmId:125125, retirado:true},
             {nom:'Alexis Rolín',           club:'Terremoto',                   pos:'DEF', num:6, fechaNac:'1989-02-07', tmId:186664},
             {nom:'Diego Rodríguez',        club:'sin club',          pos:'DEF', num:15, fechaNac:'1989-09-04', tmId:127828},
             {nom:'Egidio Arévalo Ríos',    club:'Club Tijuana',               pos:'MED', num:17, pais:'mx', mayor:true, fechaNac:'1982-01-10'},
@@ -29004,7 +29017,7 @@ const JUVENILES = {
             {nom:'Brian Lozano',         club:'Cerro Largo',    pos:'MED', num:11, fechaNac:'1994-02-23', tmId:338889},
             {nom:'Nicolás Albarracín',   club:'Wuxi Wugou',           pos:'MED', num:14, pais:'cn', fechaNac:'1993-06-11', tmId:170785},
             {nom:'Juan Ignacio González', club:'', pos:'DEL', num:11, tmId:250846, fechaNac:'1993-11-05'},
-            {nom:'Juan Cruz Mascia',     club:'Retirado',             pos:'DEL', num:16, fechaNac:'1994-01-03', tmId:179297},
+            {nom:'Juan Cruz Mascia',     club:'Retirado',             pos:'DEL', num:16, fechaNac:'1994-01-03', tmId:179297, retirado:true},
             {nom:'Michael Santos',       club:'Central Córdoba (SdE)',  pos:'DEL', num:17, pais:'ar', fechaNac:'1993-03-13', tmId:178107},
             {nom:'Junior Arias',         club:'Rangers de Talca',             pos:'DEL', num:18, pais:'ar', fechaNac:'1993-05-17', tmId:268652},
           ]},
@@ -29218,7 +29231,7 @@ const JUVENILES = {
             {nom:'Ignacio Lema',             club:'Racing', fechaNac:'2003-01-24', tmId:822664},
             {nom:'Thiago Rodríguez',         club:'Racing',             descartado:true},
             {nom:'Diago Fernández',          club:'Fénix'},
-            {nom:'Martín Fernández Benítez',         club:'Boston River', fechaNac:'2003-06-23', tmId:822141},
+            {nom:'Martín Fernández Benítez',         club:'Boston River', fechaNac:'2003-06-23', tmId:822141, pos:'MED'},
             {nom:'Pablo Fernández',          club:'Boston River'},
             {nom:'Emiliano Rodríguez',       club:'Cerro', fechaNac:'2003-07-16', tmId:982198},
             {nom:'Rodrigo Medeiros',         club:'Boston River',       descartado:true},
@@ -31002,7 +31015,7 @@ const SUD17_ECUADOR_2007 = {
     {num:2, nom:'Álvaro Márquez', club:'sin club', pos:'DEF', fechaNac:'1990-03-07', tmId:188159},
     {num:3, nom:'Martín González', club:'Colón', pos:'DEF', fechaNac:'1990-02-09', tmId:125873},
     {num:4, nom:'Jonathan Leites', club:'sin club', pos:'DEF', fechaNac:'1990-08-22', tmId:177354},
-    {num:5, nom:'Marcelo Lacerda', club:'', pos:'MED'},
+    {num:5, nom:'Marcelo Lacerda', club:'sin club', pos:'MED', fechaNac:'1990-09-05', tmId:161579},
     {num:6, nom:'Mathías Abero', club:'Uruguay Montevideo', pos:'DEF', fechaNac:'1990-04-09', tmId:142370},
     {num:7, nom:'Jonathan Urretaviscaya', club:'Montevideo Wanderers', pais:'uy', pos:'MED', fechaNac:'1990-03-19', tmId:74621},
     {num:8, nom:'Mathías Guzmán', club:'Retirado', pos:'DEL', retirado:true, fechaNac:'1990-01-12', tmId:125509},
@@ -32337,25 +32350,25 @@ const SUD20_2003 = {
   ct:[{iso:'uy',name:'Jorge Da Silva',rol:'Director técnico',dt:true}],
   convocados:[
     {num:1,  nom:'Martín Silva',         club:'sin club', pos:'POR', tmId:76398, fechaNac:'1983-03-25'},
-    {num:12, nom:'Sebastián Viera',      club:'Retirado', pos:'POR', tmId:33531, fechaNac:'1983-03-07'},
-    {num:2,  nom:'Richard Porta',        club:'Retirado', pos:'DEF', tmId:59305, fechaNac:'1983-08-01'},
-    {num:3,  nom:'Ignacio Ithurralde',   club:'Retirado', pos:'DEF', tmId:54848, fechaNac:'1983-05-30'},
-    {num:4,  nom:'Andrés Rodríguez',     club:'Retirado', pos:'DEF', tmId:76778, fechaNac:'1983-01-21'},
-    {num:5,  nom:'Guillermo Rodríguez',  club:'Retirado', pos:'DEF', tmId:37633, fechaNac:'1984-03-21'},
+    {num:12, nom:'Sebastián Viera',      club:'Retirado', pos:'POR', tmId:33531, fechaNac:'1983-03-07', retirado:true},
+    {num:2,  nom:'Richard Porta',        club:'Retirado', pos:'DEF', tmId:59305, fechaNac:'1983-08-01', retirado:true},
+    {num:3,  nom:'Ignacio Ithurralde',   club:'Retirado', pos:'DEF', tmId:54848, fechaNac:'1983-05-30', retirado:true},
+    {num:4,  nom:'Andrés Rodríguez',     club:'Retirado', pos:'DEF', tmId:76778, fechaNac:'1983-01-21', retirado:true},
+    {num:5,  nom:'Guillermo Rodríguez',  club:'Retirado', pos:'DEF', tmId:37633, fechaNac:'1984-03-21', retirado:true},
     {num:6,  nom:'Nelson Semperena',     club:'sin club', pos:'DEF', tmId:76590, fechaNac:'1984-02-19'},
-    {num:15, nom:'Carlos Grossmüller',   club:'Retirado', pos:'DEF', tmId:50791, fechaNac:'1983-05-04'},
+    {num:15, nom:'Carlos Grossmüller',   club:'Retirado', pos:'DEF', tmId:50791, fechaNac:'1983-05-04', retirado:true},
     {num:19, nom:'Diego Montenegro',     club:'Racing',            pais:'uy', pos:'DEF'},
     {num:7,  nom:'William Ferreira',     club:'sin club', pos:'MED', tmId:76687, fechaNac:'1983-02-25'},
-    {num:8,  nom:'Carlos Diogo',         club:'Retirado', pos:'MED', tmId:32233, fechaNac:'1983-07-18'},
-    {num:10, nom:'Cristian Rodríguez',   club:'Retirado', pos:'MED', tmId:33448, fechaNac:'1985-09-30'},
-    {num:11, nom:'Marcelo López',        club:'Retirado', pos:'MED', tmId:1190064, fechaNac:'1983-01-05'},
-    {num:14, nom:'Marcelo Guerrero',     club:'Retirado', pos:'MED', tmId:30682, fechaNac:'1983-05-20'},
-    {num:16, nom:'Jorge Martínez',       club:'Retirado',          pos:'MED', fechaNac:'1983-04-05', tmId:55800},
-    {num:20, nom:'Ruben Olivera',        club:'Retirado', pos:'MED', tmId:5768, fechaNac:'1983-05-04'},
-    {num:9,  nom:'Álvaro Alonso',        club:'Retirado', pos:'DEL', tmId:76857, fechaNac:'1984-03-25'},
-    {num:13, nom:'Carlos Valdez',        club:'Retirado', pos:'DEL', tmId:35709, fechaNac:'1983-05-02'},
-    {num:17, nom:'Eduardo Fernández',    club:'Retirado', pos:'DEL', tmId:67459, fechaNac:'1983-04-15'},
-    {num:18, nom:'Agustín Viana',        club:'Retirado', pos:'DEL', tmId:64669, fechaNac:'1983-08-23'},
+    {num:8,  nom:'Carlos Diogo',         club:'Retirado', pos:'MED', tmId:32233, fechaNac:'1983-07-18', retirado:true},
+    {num:10, nom:'Cristian Rodríguez',   club:'Retirado', pos:'MED', tmId:33448, fechaNac:'1985-09-30', retirado:true},
+    {num:11, nom:'Marcelo López',        club:'Retirado', pos:'MED', tmId:1190064, fechaNac:'1983-01-05', retirado:true},
+    {num:14, nom:'Marcelo Guerrero',     club:'Retirado', pos:'MED', tmId:30682, fechaNac:'1983-05-20', retirado:true},
+    {num:16, nom:'Jorge Martínez',       club:'Retirado',          pos:'MED', fechaNac:'1983-04-05', tmId:55800, retirado:true},
+    {num:20, nom:'Ruben Olivera',        club:'Retirado', pos:'MED', tmId:5768, fechaNac:'1983-05-04', retirado:true},
+    {num:9,  nom:'Álvaro Alonso',        club:'Retirado', pos:'DEL', tmId:76857, fechaNac:'1984-03-25', retirado:true},
+    {num:13, nom:'Carlos Valdez',        club:'Retirado', pos:'DEL', tmId:35709, fechaNac:'1983-05-02', retirado:true},
+    {num:17, nom:'Eduardo Fernández',    club:'Retirado', pos:'DEL', tmId:67459, fechaNac:'1983-04-15', retirado:true},
+    {num:18, nom:'Agustín Viana',        club:'Retirado', pos:'DEL', tmId:64669, fechaNac:'1983-08-23', retirado:true},
   ],
   goleadores:[{nom:'Jorge Martínez',g:3},{nom:'Marcelo Guerrero',g:3},{nom:'Guillermo Rodríguez',g:2},{nom:'Ruben Olivera',g:2},{nom:'Carlos Valdez',g:1},{nom:'Carlos Diogo',g:1},{nom:'Marcelo López',g:1},{nom:'Andrés Rodríguez',g:1},{nom:'Richard Porta',g:1},{nom:'Eduardo Fernández',g:1}],
   partidos:[],
@@ -32383,22 +32396,22 @@ const SUD20_2005 = {
     {num:1,  nom:'Fernando Muslera',    club:'Estudiantes de La Plata',              pos:'POR', fechaNac:'1986-06-16', tmId:58088},
     {num:2,  nom:'Sergio Rodríguez',    club:'Retirado',              pos:'DEF', retirado:true, tmId:72588, fechaNac:'1985-01-05'},
     {num:4,  nom:'Diego Godín',         club:'Retirado',              pos:'DEF', retirado:true, fechaNac:'1986-02-16', tmId:54928},
-    {num:14,  nom:'Álvaro Pereira',      club:'Retirado',              pos:'DEF', fechaNac:'1985-11-28', tmId:54859},
+    {num:14,  nom:'Álvaro Pereira',      club:'Retirado',              pos:'DEF', fechaNac:'1985-11-28', tmId:54859, retirado:true},
     {num:20,  nom:'Martín Rodríguez Telis', club:'Retirado',           pos:'DEF', retirado:true, fechaNac:'1985-02-10', tmId:65163},
     {num:8,  nom:'Jorge García',        club:'Retirado',              pos:'DEF', retirado:true, tmId:72576, fechaNac:'1986-08-19'},
     {num:17,  nom:'Ribair Rodríguez',    club:'Retirado',              pos:'MED', retirado:true, tmId:72587, fechaNac:'1987-10-04'},
     {num:5,  nom:'Luis Aguiar',         club:'Retirado',              pos:'MED', retirado:true, tmId:51454, fechaNac:'1985-11-17'},
-    {num:13,  nom:'Leandro Ezquerra',    club:'Retirado',              pos:'MED', fechaNac:'1986-06-05', tmId:59263},
-    {num:18, nom:'Cristian Rodríguez',  club:'Retirado',              pos:'MED', fechaNac:'1985-09-30', tmId:33448},
+    {num:13,  nom:'Leandro Ezquerra',    club:'Retirado',              pos:'MED', fechaNac:'1986-06-05', tmId:59263, retirado:true},
+    {num:18, nom:'Cristian Rodríguez',  club:'Retirado',              pos:'MED', fechaNac:'1985-09-30', tmId:33448, retirado:true},
     {num:16, nom:'Jorge Rodríguez',     club:'sin club',              pos:'MED', fechaNac:'1985-01-13', tmId:74265},
     {num:10, nom:'Juan Albín',          club:'Universitario', pos:'MED', fechaNac:'1986-07-17', tmId:44139},
-    {num:9,  nom:'Matías Alonso',       club:'Retirado',              pos:'DEL', tmId:73113, fechaNac:'1985-04-16'},
+    {num:9,  nom:'Matías Alonso',       club:'Retirado',              pos:'DEL', tmId:73113, fechaNac:'1985-04-16', retirado:true},
     {num:11, nom:'Álvaro Navarro',      club:'Retirado',              pos:'DEL', retirado:true, tmId:76721, fechaNac:'1985-01-28'},
     {num:12, nom:'Lucero Álvarez',      club:'Oriental de la Paz',              pos:'POR', fechaNac:'1985-02-24', tmId:76663},
-    {num:15, nom:'Miguel Lavié',        club:'Retirado',              pos:'DEF', fechaNac:'1986-04-15', tmId:99669},
+    {num:15, nom:'Miguel Lavié',        club:'Retirado',              pos:'DEF', fechaNac:'1986-04-15', tmId:99669, retirado:true},
     {num:6,  nom:'Sebastián Silvera',   club:'sin club',              pos:'DEF', fechaNac:'1986-03-11', tmId:201922},
-    {num:3,  nom:'Ignacio La Luz',      club:'Retirado',              pos:'DEF', fechaNac:'1985-04-19', tmId:84287},
-    {num:19, nom:'Danilo Peinado',      club:'Retirado',              pos:'DEL', fechaNac:'1985-02-15', tmId:88851},
+    {num:3,  nom:'Ignacio La Luz',      club:'Retirado',              pos:'DEF', fechaNac:'1985-04-19', tmId:84287, retirado:true},
+    {num:19, nom:'Danilo Peinado',      club:'Retirado',              pos:'DEL', fechaNac:'1985-02-15', tmId:88851, retirado:true},
     {num:7,  nom:'Christian Stuani',    club:'Girona',              pos:'DEL', fechaNac:'1986-10-12', tmId:59323},
   ],
   goleadores:[{nom:'Juan Albín',g:4},{nom:'Cristian Rodríguez',g:4},{nom:'Leandro Ezquerra',g:2},{nom:'Danilo Peinado',g:1},{nom:'Jorge Rodríguez',g:1},{nom:'Álvaro Navarro',g:1}],
@@ -32600,7 +32613,7 @@ const MUN20_2009 = {
     {num:14, nom:'Nicolás Lodeiro',          club:'Club Nacional', pais:'uy',              pos:'MED', fechaNac:'1989-03-21', tmId:72653},
     {num:15, nom:'Mauricio Pereyra',         club:'Retirado',                      pos:'MED', retirado:true, tmId:102452, fechaNac:'1990-03-15'},
     {num:18, nom:'Matías Mirabaje',          club:'City Escaldes',                      pos:'MED', tmId:91776, fechaNac:'1989-03-06'},
-    {num:9,  nom:'Jonathan Charquero',       club:'',       pos:'DEL', fechaNac:'1989-02-21', retirado:true, tmId:76827},
+    {num:9,  nom:'Jonathan Charquero',       club:'Retirado',       pos:'DEL', fechaNac:'1989-02-21', retirado:true, tmId:76827},
     {num:11, nom:'Abel Hernández',           club:'CA Peñarol',            pos:'DEL', pais:'uy', fechaNac:'1990-08-08', tmId:76608},
     {num:17, nom:'Jonathan Urretaviscaya',   club:'Montevideo Wanderers', pais:'uy',             pos:'DEL', fechaNac:'1990-03-19', tmId:74621},
     {num:20, nom:'Santiago García Correa',   club:'',                      pos:'DEL', fallecido:true, fechaNac:'1990-09-14', tmId:102432},
@@ -32634,8 +32647,8 @@ const SUD20_2011 = {
   ct:[{iso:'uy',name:'Juan Verzeri',rol:'Director técnico',dt:true}],
   convocados:[
     {num:1, nom:'Jhony da Silva', club:'Miramar Misiones', pais:'uy', pos:'POR', fechaNac:'1991-08-21', tmId:127439},
-    {num:2, nom:'Federico Platero', club:'Retirado', pos:'DEF', fechaNac:'1991-02-07', tmId:181593},
-    {num:3, nom:'Diego Polenta', club:'Retirado', pos:'DEF', fechaNac:'1992-02-06', tmId:78506},
+    {num:2, nom:'Federico Platero', club:'Retirado', pos:'DEF', fechaNac:'1991-02-07', tmId:181593, retirado:true},
+    {num:3, nom:'Diego Polenta', club:'Retirado', pos:'DEF', fechaNac:'1992-02-06', tmId:78506, retirado:true},
     {num:4, nom:'Nicolás Rodríguez', club:'Nacional', pos:'DEF', fechaNac:'1991-07-22', tmId:196187},
     {num:5, nom:'Guzmán Pereira', club:'Uruguay Montevideo', pos:'MED', fechaNac:'1991-05-16', tmId:160259},
     {num:6, nom:'Leandro Cabrera', club:'RCD Espanyol', pais:'es', pos:'DEF', fechaNac:'1991-06-17', tmId:102423},
@@ -32860,7 +32873,7 @@ const SUD20_2015 = {
     {num:10, nom:'Gastón Pereiro',        club:'CA Juventud',                 pos:'DEL', pais:'uy',    fechaNac:'1995-06-11'},
     {num:11, nom:'Franco Acosta',         club:'sin club',                    pos:'DEL',               fechaNac:'1996-03-05', tmId:294820},
     {num:17, nom:'Horacio Sequeira',      club:'Rentistas',                pos:'DEL',    fechaNac:'1995-09-30', tmId:285664},
-    {num:6,  nom:'Ramiro Guerra',         club:'Retirado',                    pos:'MED',               fechaNac:'1997-03-21', tmId:222571},
+    {num:6,  nom:'Ramiro Guerra',         club:'Retirado',                    pos:'MED',               fechaNac:'1997-03-21', tmId:222571, retirado:true},
   ],
   goleadores:[{nom:'Gastón Pereiro',g:5},{nom:'Franco Acosta',g:4},{nom:'Mauro Arambarri',g:3},{nom:'Rodrigo Amaral',g:1},{nom:'Gastón Faber',g:1}],
 };
@@ -32886,7 +32899,7 @@ const MUN20_2015 = {
     {num:3,  nom:'Cristian Tassano',      club:'Remo',                     pos:'DEF', fechaNac:'1996-07-23', tmId:358738},
     {num:4,  nom:'Mauricio Lemos',       club:'Peñarol',               pos:'DEF', pais:'uy',   fechaNac:'1995-12-28', tmId:303140},
     {num:13, nom:'Marcelo Saracchi',     club:'Houston Dynamo FC',          pos:'DEF', pais:'us',   fechaNac:'1998-04-23', tmId:373916},
-    {num:16, nom:'Ramiro Guerra',        club:'Retirado',                 pos:'DEF',              fechaNac:'1997-03-21', tmId:222571},
+    {num:16, nom:'Ramiro Guerra',        club:'Retirado',                 pos:'DEF',              fechaNac:'1997-03-21', tmId:222571, retirado:true},
     {num:19, nom:'Erick Cabaco',         club:'sin club',                 pos:'DEF',              fechaNac:'1995-04-19', tmId:302991},
     {num:5,  nom:'Nahitan Nández',       club:'Al-Qadsiah FC',            pos:'MED', pais:'sa',   fechaNac:'1995-12-28'},
     {num:6,  nom:'Diego Poyet',          club:'Retirado',                         pos:'MED', retirado:true, fechaNac:'1995-04-08', tmId:183286},
@@ -33718,7 +33731,7 @@ const MUNDIAL_SUB20_2023 = {
     {nom:'Diego Abreu',         club:'Tijuana',           destaque:true, fechaNac:'2003-08-27', tmId:694157},
     {nom:'Kevin Altéz',         club:'Montevideo City Torque', destaque:true, fechaNac:'2004-12-15', tmId:1018697},
     {nom:'Augusto Cambón',      club:'Defensor Sporting',      destaque:true, fechaNac:'2005-01-17', tmId:1108738},
-    {nom:'Martín Fernández Benítez',    club:'Boston River',           destaque:true, fechaNac:'2003-06-23', tmId:822141},
+    {nom:'Martín Fernández Benítez',    club:'Boston River',           destaque:true, fechaNac:'2003-06-23', tmId:822141, pos:'MED'},
     {nom:'Joaquín Ferreira',    club:'Peñarol',                destaque:true, fechaNac:'2003-07-02', tmId:980818},
     {nom:'Juan Manuel Jorge',   club:'Defensor Sporting',      destaque:true, fechaNac:'2004-04-22', tmId:987582},
     {nom:'Ignacio Lema',        club:'Racing',                 destaque:true, fechaNac:'2003-01-24', tmId:822664},
@@ -33768,7 +33781,7 @@ const JJOO_2012 = {
     {num:1,  nom:'Martín Campaña',          club:'Liverpool FC Montevideo', pais:'uy',                     pos:'POR', fechaNac:'1989-05-29', tmId:91755},
     {num:18, nom:'Leandro Gelpi',           club:'Deportivo Villa Española', pais:'uy',       pos:'POR', fechaNac:'1991-02-27', tmId:188158},
     {num:2,  nom:'Ramón Arias',             club:'CA Tigre', pais:'ar',                     pos:'DEF', fechaNac:'1992-07-27', tmId:131095},
-    {num:3,  nom:'Diego Polenta',           club:'Retirado',                     pos:'DEF', fechaNac:'1992-02-06', tmId:78506},
+    {num:3,  nom:'Diego Polenta',           club:'Retirado',                     pos:'DEF', fechaNac:'1992-02-06', tmId:78506, retirado:true},
     {num:4,  nom:'Sebastián Coates',        club:'Nacional',             pos:'DEF', pais:'uy', fechaNac:'1990-10-07', tmId:102427},
     {num:5,  nom:'Emiliano Albín',          club:'Retirado',  retirado:true,    pos:'DEF', fechaNac:'1989-01-24', tmId:125125},
     {num:6,  nom:'Alexis Rolín',            club:'Terremoto',                     pos:'DEF', fechaNac:'1989-02-07', tmId:186664},
@@ -33834,7 +33847,7 @@ const PAN_AMERICANOS_2015 = {
     {num:18, nom:'Brian Lozano',         club:'Cerro Largo',             pos:'MED', fechaNac:'1994-02-23', tmId:338889},
     {num:16, nom:'Nicolás Albarracín',   club:'Wuxi Wugou',              pos:'MED', fechaNac:'1993-06-11', tmId:170785},
     {num:11, nom:'Juan Ignacio González', club:'',                  pos:'DEL', fechaNac:'1993-11-05', tmId:250846},
-    {num:8,  nom:'Juan Cruz Mascia',     club:'Retirado',                pos:'DEL', fechaNac:'1994-01-03', tmId:179297},
+    {num:8,  nom:'Juan Cruz Mascia',     club:'Retirado',                pos:'DEL', fechaNac:'1994-01-03', tmId:179297, retirado:true},
     {num:10, nom:'Michael Santos',       club:'Central Córdoba (SdE)',   pos:'DEL', fechaNac:'1993-03-13', tmId:178107},
     {num:9,  nom:'Junior Arias',         club:'Rangers de Talca',        pos:'DEL', fechaNac:'1993-05-17', tmId:268652},
   ],
