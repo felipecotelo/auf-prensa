@@ -31450,8 +31450,10 @@ const WC17_2026 = {
   ],
   // Lista final de 21 para el Mundial (lista provisoria del 6/10/26, confirmada por Felipe el 04/11/2026).
   // Los dorsales todavía no están definidos: las filas no llevan `num` hasta que salgan.
-  // Quienes estuvieron en el proceso y no quedaron (Mora, E. Fernández, Soto, Cardozo, Pesce) siguen abajo, como pool.
-  convocadosFecha:'Convocatoria final · Mundial Sub-17 Qatar 2026',
+  // `listaFinal:true` hace que Convocados muestre estos 21, pero la convocatoria de ENTRENAMIENTO vigente (convocadosFecha +
+  // JUVENILES.sub17.anos['2025-2026'].convocatorias[0]) sigue mandando en Jugadores hasta que Felipe avise.
+  listaFinal:true,
+  convocadosFecha:'Preparación Mundial · lunes a sábado · 2-7 nov 2026',
   estiloMundial:true, // Convocados con la estética de la Mayor + el proceso abajo (igual que el Mundial Sub-15)
   convocados:[
     {nom:'Luis Machín', club:'Nacional', tmId:1532865, fechaNac:'2010-02-06'},
@@ -38395,6 +38397,7 @@ function _bnHtml(id,kind,title,names,waKey){
 // Las de entrenamientos ("Microciclo N") o amistosos/viajes ("Viajeros a …") no cuentan: viven en Jugadores / Amistosos prep. Competencias históricas (sin convocadosFecha, con lista cargada) sí.
 // Además, Felipe puede marcarla con la acción explícita "Cargar lista definitiva" (clave sincronizada auf4_juv_lista_final; solo agrega).
 function _compListaFinal(comp){
+  if(comp&&comp.listaFinal===true) return true; // lista final cargada aparte de la convocatoria de entrenamiento vigente
   try{ const f=JSON.parse(localStorage.getItem('auf4_juv_lista_final')||'{}')||{}; if(comp&&comp.id&&f[comp.id]) return true; }catch(_){}
   const cf=String((comp&&comp.convocadosFecha)||'').trim();
   if(!cf) return true;
@@ -39804,7 +39807,9 @@ function _buildJuvCompBody(compId, color, catData){
 
   else if(_juvCompTab==='jugadores'){
     // Pool unificado: convocados formales + preparacion + lista larga
-    const formalConv = (comp.convocados||[]).filter(j=>!j.descartado);
+    // Con `listaFinal` (Mundial), `convocados` es la lista final y se ve en la pestaña Convocados; acá manda la convocatoria de entrenamiento vigente.
+    const formalConv = comp.listaFinal ? [] : (comp.convocados||[]).filter(j=>!j.descartado);
+    const _estMund = comp.estiloMundial && !comp.listaFinal;
     // Si no hay convocados formales, usar la última convocatoria como "activos".
     // Prioridad: convocatorias propias de la competencia (comp.convocatorias) >
     // última convocatoria del CICLO general (microciclos de entrenamiento del
@@ -39840,7 +39845,7 @@ function _buildJuvCompBody(compId, color, catData){
     });
     // Mundial (convocatoria que queda guardada): además de los convocados, todos los que estuvieron en el proceso
     // del ciclo (convocatorias de la categoría) quedan abajo como pool, con la ficha de siempre.
-    if(comp.estiloMundial){
+    if(_estMund){
       const _enMapa = new Set(Object.values(allMap).map(p=>_nomKey(p.nom)));
       cycleConvocatorias.forEach(c=>(c.jugadores||[]).forEach(j=>{
         const k=_nomKey(j.nom); if(_enMapa.has(k)) return; _enMapa.add(k);
@@ -39848,7 +39853,7 @@ function _buildJuvCompBody(compId, color, catData){
       }));
     }
     // Bajas del proceso actual (p. ej. pasó al Femenino): no figuran en la preparación; en competencias con lista final histórica se conservan
-    if(!_compListaFinal(comp)){ const _bj=_juvBajas(); Object.keys(allMap).forEach(nom=>{ if(_bj[nom]) delete allMap[nom]; }); }
+    if(!_compListaFinal(comp)||comp.listaFinal){ const _bj=_juvBajas(); Object.keys(allMap).forEach(nom=>{ if(_bj[nom]) delete allMap[nom]; }); }
     const juvPos = getJuvPos();
     const POS_ORDER = {POR:0,DEF:1,MED:2,DEL:3,'':4};
     const activos = Object.values(allMap).filter(p=>p.activo)
@@ -39860,7 +39865,7 @@ function _buildJuvCompBody(compId, color, catData){
     const _mkJuvCompCard = (p, dimmed, isConv) => _juvCompCardHtml(p, dimmed, isConv, cc);
     // En el Mundial los convocados se distinguen con un encabezado navy con el dorsal grande (estilo Mayor);
     // la ficha de abajo es la de siempre, con su botonera.
-    const fichasActivas = activos.slice().sort((a,b)=>(comp.estiloMundial||comp.dorsalNavy)?((a.num??99)-(b.num??99)):0).map(p=>_mkJuvCompCard(p,false,true)).join('');
+    const fichasActivas = activos.slice().sort((a,b)=>(_estMund||comp.dorsalNavy)?((a.num??99)-(b.num??99)):0).map(p=>_mkJuvCompCard(p,false,true)).join('');
     const fichasPool = pool.map(p=>_mkJuvCompCard(p,true,false)).join('');
     // Banners fotos
     const _sinFotoActivos = activos.filter(p=>!window._juvGetPhoto?.(p.nom));
@@ -39897,7 +39902,7 @@ function _buildJuvCompBody(compId, color, catData){
       </div>
       ${pool.length?`
       <div style="font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">
-        ${comp.estiloMundial?'Estuvieron en el proceso':'Pool / preparación'} — ${pool.length} jugadores
+        ${_estMund?'Estuvieron en el proceso':'Pool / preparación'} — ${pool.length} jugadores
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px;--cat:${_catCol(_juvCat)}">
         ${fichasPool}
