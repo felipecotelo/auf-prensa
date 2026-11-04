@@ -38590,6 +38590,34 @@ window._jfWaitPhotos=function(){
   }catch(_){}
 };
 if(!window._jfClipObs){ window._jfClipObs=new MutationObserver(()=>{ if(window._jfClipT) return; window._jfClipT=requestAnimationFrame(()=>{ window._jfClipT=0; window._jfClipCheck(); window._jfWaitPhotos(); }); }); window._jfClipObs.observe(document.body,{childList:true,subtree:true}); window.addEventListener('resize',()=>window._jfClipCheck()); }
+// «Regalar edad»: jugadores de una generación más chica que pueden jugar uno o dos Sudamericanos más del mismo nivel.
+// Sub-17: Sudamericano todos los años (tope 17). Sub-20: cada 2 años (tope 20), por eso hay que tener 2 años menos para «regalar».
+// Se calcula contra el año del torneo del ciclo vigente (T = fin del ciclo): n = floor((nacimiento + tope - T) / paso), de 0 a 2.
+// Sub-17 2025-2026 (T=2026): nacidos 2010 = +1, 2011 = +2. Sub-20 2025-2027 (T=2027): nacidos 2009 = +1, 2011 = +2.
+// Solo en el ciclo más reciente de la categoría (en los viejos ya no tiene sentido).
+const _JUV_REGALO_CFG = {sub17:{cap:17,paso:1,nivel:'Sub-17'}, sub20:{cap:20,paso:2,nivel:'Sub-20'}};
+function _juvRegaloInfo(nom, fn){
+  try{
+    const cfg=_JUV_REGALO_CFG[_juvCat]; if(!cfg) return null;
+    const ciclos=Object.keys((JUVENILES[_juvCat]&&JUVENILES[_juvCat].anos)||{}).filter(k=>/^\d{4}-\d{4}$/.test(k));
+    if(!ciclos.length) return null;
+    const fin=k=>parseInt(String(k).split('-')[1],10);
+    const T=Math.max(...ciclos.map(fin));
+    if(!ciclos.includes(String(_juvYear)) || fin(_juvYear)!==T) return null;
+    fn = fn || (typeof JUV_NAC_DATES!=='undefined'?JUV_NAC_DATES[nom]:null) || ((typeof JUGADORES!=='undefined'&&JUGADORES[nom])||{}).fechaNac || (window._juvFnSet?(window._juvFnSet()[nom]||[])[0]:null);
+    const y=parseInt(String(fn||'').slice(0,4),10); if(!y) return null;
+    const n=Math.min(2,Math.floor((y+cfg.cap-T)/cfg.paso));
+    if(n<1) return null;
+    const a1=T+cfg.paso, a2=T+2*cfg.paso;
+    const txt = n===1 ? 'Tiene edad para jugar el próximo Sudamericano '+cfg.nivel+' ('+a1+')' : 'Tiene edad para jugar los próximos dos Sudamericanos '+cfg.nivel+' ('+a1+' y '+a2+')';
+    return {n,txt};
+  }catch(_){ return null; }
+}
+function _juvRegaloChip(nom, fn){
+  const r=_juvRegaloInfo(nom,fn); if(!r) return '';
+  const t=r.txt.replace(/"/g,'&quot;');
+  return `<button type="button" class="jf-regalo" title="${t}" onclick="event.stopPropagation();event.preventDefault();toast(this.title)" style="border:0;cursor:pointer;font:800 11px/1 inherit;letter-spacing:.02em;padding:3px 7px;border-radius:999px;background:#F59E0B;color:#1F1300">+${r.n}</button>`;
+}
 function _juvFichaCard(p, hist, off, extraIcon){
   const hasOficial = off.conv>0;
   const isChamp = _isChampSub20(p.nom);
@@ -38641,7 +38669,7 @@ function _juvFichaCard(p, hist, off, extraIcon){
   const _nonum=p.num==null;
   return `<div class="jf${_nonum?' jf-nonum':''}${p.noCedido?' jf-nc':''}${isJuvRetirado?' jf-ret':''}${isJuvFallecido?' jf-fal':''}${_juvSelOtra?' jf-ot':''}" style="${isJuvLesion?'border-color:#EF4444;':''}">
     <div class="jf-top">
-      ${_nonum?'<span></span>':`<span class="jf-num">${p.num}</span>`}
+      <span style="display:inline-flex;align-items:center;gap:8px">${_nonum?'':`<span class="jf-num">${p.num}</span>`}${_juvRegaloChip(p.nom,p.fechaNac)}</span>
       <span class="jf-ico">
         ${extraIcon?`<span class="jf-asc">${extraIcon}</span>`:''}
         ${_btnC}${_btnS}
@@ -39129,7 +39157,7 @@ function _renderJuvenilesSafe(el){
           Fichas de jugadores — ${fichas.length} · click en el puesto para editarlo
         </div>
         <div class="juv-fichas-grid">
-          ${fichas.map(p=>{const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');const photo=window._juvGetPhoto?.(p.nom)||null;const initials=p.nom.split(' ').filter((_,i)=>i===0||i===p.nom.split(' ').length-1).map(w=>w[0]).join('');const posLabel=p.pos||'—';const posFg=(window.JUV_POS_FG||{})[p.pos]||'#fff';const posBg=(window.JUV_POS_BG||{})[p.pos]||'#6B7280';return`<div class="juv-ficha-wrap" onclick="if(window.innerWidth<=600){event.preventDefault();_openJuvDetail('${nomEnc}');}"><div class="juv-ficha-mob-cpt"><div style="width:54px;height:54px;border-radius:50%;background:var(--bg);border:2px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.9em;color:var(--muted);flex-shrink:0">${photo?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:`<span>${initials}</span>`}</div><div class="juv-ficha-mob-nm">${p.nom}</div><div class="juv-ficha-mob-pos" style="background:${posBg};color:${posFg}">${posLabel}</div></div><div class="juv-ficha-full">${_juvFichaCard(p, _juvPlayerHistory(p.nom), _juvOfficialStats(p.nom))}</div></div>`}).join('')}
+          ${fichas.map(p=>{const nomEnc=encodeURIComponent(p.nom).replace(/'/g,'%27');const photo=window._juvGetPhoto?.(p.nom)||null;const initials=p.nom.split(' ').filter((_,i)=>i===0||i===p.nom.split(' ').length-1).map(w=>w[0]).join('');const posLabel=p.pos||'—';const posFg=(window.JUV_POS_FG||{})[p.pos]||'#fff';const posBg=(window.JUV_POS_BG||{})[p.pos]||'#6B7280';return`<div class="juv-ficha-wrap" onclick="if(window.innerWidth<=600){event.preventDefault();_openJuvDetail('${nomEnc}');}"><div class="juv-ficha-mob-cpt"><div style="width:54px;height:54px;border-radius:50%;background:var(--bg);border:2px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.9em;color:var(--muted);flex-shrink:0">${photo?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:`<span>${initials}</span>`}</div><div class="juv-ficha-mob-nm">${p.nom} ${_juvRegaloChip(p.nom,p.fechaNac)}</div><div class="juv-ficha-mob-pos" style="background:${posBg};color:${posFg}">${posLabel}</div></div><div class="juv-ficha-full">${_juvFichaCard(p, _juvPlayerHistory(p.nom), _juvOfficialStats(p.nom))}</div></div>`}).join('')}
         </div>`;
     }
   }
@@ -39603,7 +39631,7 @@ function _juvCompCardHtml(p, dimmed, isConv, cc){
         <div class="juv-ficha-wrap" onclick="if(window.innerWidth<=600){event.preventDefault();_openJuvDetail('${nomEnc}');}">
           <div class="juv-ficha-mob-cpt">
             ${photoEl}
-            <div class="juv-ficha-mob-nm">${p.nom}</div>
+            <div class="juv-ficha-mob-nm">${p.nom} ${_juvRegaloChip(p.nom,p.fechaNac)}</div>
             <div class="juv-ficha-mob-pos" style="background:${posBg};color:${posFg}">${posLabel}</div>
           </div>
           <div class="juv-ficha-full">${fullCard}</div>
@@ -39693,7 +39721,7 @@ function _buildJuvCompBody(compId, color, catData){
       const pos = _jpos[j.nom]||''; const pc=_PCc[pos]||'rgba(239,243,248,.5)';
       const shirt = _clubShield(_clubRaw,20);
       return `<div class="jf${off?' jf-off':''}">
-        <div class="jf-top">${off?'<i class="ti ti-bandage" style="font-size:20px;color:#F87171"></i>':(j.num!=null?`<span class="jf-num">${j.num}</span>`:'<span></span>')}<span class="jf-ico">${j.asc?'<span class="jf-tag" title="Ascendido desde la Sub-16">ex-16</span>':''}${shirt}</span></div>
+        <div class="jf-top">${off?'<i class="ti ti-bandage" style="font-size:20px;color:#F87171"></i>':`<span style="display:inline-flex;align-items:center;gap:8px">${j.num!=null?`<span class="jf-num">${j.num}</span>`:''}${_juvRegaloChip(j.nom,j.fechaNac)}</span>`}<span class="jf-ico">${j.asc?'<span class="jf-tag" title="Ascendido desde la Sub-16">ex-16</span>':''}${shirt}</span></div>
         <div class="jf-who">
           <div class="jf-ph" onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto"><div class="jf-ph-in">${avatar}</div><i class="ti ti-camera"></i>
             <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)"></div>
@@ -39721,7 +39749,7 @@ function _buildJuvCompBody(compId, color, catData){
         <span class="sh-rk" style="width:auto;min-width:32px;border-radius:999px;padding:0 8px;background:color-mix(in srgb,${_catCol(_juvCat)} 18%,transparent);color:${_catCol(_juvCat)};font-weight:700;font-size:13px">${off?'<i class="ti ti-bandage" style="font-size:15px;color:#F87171"></i>':(j.num!=null?j.num:'–')}</span>
         <span class="sh-av" style="--pc:${pc};cursor:pointer" onclick="_clickJuvPhoto('${nomEnc}')" title="Click para cargar/editar foto"><span>${ini}</span>${photo?`<img src="${photo}" decoding="async" onerror="this.remove()">`:''}</span>
         <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_juvPhotoSelected('${nomEnc}',this)">
-        <span class="sh-nm"><button onclick="_openJuvDetail('${nomEnc}')">${(window.JUV_NOMBRE_MOSTRAR&&JUV_NOMBRE_MOSTRAR[j.nom])||j.nom}</button>${j.asc?'<em class="sh-tg navy" title="Ascendido desde la Sub-16">ex-16</em>':''}${window._juvDtTag(j.nom,true)}${off&&j.descartado?`<em class="sh-tg" style="color:#FCA5A5;border-color:rgba(248,113,113,.4)">${j.descartado}</em>`:''}</span>
+        <span class="sh-nm"><button onclick="_openJuvDetail('${nomEnc}')">${(window.JUV_NOMBRE_MOSTRAR&&JUV_NOMBRE_MOSTRAR[j.nom])||j.nom}</button>${j.asc?'<em class="sh-tg navy" title="Ascendido desde la Sub-16">ex-16</em>':''}${window._juvDtTag(j.nom,true)}${_juvRegaloChip(j.nom,j.fechaNac)}${off&&j.descartado?`<em class="sh-tg" style="color:#FCA5A5;border-color:rgba(248,113,113,.4)">${j.descartado}</em>`:''}</span>
         <span style="flex:0 0 64px;text-align:right;font-size:12px;color:rgba(239,243,248,.5)">${edad!=null?edad+' años':''}</span>
         <span class="jf-pos" style="flex:0 0 54px;justify-content:center;text-align:center;color:${pc};border-color:${pc}66;background:${pc==='rgba(239,243,248,.5)'?'transparent':pc+'14'};cursor:default">${pos||'—'}</span>
         <span style="display:inline-flex;align-items:center;gap:6px;flex:0 0 190px;width:190px;overflow:hidden;white-space:nowrap;justify-content:flex-end;font-size:12.5px;color:rgba(239,243,248,.7)">${_ret?'<em class="sh-ret">Retirado</em>':(_clubCorto(_clubRaw)||'Sin club')}</span>
