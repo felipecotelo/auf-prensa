@@ -38613,10 +38613,22 @@ function _juvRegaloInfo(nom, fn){
     return {n,txt};
   }catch(_){ return null; }
 }
+// Cartelito del +1/+2: aparece arriba del chip al pasar el cursor (o al tocarlo en el celular), no abajo como el title nativo.
+function _regaloTip(el, on, tap){
+  let t=document.getElementById('regalo-tip');
+  if(!on){ if(t) t.style.display='none'; return; }
+  if(!t){ t=document.createElement('div'); t.id='regalo-tip'; t.style.cssText='position:fixed;z-index:99999;display:none;pointer-events:none;max-width:260px;padding:7px 10px;border-radius:9px;background:#0B1220;color:#EFF3F8;border:1px solid rgba(163,230,53,.55);font:600 12px/1.35 inherit;box-shadow:0 6px 20px rgba(0,0,0,.45);text-align:center'; document.body.appendChild(t); }
+  t.textContent=el.getAttribute('data-tip')||''; t.style.display='block';
+  const r=el.getBoundingClientRect(), w=t.offsetWidth, h=t.offsetHeight;
+  let x=r.left+r.width/2-w/2; x=Math.max(8,Math.min(x,window.innerWidth-w-8));
+  let y=r.top-h-8; if(y<8) y=r.bottom+8;
+  t.style.left=x+'px'; t.style.top=y+'px';
+  if(tap){ clearTimeout(window._regaloTipT); window._regaloTipT=setTimeout(()=>_regaloTip(el,0),2600); }
+}
 function _juvRegaloChip(nom, fn){
   const r=_juvRegaloInfo(nom,fn); if(!r) return '';
   const t=r.txt.replace(/"/g,'&quot;');
-  return `<button type="button" class="jf-regalo" title="${t}" onclick="event.stopPropagation();event.preventDefault();toast(this.title)" style="border:0;cursor:pointer;font:800 9.5px/1 inherit;letter-spacing:.02em;padding:2px 5px;border-radius:999px;background:#A3E635;color:#14210A">+${r.n}</button>`;
+  return `<button type="button" class="jf-regalo" data-tip="${t}" aria-label="${t}" onmouseenter="_regaloTip(this,1)" onmouseleave="_regaloTip(this,0)" onclick="event.stopPropagation();event.preventDefault();_regaloTip(this,1,true)" style="border:0;cursor:pointer;font:800 9.5px/1 inherit;letter-spacing:.02em;padding:2px 5px;border-radius:999px;background:#A3E635;color:#14210A">+${r.n}</button>`;
 }
 function _juvFichaCard(p, hist, off, extraIcon){
   const hasOficial = off.conv>0;
