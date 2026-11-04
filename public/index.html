@@ -16214,6 +16214,17 @@ function _fifaNovApplyFloor(){
 }
 // Estado de confirmación de un partido de la Fecha FIFA (mismo criterio en Fixture y Pizarra)
 // Fixture de la Fecha FIFA (mismo diseño para sep-oct y noviembre): encabezado + tarjetas estilo marcador
+// Tocar un partido del Fixture lleva a su Pizarra (abre el detalle de ese partido). lsKey = clave de los amistosos de la Fecha FIFA.
+window._fifaFixtureGoPizarra=function(lsKey,rival){
+  const nov=/nov26/.test(lsKey), evId=nov?'fifanov26':'fifasep26';
+  try{
+    if(nov) _seedFifaNovPizarra(); else _seedFifaSepPizarra();
+    const list=JSON.parse(localStorage.getItem(lsKey)||'[]');
+    const m=list.find(x=>x.compId===evId&&x.rival===rival);
+    window._amistDetailOpen=m?m.id:null;
+  }catch(_){ window._amistDetailOpen=null; }
+  showTab(evId+'-pizarra');
+};
 window._fifaFixturePro=function(EV,lsKey){
   const _fifaMatches=EV.partidosData||[];
   const _fifaMatchesFaltan=(EV.partidos||0)-_fifaMatches.length;
@@ -16234,7 +16245,7 @@ window._fifaFixturePro=function(EV,lsKey){
       ?`<div class="fx-mid"><b style="color:${col}">${vis?gR+' - '+gU:gU+' - '+gR}</b><i>Final</i></div>`
       :`<div class="fx-mid"><b>${p.horaLocal||p.hora||'—'}</b><i>${p.hora&&p.hora!=='—'?'Hora de Uruguay':'Hora por confirmar'}</i></div>`;
     const u=eq('Uruguay',true), r=eq(p.rival,false);
-    return `<div class="fx-card" style="--fxc:${col}">
+    return `<div class="fx-card" style="--fxc:${col};cursor:pointer" role="button" title="Abrir en la Pizarra" onclick="window._fifaFixtureGoPizarra('${lsKey}',decodeURIComponent('${encodeURIComponent(p.rival)}'))">
       <div class="fx-top"><span class="fx-eb">${EV.label} · ${_DSEM[d.getDay()]} ${d.getDate()} ${_MESN[d.getMonth()]}</span>
         <span class="fx-st" style="color:${st[1]};border-color:${st[1]}66">${st[0]}</span></div>
       <div class="fx-body">${vis?r+centro+u:u+centro+r}</div>
