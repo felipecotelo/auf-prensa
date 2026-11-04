@@ -44656,6 +44656,21 @@ function _estBuildAllSections(){
   return sections;
 }
 
+// Roles de una persona en una sola línea: cada rol una vez, con las categorías juntas
+// (p. ej. «Director técnico (Sub-20, Sub-17)») en vez de repetirlo por cada ciclo en el que aparece.
+function _estRolesCompact(key,edits){
+  const m=new Map();
+  _estGetAllRoles(key).forEach(r=>{
+    const rol=String((edits&&edits[key]&&edits[key].rolesEdit&&edits[key].rolesEdit[r.dept]&&edits[key].rolesEdit[r.dept].rol)||r.rol||'').trim();
+    if(!rol) return;
+    const cat=(String(r.dept).match(/CT (Sub-\d+)/)||[])[1];
+    const k=rol.replace(/^Ex\s+/i,'').toLowerCase();
+    if(!m.has(k)) m.set(k,{rol,cats:new Set()});
+    if(cat && !/sub-?\d+/i.test(rol)) m.get(k).cats.add(cat);
+  });
+  const num=c=>parseInt(String(c).replace(/\D/g,''),10)||0;
+  return [...m.values()].map(x=>x.cats.size?`${x.rol} (${[...x.cats].sort((a,b)=>num(b)-num(a)).join(', ')})`:x.rol).join(' · ');
+}
 // Devuelve TODOS los roles que tiene una persona (por clave unificada) en todas las secciones
 function _estGetAllRoles(key){
   const roles=[];
@@ -44815,7 +44830,7 @@ function _renderEstLista(){
         const rows=personas.map(({p,c})=>{
           const label=edits[p.key]?.label||p.label;
           const allRoles=_estGetAllRoles(p.key);
-          const rolDisplay=allRoles.map(r=>(edits[p.key]?.rolesEdit?.[r.dept]?.rol||r.rol)).join(' · ');
+          const rolDisplay=_estRolesCompact(p.key,edits);
           const fechaNac=edits[p.key]?.fechaNac||p.fechaNac;
           return _renderEstPersonaRow(p,label,rolDisplay,_estResolvePhoto(p),c,fechaNac);
         }).join('');
