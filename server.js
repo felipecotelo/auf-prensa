@@ -1511,15 +1511,19 @@ function gcalRequest(method, path, body) {
 // Construye el cuerpo del evento a partir de los datos de la atención —
 // con hora: evento puntual de 30min en huso Montevideo; sin hora (o "TBD"):
 // evento de todo el día.
-function buildGcalEventBody({ summary, personas, date, time }) {
+// Opcionales (actividades de la Fecha FIFA): colorId, durMin (duración en minutos, por defecto 30), plain:true (no envía descripción,
+// así un PATCH conserva la que ya tenga el evento) y, en eventos de todo el día, queda como «libre» (no ocupa el calendario).
+function buildGcalEventBody({ summary, personas, date, time, colorId, durMin, plain }) {
   const description = (personas && personas.length)
     ? 'Convocados: ' + personas.join(', ') + '\n\nSincronizado automáticamente desde AUF Prensa.'
     : 'Sincronizado automáticamente desde AUF Prensa.';
-  const ev = { summary: summary || '(sin título)', description };
+  const ev = { summary: summary || '(sin título)' };
+  if (!plain) ev.description = description;
+  if (colorId) ev.colorId = String(colorId);
   const m = /^(\d{1,2}):(\d{2})$/.exec(time || '');
   if (m) {
     const h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
-    const endTotal = h * 60 + mi + 30;
+    const endTotal = h * 60 + mi + (parseInt(durMin, 10) > 0 ? parseInt(durMin, 10) : 30);
     const eh = Math.floor(endTotal / 60) % 24, emi = endTotal % 60;
     const pad = n => String(n).padStart(2, '0');
     // Si el +30min cruza medianoche, el fin cae en el día calendario siguiente —
@@ -1538,6 +1542,7 @@ function buildGcalEventBody({ summary, personas, date, time }) {
     d.setUTCDate(d.getUTCDate() + 1);
     ev.start = { date };
     ev.end = { date: d.toISOString().slice(0, 10) };
+    if (plain) ev.transparency = 'transparent';
   }
   return ev;
 }
@@ -1548,9 +1553,9 @@ function buildGcalEventBody({ summary, personas, date, time }) {
 app.post('/api/gcal/event', async (req, res) => {
   try {
     if (!GCAL_CALENDAR_ID) { res.status(501).json({ error: 'GOOGLE_CALENDAR_ID no configurado' }); return; }
-    const { gcalEventId, summary, personas, date, time } = req.body || {};
+    const { gcalEventId, summary, personas, date, time, colorId, durMin, plain } = req.body || {};
     if (!date) { res.status(400).json({ error: 'falta date' }); return; }
-    const body = buildGcalEventBody({ summary, personas, date, time });
+    const body = buildGcalEventBody({ summary, personas, date, time, colorId, durMin, plain });
     const calPath = `/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events`;
     let result;
     if (gcalEventId) {

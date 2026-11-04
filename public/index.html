@@ -6889,6 +6889,7 @@ const stor = {
       localStorage.setItem(k,json);
       _autoSyncDirty=true;
       triggerAutoSave();
+      if(k===KDayActs||k===KCalT) _gcalNovSoon(); // actividades de la Fecha FIFA nov → Calendar
     }catch(err){
       if(err.name!=='QuotaExceededError')throw err;
       // Espacio lleno — las fotos viejas (auf4_photos) ya no se usan (ahora viven en IndexedDB).
@@ -14455,6 +14456,46 @@ async function _gcalDeleteById(gcalEventId){
   if(!gcalEventId) return;
   try{ await fetch('/api/gcal/event/'+encodeURIComponent(gcalEventId),{method:'DELETE'}); }
   catch(err){ console.warn('[gcal] no se pudo borrar:',err); }
+}
+// ── Actividades de la Fecha FIFA nov → Google Calendar «Selección | Planificación» (automático) ──────────────
+// Cada vez que se guardan las actividades del calendario de la app o sus horas (KDayActs / KCalT), a los 4 s se compara cada actividad con
+// lo ya enviado (gcalSig) y solo se manda lo que cambió. Cada actividad guarda el id de su evento (gcalEventId): si cambia el texto, el día
+// o la hora, el evento se modifica en el lugar; si se borra la actividad, ya se borra el evento (_gcalDeleteById). Sin hora → evento de todo el
+// día; los partidos solo cuando tienen hora (el de todo el día «MD vs. …» lo carga Felipe). Las atenciones/conferencias (auf, personas) siguen
+// con su propio sync (_gcalSync). No se invita a nadie ni se envía aviso (sendUpdates=none en el servidor). `gcalSkip:true` excluye una actividad.
+function _gcalNovSpec(date,idx,a){
+  if(!a||!a.txt||a.gcalSkip||a.auf||a.atencionId||a.batchId||(a.personas&&a.personas.length)) return null;
+  const h=String(getCalTime(date,idx,a.h||'')||'').trim();
+  let time='';
+  if(/^\d{1,2}$/.test(h)) time=h.padStart(2,'0')+':00';
+  else if(/^\d{1,2}:\d{2}$/.test(h)) time=h.padStart(5,'0');
+  if(a.tipo==='partido'&&!time) return null;
+  return {summary:a.txt, date, time, colorId:a.tipo==='partido'?'10':'7', durMin:a.tipo==='partido'?120:(a.tipo==='entreno'?90:60)};
+}
+let _gcalNovBusy=false, _gcalNovT=0;
+function _gcalNovSoon(){ clearTimeout(_gcalNovT); _gcalNovT=setTimeout(_gcalNovSyncAll,4000); }
+async function _gcalNovSyncAll(){
+  if(typeof FIFANOV26_CAL_DAYS==='undefined') return;
+  if(_gcalNovBusy){ _gcalNovSoon(); return; }
+  _gcalNovBusy=true;
+  try{
+    for(const day of FIFANOV26_CAL_DAYS){
+      const date=day.date, n=((getDayActs()[date])||[]).length;
+      for(let idx=0; idx<n; idx++){
+        const a=(getDayActs()[date]||[])[idx]; if(!a) continue;
+        const spec=_gcalNovSpec(date,idx,a); if(!spec) continue;
+        const sig=JSON.stringify(spec);
+        if(a.gcalEventId && a.gcalSig===sig) continue;
+        const r=await fetch('/api/gcal/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...spec,gcalEventId:a.gcalEventId||null,plain:true})});
+        const j=await r.json();
+        if(j&&j.id){
+          const acts2=getDayActs(), b=acts2[date]&&acts2[date][idx];
+          if(b&&b.txt===a.txt){ b.gcalEventId=j.id; b.gcalSig=sig; stor.set(KDayActs,acts2); }
+        }
+      }
+    }
+  }catch(err){ console.warn('[gcal] actividades de la Fecha FIFA nov:',err); }
+  finally{ _gcalNovBusy=false; }
 }
 // Calendario → Atención: horario (llamado desde _fsapEditTime al confirmar).
 function _fsapSyncAtencionTime(date,idx){
