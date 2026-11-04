@@ -5092,7 +5092,7 @@ const setMayorJuvTags = (nom, tags) => { const d=getMayorJuvTags(); if(tags&&tag
 const CAT_PAL={mayor:'#22D3EE',sub20:'#FB923C',sub17:'#FACC15',sub16:'#B388EB',sub15:'#7C9BFF',sub23:'#94A3B8',sub18:'#94A3B8',sub13:'#94A3B8'};
 function _catCol(k){ return CAT_PAL[String(k||'').toLowerCase()]||'#38BDF8'; }
 function _catDeLabel(t){ const m=String(t||'').match(/^sub-?\s?(\d+)/i); return m?'sub'+m[1]:(/^mayor/i.test(String(t||''))?'mayor':''); }
-const JUV_CAT_META = {sub23:{label:'Sub-23',color:'#0E7490',bg:'#CFFAFE'},sub20:{label:'Sub-20',color:'#1D4ED8',bg:'#EFF6FF'},sub18:{label:'Sub-18',color:'#0891B2',bg:'#CFFAFE'},sub17:{label:'Sub-17',color:'#15803d',bg:'#F0FDF4'},sub16:{label:'Sub-16',color:'#B45309',bg:'#FFFBEB'},sub15:{label:'Sub-15',color:'#9A3412',bg:'#FFF7ED'},sub13:{label:'Sub-13',color:'#DC2626',bg:'#FFF1F2'}};
+const JUV_CAT_META = Object.fromEntries([['sub23','Sub-23'],['sub20','Sub-20'],['sub18','Sub-18'],['sub17','Sub-17'],['sub16','Sub-16'],['sub15','Sub-15'],['sub13','Sub-13']].map(([k,l])=>[k,{label:l,color:CAT_PAL[k],bg:CAT_PAL[k]+'22'}]));
 // Partidos oficiales de Juveniles por categoría, tomados de archivoceleste.com (fuente
 // pública, distinta del cálculo automático por alineaciones que hace _juvOfficialStats).
 // Carga incremental, jugador por jugador — no reemplaza lo ya cargado, solo suma.
@@ -5246,7 +5246,7 @@ window._editMayorJuvTags = function(nomSafe){
   const id = 'mjt-'+Date.now();
   const html = `<div id="${id}" onclick="event.stopPropagation()" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:var(--card,#fff);border-radius:14px;padding:16px 18px 18px;box-shadow:0 8px 32px rgba(0,0,0,.18);width:260px;max-width:92vw">
     <div style="font-weight:800;font-size:.82em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Categorías juveniles · ${nom.split(' ')[0]}</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">${cats.map(([k,m])=>{const on=cur.includes(k);return`<button onclick="window._mjToggle('${id}','${k}')" id="${id}-${k}" data-active="${on?'1':'0'}" style="border-radius:5px;padding:2px 8px;font-size:.65em;font-weight:600;cursor:pointer;border:1px solid ${m.color};background:${on?m.color:m.bg};color:${on?'#fff':m.color};opacity:${on?'1':'.55'};transition:all .12s">${m.label}</button>`;}).join('')}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">${cats.map(([k,m])=>{const on=cur.includes(k);return`<button onclick="window._mjToggle('${id}','${k}')" id="${id}-${k}" data-active="${on?'1':'0'}" style="border-radius:5px;padding:2px 8px;font-size:.65em;font-weight:600;cursor:pointer;border:1px solid ${m.color};background:${on?m.color:m.bg};color:${on?'#060814':m.color};opacity:${on?'1':'.55'};transition:all .12s">${m.label}</button>`;}).join('')}</div>
     <div style="display:flex;gap:8px">
       <button onclick="window._mjSave('${id}','${nomSafe}')" style="flex:1;padding:7px;border-radius:8px;border:none;background:#1D4ED8;color:#fff;font-size:.8em;font-weight:700;cursor:pointer">Guardar</button>
       <button onclick="document.getElementById('${id}')?.remove();document.getElementById('${id}-bg')?.remove()" style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:none;font-size:.8em;cursor:pointer">Cancelar</button>
@@ -5260,7 +5260,7 @@ window._mjToggle = function(id, k){
   const on = btn.dataset.active === '1';
   btn.dataset.active = on ? '0' : '1';
   btn.style.background = on ? m.bg : m.color;
-  btn.style.color = on ? m.color : '#fff';
+  btn.style.color = on ? m.color : '#060814';
   btn.style.opacity = on ? '.55' : '1';
 };
 window._mjSave = function(id, nomSafe){
@@ -8428,7 +8428,7 @@ function renderInicioProximo(){
       if(d<hoy0) d=new Date(hoy0.getFullYear()+1, mm-1, dd);
       return d;
     };
-    const CAT_TAGS={...PLAN_CATS, sub23:{label:'Sub-23',color:'#92400e'}, sub18:{label:'Sub-18',color:'#0F766E'}, sub16:{label:'Sub-16',color:'#B45309'}, sub13:{label:'Sub-13',color:'#DC2626'}, local:{label:'Local',color:'#0EA5E9'}, estructura:{label:'Estructura',color:'#22C55E'}, cumple:{label:'Cumpleaños',color:'#EC4899'}, aniversario:{label:'Aniversario',color:'#F59E0B'}};
+    const CAT_TAGS={...PLAN_CATS, sub23:{label:'Sub-23',color:CAT_PAL.sub23}, sub18:{label:'Sub-18',color:CAT_PAL.sub18}, sub16:{label:'Sub-16',color:CAT_PAL.sub16}, sub13:{label:'Sub-13',color:CAT_PAL.sub13}, local:{label:'Local',color:'#0EA5E9'}, estructura:{label:'Estructura',color:'#22C55E'}, cumple:{label:'Cumpleaños',color:'#EC4899'}, aniversario:{label:'Aniversario',color:'#F59E0B'}};
 
     // Hitos pendientes de cualquier evento del Planificador (los posteos no se toman acá
     // a propósito: suelen caer en la misma fecha que el hito y duplicaban el mismo evento real).
@@ -41900,23 +41900,20 @@ function _redesHistorial(){
 const PW_ACTIVIDAD_TIPOS = {
   'entreno-abierto-zona-mixta': {label:'Entreno abierto + zona mixta', bg:'#FEF3C7', color:'#92400E'},
 };
-// Color de la etiqueta de categoría en la lista de ventanas. Sigue los colores de
-// PLAN_CATS (Mayor/Sub-20/Sub-17/Sub-15) en versión clara para el fondo oscuro;
-// el resto de los cuerpos técnicos y estructuras tiene su propio color.
-// Categoría efectiva de una ventana: si el título nombra Sub-20/17/15 manda eso
+// Categoría efectiva de una ventana: si el título nombra una Sub-NN manda eso
 // (la categoría guardada puede estar vacía o ser la del cuerpo técnico); si no, la guardada.
 function _pwCatEff(pw){
-  const m=String(pw.titulo||'').match(/sub[\s-]?(20|17|15)/i);
+  const m=String(pw.titulo||'').match(/sub[\s-]?(\d{2})/i);
   return m ? 'Sub-'+m[1] : (pw.cat||'');
 }
+// Color de la etiqueta de categoría en la lista de ventanas: la misma paleta que el
+// Calendar y las pestañas de Juveniles (CAT_PAL). Lo que no es una categoría
+// (Gerencia, cuerpo técnico o estructura en general) queda en gris.
 function _pwCatColor(cat){
-  const c=String(cat||'').toLowerCase().replace(/[\s_]/g,'');
-  if(/sub-?20/.test(c)) return '#60A5FA';
-  if(/sub-?17/.test(c)) return '#4ADE80';
-  if(/sub-?15/.test(c)) return '#FB923C';
-  if(/mayor/.test(c)) return '#2DD4BF';
-  if(/gerencia/.test(c)) return '#F472B6';
-  if(/juvenil/.test(c)) return '#FBBF24';
+  const t=String(cat||'');
+  const m=t.match(/sub[\s-]?(\d{2})/i);
+  if(m) return _catCol('sub'+m[1]);
+  if(/mayor/i.test(t)) return _catCol('mayor');
   return '#94A3B8';
 }
 // Nombres de quienes ya participaron: protagonistas de las atenciones marcadas
@@ -43903,7 +43900,7 @@ function _renderTareasHistorial(){
     </div>`;
 }
 
-const PLAN_CATS = {mayor:{label:'Mayor',color:'#0F766E'},sub20:{label:'Sub-20',color:'#1D4ED8'},sub17:{label:'Sub-17',color:'#15803d'},sub15:{label:'Sub-15',color:'#9A3412'}};
+const PLAN_CATS = {mayor:{label:'Mayor',color:CAT_PAL.mayor},sub20:{label:'Sub-20',color:CAT_PAL.sub20},sub17:{label:'Sub-17',color:CAT_PAL.sub17},sub15:{label:'Sub-15',color:CAT_PAL.sub15}};
 const KPlanCatsCustom = 'auf4_plan_cats_custom';
 const _PLAN_CUSTOM_COLORS = ['#0891B2','#B45309','#0891B2','#BE185D','#4D7C0F','#C2410C'];
 function _planCatColor(key){
