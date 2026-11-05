@@ -3024,6 +3024,7 @@ html.auf-gate body { display:none !important }
 .fx-chip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border-radius:50%;cursor:pointer;border:1.5px solid;line-height:1;background:transparent;color:inherit;font-family:inherit}
 .fx-chip::after{content:"";position:absolute;inset:-6px} /* área táctil de ~27 px sin cambiar el aspecto */
 .fx-chip i{font-size:10px}
+.fx-chips-col{display:none} /* copia de los marcadores dentro de la columna del puesto: solo escritorio */
 .fx-chip.ok{color:#4ADE80;border-color:rgba(74,222,128,.5);background:rgba(74,222,128,.1)}
 .fx-chip.no{color:#FCA5A5;border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.1)}
 @media(min-width:601px){
@@ -3067,7 +3068,9 @@ html.auf-gate body { display:none !important }
   .fx-pro .p-grid:has([onclick*="FifaNov"]){grid-template-columns:repeat(auto-fill,minmax(176px,1fr));row-gap:16px}
   .fx-pro .p-card:has([onclick*="FifaNov"]) .p-card-top{padding:12px 10px 10px 6px!important;gap:5px!important}
   .fx-pro .p-card:has([onclick*="FifaNov"]) .p-card-num{font-size:26px!important;min-width:26px!important}
-  .fx-pro .p-card:has([onclick*="FifaNov"]) .p-card-right:has(label){align-self:flex-end}
+  .fx-pro .p-card .fx-chips-abs{display:none!important}
+  .fx-pro .p-card .fx-chips-col{display:flex}
+  .fx-pro .p-card:has(.fx-chips-col) .p-card-right{align-items:center;gap:2px}
   .fx-pro .p-card:has([onclick*="FifaNov"])>div[style*="top:8px;right:9px"]{top:7px!important}
   /* Posición: pastilla con tinte (misma familia de color de siempre: portero cian, defensa azul, medio verde, delantero rojo) */
   .fx-pro .p-pos-badge{border:1px solid;border-radius:999px;font-size:9.5px!important;font-weight:800;letter-spacing:.12em;padding:2px 9px!important}
@@ -17687,15 +17690,17 @@ function renderFifaNov26(tabId){
         // en los stores compartidos con Jugadores/Local/Juveniles.
         const isLlegado = !!(stor.get('auf4_fifanov_llegado',{})[p.nom]);
         const faltaShooting = !!(stor.get('auf4_fifanov_shooting',{})[p.nom]);
-        const cardHtml = `<div class="p-card${primeraConv?' fx-new':''}" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(bajaGris?'filter:grayscale(.55);opacity:.8':'')}">
-          <button onclick="event.stopPropagation();_toggleFifaNovCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
-          <div style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">
+        // Marcadores (UY/avión o cono, cámara): arriba a la derecha en móvil y en la ficha de Jaume; en las demás, dentro de la columna del puesto, todo centrado.
+        const _chipsNov = `
             ${_localNov
               ?`<span title="Juega en Uruguay: no viaja" class="fx-chip" style="cursor:default;color:#64748B;border-color:rgba(148,163,184,.45);background:linear-gradient(135deg,transparent 44%,rgba(148,163,184,.95) 44%,rgba(148,163,184,.95) 56%,transparent 56%)"><i class="ti ti-plane-arrival"></i></span>
             <button onclick="event.stopPropagation();_toggleFifaNovPresentado('${nomEnc}')" title="${_presentadoNov?'Ya se presentó a entrenar — click para desmarcar':'Todavía no se presentó a entrenar — click para marcar que ya llegó'}" class="fx-chip ${_presentadoNov?'ok':'no'}"><i class="ti ti-run"></i></button>`
               :`<button onclick="event.stopPropagation();_toggleFifaNovLlegado('${nomEnc}')" title="${isLlegado?'Ya se sumó a la delegación — click para desmarcar':'Todavía no llegó — click para marcar que ya se sumó'}" class="fx-chip ${isLlegado?'ok':'no'}"><span style="font-size:8px;font-weight:900;letter-spacing:.02em">UY</span></button>`}
             <button onclick="event.stopPropagation();_toggleFifaNovShooting('${nomEnc}')" title="${faltaShooting?'Falta shooting oficial — click para marcar que ya lo tiene':'Ya tiene shooting oficial — click para marcar que falta'}" class="fx-chip ${faltaShooting?'no':'ok'}"><i class="ti ti-camera"></i></button>
-          </div>
+          `;
+        const cardHtml = `<div class="p-card${primeraConv?' fx-new':''}" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(bajaGris?'filter:grayscale(.55);opacity:.8':'')}">
+          <button onclick="event.stopPropagation();_toggleFifaNovCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
+          <div class="${_localNov?'':'fx-chips-abs'}" style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">${_chipsNov}</div>
           <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
             <div style="display:flex;align-items:center;gap:10px">
               <div class="p-card-num" title="${_fifaNovNumMap[p.nom]!=null?'Número de esta gira':'Todavía sin número asignado'}">${_fifaNovNumMap[p.nom]!=null?_fifaNovNumMap[p.nom]:'#'}</div>
@@ -17706,6 +17711,7 @@ function renderFifaNov26(tabId){
                 <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_fifaPhotoSelected('${nomEnc}',this)">
               </div>
               <div class="p-card-right">
+                ${_localNov?'':`<div class="fx-chips-col" style="gap:4px;justify-content:center">${_chipsNov}</div>`}
                 <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin:0">${p.pos||''}</span>
                 ${_localNov?'':`<label title="Fecha en que llega a Uruguay — click para anotarla" style="position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:1px;margin:-1px -6px -3px;padding:3px 6px;line-height:1.1;cursor:pointer;color:${_llegadoNov?'#22D3EE':'rgba(239,243,248,.6)'}"><i class="ti ti-plane-arrival" style="font-size:13px;opacity:${_llegadaNov||_llegadoNov?1:.5}"></i><span style="font-size:10px;font-weight:600;opacity:${_llegadaNov?1:.5}">${_llegadaTxt}</span><input type="date" value="${_llegadaNov}" onclick="event.stopPropagation();try{this.showPicker()}catch(_){}" onchange="_setFifaNovLlegada('${nomEnc}',this.value)" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer"></label>`}
               </div>
