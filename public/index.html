@@ -8632,6 +8632,10 @@ function _covGetRec(wk,cat){
 //  · viaje (Viajeros a… / gira) y nada que entrenar → 'exterior' (no aplica)
 // Los partidos no cuentan acá. Rige desde COV_AUTO_DESDE; lo cargado a mano siempre manda (ver _covAutoManda).
 const COV_AUTO_DESDE='2026-11-09';
+// Torneos en el exterior en los que la categoría no tiene convocatorias semanales (Felipe, 05/11/2026: «una vez que empiece el Mundial no va a haber convocatorias semanales»).
+// Mundial Sub-17 Qatar: 19/11 al 13/12/2026. Una semana lunes–domingo [ini,fin] cuenta si cruza ese rango.
+const REC_SIN_CONV_TORNEO={sub17:{desde:'2026-11-19',hasta:'2026-12-13',nombre:'Mundial Sub-17'}};
+function _recEnTorneo(cat,ini,fin){ const t=REC_SIN_CONV_TORNEO[cat]; return !!t&&fin>=t.desde&&ini<=t.hasta; }
 function _covSugerencia(wk,cat){
   if(wk<COV_AUTO_DESDE) return null;
   const fin=new Date(wk+'T12:00:00'); fin.setDate(fin.getDate()+6);
@@ -8654,6 +8658,7 @@ function _covSugerencia(wk,cat){
     }
   });
   if(entr) return {estado:'cubrible',txt:'Entrena '+entr.dias.toLowerCase()+' en el Complejo'};
+  if(!viaje&&_recEnTorneo(cat,wk,wkFin)) viaje=true;
   return viaje?{estado:'exterior',txt:'En el exterior · no aplica'}:{estado:'sin',txt:'Sin entrenamiento · sin cobertura'};
 }
 // Lo cargado a mano gana: si ya hay cualquier dato (o se eligió «Cubrir igual»), la sugerencia no bloquea la fila.
@@ -9343,6 +9348,7 @@ function _recSemanalesDerivados(){
       const T=_recSumarDias(S,-3), ini=_recSumarDias(S,1), fin=_recSumarDias(S,7);
       _REC_CONVJ_CATS.forEach(([ck,lbl])=>{
         if((manual[`convj|${ck}|${T}`]||{}).no) return;
+        if(_recEnTorneo(ck,ini,fin)) return; // en el Mundial no hay convocatorias semanales
         if(_recConvCargada(ck,ini,fin)) return;
         const id=`sem|conv|${ck}|${S}`, mn=manual[id]||{};
         out.push({id,titulo:`Subir la convocatoria de la semana a la plataforma: ${lbl.toLowerCase()}`,detalle:`Semana del ${f} al ${fin.split('-').reverse().slice(0,2).join('/')} · para el domingo, máximo el lunes`,vence:S,hora:'10:00',etiqueta:lbl,importante:true,hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
@@ -9412,6 +9418,7 @@ function _recConvJuevesDerivados(){
       if(T<TODAY?T<_recSumarDias(TODAY,-4):false) return; // el del jueves pasado se ve hasta el lunes
       const lun=_recSumarDias(T,4), dom=_recSumarDias(T,10), f=d=>d.split('-').reverse().slice(0,2).join('/');
       _REC_CONVJ_CATS.forEach(([k,lbl])=>{
+        if(_recEnTorneo(k,lun,dom)) return; // en el Mundial no hay convocatorias semanales
         const id=`convj|${k}|${T}`, mn=manual[id]||{};
         out.push({id,titulo:`Publicar la convocatoria de la semana que viene: ${lbl.toLowerCase()}${mn.no?' · no hay':''}`,detalle:`Semana del ${f(lun)} al ${f(dom)} · la manda Gerencia Deportiva · si no entrenan, tocá «no hay»`,vence:T,hora:'10:00',etiqueta:lbl,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
       });
