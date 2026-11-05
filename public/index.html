@@ -9527,10 +9527,35 @@ function _recPendientes(){
 }
 // Los marcados como hechos quedan a la vista con su tick durante 12 horas (se pueden destildar); pasado ese tiempo salen de la lista.
 const _REC_HECHO_HORAS=12;
+// Los recordatorios que se completan solos (cobertura, aniversarios, links de prensa…) traen `hechoEn: ahora` en cada
+// pintado, así que nunca cumplían las 12 h. Se guarda en este dispositivo la primera vez que se los ve hechos y se
+// cuenta desde ahí. En la primera corrida, los que ya vencieron hace más de 12 h se dan por viejos (cuentan desde su vencimiento).
+function _recHechoEnEstable(todos){
+  let m={}; try{ m=JSON.parse(localStorage.getItem('auf4_rec_hechoen')||'{}'); }catch(_){}
+  const ahora=Date.now(), primera=!m.__mig; let cambio=false;
+  const hechos=new Set();
+  todos.forEach(r=>{
+    if(!r.hecho||!r.hechoEn) return;
+    hechos.add(r.id);
+    if(m[r.id]==null){
+      let t=new Date(r.hechoEn).getTime();
+      if(Math.abs(ahora-t)<120000){ // «ahora»: recién tildado o recalculado en cada pintado
+        const due=primera?_recDue(r).getTime():NaN;
+        if(primera&&due<ahora-_REC_HECHO_HORAS*3600000) t=due;
+      }
+      m[r.id]=t; cambio=true;
+    }
+  });
+  Object.keys(m).forEach(k=>{ if(k!=='__mig'&&!hechos.has(k)){ delete m[k]; cambio=true; } });
+  if(primera){ m.__mig=1; cambio=true; }
+  if(cambio){ try{ localStorage.setItem('auf4_rec_hechoen',JSON.stringify(m)); }catch(_){} }
+  return m;
+}
 function _recHechosHoy(){
   const lim=Date.now()-_REC_HECHO_HORAS*3600000;
-  return _recTodos().filter(r=>r.hecho && r.hechoEn && new Date(r.hechoEn).getTime()>lim)
-    .sort((a,b)=>String(a.hechoEn).localeCompare(String(b.hechoEn)));
+  const todos=_recTodos(), est=_recHechoEnEstable(todos);
+  return todos.filter(r=>r.hecho && r.hechoEn && (est[r.id]??new Date(r.hechoEn).getTime())>lim)
+    .sort((a,b)=>(est[a.id]??0)-(est[b.id]??0));
 }
 // Cada 5 min se vuelve a pintar el panel para que los que cumplieron las 12 h salgan solos, sin recargar.
 if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },300000);
