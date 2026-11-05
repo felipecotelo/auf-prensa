@@ -17654,7 +17654,10 @@ function renderFifaNov26(tabId){
         // (ver _openJuvSP / bajaSet).
         const bajaGris = enFinal && !!(p.lesionEnGira || p.bajaGira);
         const bajaActiva = enFinal && !!p.lesionEnGira;
-        const cardBorder = inj==='red' ? '#DC2626' : (inj==='yellow' ? '#F59E0B' : (nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null))); // lesión = rojo · molestia = amarillo · disponible = normal
+        // Avión tocado = ya está en Uruguay → borde celeste (si no hay lesión/molestia, que mandan). Sin shooting oficial (cámara no verde) → llamador arriba.
+        const _llegadoNov = !!(stor.get('auf4_fifanov_llegado',{})[p.nom]);
+        const _sinShootingNov = !!(stor.get('auf4_fifanov_shooting',{})[p.nom]);
+        const cardBorder = inj==='red' ? '#DC2626' : (inj==='yellow' ? '#F59E0B' : ((_llegadoNov && !lesionOut && !bajaActiva) ? '#22D3EE' : (nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null)))); // lesión = rojo · molestia = amarillo · en Uruguay = celeste · disponible = normal
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
         // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
         const isCapitan = !!(stor.get('auf4_capitan',{})[p.nom]);
@@ -17712,7 +17715,8 @@ function renderFifaNov26(tabId){
             </div>
           </div>
         </div>`;
-        return cardBorder ? `<div style="border:1.5px solid ${cardBorder};border-radius:13px" title="${inj==='red'?'Lesionado':(inj==='yellow'?'Molestia':(nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':(p.lesionEnGira?'Lesionado — regresa a su club':'Dado de baja — regresa a su club'))))}">${cardHtml}</div>` : cardHtml;
+        const _llamadorShooting = (_llegadoNov && _sinShootingNov) ? `<div title="Ya está en Uruguay y todavía no tiene su shooting oficial" style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);white-space:nowrap;z-index:4;font-size:9.5px;font-weight:900;letter-spacing:.06em;color:#0B1228;background:#FBBF24;border-radius:6px;padding:2px 8px;line-height:1.3;box-shadow:0 0 0 3px #0B1228">FALTA SU SHOOTING</div>` : '';
+        return cardBorder ? `<div style="position:relative;border:1.5px solid ${cardBorder};border-radius:13px" title="${inj==='red'?'Lesionado':(inj==='yellow'?'Molestia':((_llegadoNov&&!lesionOut&&!bajaActiva)?'Ya está en Uruguay':(nuevoIn?'Incorporación reciente a la convocatoria':(lesionOut?'Desafectado — lesión':(p.lesionEnGira?'Lesionado — regresa a su club':'Dado de baja — regresa a su club')))))}">${_llamadorShooting}${cardHtml}</div>` : cardHtml;
       };
       const totalRes=Object.values(res).reduce((a,l)=>a+l.length,0);
       const allPos=POS_ORDER.flatMap(key=>(res[key]||[]).map(p=>({...p,pos:key})));
