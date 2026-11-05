@@ -1880,6 +1880,17 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ni-row,.ni-dl{display:flex;align-items:center;gap:18px;padding:16px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
 .ni-row .pz-m b{font-size:16px}
 .ni-dl .pz-m b{font-size:14px;font-weight:600;line-height:1.35}
+.dg-area{margin-bottom:20px}
+.dg-ah{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#F4F7FB}
+.dg-ah em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.1em;color:rgba(239,243,248,.6);padding:2px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.18)}
+.dg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.dg-p{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
+.dg-p.hl{border-color:rgba(252,211,77,.5);background:radial-gradient(220px 100px at 0 0,rgba(252,211,77,.14),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
+.dg-fl{flex-shrink:0;display:flex}
+.dg-tx{flex:1;min-width:0}
+.dg-tx b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:15px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;line-height:1.2}
+.dg-tx i{display:block;margin-top:3px;font-style:normal;font-size:12px;color:rgba(239,243,248,.6);line-height:1.3}
+.dg-st{color:#FCD34D;font-size:14px;flex-shrink:0}
 .ni-rule{display:flex;align-items:center;gap:18px;padding:16px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:radial-gradient(240px 120px at 0 0,rgba(0,157,216,.16),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
 .ni-rule>b{font-family:'Space Grotesk','Inter',sans-serif;font-size:44px;font-weight:700;letter-spacing:-.04em;line-height:1;color:#38BDF8;min-width:56px;text-align:center}
 .ni-rule i{display:block;font-style:normal;font-size:12.5px;color:rgba(239,243,248,.6);line-height:1.4}
@@ -9525,11 +9536,11 @@ function _recPendientes(){
   const lim=new Date(); lim.setHours(23,59,59,999);
   return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim).sort(_recCmp);
 }
-// Los marcados como hechos quedan a la vista con su tick durante 12 horas (se pueden destildar); pasado ese tiempo salen de la lista.
-const _REC_HECHO_HORAS=12;
+// Los marcados como hechos quedan a la vista con su tick durante 4 horas (se pueden destildar); pasado ese tiempo salen de la lista.
+const _REC_HECHO_HORAS=4;
 // Los recordatorios que se completan solos (cobertura, aniversarios, links de prensa…) traen `hechoEn: ahora` en cada
-// pintado, así que nunca cumplían las 12 h. Se guarda en este dispositivo la primera vez que se los ve hechos y se
-// cuenta desde ahí. En la primera corrida, los que ya vencieron hace más de 12 h se dan por viejos (cuentan desde su vencimiento).
+// pintado, así que nunca cumplían el plazo. Se guarda en este dispositivo la primera vez que se los ve hechos y se
+// cuenta desde ahí. En la primera corrida, los que ya vencieron hace más de 4 h se dan por viejos (cuentan desde su vencimiento).
 function _recHechoEnEstable(todos){
   let m={}; try{ m=JSON.parse(localStorage.getItem('auf4_rec_hechoen')||'{}'); }catch(_){}
   const ahora=Date.now(), primera=!m.__mig; let cambio=false;
@@ -9557,7 +9568,7 @@ function _recHechosHoy(){
   return todos.filter(r=>r.hecho && r.hechoEn && (est[r.id]??new Date(r.hechoEn).getTime())>lim)
     .sort((a,b)=>(est[a.id]??0)-(est[b.id]??0));
 }
-// Cada 5 min se vuelve a pintar el panel para que los que cumplieron las 12 h salgan solos, sin recargar.
+// Cada 5 min se vuelve a pintar el panel para que los que cumplieron las 4 h salgan solos, sin recargar.
 if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },300000);
 function _recNoAplicaBtn(r,hecho){
   if(r.fnacCat&&!hecho) return `<button data-n="${String(r.fnacCat)}" onclick="_fnacModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">cargar</button>`;
@@ -18505,8 +18516,16 @@ window._fifaInfoPro=function(tKey){
     return `<div class="ni-rule"><b>${n}</b><span><i>${pr[0]}</i>${pr[1]?`<em>${pr.slice(1).join(':').trim()}</em>`:''}</span></div>`;
   }).join('')+`</div></div>`:'';
   const toggle=`<div class="ni-sec" style="display:flex;justify-content:flex-end"><button class="pz-chip" onclick="(function(b){var c=document.querySelector('#${tKey}-infogeneral-container .grp-card');if(!c)return;var v=c.style.display==='none';c.style.display=v?'':'none';b.querySelector('span').textContent=v?'Ocultar notas completas':'Ver notas completas';})(this)"><i class="ti ti-notes"></i><span>${editing?'Ocultar notas completas':'Ver notas completas'}</span></button></div>`;
-  con.insertAdjacentHTML('afterbegin', hero+stats+partidos+plazos+reglas+toggle);
-  const notas=con.querySelector('.grp-card'); if(notas&&!editing) notas.style.display='none';
+  // Delegación con el diseño nuevo (en modo edición queda el editor de siempre)
+  const _dg=(typeof getDelegacion==='function')?getDelegacion(tKey):[];
+  const delegHtml=(!editing&&_dg.length)?`<div class="ni-sec"><div class="ni-h">Delegación · ${_dg.reduce((n,g)=>n+g.people.length,0)} integrantes</div>`
+    +_dg.map(g=>`<div class="dg-area"><div class="dg-ah"><b>${g.area}</b><em>${g.people.length}</em></div><div class="dg-grid">`
+      +g.people.map(p=>`<div class="dg-p${p.highlight?' hl':''}"><span class="dg-fl">${flagImg(p.iso,22)}</span><span class="dg-tx"><b>${p.name}</b><i>${p.role||''}</i></span>${p.highlight?'<span class="dg-st"><i class="ti ti-star-filled"></i></span>':''}</div>`).join('')
+      +`</div></div>`).join('')+`</div>`:'';
+  con.insertAdjacentHTML('afterbegin', hero+stats+partidos+plazos+reglas+delegHtml+toggle);
+  const _gc=con.querySelectorAll('.grp-card');
+  if(_gc[0]&&!editing) _gc[0].style.display='none';
+  if(_gc[1]&&!editing&&delegHtml) _gc[1].style.display='none';
 };
 
 (function(){ const _ri0=renderInfoGeneral; renderInfoGeneral=function(tKey){ const r=_ri0.apply(this,arguments); if((tKey==='fifanov26'||tKey==='fifasep26')&&window._fifaInfoPro) window._fifaInfoPro(tKey); return r; }; })();
