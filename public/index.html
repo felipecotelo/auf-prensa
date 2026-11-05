@@ -17655,7 +17655,10 @@ function renderFifaNov26(tabId){
         const bajaGris = enFinal && !!(p.lesionEnGira || p.bajaGira);
         const bajaActiva = enFinal && !!p.lesionEnGira;
         // Avión tocado = ya está en Uruguay → borde celeste (si no hay lesión/molestia, que mandan). Sin shooting oficial (cámara no verde) → llamador arriba.
-        const _llegadoNov = !!(stor.get('auf4_fifanov_llegado',{})[p.nom]);
+        // Quien juega en Uruguay (hoy solo Jaume) no viaja: el avión no aplica y cuenta que se presente a entrenar (cono, `auf4_fifanov_presentado`).
+        const _localNov = (typeof _clubFlagEmoji==='function' ? _clubFlagEmoji(p.club,p.clubPais) : p.clubPais)==='🇺🇾';
+        const _presentadoNov = !!(stor.get('auf4_fifanov_presentado',{})[p.nom]);
+        const _llegadoNov = _localNov ? _presentadoNov : !!(stor.get('auf4_fifanov_llegado',{})[p.nom]);
         const _sinShootingNov = !!(stor.get('auf4_fifanov_shooting',{})[p.nom]);
         const cardBorder = inj==='red' ? '#DC2626' : (inj==='yellow' ? '#F59E0B' : ((_llegadoNov && !lesionOut && !bajaActiva) ? '#22D3EE' : (nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null)))); // lesión = rojo · molestia = amarillo · en Uruguay = celeste · disponible = normal
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
@@ -17669,7 +17672,10 @@ function renderFifaNov26(tabId){
         const cardHtml = `<div class="p-card${primeraConv?' fx-new':''}" id="pcard-${cid}" style="position:relative;${!enFinal?'filter:grayscale(1);opacity:.5':(bajaGris?'filter:grayscale(.55);opacity:.8':'')}">
           <button onclick="event.stopPropagation();_toggleFifaNovCapitan('${nomEnc}')" title="${isCapitan?'Quitar capitán':'Marcar como capitán'}" style="position:absolute;top:8px;left:9px;background:${isCapitan?'#CA8A04':'none'};color:${isCapitan?'#fff':'#CBD5E1'};border:1.5px solid ${isCapitan?'#CA8A04':'#CBD5E1'};border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-weight:800;padding:0;line-height:1;z-index:3">C</button>
           <div style="position:absolute;top:8px;right:9px;display:flex;gap:4px;z-index:3">
-            <button onclick="event.stopPropagation();_toggleFifaNovLlegado('${nomEnc}')" title="${isLlegado?'Ya se sumó a la delegación — click para desmarcar':'Todavía no llegó — click para marcar que ya se sumó'}" class="fx-chip ${isLlegado?'ok':'no'}"><i class="ti ti-plane-arrival"></i></button>
+            ${_localNov
+              ?`<span title="Juega en Uruguay: no viaja" class="fx-chip" style="cursor:default;color:#64748B;border-color:rgba(148,163,184,.45);background:linear-gradient(135deg,transparent 44%,rgba(148,163,184,.95) 44%,rgba(148,163,184,.95) 56%,transparent 56%)"><i class="ti ti-plane-arrival"></i></span>
+            <button onclick="event.stopPropagation();_toggleFifaNovPresentado('${nomEnc}')" title="${_presentadoNov?'Ya se presentó a entrenar — click para desmarcar':'Todavía no se presentó a entrenar — click para marcar que ya llegó'}" class="fx-chip ${_presentadoNov?'ok':'no'}"><i class="ti ti-traffic-cone"></i></button>`
+              :`<button onclick="event.stopPropagation();_toggleFifaNovLlegado('${nomEnc}')" title="${isLlegado?'Ya se sumó a la delegación — click para desmarcar':'Todavía no llegó — click para marcar que ya se sumó'}" class="fx-chip ${isLlegado?'ok':'no'}"><i class="ti ti-plane-arrival"></i></button>`}
             <button onclick="event.stopPropagation();_toggleFifaNovShooting('${nomEnc}')" title="${faltaShooting?'Falta shooting oficial — click para marcar que ya lo tiene':'Ya tiene shooting oficial — click para marcar que falta'}" class="fx-chip ${faltaShooting?'no':'ok'}"><i class="ti ti-camera"></i></button>
           </div>
           <div class="p-card-top" style="position:relative;flex-direction:column;align-items:stretch;gap:8px">
@@ -19212,6 +19218,13 @@ window._toggleFifaNovLlegado=function(nomEnc){
   const s=stor.get('auf4_fifanov_llegado',{});
   s[nom]=!s[nom];
   stor.set('auf4_fifanov_llegado',s);
+  window.renderFifaNov26Plantel?.();
+};
+window._toggleFifaNovPresentado=function(nomEnc){
+  const nom=decodeURIComponent(nomEnc);
+  const s=stor.get('auf4_fifanov_presentado',{});
+  s[nom]=!s[nom];
+  stor.set('auf4_fifanov_presentado',s);
   window.renderFifaNov26Plantel?.();
 };
 window._toggleFifaNovShooting=function(nomEnc){
