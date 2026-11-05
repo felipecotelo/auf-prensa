@@ -1697,6 +1697,10 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .cv-row.cv-locked{opacity:.62;background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 9px,transparent 9px 18px)!important;border-style:dashed}
 .cv-row.cv-locked .cv-cat{background:rgba(255,255,255,.14);color:rgba(239,243,248,.6);text-decoration:line-through;text-decoration-thickness:2px}
 .cv-row.cv-locked .cv-chip{text-decoration:line-through;text-decoration-color:rgba(239,243,248,.5)}
+.cv-hint{font-size:10.5px;font-weight:700;color:rgba(239,243,248,.6);display:inline-flex;align-items:center;gap:4px}
+.cv-row.cv-auto{opacity:.8;text-decoration:none}
+.cv-row.cv-auto .cv-chip{text-decoration:none}
+.cv-row.cv-auto::after{content:attr(data-motivo)!important;margin-left:auto}
 .cv-row.cv-locked::after{content:'SEMANA SIN COBERTURA';font-size:9.5px;font-weight:800;letter-spacing:.14em;color:rgba(239,243,248,.55);order:5}
 .cv-chip.link{border-color:rgba(56,189,248,.5);background:rgba(56,189,248,.1);color:#7DD3FC}
 .ih-row.ih-act{border:1px solid color-mix(in srgb,var(--cat,#38BDF8) 35%,rgba(255,255,255,.06));border-left:3px solid var(--cat,#38BDF8);background:linear-gradient(90deg,color-mix(in srgb,var(--cat,#38BDF8) 16%,transparent),transparent 45%),rgba(255,255,255,.02)}
@@ -8609,8 +8613,50 @@ function _covGetRec(wk,cat){
   const rec=(all[wk]&&all[wk][cat])||{};
   return {cubierto:rec.cubierto??null, publicado:rec.publicado??null, link:rec.link||false,
           cubiertoExtra:rec.cubiertoExtra||[], publicadoExtra:rec.publicadoExtra||[],
-          linkExtra:rec.linkExtra||[]};
+          linkExtra:rec.linkExtra||[], autoOff:!!rec.autoOff};
 }
+// Sugerencia automática de la semana a partir de las convocatorias de la categoría (lunes a domingo):
+//  · entrenamientos normales (microciclo / preparación / entrenamiento) → 'cubrible' (en el Complejo Celeste)
+//  · sin entrenamiento → 'sin' (no va a haber cobertura)
+//  · viaje (Viajeros a… / gira) y nada que entrenar → 'exterior' (no aplica)
+// Los partidos no cuentan acá. Rige desde COV_AUTO_DESDE; lo cargado a mano siempre manda (ver _covAutoManda).
+const COV_AUTO_DESDE='2026-11-09';
+function _covSugerencia(wk,cat){
+  if(wk<COV_AUTO_DESDE) return null;
+  const fin=new Date(wk+'T12:00:00'); fin.setDate(fin.getDate()+6);
+  const wkFin=fin.getFullYear()+'-'+String(fin.getMonth()+1).padStart(2,'0')+'-'+String(fin.getDate()).padStart(2,'0');
+  const textos=[];
+  const cd=(typeof JUVENILES!=='undefined'&&JUVENILES[cat])||null;
+  if(cd) Object.values(cd.anos||{}).forEach(a=>{
+    (a.convocatorias||[]).forEach(c=>c&&c.fecha&&textos.push(String(c.fecha)));
+    (a.competencias||[]).forEach(k=>{ if(k&&k.convocadosFecha) textos.push(String(k.convocadosFecha)); (k&&k.convocatorias||[]).forEach(c=>c&&c.fecha&&textos.push(String(c.fecha))); });
+  });
+  const DIAS=/^\s*(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i;
+  let entr=null, viaje=false;
+  [...new Set(textos)].forEach(t=>{
+    const r=_convRango(t); if(!r||r[1]<wk||r[0]>wkFin) return;
+    const pp=t.split(' · ');
+    if(/^\s*(viajeros?|viaje|gira)\b/i.test(pp[0])){ viaje=true; return; }
+    if(/microciclo|entrenamiento|preparaci[oó]n|concentraci[oó]n/i.test(t) && !entr){
+      const d=pp.find(x=>DIAS.test(x));
+      entr={dias:d?d.charAt(0).toUpperCase()+d.slice(1):r[0].slice(8)+'/'+r[0].slice(5,7)+' al '+r[1].slice(8)+'/'+r[1].slice(5,7)};
+    }
+  });
+  if(entr) return {estado:'cubrible',txt:'Entrena '+entr.dias.toLowerCase()+' en el Complejo'};
+  return viaje?{estado:'exterior',txt:'En el exterior · no aplica'}:{estado:'sin',txt:'Sin entrenamiento · sin cobertura'};
+}
+// Lo cargado a mano gana: si ya hay cualquier dato (o se eligió «Cubrir igual»), la sugerencia no bloquea la fila.
+function _covAutoManda(rec){
+  return !(rec.cubierto||rec.publicado||rec.link||rec.cubiertoExtra.length||rec.publicadoExtra.length||rec.linkExtra.length||rec.autoOff);
+}
+window._covAutoOff=function(wk,cat){
+  const all=_covGetAll();
+  if(!all[wk]) all[wk]={};
+  if(!all[wk][cat]) all[wk][cat]={cubierto:null,publicado:null,link:false};
+  all[wk][cat].autoOff=true;
+  stor.set(KCovSemanal,all);
+  renderInicio();
+};
 window._covToggleFecha=function(wk,cat,field){
   const all=_covGetAll();
   if(!all[wk]) all[wk]={};
@@ -8784,9 +8830,18 @@ function renderInicioCobertura(){
     const cubiertoOk=rec.cubierto&&rec.cubierto!=='no';
     const publicadoOk=rec.publicado&&rec.publicado!=='no';
     const _locked=rec.cubierto==='no'&&rec.publicado==='no';
+    const _sug=_covSugerencia(wk,c.key);
+    if(_sug&&_sug.estado!=='cubrible'&&_covAutoManda(rec)){
+      return `
+    <div class="cv-row cv-locked cv-auto" data-motivo="${_sug.txt}" style="--cat:${_catCol(c.key)}">
+      <span class="cv-cat">${c.label}</span>
+      <button class="cv-chip add" onclick="window._covAutoOff('${wk}','${c.key}')" title="La sugerencia sale de las convocatorias; tocá para cargar cobertura igual"><i class="ti ti-camera-plus"></i>Cubrir igual</button>
+    </div>`;
+    }
     return `
     <div class="cv-row${_locked?' cv-locked':''}" style="--cat:${_catCol(c.key)}">
       <span class="cv-cat">${c.label}</span>
+      ${_sug&&_sug.estado==='cubrible'?`<span class="cv-hint"><i class="ti ti-calendar-check"></i>${_sug.txt}</span>`:''}
       ${fechaBadge('Cubierto',rec.cubierto,wk,c.key,'cubierto')}
       ${cubiertoExtras}
       ${cubiertoOk?addExtraBtn(wk,c.key,'cubierto'):''}
