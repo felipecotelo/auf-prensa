@@ -1878,6 +1878,16 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ni-list,.ni-dls{display:grid;gap:12px}
 .ni-list{grid-template-columns:minmax(0,1fr)}
 .ni-sec+.ni-sec:has(.ni-stats){margin-top:-10px}
+.ni-sec+.ni-sec.ni-grp{margin-top:8px}
+.ni-stats.two{grid-template-columns:repeat(2,1fr)}
+.ni-wide{padding:20px 22px 18px}
+.ni-stat b small{font-family:'Inter',sans-serif;font-size:14px;font-weight:600;letter-spacing:0;color:rgba(239,243,248,.6);margin-left:4px}
+.ni-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.ni-chip{display:inline-flex;align-items:baseline;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);font-size:12px;font-weight:700;color:#F4F7FB}
+.ni-chip em{font-style:normal;font-size:10px;letter-spacing:.14em;color:rgba(239,243,248,.55)}
+.ni-bar{height:6px;border-radius:999px;background:rgba(255,255,255,.1);margin-top:14px;overflow:hidden}
+.ni-bar i{display:block;height:100%;border-radius:inherit}
+@media(max-width:560px){.ni-stats.two{grid-template-columns:1fr}}
 .ni-dls{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .ni-row,.ni-dl{display:flex;align-items:center;gap:18px;padding:16px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
 .ni-row .pz-m b{font-size:16px}
@@ -18739,12 +18749,23 @@ window._fifaInfoPro=function(tKey){
   const _cumHtml=!esNov||!_cumNoms.length?'':(_cumples.length
     ?_cumples.map(c=>stat('ti-cake','#F472B6','Cumpleaños',_fdia(c.fecha),c.nom+' cumple '+c.edad)).join('')
     :stat('ti-cake','#F472B6','Cumpleaños','Ninguno','Entre los '+(EV.finales&&EV.finales.length?'convocados':'reservados')));
-  const stats2=esNov?`<div class="ni-sec"><div class="ni-stats">`
-    +(_rf&&_resN?stat('ti-calendar-event','#FCD34D','Reserva publicada',(+_rf[1])+' '+_MESC[+_rf[2]-1],'Lista de reservados'):'')
-    +(_resN?stat('ti-users','#86EFAC','Reservados',String(_resN),'Jugadores en la reserva'):'')
-    +(_ff&&_finN?stat('ti-calendar-check','#FCD34D','Convocatoria publicada',(+_ff[1])+' '+_MESC[+_ff[2]-1],'Lista de convocados'):'')
-    +(_finN?stat('ti-user-check','#86EFAC','Convocados',String(_finN),'Jugadores en la lista'):'')
+  // Listas: dos tarjetas anchas (reserva y convocatoria) con el reparto por puesto; la convocatoria muestra cuánto de la reserva quedó.
+  const _posDe={}; Object.entries(EV.reservados||{}).forEach(([k,l])=>(l||[]).forEach(p=>{ _posDe[p.nom]=k; }));
+  const _chips=noms=>{ const c={POR:0,DEF:0,MED:0,DEL:0}; noms.forEach(n=>{ if(_posDe[n] in c) c[_posDe[n]]++; }); return '<div class="ni-chips">'+Object.entries(c).filter(([,n])=>n).map(([k,n])=>`<span class="ni-chip"><em>${k}</em>${n}</span>`).join('')+'</div>'; };
+  const _wide=(ic,col,l,v,sub,extra)=>`<div class="ni-stat ni-wide"><span class="ni-ic" style="color:${col};background:${col}22"><i class="ti ${ic}"></i></span><label>${l}</label><b>${v}</b><span class="ni-sub">${sub||''}</span>${extra||''}</div>`;
+  const _bar=(n,t,col)=>`<div class="ni-bar"><i style="width:${t?Math.round(100*n/t):0}%;background:${col}"></i></div>`;
+  const _fL=m=>(+m[1])+' de '+MESL[+m[2]-1];
+  const _finNoms=(EV.finales||[]).filter(Boolean);
+  const _listas=esNov&&(_resN||_finN)?`<div class="ni-sec ni-grp"><div class="ni-h">Listas</div><div class="ni-stats two">`
+    +(_resN?_wide('ti-users','#FCD34D','Reserva publicada',_resN+' <small>reservados</small>',_rf?'Publicada el '+_fL(_rf):'Lista de reservados',_chips(Object.keys(_posDe))+(_finN&&_resN>_finN?_bar(_resN-_finN,_resN,'#FCD34D')+`<span class="ni-sub">${_resN-_finN} no fueron convocados</span>`:'')):'')
+    +(_finN?_wide('ti-user-check','#86EFAC','Convocatoria publicada',_finN+' <small>convocados</small>',_ff?'Publicada el '+_fL(_ff):'Lista de convocados',_chips(_finNoms)+(_resN?_bar(_finN,_resN,'#86EFAC')+`<span class="ni-sub">${_finN} de los ${_resN} reservados</span>`:'')):'')
+    +`</div></div>`:'';
+  // Ya en Uruguay: avión o presentado (medio local) de las fichas de convocados.
+  const _llg=stor.get('auf4_fifanov_llegado',{}), _prs=stor.get('auf4_fifanov_presentado',{}), _enUy=_finNoms.filter(n=>_llg[n]||_prs[n]).length;
+  const _enUyHtml=esNov&&_finN?_wide('ti-plane-arrival','#22D3EE','Ya en Uruguay',_enUy+' <small>de '+_finN+'</small>',_enUy>=_finN?'Plantel completo':'Convocados que ya llegaron',_bar(_enUy,_finN,'#22D3EE')):'';
+  const stats2=esNov?_listas+`<div class="ni-sec ni-grp"><div class="ni-h">Viajes y seguimiento</div><div class="ni-stats">`
     +_viajes.map(v=>stat(/maldonado/i.test(v.dest)?'ti-route':'ti-plane-departure','#38BDF8','Viaje a '+v.dest,_fdia(v.date),v.hora?'<span style="color:#86EFAC">'+v.hora+'h</span>':'<span style="color:#FCD34D">Horario por confirmar</span>')).join('')
+    +_enUyHtml
     +_cumHtml
     +`</div></div>`:'';
   const partidos=`<div class="ni-sec"><div class="ni-h">Partidos</div><div class="ni-list">`+ps.map(x=>{
