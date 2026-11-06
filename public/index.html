@@ -17881,19 +17881,23 @@ const _FNOV_LIGAS={br:['Brasilera','América'],ar:['Argentina','América'],uy:['
 function _fnovDatos(lista){
     const mayorNac=(typeof getMayorNac==='function')?getMayorNac():{};
     const isoDe=f=>{ const cp=[...String(f||'')].map(c=>c.codePointAt(0)); if(cp[0]===0x1F3F4) return cp.slice(1).filter(c=>c>=0xE0061&&c<=0xE007A).map(c=>String.fromCharCode(c-0xE0000)).join(''); return (cp.length===2&&cp[0]>=127462)?cp.map(c=>String.fromCharCode(c-127397)).join('').toLowerCase():''; };
-    const gente=lista.map(p=>{ const d=JUGADORES[p.nom]||{}; const fn=mayorNac[p.nom]||d.fechaNac||MAYOR_NAC_DEFAULT[p.nom]||null; const flag=(typeof _clubFlagEmoji==='function')?_clubFlagEmoji(p.club,p.clubPais):(p.clubPais||''); return {nom:p.nom,fn,edad:fn?_nacAge(fn):null,pj:(d.total&&d.total.pj)||0,iso:isoDe(flag),flag}; });
+    const gente=lista.map(p=>{ const d=JUGADORES[p.nom]||{}; const fn=mayorNac[p.nom]||d.fechaNac||MAYOR_NAC_DEFAULT[p.nom]||null; const flag=(typeof _clubFlagEmoji==='function')?_clubFlagEmoji(p.club,p.clubPais):(p.clubPais||''); let jh=[]; try{ jh=(typeof _juvPlayerHistory==='function'?_juvPlayerHistory(p.nom):[]).filter(h=>!/^(Mayor|Local)$/i.test(h.label||'')); }catch(_){} return {nom:p.nom,fn,edad:fn?_nacAge(fn):null,pj:(d.total&&d.total.pj)||0,iso:isoDe(flag),flag,juv:jh}; });
     const conEdad=gente.filter(g=>g.edad!=null), N=gente.length;
     const prom=conEdad.length?conEdad.reduce((n,g)=>n+g.edad,0)/conEdad.length:null;
     const joven=conEdad.slice().sort((a,b)=>b.fn.localeCompare(a.fn))[0], grande=conEdad.slice().sort((a,b)=>a.fn.localeCompare(b.fn))[0];
     const sub23=conEdad.filter(g=>g.edad<23).length;
     const prim=gente.filter(g=>(FIFANOV26.primeraConvocatoria||[]).includes(g.nom)), debut=gente.filter(g=>g.pj===0);
     const m20=gente.filter(g=>g.pj>20).length, m50=gente.filter(g=>g.pj>50).length;
-    return {gente,conEdad,N,prom,joven,grande,sub23,prim,debut,m20,m50};
+    const conJuv=gente.filter(g=>g.juv.length), porCat=new Map();
+    conJuv.forEach(g=>{ const cats=new Set(); g.juv.forEach(h=>{ const m=String(h.label||'').match(/sub-?\s?(\d+)/i); if(m) cats.add('Sub-'+m[1]); }); cats.forEach(c=>porCat.set(c,(porCat.get(c)||0)+1)); });
+    const catsJuv=[...porCat].sort((a,b)=>b[1]-a[1]||(+b[0].slice(4))-(+a[0].slice(4)));
+    const _prevL=(typeof FIFASEP26!=='undefined'&&FIFASEP26.finales)||[], repiten=_prevL.length?gente.filter(g=>_prevL.includes(g.nom)).length:null, prevFaltan=_prevL.length?_prevL.filter(n=>!gente.some(g=>g.nom===n)).length:0;
+    return {gente,conEdad,N,prom,joven,grande,sub23,prim,debut,m20,m50,conJuv,catsJuv,repiten,prevN:_prevL.length,prevFaltan};
 }
 function _fnovInfografia(lista){
   try{
     if(!lista||!lista.length) return '';
-    const {gente,conEdad,N,prom,joven,grande,sub23,prim,debut,m20,m50}=_fnovDatos(lista);
+    const {gente,conEdad,N,prom,joven,grande,sub23,prim,debut,m20,m50,conJuv,catsJuv,repiten,prevN,prevFaltan}=_fnovDatos(lista);
     const stat=(ic,col,l,v,sub)=>`<div class="ni-stat"><span class="ni-ic" style="color:${col};background:${col}22"><i class="ti ${ic}"></i></span><label>${l}</label><b>${v}</b><span class="ni-sub">${sub||''}</span></div>`;
     const nom2=l=>l.map(g=>g.nom).join(', ')||'—';
     // Ligas y continentes (por el país del club actual)
@@ -17915,9 +17919,12 @@ function _fnovInfografia(lista){
       +stat('ti-medal','#F472B6','Más de 50 partidos',String(m50)+' <small>de '+N+'</small>','Con la Mayor')
       +`</div>`;
     const wide=(ic,col,l,body)=>`<div class="ni-stat ni-wide"><span class="ni-ic" style="color:${col};background:${col}22"><i class="ti ${ic}"></i></span><label>${l}</label>${body}</div>`;
+    const _bar=(n,t,col)=>`<div class="ni-bar"><i style="width:${t?Math.round(100*n/t):0}%;background:${col}"></i></div>`;
     const ligasHtml=wide('ti-ball-football','#38BDF8','Ligas donde juegan','<div class="ig-rows">'+lig.map(([n,v])=>`<div class="ig-row"><span class="ig-n">${v.flag||''} ${n}</span><span class="ig-bar"><i style="width:${Math.round(100*v.n/maxL)}%"></i></span><b>${v.n}</b></div>`).join('')+'</div>');
     const contHtml=wide('ti-world','#86EFAC','Continentes','<div class="ig-stack">'+cont.map(([n,v])=>`<i style="flex:${v};background:${CC[n]||'#94A3B8'}" title="${n}: ${v}"></i>`).join('')+'</div><div class="ig-cont">'+cont.map(([n,v])=>`<div><b style="color:${CC[n]||'#94A3B8'}">${v}</b><span>${n}</span><em>${Math.round(100*v/N)} %</em></div>`).join('')+'</div>');
-    return `<div class="ni-sec" style="max-width:none;margin:26px 0 6px"><div class="ni-h">El plantel en datos</div>${kpis}<div class="ni-stats two" style="margin-top:12px">${ligasHtml}${contHtml}</div></div>`;
+    const repHtml=repiten==null?'':wide('ti-repeat','#22D3EE','Repiten de la convocatoria anterior','<b>'+repiten+' <small>de '+N+'</small></b><span class="ni-sub">Ya estaban en la gira de set-oct ('+prevN+' convocados)</span>'+_bar(repiten,N,'#22D3EE')+'<div class="ni-chips"><span class="ni-chip"><em>SE SUMAN</em>'+(N-repiten)+'</span><span class="ni-chip"><em>NO REPITEN</em>'+prevFaltan+'</span></div>');
+    const juvHtml=wide('ti-school','#FB923C','Pasaron por selecciones juveniles','<b>'+conJuv.length+' <small>de '+N+'</small></b><span class="ni-sub">'+(conJuv.length===N?'Todo el plantel':(N-conJuv.length)+' sin procesos juveniles registrados')+'</span>'+_bar(conJuv.length,N,'#FB923C')+(catsJuv.length?'<div class="ni-chips">'+catsJuv.map(([c,n])=>`<span class="ni-chip"><em>${c.toUpperCase()}</em>${n}</span>`).join('')+'</div>':''));
+    return `<div class="ni-sec" style="max-width:none;margin:26px 0 6px"><div class="ni-h">El plantel en datos</div>${kpis}<div class="ni-stats two" style="margin-top:12px">${repHtml}${juvHtml}</div><div class="ni-stats two" style="margin-top:12px">${ligasHtml}${contHtml}</div></div>`;
   }catch(e){ return ''; }
 }
 // «Se presenta a entrenar X» del calendario de la app (lo carga Felipe): día y hora, para decirlo en la ficha y en Llegadas. `cuando` es relativo a hoy («hoy», «mañana», «el sáb 7/11»).
