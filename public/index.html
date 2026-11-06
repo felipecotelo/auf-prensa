@@ -18726,10 +18726,23 @@ window._fifaInfoPro=function(tKey){
   const _rf=String(EV.reservadosFecha||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   const _viajes=[]; try{ (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ (getDayActs()[day.date]||[]).forEach((a,i)=>{ const m=a&&a.tipo==='viaje'&&String(a.txt||'').match(/^Viaje a ([^(]+?)(?: en | por |\s*\(|$)/); if(m){ const h=String(getCalTime(day.date,i,a.h||'')||'').trim(); const t=/^\d{1,2}$/.test(h)?h.padStart(2,'0')+':00':(/^\d{1,2}:\d{2}$/.test(h)?h.padStart(5,'0'):''); _viajes.push({dest:m[1].trim(),date:day.date,hora:t}); } }); }); }catch(_){}
   const _fdia=ds=>{ const d=new Date(ds+'T12:00:00'); return _DOW[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1); };
+  // Cumpleaños de los convocados dentro del período FIFA (sin lista final, de los reservados); la fecha sale de la misma fuente que el widget «Hoy».
+  const _cumples=[]; let _cumNoms=[];
+  if(esNov){ try{
+    _cumNoms=(EV.finales&&EV.finales.length)?EV.finales.filter(Boolean):Object.values(EV.reservados||{}).reduce((a,l)=>a.concat((l||[]).map(p=>p.nom)),[]);
+    const _ovr=(typeof getMayorNac==='function')?getMayorNac():{}, _d0=String(EV.periodoFifa?.desde||EV.desde).slice(0,10), _d1=String(EV.periodoFifa?.hasta||EV.hasta).slice(0,10);
+    _cumNoms.forEach(nom=>{ const fn=_ovr[nom]||((typeof JUGADORES!=='undefined'&&JUGADORES[nom])||{}).fechaNac||(typeof MAYOR_NAC_DEFAULT!=='undefined'?MAYOR_NAC_DEFAULT[nom]:null);
+      if(!fn||fn.length<10) return; const fecha=_d0.slice(0,4)+fn.slice(4,10); if(fecha>=_d0&&fecha<=_d1) _cumples.push({nom,fecha,edad:parseInt(_d0.slice(0,4),10)-parseInt(fn.slice(0,4),10)}); });
+    _cumples.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  }catch(_){} }
+  const _cumHtml=!esNov||!_cumNoms.length?'':(_cumples.length
+    ?_cumples.map(c=>stat('ti-cake','#F472B6','Cumpleaños',_fdia(c.fecha),c.nom+' cumple '+c.edad)).join('')
+    :stat('ti-cake','#F472B6','Cumpleaños','Ninguno','Entre los '+(EV.finales&&EV.finales.length?'convocados':'reservados')));
   const stats2=esNov?`<div class="ni-sec"><div class="ni-stats">`
     +(_rf&&_resN?stat('ti-calendar-event','#FCD34D','Reserva publicada',(+_rf[1])+' '+_MESC[+_rf[2]-1],'Lista de reservados'):'')
     +(_resN?stat('ti-users','#86EFAC','Reservados',String(_resN),'Jugadores en la reserva'):'')
     +_viajes.map(v=>stat(/maldonado/i.test(v.dest)?'ti-route':'ti-plane-departure','#38BDF8','Viaje a '+v.dest,_fdia(v.date),v.hora?'<span style="color:#86EFAC">'+v.hora+'h</span>':'<span style="color:#FCD34D">Horario por confirmar</span>')).join('')
+    +_cumHtml
     +`</div></div>`:'';
   const partidos=`<div class="ni-sec"><div class="ni-h">Partidos</div><div class="ni-list">`+ps.map(x=>{
     const f=dm(x.fecha), vis=x.local===false;
