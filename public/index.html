@@ -1887,6 +1887,19 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ni-chip em{font-style:normal;font-size:10px;letter-spacing:.14em;color:rgba(239,243,248,.55)}
 .ni-bar{height:6px;border-radius:999px;background:rgba(255,255,255,.1);margin-top:14px;overflow:hidden}
 .ni-bar i{display:block;height:100%;border-radius:inherit}
+.ig-rows{display:grid;gap:9px;margin-top:12px}
+.ig-row{display:grid;grid-template-columns:minmax(0,150px) 1fr 24px;align-items:center;gap:10px;font-size:13px;color:rgba(239,243,248,.85)}
+.ig-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ig-bar{height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.ig-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#38BDF8,#86EFAC)}
+.ig-row b{font-family:'Space Grotesk','Inter',sans-serif;font-size:15px;text-align:right;color:#F4F7FB}
+.ig-stack{display:flex;gap:3px;height:14px;margin-top:16px;border-radius:999px;overflow:hidden}
+.ig-stack i{display:block;height:100%}
+.ig-cont{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:12px;margin-top:20px}
+.ig-cont div{display:flex;flex-direction:column;gap:2px}
+.ig-cont b{font-family:'Space Grotesk','Inter',sans-serif;font-size:40px;line-height:1;letter-spacing:-.03em}
+.ig-cont span{font-size:13px;font-weight:600;color:rgba(239,243,248,.9)}
+.ig-cont em{font-style:normal;font-size:12px;color:rgba(239,243,248,.55)}
 @media(max-width:560px){.ni-stats.two{grid-template-columns:1fr}}
 .ni-dls{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .ni-row,.ni-dl{display:flex;align-items:center;gap:18px;padding:16px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
@@ -17838,10 +17851,10 @@ function renderFifaNov26(tabId){
       const todos = finales ? [...convocadosOrdenados, ...noConvocados] : allPos;
       con.innerHTML = _pgHero('Fecha FIFA nov 2026 · Selección Mayor',
           finales ? 'Convocatoria <span class="acc">final</span>' : 'Lista de <span class="acc">reservados</span>',
-          finales ? 'Los elegidos quedan destacados arriba y el resto en gris abajo.' : `De esta reserva armada por <b>${FIFANOV26.dt||'el DT'}</b> y publicada el ${String(FIFANOV26.reservadosFecha||'').split('/').slice(0,2).join('/')} sale la convocatoria final para los amistosos vs. ${(FIFANOV26.partidosData||[]).map(x=>`<b class="acc">${x.rival} (${x.local===false?'V':'L'})</b>`).join(' y ')}.`,
-          finales ? 'Convocatoria final' : `Lista larga · ${totalRes} jugadores`) +
+          finales ? (()=>{ const _n=convocadosOrdenados.length, _r=Object.values(FIFANOV26.reservados||{}).reduce((n,l)=>n+(l||[]).length,0), _f=String(FIFANOV26.finalesFecha||'').split('/').slice(0,2).join('/'); return `<b class="acc">${_n} convocados</b>${_r?' de los '+_r+' reservados':''} para los amistosos vs. ${(FIFANOV26.partidosData||[]).map(x=>`<b class="acc">${x.rival} (${x.local===false?'V':'L'})</b>`).join(' y ')}${_f?', lista publicada el '+_f:''}. Los elegidos quedan arriba y el resto en gris abajo.`; })() : `De esta reserva armada por <b>${FIFANOV26.dt||'el DT'}</b> y publicada el ${String(FIFANOV26.reservadosFecha||'').split('/').slice(0,2).join('/')} sale la convocatoria final para los amistosos vs. ${(FIFANOV26.partidosData||[]).map(x=>`<b class="acc">${x.rival} (${x.local===false?'V':'L'})</b>`).join(' y ')}.`,
+          finales ? (()=>{ const D=_fnovDatos(convocadosOrdenados); const t=[]; if(D.prom!=null) t.push('Edad promedio '+String(D.prom.toFixed(1)).replace('.',',')+' años'); if(D.debut.length) t.push(D.debut.length+(D.debut.length===1?' debutaría':' debutarían')); if(D.prim.length) t.push(D.prim.length+(D.prim.length===1?' primera convocatoria':' primeras convocatorias')); return t.join(' · ')||'Convocatoria final'; })() : `Lista larga · ${totalRes} jugadores`) +
         (finales
-          ? `<div class="p-grid">${convocadosOrdenados.map(tarjeta).join('')}</div>` +
+          ? `<div class="p-grid">${convocadosOrdenados.map(tarjeta).join('')}</div>` + _fnovInfografia(convocadosOrdenados) +
             (noConvocados.length ? `<div style="margin:20px 0 10px;font-size:.68em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;border-top:1px solid var(--border);padding-top:14px">No convocados (${noConvocados.length})</div><div class="p-grid">${noConvocados.map(tarjeta).join('')}</div>` : '')
           : `<div class="p-grid">${todos.map(tarjeta).join('')}</div>`);
     }
@@ -17861,6 +17874,52 @@ window.renderFifaNov26Plantel = function(){ renderFifaNov26('fifanov26-plantel')
 // Cada actividad del calendario de la app con `llegadas:[nombres]` es un vuelo (también se reconoce el texto «Aterriza en Uruguay el futbolista X»).
 // El tick está unido al chip «UY» de la ficha (`auf4_fifanov_llegado`) y al ✓ de la actividad en el calendario: marcar uno mueve los tres.
 const _FNOV_ARR_RE=/^Aterriza en Uruguay el futbolista (.+)$/;
+// Infografía de los convocados de nov (entre los convocados y los «no convocados»): todo sale de los datos de las fichas (edad, PJ, primera convocatoria, club y su país).
+const _FNOV_LIGAS={br:['Brasilera','América'],ar:['Argentina','América'],uy:['Uruguaya','América'],us:['Estadounidense','América'],mx:['Mexicana','América'],co:['Colombiana','América'],cl:['Chilena','América'],py:['Paraguaya','América'],ec:['Ecuatoriana','América'],pe:['Peruana','América'],ca:['Canadiense','América'],
+  es:['Española','Europa'],it:['Italiana','Europa'],gbeng:['Inglesa','Europa'],fr:['Francesa','Europa'],de:['Alemana','Europa'],pt:['Portuguesa','Europa'],nl:['Neerlandesa','Europa'],tr:['Turca','Europa'],be:['Belga','Europa'],gr:['Griega','Europa'],ch:['Suiza','Europa'],ru:['Rusa','Europa'],
+  sa:['Saudita','Asia'],jp:['Japonesa','Asia'],qa:['Catarí','Asia'],ae:['Emiratí','Asia'],kr:['Surcoreana','Asia'],cn:['China','Asia']};
+function _fnovDatos(lista){
+    const mayorNac=(typeof getMayorNac==='function')?getMayorNac():{};
+    const isoDe=f=>{ const cp=[...String(f||'')].map(c=>c.codePointAt(0)); if(cp[0]===0x1F3F4) return cp.slice(1).filter(c=>c>=0xE0061&&c<=0xE007A).map(c=>String.fromCharCode(c-0xE0000)).join(''); return (cp.length===2&&cp[0]>=127462)?cp.map(c=>String.fromCharCode(c-127397)).join('').toLowerCase():''; };
+    const gente=lista.map(p=>{ const d=JUGADORES[p.nom]||{}; const fn=mayorNac[p.nom]||d.fechaNac||MAYOR_NAC_DEFAULT[p.nom]||null; const flag=(typeof _clubFlagEmoji==='function')?_clubFlagEmoji(p.club,p.clubPais):(p.clubPais||''); return {nom:p.nom,fn,edad:fn?_nacAge(fn):null,pj:(d.total&&d.total.pj)||0,iso:isoDe(flag),flag}; });
+    const conEdad=gente.filter(g=>g.edad!=null), N=gente.length;
+    const prom=conEdad.length?conEdad.reduce((n,g)=>n+g.edad,0)/conEdad.length:null;
+    const joven=conEdad.slice().sort((a,b)=>b.fn.localeCompare(a.fn))[0], grande=conEdad.slice().sort((a,b)=>a.fn.localeCompare(b.fn))[0];
+    const sub23=conEdad.filter(g=>g.edad<23).length;
+    const prim=gente.filter(g=>(FIFANOV26.primeraConvocatoria||[]).includes(g.nom)), debut=gente.filter(g=>g.pj===0);
+    const m20=gente.filter(g=>g.pj>20).length, m50=gente.filter(g=>g.pj>50).length;
+    return {gente,conEdad,N,prom,joven,grande,sub23,prim,debut,m20,m50};
+}
+function _fnovInfografia(lista){
+  try{
+    if(!lista||!lista.length) return '';
+    const {gente,conEdad,N,prom,joven,grande,sub23,prim,debut,m20,m50}=_fnovDatos(lista);
+    const stat=(ic,col,l,v,sub)=>`<div class="ni-stat"><span class="ni-ic" style="color:${col};background:${col}22"><i class="ti ${ic}"></i></span><label>${l}</label><b>${v}</b><span class="ni-sub">${sub||''}</span></div>`;
+    const nom2=l=>l.map(g=>g.nom).join(', ')||'—';
+    // Ligas y continentes (por el país del club actual)
+    const ligas=new Map(), conts=new Map();
+    gente.forEach(g=>{ const L=_FNOV_LIGAS[g.iso]; const nl=L?L[0]:'Otras', nc=L?L[1]:'Otros'; if(!ligas.has(nl)) ligas.set(nl,{n:0,flag:g.flag}); ligas.get(nl).n++; conts.set(nc,(conts.get(nc)||0)+1); });
+    const lig=[...ligas].sort((a,b)=>b[1].n-a[1].n||a[0].localeCompare(b[0]));
+    const maxL=lig.length?lig[0][1].n:1;
+    const CC={'Europa':'#38BDF8','América':'#86EFAC','Asia':'#FCD34D','Otros':'#94A3B8'};
+    const cont=[...conts].sort((a,b)=>b[1]-a[1]);
+    const fx=n=>String(n).replace('.',',');
+    const kpis=`<div class="ni-stats">`
+      +stat('ti-cake','#F472B6','Edad promedio',prom!=null?fx(prom.toFixed(1))+' <small>años</small>':'—',conEdad.length?'Entre '+Math.min(...conEdad.map(g=>g.edad))+' y '+Math.max(...conEdad.map(g=>g.edad))+' años':'')
+      +stat('ti-sparkles','#86EFAC','Menores de 23',String(sub23)+' <small>de '+N+'</small>','Jugadores sub-23')
+      +(joven?stat('ti-arrow-down','#38BDF8','El más joven',joven.edad+' <small>años</small>',joven.nom):'')
+      +(grande?stat('ti-arrow-up','#FCD34D','El más grande',grande.edad+' <small>años</small>',grande.nom):'')
+      +stat('ti-star','#FCD34D','Primera convocatoria',String(prim.length),nom2(prim))
+      +stat('ti-ball-football','#22D3EE','Debutarían',String(debut.length),nom2(debut))
+      +stat('ti-trophy','#86EFAC','Más de 20 partidos',String(m20)+' <small>de '+N+'</small>','Con la Mayor')
+      +stat('ti-medal','#F472B6','Más de 50 partidos',String(m50)+' <small>de '+N+'</small>','Con la Mayor')
+      +`</div>`;
+    const wide=(ic,col,l,body)=>`<div class="ni-stat ni-wide"><span class="ni-ic" style="color:${col};background:${col}22"><i class="ti ${ic}"></i></span><label>${l}</label>${body}</div>`;
+    const ligasHtml=wide('ti-ball-football','#38BDF8','Ligas donde juegan','<div class="ig-rows">'+lig.map(([n,v])=>`<div class="ig-row"><span class="ig-n">${v.flag||''} ${n}</span><span class="ig-bar"><i style="width:${Math.round(100*v.n/maxL)}%"></i></span><b>${v.n}</b></div>`).join('')+'</div>');
+    const contHtml=wide('ti-world','#86EFAC','Continentes','<div class="ig-stack">'+cont.map(([n,v])=>`<i style="flex:${v};background:${CC[n]||'#94A3B8'}" title="${n}: ${v}"></i>`).join('')+'</div><div class="ig-cont">'+cont.map(([n,v])=>`<div><b style="color:${CC[n]||'#94A3B8'}">${v}</b><span>${n}</span><em>${Math.round(100*v/N)} %</em></div>`).join('')+'</div>');
+    return `<div class="ni-sec" style="max-width:none;margin:26px 0 6px"><div class="ni-h">El plantel en datos</div>${kpis}<div class="ni-stats two" style="margin-top:12px">${ligasHtml}${contHtml}</div></div>`;
+  }catch(e){ return ''; }
+}
 // «Se presenta a entrenar X» del calendario de la app (lo carga Felipe): día y hora, para decirlo en la ficha y en Llegadas. `cuando` es relativo a hoy («hoy», «mañana», «el sáb 7/11»).
 function _fnovPresentacion(nom){
   try{
