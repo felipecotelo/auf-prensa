@@ -17785,10 +17785,10 @@ function renderFifaNov26(tabId){
                 <span style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.72);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:3">📷</span>
                 <input type="file" accept="image/*" id="juv-photo-input-${nomEnc}" style="display:none" onchange="_fifaPhotoSelected('${nomEnc}',this)">
               </div>
-              <div class="p-card-right">
+              <div class="p-card-right"${_localNov?' style="padding-top:8px"':''}>
                 ${_localNov?'':`<div class="fx-chips-col" style="gap:4px;justify-content:center">${_chipsNov}</div>`}
                 <span class="p-pos-badge pos-${p.pos||'DEF'}" style="margin:0">${p.pos||''}</span>
-                ${_localNov?'':`<label title="Fecha en que llega a Uruguay — click para anotarla" style="position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:1px;margin:-1px -6px -3px;padding:3px 6px;line-height:1.1;cursor:pointer;color:${_llegadoNov?'#22D3EE':'rgba(239,243,248,.6)'}"><i class="ti ti-plane-arrival" style="font-size:13px;opacity:${_llegadaNov||_llegadoNov?1:.5}"></i><span style="font-size:10px;font-weight:600;opacity:${_llegadaNov?1:.5}">${_llegadaTxt}</span><input type="date" value="${_llegadaNov}" onclick="event.stopPropagation();try{this.showPicker()}catch(_){}" onchange="_setFifaNovLlegada('${nomEnc}',this.value)" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer"></label>`}
+                ${_localNov?(()=>{ const pr=_fnovPresentacion(p.nom); if(!pr) return ''; return `<span title="Juega en Uruguay: se presenta a entrenar ${pr.cuando}${pr.hora?' a las '+pr.hora:''}" style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;line-height:1.15;text-align:center;white-space:nowrap;color:${_presentadoNov?'#22D3EE':'rgba(239,243,248,.75)'}"><span style="font-size:9px;font-weight:700">${_presentadoNov?'Se presentó':'Se presenta'}</span><span style="font-size:9px;font-weight:600;opacity:.85">${_presentadoNov?pr.corto:pr.cuando.replace(/^el /,'')}${pr.hora?' '+pr.hora:''}</span></span>`; })():`<label title="Fecha en que llega a Uruguay — click para anotarla" style="position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:1px;margin:-1px -6px -3px;padding:3px 6px;line-height:1.1;cursor:pointer;color:${_llegadoNov?'#22D3EE':'rgba(239,243,248,.6)'}"><i class="ti ti-plane-arrival" style="font-size:13px;opacity:${_llegadaNov||_llegadoNov?1:.5}"></i><span style="font-size:10px;font-weight:600;opacity:${_llegadaNov?1:.5}">${_llegadaTxt}</span><input type="date" value="${_llegadaNov}" onclick="event.stopPropagation();try{this.showPicker()}catch(_){}" onchange="_setFifaNovLlegada('${nomEnc}',this.value)" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer"></label>`}
               </div>
             </div>
             <button class="inj-toggle ${inj}" style="width:100%;justify-content:center;white-space:nowrap" onclick="event.stopPropagation();_cycleResInjury('${nomEnc}','renderFifaNov26Plantel')" title="Click para cambiar">
@@ -17861,6 +17861,20 @@ window.renderFifaNov26Plantel = function(){ renderFifaNov26('fifanov26-plantel')
 // Cada actividad del calendario de la app con `llegadas:[nombres]` es un vuelo (también se reconoce el texto «Aterriza en Uruguay el futbolista X»).
 // El tick está unido al chip «UY» de la ficha (`auf4_fifanov_llegado`) y al ✓ de la actividad en el calendario: marcar uno mueve los tres.
 const _FNOV_ARR_RE=/^Aterriza en Uruguay el futbolista (.+)$/;
+// «Se presenta a entrenar X» del calendario de la app (lo carga Felipe): día y hora, para decirlo en la ficha y en Llegadas. `cuando` es relativo a hoy («hoy», «mañana», «el sáb 7/11»).
+function _fnovPresentacion(nom){
+  try{
+    let out=null;
+    (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ (getDayActs()[day.date]||[]).forEach((a,i)=>{
+      if(out||!a) return; const m=String(a.txt||'').match(/^Se presenta a entrenar (.+)$/); if(!m||m[1].trim()!==nom) return;
+      const hm=String(getCalTime(day.date,i,a.h||'')||'').trim().match(/^(\d{1,2})(?::(\d{2}))?/); out={date:day.date,hora:hm?(+hm[1])+':'+(hm[2]||'00'):''}; }); });
+    if(!out) return null;
+    const d=new Date(out.date+'T12:00:00'), dif=Math.round((d-new Date(TODAY+'T12:00:00'))/86400000);
+    out.corto=d.getDate()+'/'+(d.getMonth()+1);
+    out.cuando=dif===0?'hoy':dif===1?'mañana':'el '+['dom','lun','mar','mié','jue','vie','sáb'][d.getDay()]+' '+out.corto;
+    return out;
+  }catch(_){ return null; }
+}
 function _fnovFlights(){
   const out=[], acts=getDayActs(), info={};
   ['POR','DEF','MED','DEL'].forEach(k=>((FIFANOV26.reservados||{})[k]||[]).forEach(p=>{ info[p.nom]={pos:k,club:p.club,pais:p.clubPais}; }));
@@ -17939,7 +17953,7 @@ function renderFifaNovLlegadas(){
   const DOW=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'], MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const now=new Date(), esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'), enc=t=>encodeURIComponent(t).replace(/'/g,'%27');
   const hero=_pgHero('Fecha FIFA nov 2026 · Selección Mayor','Llegadas <span class="acc">a Uruguay</span>','Quién <b style="color:#8AD8FF">aterriza</b> y a qué <b style="color:#FCD34D">hora</b>, ordenado por día; los que vienen en el <b style="color:#FB923C">mismo vuelo</b> van juntos. Al <b style="color:#4ADE80">tildar</b>, queda como <b style="color:#4ADE80">llegado</b> en la <b style="color:#8AD8FF">ficha</b> y en el <b style="color:#8AD8FF">calendario</b>.',
-    `<span class="ll-pill"><i class="ti ti-plane-arrival"></i><b>${llegaron}</b><span>de ${todos}<sup>*</sup></span><em>en Uruguay</em></span><div class="ll-nota"><b>*</b> <b class="n">Sebastián Jaume</b>, el jugador 28, ya está en Uruguay porque juega en <b class="a">Albion</b>.</div>`);
+    `<span class="ll-pill"><i class="ti ti-plane-arrival"></i><b>${llegaron}</b><span>de ${todos}<sup>*</sup></span><em>en Uruguay</em></span><div class="ll-nota"><b>*</b> <b class="n">Sebastián Jaume</b>, el jugador 28, ya está en Uruguay porque juega en <b class="a">Albion</b>.${(()=>{ if(stor.get('auf4_fifanov_presentado',{})['Sebastián Jaume']) return ' Ya se presentó a entrenar.'; const pr=_fnovPresentacion('Sebastián Jaume'); return pr?` Se presenta a entrenar <b class="n">${pr.cuando}</b>${pr.hora?', a las <b class="n">'+pr.hora+'</b>':''}.`:''; })()}</div>`);
   if(!F.length){ con.innerHTML=hero+`<div class="ni-sec"><div class="ni-sub" style="padding:30px 0;text-align:center">Todavía no hay llegadas cargadas.</div></div>`; return; }
   // Todos los días, del primero al último con llegadas (los que no tienen dicen «No hay llegadas»).
   const _ds=F.map(f=>f.date).sort(), dias=[]; for(let d=new Date(_ds[0]+'T12:00:00'); d<=new Date(_ds[_ds.length-1]+'T12:00:00'); d.setDate(d.getDate()+1)) dias.push(d.toISOString().slice(0,10));
