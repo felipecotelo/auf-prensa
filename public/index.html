@@ -923,7 +923,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .ih-mt span .ti-map-pin{margin-right:4px;font-size:11px;vertical-align:-1px}
 .ih-mt b{display:block;font-size:13.5px;font-weight:600;color:#F4F7FB;line-height:1.25}
 .ih-mt span{display:block;margin-top:2px;font-size:11px;color:rgba(239,243,248,.55)}
-.auf-ld2{position:absolute;z-index:50;display:block;opacity:1;transition:opacity .16s ease}
+.auf-ld2{position:absolute;z-index:50;display:block;opacity:1;overflow:hidden;transition:opacity .16s ease}
 .auf-ld2 div{position:sticky;top:38vh;display:flex;flex-direction:column;align-items:center;gap:12px;font:700 10px 'Inter',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:rgba(127,140,160,.9)}
 .auf-ld2 i{width:26px;height:26px;border-radius:50%;border:3px solid rgba(127,140,160,.3);border-top-color:#22D3EE;animation:aufspin .8s linear infinite}
 @keyframes aufspin{to{transform:rotate(360deg)}}
@@ -38466,13 +38466,12 @@ window._showUpdateBanner=_showUpdateBanner;
     let lca=list[0].parentElement;
     while(lca&&!list.every(im=>lca.contains(im))) lca=lca.parentElement;
     if(!lca) return null;
-    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-    list.forEach(im=>{
-      let n=im; while(n.parentElement&&n.parentElement!==lca) n=n.parentElement;
-      const r=n.getBoundingClientRect(); if(!(r.width||r.height)) return;
-      x0=Math.min(x0,r.left); y0=Math.min(y0,r.top); x1=Math.max(x1,r.right); y1=Math.max(y1,r.bottom);
-    });
-    return x1>x0?{x:x0+scrollX,y:y0+scrollY,w:x1-x0,h:y1-y0}:null;
+    // Se tapa el BLOQUE ENTERO (Felipe, 06/11/2026): si faltan pocas imágenes, el área mínima que las contiene queda chica y el «Cargando» asoma sobre la tarjeta.
+    // Se sube hasta un contenedor de tamaño razonable (≥ 360 × 220 px) sin llegar a la sección completa.
+    const sec=document.querySelector('.section.active'); let blk=lca;
+    while(blk.parentElement&&blk.parentElement!==sec&&blk.parentElement!==document.body){ const r0=blk.getBoundingClientRect(); if(r0.height>=220&&r0.width>=360) break; blk=blk.parentElement; }
+    const r=blk.getBoundingClientRect(); if(!(r.width||r.height)) return null;
+    return {x:r.left+scrollX,y:r.top+scrollY,w:r.width,h:r.height};
   }
   function pintar(){
     const g=region(pend); if(!g||!box) return;
