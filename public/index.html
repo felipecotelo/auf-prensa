@@ -1886,6 +1886,11 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ll-bar span{display:block;height:100%;background:linear-gradient(90deg,#4ADE80,#22D3EE);border-radius:999px}
 .ll-day{margin-bottom:22px}
 .ll-dh{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#F4F7FB}
+.ll-nota{margin-top:10px;font-size:12px;line-height:1.4;color:rgba(239,243,248,.62)}
+.ll-nota>b:first-child{color:#FCD34D;font-size:14px;margin-right:2px}
+.ll-nota b.n{color:#F4F7FB}
+.ll-nota b.a{color:#8AD8FF}
+.ll-empty{padding:10px 14px;border-radius:16px;border:1px dashed rgba(255,255,255,.2);color:rgba(239,243,248,.55);font-size:12.5px}
 .ll-dh em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.1em;color:rgba(239,243,248,.6);padding:2px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.18)}
 .ll-row{display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:8px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
 .ll-row.done{border-color:rgba(74,222,128,.35)}
@@ -1905,7 +1910,6 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ll-dir{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:3px 10px;border-radius:999px;border:1px dashed rgba(255,255,255,.25);background:transparent;color:rgba(239,243,248,.5);font-family:inherit;font-size:10.5px;font-weight:700;letter-spacing:.06em;cursor:pointer}
 .ll-dir{position:relative;white-space:nowrap}
 .ll-dir::after{content:"";position:absolute;inset:-3px}
-.ll-n:has(.ll-mk) .ll-dir{margin-left:26px}
 .ll-dir i{font-size:12px}
 .ll-dir.on{border:1px solid rgba(34,211,238,.6);background:rgba(34,211,238,.1);color:#22D3EE}
 .ll-tg{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;border-radius:999px;border:1px solid}
@@ -16537,13 +16541,13 @@ const FIFANOV26_CAL_DAYS = [
   {date:'2026-11-06', dow:'Vie', label:'6 nov',  tipo:'previo', act:true, tag:'Previo · entrenamiento', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-07', dow:'Sáb', label:'7 nov',  tipo:'previo', act:true, tag:'Previo · entrenamiento', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-08', dow:'Dom', label:'8 nov',  tipo:'previo', tag:'Previo · libre', badge:'cb-descanso', lugar:'', eventos:[]},
-  {date:'2026-11-09', dow:'Lun', label:'9 nov',  tipo:'tbd', lugar:'Uruguay', eventos:[]},
-  {date:'2026-11-10', dow:'Mar', label:'10 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
-  {date:'2026-11-11', dow:'Mié', label:'11 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
+  {date:'2026-11-09', dow:'Lun', label:'9 nov',  tipo:'tbd', tag:'Llegadas y entrenamientos', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
+  {date:'2026-11-10', dow:'Mar', label:'10 nov', tipo:'tbd', tag:'Llegadas y entrenamientos', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
+  {date:'2026-11-11', dow:'Mié', label:'11 nov', tipo:'tbd', tag:'Entrenamiento y conferencia', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-12', dow:'Jue', label:'12 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-13', dow:'Vie', label:'13 nov', tipo:'partido', rival:'Argentina', lugar:'La Bombonera, Buenos Aires', eventos:[]},
-  {date:'2026-11-14', dow:'Sáb', label:'14 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
-  {date:'2026-11-15', dow:'Dom', label:'15 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
+  {date:'2026-11-14', dow:'Sáb', label:'14 nov', tipo:'tbd', tag:'Entrenamiento', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
+  {date:'2026-11-15', dow:'Dom', label:'15 nov', tipo:'tbd', tag:'Entrenamiento', badge:'cb-entreno', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-16', dow:'Lun', label:'16 nov', tipo:'tbd', lugar:'Uruguay', eventos:[]},
   {date:'2026-11-17', dow:'Mar', label:'17 nov', tipo:'partido', rival:'República Dominicana', lugar:'Uruguay', eventos:[]},
 ];
@@ -17903,11 +17907,15 @@ function renderFifaNovLlegadas(){
   const F=_fnovFlights(), todos=F.reduce((n,f)=>n+f.players.length,0), llegaron=F.reduce((n,f)=>n+f.players.filter(p=>p.done).length,0);
   const DOW=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'], MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const now=new Date(), esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'), enc=t=>encodeURIComponent(t).replace(/'/g,'%27');
-  const hero=_pgHero('Fecha FIFA nov 2026 · Selección Mayor','Llegadas <span class="acc">a Uruguay</span>','Quién aterriza y a qué hora, ordenado por día; los que vienen en el mismo vuelo van juntos. Al tildar queda como llegado en la ficha y en el calendario.',
-    `<span class="rd-pill" style="--c:#4ADE80"><i class="ti ti-plane-arrival"></i>${llegaron} de ${todos} en Uruguay</span>`);
+  const hero=_pgHero('Fecha FIFA nov 2026 · Selección Mayor','Llegadas <span class="acc">a Uruguay</span>','Quién <b style="color:#8AD8FF">aterriza</b> y a qué <b style="color:#FCD34D">hora</b>, ordenado por día; los que vienen en el <b style="color:#FB923C">mismo vuelo</b> van juntos. Al <b style="color:#4ADE80">tildar</b>, queda como <b style="color:#4ADE80">llegado</b> en la <b style="color:#8AD8FF">ficha</b> y en el <b style="color:#8AD8FF">calendario</b>.',
+    `<span class="rd-pill" style="--c:#4ADE80"><i class="ti ti-plane-arrival"></i>${llegaron} de ${todos}<b style="color:#FCD34D;margin-left:1px">*</b> en Uruguay</span><div class="ll-nota"><b>*</b> <b class="n">Sebastián Jaume</b>, el jugador 28, ya está en Uruguay porque juega en <b class="a">Albion</b>.</div>`);
   if(!F.length){ con.innerHTML=hero+`<div class="ni-sec"><div class="ni-sub" style="padding:30px 0;text-align:center">Todavía no hay llegadas cargadas.</div></div>`; return; }
-  const body=[...new Set(F.map(f=>f.date))].map(d=>{
-    const rows=F.filter(f=>f.date===d), dt=new Date(d+'T12:00:00'), tot=rows.reduce((n,f)=>n+f.players.length,0), ok=rows.reduce((n,f)=>n+f.players.filter(p=>p.done).length,0);
+  // Todos los días, del primero al último con llegadas (los que no tienen dicen «No hay llegadas»).
+  const _ds=F.map(f=>f.date).sort(), dias=[]; for(let d=new Date(_ds[0]+'T12:00:00'); d<=new Date(_ds[_ds.length-1]+'T12:00:00'); d.setDate(d.getDate()+1)) dias.push(d.toISOString().slice(0,10));
+  const body=dias.map(d=>{
+    const rows=F.filter(f=>f.date===d), dt=new Date(d+'T12:00:00');
+    if(!rows.length) return `<div class="ll-day"><div class="ll-dh"><b>${DOW[dt.getDay()]} ${dt.getDate()} de ${MES[dt.getMonth()]}</b></div><div class="ll-empty">No hay llegadas</div></div>`;
+    const tot=rows.reduce((n,f)=>n+f.players.length,0), ok=rows.reduce((n,f)=>n+f.players.filter(p=>p.done).length,0);
     return `<div class="ll-day"><div class="ll-dh"><b>${DOW[dt.getDay()]} ${dt.getDate()} de ${MES[dt.getMonth()]}</b><em>${ok}/${tot}</em></div>`
       +rows.map(f=>{
         const faltan=f.players.filter(p=>!p.done).length, venc=!f.done&&f.hora&&new Date(f.date+'T'+f.hora+':00')<now;
@@ -17916,7 +17924,7 @@ function renderFifaNovLlegadas(){
         const lineas=f.players.map(p=>{ const sub=[p.pos||'',p.club?_clubCorto(p.club):''].filter(Boolean).join(' · ');
           return `<div class="ll-pl">${unico?'':`<button class="ll-mk${p.done?' on':''}" onclick="_fnovPlayerToggle('${enc(f.key)}','${enc(p.nom)}')" title="${p.done?'Ya llegó — click para desmarcar':'Marcar que ya llegó'}"><i class="ti ti-check"></i></button>`}<b>${esc(p.nom)}</b>${sub?`<i>${esc(sub)}</i>`:''}</div>`; }).join('');
         return `<div class="ll-row${f.done?' done':''}"><button class="ll-ck${f.done?' on':''}" onclick="_fnovFlightToggle('${enc(f.key)}')" title="${f.done?'Ya llegaron — click para desmarcar':(unico?'Marcar que ya llegó':'Marcar que llegaron todos')}"><i class="ti ti-check"></i></button>
-          <span class="ll-h">${f.hora||'—'}</span><span class="ll-n">${lineas}<button class="ll-dir${f.directo?' on':''}" onclick="_fnovDirectoToggle('${enc(f.key)}')" title="${f.directo?'Va directo al Complejo — click para sacarlo':'Marcar que va directo al Complejo'}">${f.directo?`<i class="ti ti-building-stadium"></i>Directo al Complejo${f.hora?` · ≈ ${_fnovComplejoHora(f.hora)}`:''}`:'<i class="ti ti-plus"></i>Va directo al Complejo'}</button></span>${tag}</div>`;
+          <span class="ll-h">${f.hora||'—'}</span><span class="ll-n">${lineas}<button class="ll-dir${f.directo?' on':''}" onclick="_fnovDirectoToggle('${enc(f.key)}')" title="${f.directo?'Va directo al Complejo — click para sacarlo':'Marcar que va directo al Complejo'}">${f.directo?`<i class="ti ti-building-stadium"></i>Directo al Complejo${f.hora?` · ≈ ${_fnovComplejoHora(f.hora)}`:''}`:'<i class="ti ti-building-stadium"></i>Directo al Complejo'}</button></span>${tag}</div>`;
       }).join('')+`</div>`;
   }).join('');
   con.innerHTML=hero+`<div class="ni-sec"><div class="ll-bar"><span style="width:${todos?Math.round(llegaron/todos*100):0}%"></span></div>${body}</div>`;
@@ -38262,6 +38270,9 @@ window._aufGuardarVista=_aufGuardarVista;
 setTimeout(_checkForNewVersion, 15000);
 setInterval(_checkForNewVersion, 120000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden) _checkForNewVersion(); });
+window.addEventListener('focus', () => _checkForNewVersion());
+window.addEventListener('pageshow', () => _checkForNewVersion());
+window.addEventListener('online', () => _checkForNewVersion());
 
 async function _loadJuvPhotoCache(){
   const all = await getAllPhotosIDB();
