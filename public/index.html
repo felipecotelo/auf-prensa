@@ -1554,6 +1554,9 @@ table.fu-t tr.sud td:first-child{box-shadow:inset 3px 0 0 #FCD34D}
 .fu-leg{display:flex;gap:14px;flex-wrap:wrap;padding:10px 8px 0;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(239,243,248,.55)}
 .fu-leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 table.fu-t tr.risk td{background:rgba(248,113,113,.07)}
+.fu-desc,.fu-asc{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin-left:6px}
+.fu-desc{color:#F87171}
+.fu-asc{color:#4ADE80}
 table.fu-t tr.risk td:first-child{box-shadow:inset 3px 0 0 #F87171}
 .fu-src{font-size:10.5px;color:rgba(239,243,248,.4);padding:8px 8px 0;letter-spacing:.02em}
 .fu-dia{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 20px;background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.1);font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#F4F7FB}
@@ -8302,6 +8305,7 @@ window._futGoles = async function(id){
 // Tabla de descenso — se trae en vivo de auf.org.uy (server.js la scrapea y cachea
 // 1 hora), ya no es una foto fija cargada a mano.
 const _FUT_LIB=4,_FUT_SUD=4;
+const _FUT_ASCENDIDOS_UY=['Plaza Colonia']; // ascendidos a Primera para 2027 (confirmado 06/11/2026: Plaza Colonia, campeón de la Segunda)
 function _futAnual(tablas){
   const key=n=>_escudoLocal(n)||String(n).toLowerCase(), acc={};
   tablas.filter(t=>/apertura|intermedio|clausura/i.test(t.nombre)).forEach(t=>t.filas.forEach(r=>{
@@ -8316,21 +8320,35 @@ function _futEscT(nombre){
   const l=_escudoLocal(nombre);
   return l?`<img src="${l}" style="width:22px;height:22px;object-fit:contain;flex-shrink:0" onerror="this.style.visibility='hidden'">`:`<span style="width:22px;height:22px;flex-shrink:0;border-radius:50%;background:rgba(255,255,255,.08)"></span>`;
 }
-function _descensoTablaHTML(filas){
+// Descenso matemático: cada equipo juega 37 partidos por temporada (15 Apertura + 7 Intermedio + 15 Clausura) y descienden los últimos 3 del promedio.
+// Un equipo descendió si, ganando todo lo que le queda, igual tiene por encima a 13 que no pueden bajar de su promedio ni perdiendo todo.
+// Los partidos jugados en la temporada salen de la tabla Anual (suma de los tres torneos); si algún equipo no se puede cruzar, no se marca a nadie.
+const _DESC_PJ_TEMP=37, _DESC_N=3;
+function _descensoMate(filas,anual){
+  const key=n=>_escudoLocal(n)||String(n).toLowerCase(), jug={};
+  (anual||[]).forEach(r=>{ jug[key(r.name)]=+r.pj||0; });
+  const rem=filas.map(r=>{ const j=jug[key(r.name)]; return j==null?null:Math.max(0,_DESC_PJ_TEMP-j); });
+  const out=new Set(); if(rem.some(x=>x==null)) return out;
+  const mx=filas.map((r,i)=>(r.pts+3*rem[i])/(r.pj+rem[i])), mn=filas.map((r,i)=>r.pts/(r.pj+rem[i]));
+  filas.forEach((r,i)=>{ let arriba=0; filas.forEach((_,k)=>{ if(k!==i&&mn[k]>mx[i]) arriba++; }); if(arriba>=filas.length-_DESC_N) out.add(i); });
+  return out;
+}
+function _descensoTablaHTML(filas,anual){
   if(!filas||!filas.length) return `<div style="padding:16px;text-align:center;color:rgba(239,243,248,.5);font-size:.85em">No se pudo cargar la tabla de descenso ahora.</div>`;
-  const filasHTML=filas.map((r,i)=>`<tr class="${i>=filas.length-3?'risk':''}"><td class="pos">${r.pos}</td><td class="n"><span style="display:inline-flex;align-items:center;gap:9px">${_futEscT(r.name)}${r.name}</span></td><td class="p">${r.prom.toFixed(3)}</td><td>${r.pts}</td><td>${r.pj}</td><td>${r.dif>0?'+':''}${r.dif}</td></tr>`).join('');
+  const _desc=_descensoMate(filas,anual);
+  const filasHTML=filas.map((r,i)=>`<tr class="${i>=filas.length-3?'risk':''}"><td class="pos">${r.pos}</td><td class="n"><span style="display:inline-flex;align-items:center;gap:9px">${_futEscT(r.name)}${r.name}${_desc.has(i)?'<span class="fu-desc">Descendió</span>':''}</span></td><td class="p">${r.prom.toFixed(3)}</td><td>${r.pts}</td><td>${r.pj}</td><td>${r.dif>0?'+':''}${r.dif}</td></tr>`).join('');
   return `<table class="fu-t"><thead><tr><th>#</th><th class="l">Equipo</th><th>Prom</th><th>Pts</th><th>PJ</th><th>DIF</th></tr></thead><tbody>${filasHTML}</tbody></table>
-    <div class="fu-src">Fuente: auf.org.uy (tabla oficial) · se actualiza sola.</div>`;
+    <div class="fu-src">Fuente: auf.org.uy (tabla oficial) · se actualiza sola.${_desc.size?' «Descendió» se marca solo cuando ya no puede salvarse ni ganando todo lo que le queda.':''}</div>`;
 }
 function _futbolSubtablaHTML(filas,anual){
-  const filasHTML=filas.map((r,i)=>`<tr class="${anual?(i<_FUT_LIB?'lib':i<_FUT_LIB+_FUT_SUD?'sud':''):(i===0?'top':'')}"><td class="pos">${r.pos}</td><td class="n"><span style="display:inline-flex;align-items:center;gap:9px">${_futEscT(r.name)}${r.name}${r.campeon?' <span style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#FCD34D;margin-left:6px">Campeón</span>':''}</span></td><td>${r.pj}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf ?? '—'}</td><td>${r.gc ?? '—'}</td><td>${r.dif>0?'+':''}${r.dif ?? '—'}</td><td class="p">${r.pts}</td></tr>`).join('');
+  const filasHTML=filas.map((r,i)=>`<tr class="${anual?(i<_FUT_LIB?'lib':i<_FUT_LIB+_FUT_SUD?'sud':''):(i===0?'top':'')}"><td class="pos">${r.pos}</td><td class="n"><span style="display:inline-flex;align-items:center;gap:9px">${_futEscT(r.name)}${r.name}${r.campeon?' <span style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#FCD34D;margin-left:6px">Campeón</span>':''}${r.ascendio?'<span class="fu-asc">Ascendió</span>':''}</span></td><td>${r.pj}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf ?? '—'}</td><td>${r.gc ?? '—'}</td><td>${r.dif>0?'+':''}${r.dif ?? '—'}</td><td class="p">${r.pts}</td></tr>`).join('');
   return `<table class="fu-t"><thead><tr><th>#</th><th class="l">Equipo</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DIF</th><th>PTS</th></tr></thead><tbody>${filasHTML}</tbody></table>${anual?`<div class="fu-leg"><span><i style="background:#009DD8"></i>Copa Libertadores *</span><span><i style="background:#FCD34D"></i>Copa Sudamericana *</span></div><div class="fu-src">Suma de Apertura, Intermedio y Clausura.</div><div class="fu-src" style="color:#FCD34D">* A chequear sistema de clasificación a Copas Internacionales (cupos provisorios: 4 Libertadores + 4 Sudamericana).</div>`:''}`;
 }
 function _futbolTablaHTML(nombre,key,liga){
   const tablas=liga.tablas||[];
   if(!tablas.length) return '';
   const pills=tablas.map((t,i)=>`<button class="${i===0?'on':''}" onclick="_futFase('${key}',${i})" data-fut-fase="${key}:${i}">${t.nombre}</button>`).join('');
-  const panels=tablas.map((t,i)=>`<div data-fut-fase-panel="${key}:${i}" style="${i===0?'':'display:none'}">${t.esDescenso?_descensoTablaHTML(t.filas):_futbolSubtablaHTML(t.filas,t.esAnual)}</div>`).join('');
+  const panels=tablas.map((t,i)=>`<div data-fut-fase-panel="${key}:${i}" style="${i===0?'':'display:none'}">${t.esDescenso?_descensoTablaHTML(t.filas,(tablas.find(x=>x.esAnual)||{}).filas):_futbolSubtablaHTML(t.filas,t.esAnual)}</div>`).join('');
   return `<div class="fu-card">
     <div class="fu-card-h"><span class="lab">${nombre}</span></div>
     <div class="fu-pills">${pills}</div>
@@ -8418,6 +8436,8 @@ window._loadFutbolUY = async function(){
     // La tabla de descenso (promedios) no la da FotMob — se agrega como pestaña extra fija.
     if(d.primera?.tablas?.length){ const fa=_futAnual(d.primera.tablas); if(fa.length) d.primera.tablas.push({nombre:'Anual', esAnual:true, filas:fa}); }
     if(d.primera?.tablas?.length) d.primera.tablas.push({nombre:'Descenso', esDescenso:true, filas:descensoFilas});
+    // Ascensos confirmados de la Segunda (no salen de la API): se marcan en la tabla Acumulada.
+    try{ const ac=(d.segunda?.tablas||[]).find(t=>/acumulada/i.test(t.nombre)); if(ac) ac.filas.forEach(r=>{ if(_FUT_ASCENDIDOS_UY.some(n=>(_escudoLocal(n)||n)===(_escudoLocal(r.name)||r.name))){ r.ascendio=true; if(r.pos===1) r.campeon=true; } }); }catch(_){}
     const htmlTablas=_futbolTablaHTML('Liga AUF Uruguaya','primera',d.primera)+_futbolTablaHTML('Segunda Profesional AUF','segunda',d.segunda);
     document.querySelectorAll('.fut-tablas').forEach(e=>e.innerHTML=htmlTablas||'Sin datos disponibles.');
     try{ localStorage.setItem('inicio-fut-cache2',JSON.stringify({fecha:TODAY,html:window._futHtmlCache.html,tablas:htmlTablas||''})); }catch(_){}
