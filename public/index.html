@@ -1969,6 +1969,8 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ll-tg{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;border-radius:999px;border:1px solid}
 .ll-tg.ok{color:#4ADE80;border-color:rgba(74,222,128,.55);background:rgba(74,222,128,.1)}
 .ll-tg.warn{color:#FCD34D;border-color:rgba(252,211,77,.55);background:rgba(252,211,77,.08)}
+.ll-tg.red{color:#FCA5A5;border-color:rgba(239,68,68,.7);background:rgba(239,68,68,.14)}
+.ll-row.confirmar{border-color:rgba(239,68,68,.65);background:linear-gradient(180deg,rgba(127,29,29,.45),#0A1022)}
 @media(max-width:600px){
   .ll-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;grid-template-areas:"ck h tg" "ck n n";column-gap:12px;row-gap:2px;align-items:center}
   .ll-ck{grid-area:ck;align-self:start}
@@ -2191,6 +2193,10 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .trf-sec{border:none;background:none;cursor:pointer;font:inherit;font-size:12px;font-weight:600;padding:4px 6px;border-radius:8px;opacity:.65;color:inherit}
 .trf-sec:hover{opacity:1;background:rgba(127,127,127,.14)}
 .trf-sec.del{color:#F87171;opacity:.9}
+.cal-ev.ev-confirmar{background:linear-gradient(90deg,rgba(239,68,68,.16),rgba(239,68,68,.04))!important;box-shadow:inset 3px 0 0 #EF4444;border-radius:10px}
+.cal-ev.ev-confirmar .cal-event-h{color:#FCA5A5!important}
+.cal-ev.ev-confirmar .ev-editable-txt{color:#FECACA}
+.cv-tg.tg-confirmar{background:rgba(239,68,68,.18)!important;color:#FCA5A5!important;border-color:rgba(239,68,68,.7)!important}
 .cal-event-h{font-size:10.5px;font-weight:700;color:var(--cel-dk);min-width:55px;flex-shrink:0;padding-top:1px}
 .cal-event-dot{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0}
 .ce-oblig{background:var(--cel)}.ce-info{background:var(--hint)}.ce-viaje{background:var(--gold)}.ce-dt{background:#475569}.ce-team{background:var(--team)}.ce-partido{background:var(--red)}.ce-sched{background:#94A3B8}.ce-partido-fifa{background:#00A651}.ce-crono{background:#F59E0B}
@@ -18156,7 +18162,7 @@ function _fnovFlights(){
     const stDone=st[evKey(date,idx)]==='done';
     noms.forEach(n=>seen.add(n));
     const players=noms.map(nom=>({nom,done:!!llegado[nom]||stDone,...(info[nom]||{})}));
-    out.push({key:date+'|'+idx,date,idx,hora,players,done:players.every(x=>x.done),directo:!!directo[date+'|'+noms[0]]});
+    out.push({key:date+'|'+idx,date,idx,hora,players,done:players.every(x=>x.done),directo:!!directo[date+'|'+noms[0]],confirmar:!!a.confirmar});
   }); });
   Object.keys(fechas).forEach(nom=>{ if(seen.has(nom)||!/^\d{4}-\d{2}-\d{2}$/.test(fechas[nom])) return;
     const d=!!llegado[nom]; out.push({key:fechas[nom]+'|n:'+nom,date:fechas[nom],idx:null,hora:'',players:[{nom,done:d,...(info[nom]||{})}],done:d,directo:!!directo[fechas[nom]+'|'+nom]}); });
@@ -18236,11 +18242,11 @@ function renderFifaNovLlegadas(){
     return `<div class="ll-day"><div class="ll-dh"><b>${DOW[dt.getDay()]} ${dt.getDate()} de ${MES[dt.getMonth()]}</b><em>${ok}/${tot}</em></div>`
       +rows.map(f=>{
         const faltan=f.players.filter(p=>!p.done).length, venc=!f.done&&f.hora&&new Date(f.date+'T'+f.hora+':00')<now;
-        const tag=f.done?'<span class="ll-tg ok">En Uruguay</span>':(faltan<f.players.length?`<span class="ll-tg warn">Faltan ${faltan}</span>`:(venc?'<span class="ll-tg warn">Sin confirmar</span>':''));
+        const tag=f.confirmar&&!f.done?'<span class="ll-tg red">Vuelo atrasado · chequear nuevo itinerario</span>':f.done?'<span class="ll-tg ok">En Uruguay</span>':(faltan<f.players.length?`<span class="ll-tg warn">Faltan ${faltan}</span>`:(venc?'<span class="ll-tg warn">Sin confirmar</span>':''));
         const unico=f.players.length===1;
         const lineas=f.players.map(p=>{ const sub=[p.pos||'',p.club?_clubCorto(p.club):''].filter(Boolean).join(' · ');
           return `<div class="ll-pl">${unico?'':`<button class="ll-mk${p.done?' on':''}" onclick="_fnovPlayerToggle('${enc(f.key)}','${enc(p.nom)}')" title="${p.done?'Ya llegó — click para desmarcar':'Marcar que ya llegó'}"><i class="ti ti-check"></i></button>`}<b>${esc(p.nom)}</b>${sub?`<i>${esc(sub)}</i>`:''}</div>`; }).join('');
-        return `<div class="ll-row${f.done?' done':''}"><button class="ll-ck${f.done?' on':''}" onclick="_fnovFlightToggle('${enc(f.key)}')" title="${f.done?'Ya llegaron — click para desmarcar':(unico?'Marcar que ya llegó':'Marcar que llegaron todos')}"><i class="ti ti-check"></i></button>
+        return `<div class="ll-row${f.done?' done':''}${f.confirmar&&!f.done?' confirmar':''}"><button class="ll-ck${f.done?' on':''}" onclick="_fnovFlightToggle('${enc(f.key)}')" title="${f.done?'Ya llegaron — click para desmarcar':(unico?'Marcar que ya llegó':'Marcar que llegaron todos')}"><i class="ti ti-check"></i></button>
           <span class="ll-h">${f.hora||'—'}</span><span class="ll-n">${lineas}<button class="ll-dir${f.directo?' on':''}" onclick="_fnovDirectoToggle('${enc(f.key)}')" title="${f.directo?(f.hora?`Va directo al Complejo — llega hacia las ${_fnovComplejoHora(f.hora)} (aterriza ${f.hora}, unos 35 min de viaje). Click para sacarlo`:'Va directo al Complejo. Click para sacarlo'):'Marcar que va directo al Complejo'}"><span class="ll-sw"></span>Directo al Complejo${f.directo&&f.hora?`<span class="ll-ti"><i class="ti ti-clock"></i>${_fnovComplejoHora(f.hora)}</span>`:''}</button></span>${tag}</div>`;
       }).join('')+`</div>`;
   }).join('');
@@ -18390,7 +18396,7 @@ function _fifaNovEvRowHtml(date,e,idx,total){
   const tag=FIFANOV_TAG_HTML[evType];
   const rowBg=FIFANOV_ROW_BG[evType]||'';
   return `
-    <div class="cal-ev ev-${evType}${/^Aterrizan? en Uruguay\b/i.test(String(txt||''))?' ev-llegada':''}" id="cev-${date}-${idx}">
+    <div class="cal-ev ev-${evType}${e.confirmar?' ev-confirmar':(/^Aterrizan? en Uruguay\b/i.test(String(txt||''))?' ev-llegada':'')}" id="cev-${date}-${idx}">
       <div class="cal-ev-row">
         <div class="ev-sts">
           <button class="ev-st st-done${s==='done'?' act':''}" onclick="_fnovSetEvSt('${date}',${idx},'done')" title="Hecho"><i class="ti ti-check"></i></button>
@@ -18403,6 +18409,7 @@ function _fifaNovEvRowHtml(date,e,idx,total){
           <div class="ev-main-txt${statusClass?' '+statusClass:''}">
             <span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${date}',${idx},this)">${txt}</span>
             <span onclick="event.stopPropagation();_fifaNovCycleEvType('${date}',${idx})" style="cursor:pointer" title="Click para cambiar el tipo">${tag}</span>
+            ${e.confirmar?`<span class="cv-tg tg-confirmar" title="Chequear con gerencia deportiva">Vuelo atrasado · chequear nuevo itinerario</span>`:''}
             ${e.oblig?`<span class="cv-tg tg-oblig" title="Compromiso contractual/obligatorio">Obligatoria</span>`:''}
             ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" class="ev-lk"><i class="ti ti-link"></i>${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
           </div>
