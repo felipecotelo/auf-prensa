@@ -27402,6 +27402,20 @@ function _revisarResolucionesModal(){
       stor.set(_statsMigV,'v7');
     }
   })();
+  // Limpieza única (07/11/2026): el lunes 9/11 se borraron actividades y el servidor ya no tiene los títulos/estados/notas/links guardados por
+  // posición de esa fecha; pero la protección de cloudPull (_safeLocalOverwrite) no deja que el servidor borre claves del navegador, así que
+  // quedaban títulos viejos («Entrenamiento matutino», «Nivelación») puestos sobre las llegadas. Se sacan UNA vez de este navegador, antes de bajar.
+  try{
+    if(!localStorage.getItem('auf4_fix_lun9_posiciones_v1')){
+      [KEvTxt,KEvS,KEvN,KEvLink].forEach(sk=>{
+        const o=JSON.parse(localStorage.getItem(sk)||'null');
+        if(!o||typeof o!=='object'||Array.isArray(o)) return;
+        let ch=false; Object.keys(o).forEach(k=>{ if(k.startsWith('2026-11-09_')){ delete o[k]; ch=true; } });
+        if(ch) localStorage.setItem(sk,JSON.stringify(o));
+      });
+      localStorage.setItem('auf4_fix_lun9_posiciones_v1','1');
+    }
+  }catch(_){}
   // Orden: GitHub base → Supabase overlay (per-key más reciente gana sobre bulk de GitHub)
   await tryAutoLoad();
   await cloudPull();
