@@ -9747,7 +9747,22 @@ function _recSecuenciales(arr){
   arr.forEach(r=>{ if(r&&r.secuencial&&r.grupo&&!r.hecho){ const o=+r.orden||0; if(!(r.grupo in sig)||o<sig[r.grupo]) sig[r.grupo]=o; } });
   return arr.filter(r=>!(r&&r.secuencial&&r.grupo&&!r.hecho&&(+r.orden||0)>sig[r.grupo]));
 }
-function _recTodos(){ return _recSecuenciales([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados()]); }
+// «Armarle / Mandarle link de fotos a X» (ids linkfoto-<jugador o club>-1/2): X puede ser un jugador o su club, se conecta con el convocado de la lista final (por nombre o por club)
+// y el recordatorio sale el día en que ese jugador «Se presenta a entrenar» (el que Felipe carga en el cronograma). Mientras no esté cargado, no aparece. Si el club tiene más de un convocado, rige el primero en sumarse.
+function _recLinkFotoSuma(arr){
+  try{
+    const fin=(typeof FIFANOV26!=='undefined'?(FIFANOV26.finales||[]):[]).filter(Boolean); if(!fin.length) return arr;
+    const club={}; ['POR','DEF','MED','DEL'].forEach(k=>((FIFANOV26.reservados||{})[k]||[]).forEach(p=>{ club[p.nom]=p.club||''; }));
+    const out=[];
+    arr.forEach(r=>{ const m=r&&!r.hecho&&String(r.id).match(/^linkfoto-([a-z0-9]+)-\d$/); if(!m){ out.push(r); return; }
+      const sl=m[1], js=fin.filter(n=>_nomKey(n).includes(sl)||_nomKey(club[n]||'').includes(sl));
+      const fechas=js.map(n=>_fnovPresentacion(n)).filter(Boolean).sort((a,b)=>(a.date+(a.hora||'')).localeCompare(b.date+(b.hora||'')));
+      if(!fechas.length) return; // todavía no se sabe cuándo se suma
+      const f=fechas[0], c={...r,vence:f.date,hora:f.hora?f.hora.padStart(5,'0'):'09:00'}; if(f.hora) delete c.sinHora; else c.sinHora=true; out.push(c); });
+    return out;
+  }catch(e){ console.warn('links de foto por jugador:',e); return arr; }
+}
+function _recTodos(){ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados()])); }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
