@@ -9591,24 +9591,20 @@ function _recLlegadasDerivados(){
   }catch(e){ console.warn('recordatorios de llegadas:',e); }
   return out;
 }
-// Llegada al Complejo (Felipe, 07/11/2026): «Cubrir llegada de X» sale el día de la llegada, a la hora en que llega al Complejo (vuelos «Directo al Complejo»: aterrizaje +35 min;
-// Jaume: su «Se presenta a entrenar»). Felipe lo tilda cuando se cubrió; recién ahí aparecen «Publicar fotos…» y «Publicar reel…». Si no se cubrió, «no se cubrió» lo da por resuelto sin publicar nada.
+// Llegada al Complejo (Felipe, 07/11/2026): «Cubrir llegada de X» sale cuando Felipe carga en el cronograma «Se presenta a entrenar X» (el mismo texto para todos, con el día y la hora que le avisan):
+// aparece el día de la llegada, a esa hora. Felipe lo tilda cuando se cubrió; recién ahí aparecen «Publicar fotos…» y «Publicar reel…». Si no se cubrió, «no se cubrió» lo da por resuelto sin publicar nada.
 function _recCoberturaLlegadaDerivados(){
   const out=[];
   try{
     if(typeof FIFANOV26==='undefined'||!(FIFANOV26.finales||[]).length) return out;
     const fin=new Set(FIFANOV26.finales.filter(Boolean)), manual=stor.get('auf4_rec_manual',{}), eventos=[];
-    const DOW=['dom','lun','mar','mié','jue','vie','sáb'], pad=n=>String(n).padStart(2,'0');
-    _fnovFlights().forEach(f=>{ if(!f.hora||!f.directo) return;
-      const t=new Date(f.date+'T'+f.hora+':00'); if(isNaN(t)) return; t.setMinutes(t.getMinutes()+35);
-      const date=t.toLocaleDateString('en-CA'), hora=pad(t.getHours())+':'+pad(t.getMinutes());
-      f.players.forEach(p=>{ if(fin.has(p.nom)) eventos.push({nom:p.nom,date,hora,que:'Llega al Complejo'}); }); });
-    fin.forEach(nom=>{ if(eventos.some(e=>e.nom===nom)) return; const pr=_fnovPresentacion(nom); if(pr&&pr.hora) eventos.push({nom,date:pr.date,hora:pr.hora.padStart(5,'0'),que:'Se presenta a entrenar'}); });
+    const DOW=['dom','lun','mar','mié','jue','vie','sáb'];
+    fin.forEach(nom=>{ const pr=_fnovPresentacion(nom); if(pr) eventos.push({nom,date:pr.date,hora:pr.hora?pr.hora.padStart(5,'0'):'',que:'Se presenta a entrenar'}); });
     eventos.forEach(e=>{
       if(e.date<TODAY) return;
       const id='cubl|'+e.nom+'|'+e.date, mn=manual[id]||{}, dd=new Date(e.date+'T12:00:00');
-      const grupo='cubl|'+e.nom+'|'+e.date, det=e.que+' el '+DOW[dd.getDay()]+' '+dd.getDate()+'/'+(dd.getMonth()+1)+' a las '+e.hora+'h';
-      out.push({id,titulo:'Cubrir llegada de '+e.nom+(mn.no?' · no se cubrió':''),detalle:det,vence:e.date,hora:e.hora,etiqueta:'Mayor',secuencial:true,grupo,orden:1,
+      const grupo='cubl|'+e.nom+'|'+e.date, det=e.que+' el '+DOW[dd.getDay()]+' '+dd.getDate()+'/'+(dd.getMonth()+1)+(e.hora?' a las '+e.hora+'h':'');
+      out.push({id,titulo:'Cubrir llegada de '+e.nom+(mn.no?' · no se cubrió':''),detalle:det,vence:e.date,hora:e.hora,sinHora:!e.hora,etiqueta:'Mayor',secuencial:true,grupo,orden:1,
         hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
       if(mn.hecho&&!mn.no){
         const vence=mn.hechoEn?new Date(mn.hechoEn).toLocaleDateString('en-CA'):e.date;
