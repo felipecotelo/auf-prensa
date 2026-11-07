@@ -18193,6 +18193,11 @@ function _fnovArrivalFromCal(date,idx,val){
   const a=(getDayActs()[date]||[])[idx]; if(!a) return;
   let noms=Array.isArray(a.llegadas)?a.llegadas.filter(Boolean):null;
   if(!noms){ const m=String(a.txt||'').match(_FNOV_ARR_RE); if(m) noms=[m[1].trim()]; }
+  // «Se presenta a entrenar X» (quien juega en Uruguay): el ✓ del cronograma y el chip de la ficha (`auf4_fifanov_presentado`) van juntos.
+  const mp=String(a.txt||'').match(/^Se presenta a entrenar (.+)$/);
+  if(mp){ const pr=stor.get('auf4_fifanov_presentado',{}); pr[mp[1].trim()]=(val==='done'); stor.set('auf4_fifanov_presentado',pr);
+    try{ if(document.getElementById('fifanov26-plantel-container')?.children.length) window.renderFifaNov26Plantel?.(); }catch(_){}
+    return; }
   if(!noms||!noms.length) return;
   const ll=stor.get('auf4_fifanov_llegado',{}); noms.forEach(n=>{ ll[n]=(val==='done'); }); stor.set('auf4_fifanov_llegado',ll);
   try{ renderFifaNovLlegadas(); }catch(_){}
@@ -19752,6 +19757,13 @@ window._toggleFifaNovPresentado=function(nomEnc){
   const s=stor.get('auf4_fifanov_presentado',{});
   s[nom]=!s[nom];
   stor.set('auf4_fifanov_presentado',s);
+  // Va junto con el ✓ de «Se presenta a entrenar X» del cronograma.
+  try{ const acts=getDayActs(); let hecho=false;
+    (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ if(hecho) return; (acts[day.date]||[]).forEach((a,i)=>{ if(hecho||!a) return;
+      const m=String(a.txt||'').match(/^Se presenta a entrenar (.+)$/); if(!m||m[1].trim()!==nom) return;
+      const ev=getEvStatus(), k=evKey(day.date,i); ev[k]=s[nom]?'done':(ev[k]==='done'?'':ev[k]); setEvStatus_store(ev); hecho=true; }); });
+    if(hecho) renderFifaNovCal();
+  }catch(_){}
   window.renderFifaNov26Plantel?.();
 };
 window._toggleFifaNovShooting=function(nomEnc){
