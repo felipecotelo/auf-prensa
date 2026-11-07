@@ -9316,6 +9316,8 @@ function _recNivelBtns(r){
   const cur=_recNivel(r), id=String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
   return `<span style="display:inline-flex;gap:3px;align-items:center;flex-shrink:0">${Object.entries(_REC_NIVELES).map(([k,v])=>`<button data-id="${id}" onclick="event.stopPropagation();_recNivelSet(this.dataset.id,'${k}')" title="Importancia: ${k}${cur===k?' (tocá para quitar)':''}" style="width:10px;height:10px;padding:0;border-radius:50%;cursor:pointer;border:1.5px solid ${v.c};background:${cur===k?v.c:'transparent'};opacity:${cur===k?1:.55}"></button>`).join('')}</span>`;
 }
+// Fondo propio para lo que no es del trabajo diario (hoy: la limpieza del código): gris azulado, para que no se mezcle con el resto.
+function _recFondo(r){ return (/^rec-limpieza/.test(String(r&&r.id||''))||(r&&r.fondo==='gris'))?{bg:'#E9EEF4',c:'#94A3B8'}:null; }
 function _recCmp(a,b){ return ((_REC_NIVELES[_recNivel(b)]?.rank||0)-(_REC_NIVELES[_recNivel(a)]?.rank||0)) || (_recDue(a)-_recDue(b)) || ((a.orden||0)-(b.orden||0)); }
 // Cumpleaños como recordatorios: "Mandar a hacer diseño por cumpleaños de X" (el día antes, 10:00; si cae sábado/domingo, 2 días antes)
 // y "Publicar saludo de cumpleaños de X" (el día del cumpleaños, 09:00; sigue hasta el día siguiente si quedó pendiente).
@@ -9821,8 +9823,8 @@ function renderInicioRecordatorios(){
   if(!pend.length && !hechos.length) return '';
   const isMob=_inicioDark();
   const rows=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
-    const e=_recEtiqueta(r);
-    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px 0;${hecho?'opacity:.55':''}">
+    const e=_recEtiqueta(r), FX=hecho?null:_recFondo(r);
+    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px ${FX?'6px':'0'};${FX?`background:${isMob?'rgba(148,163,184,.16)':FX.bg};border-left:3px solid ${FX.c};border-radius:6px;margin:2px 0;`:''}${hecho?'opacity:.55':''}">
       ${_recTick(r,hecho,isMob)}
       <div style="flex:1;min-width:0">
         <div style="font-size:12.5px;font-weight:${_recNivel(r)&&!hecho?800:600};color:${_recNivel(r)&&!hecho?_REC_NIVELES[_recNivel(r)].c:(isMob?'#EFF3F8':'var(--text)')};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
@@ -9862,8 +9864,8 @@ function _recDockRender(){
     d.title=''; d.onclick=null;
     const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
       const e=_recEtiqueta(r);
-      const nv=hecho?'':_recNivel(r), NV=_REC_NIVELES[nv], rojo=!!NV;
-      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px ${rojo?'6px':'0'};border-top:1px solid var(--border);${rojo?`background:${NV.bg};border-left:3px solid ${NV.c};border-radius:6px;margin:2px 0;`:''}${hecho?'opacity:.55':''}">
+      const nv=hecho?'':_recNivel(r), NV=_REC_NIVELES[nv], rojo=!!NV, FX=(!rojo&&!hecho)?_recFondo(r):null;
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px ${rojo||FX?'6px':'0'};border-top:1px solid var(--border);${rojo?`background:${NV.bg};border-left:3px solid ${NV.c};border-radius:6px;margin:2px 0;`:''}${FX?`background:${FX.bg};border-left:3px solid ${FX.c};border-radius:6px;margin:2px 0;`:''}${hecho?'opacity:.55':''}">
         ${_recTick(r,hecho,false)}
         <div style="flex:1;min-width:0">
           <div style="font-size:11.5px;font-weight:${rojo?800:700};color:${rojo?NV.tx:'var(--text)'};line-height:1.3;${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}</div>
