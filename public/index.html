@@ -2197,6 +2197,7 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .cal-ev.ev-confirmar{background:linear-gradient(90deg,rgba(239,68,68,.16),rgba(239,68,68,.04))!important;box-shadow:inset 3px 0 0 #EF4444;border-radius:10px}
 .cal-ev.ev-confirmar .cal-event-h{color:#FCA5A5!important}
 .cal-ev.ev-confirmar .ev-editable-txt{color:#FECACA}
+.cv-tg.tg-estim{background:rgba(34,211,238,.12)!important;color:#67E8F9!important;border-color:rgba(34,211,238,.5)!important}
 .cv-tg.tg-confirmar{background:rgba(239,68,68,.18)!important;color:#FCA5A5!important;border-color:rgba(239,68,68,.7)!important}
 .cal-event-h{font-size:10.5px;font-weight:700;color:var(--cel-dk);min-width:55px;flex-shrink:0;padding-top:1px}
 .cal-event-dot{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0}
@@ -9624,11 +9625,11 @@ function _recCoberturaLlegadaDerivados(){
     if(typeof FIFANOV26==='undefined'||!(FIFANOV26.finales||[]).length) return out;
     const fin=new Set(FIFANOV26.finales.filter(Boolean)), manual=stor.get('auf4_rec_manual',{}), eventos=[];
     const DOW=['dom','lun','mar','mié','jue','vie','sáb'];
-    fin.forEach(nom=>{ const pr=_fnovPresentacion(nom); if(pr) eventos.push({nom,date:pr.date,hora:pr.hora?pr.hora.padStart(5,'0'):'',que:'Se presenta a entrenar'}); });
+    fin.forEach(nom=>{ const pr=_fnovPresentacion(nom); if(pr) eventos.push({nom,date:pr.date,hora:pr.hora?pr.hora.padStart(5,'0'):'',que:'Se presenta a entrenar',estimada:!!pr.estimada}); });
     eventos.forEach(e=>{
       if(e.date<TODAY) return;
       const id='cubl|'+e.nom+'|'+e.date, mn=manual[id]||{}, dd=new Date(e.date+'T12:00:00');
-      const grupo='cubl|'+e.nom+'|'+e.date, det=e.que+' el '+DOW[dd.getDay()]+' '+dd.getDate()+'/'+(dd.getMonth()+1)+(e.hora?' a las '+e.hora+'h':'');
+      const grupo='cubl|'+e.nom+'|'+e.date, det=e.que+' el '+DOW[dd.getDay()]+' '+dd.getDate()+'/'+(dd.getMonth()+1)+(e.hora?' a las '+e.hora+'h':'')+(e.estimada?' (hora estimada)':'');
       out.push({id,titulo:'Cubrir llegada de '+e.nom+(mn.no?' · no se cubrió':''),detalle:det,vence:e.date,hora:e.hora,sinHora:!e.hora,etiqueta:'Mayor',secuencial:true,grupo,orden:1,
         hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
       if(mn.hecho&&!mn.no){
@@ -14820,7 +14821,7 @@ function _gcalNovSpec(date,idx,a){
   if(/^\d{1,2}$/.test(h)) time=h.padStart(2,'0')+':00';
   else if(/^\d{1,2}:\d{2}$/.test(h)) time=h.padStart(5,'0');
   if(a.tipo==='partido'&&!time) return null;
-  return {summary:a.txt, date, time, colorId:a.tipo==='partido'?'10':'7', durMin:a.tipo==='partido'?120:(a.tipo==='entreno'?90:60)};
+  return {summary:a.txt+(_fnovHoraEstimada(date,idx,a)?' (hora estimada)':''), date, time, colorId:a.tipo==='partido'?'10':'7', durMin:a.tipo==='partido'?120:(a.tipo==='entreno'?90:60)};
 }
 let _gcalNovBusy=false, _gcalNovT=0;
 function _gcalNovSoon(){ clearTimeout(_gcalNovT); _gcalNovT=setTimeout(_gcalNovSyncAll,4000); }
@@ -18193,7 +18194,7 @@ function _fnovPresentacion(nom){
     let out=null;
     (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ (getDayActs()[day.date]||[]).forEach((a,i)=>{
       if(out||!a) return; const m=String(a.txt||'').match(/^Se presenta a entrenar (.+)$/); if(!m||m[1].trim()!==nom) return;
-      const hm=String(getCalTime(day.date,i,a.h||'')||'').trim().match(/^(\d{1,2})(?::(\d{2}))?/); out={date:day.date,hora:hm?(+hm[1])+':'+(hm[2]||'00'):''}; }); });
+      const hm=String(getCalTime(day.date,i,a.h||'')||'').trim().match(/^(\d{1,2})(?::(\d{2}))?/); out={date:day.date,hora:hm?(+hm[1])+':'+(hm[2]||'00'):'',estimada:_fnovHoraEstimada(day.date,i,a)}; }); });
     if(!out) return null;
     const d=new Date(out.date+'T12:00:00'), dif=Math.round((d-new Date(TODAY+'T12:00:00'))/86400000);
     out.corto=d.getDate()+'/'+(d.getMonth()+1);
@@ -18250,12 +18251,54 @@ window._fnovFlightToggle=function(keyEnc){
   stor.set('auf4_fifanov_llegado',ll); _fnovSyncFlightSt(f,ll); _fnovRefreshArrivals();
 };
 // «Va directo al Complejo»: solo informativo. Con eso la lista muestra la hora aproximada de llegada al Complejo (aterrizaje + ~35 min; Felipe: pasan 30-40 minutos).
+// Además (Felipe, 08/11/2026): al activarlo se carga en el cronograma «Se presenta a entrenar X» (uno por jugador, con la hora estimada y marcada «Hora estimada»; sale al Calendar y dispara «Cubrir llegada»).
+// Si Felipe cambia la hora a mano, deja de ser estimada. Al desactivarlo se quitan solo las que siguen estimadas. Quien ya tiene su «Se presenta(n) a entrenar» cargado no se duplica.
 window._fnovDirectoToggle=function(keyEnc){
   const f=_fnovFlights().find(x=>x.key===decodeURIComponent(keyEnc)); if(!f) return;
   const k=f.date+'|'+f.players[0].nom, d=stor.get('auf4_fifanov_directo',{});
-  if(d[k]) delete d[k]; else d[k]=true;
-  stor.set('auf4_fifanov_directo',d,{allowShrink:true}); _fnovRefreshArrivals();
+  const on=!d[k];
+  if(on) d[k]=true; else delete d[k];
+  stor.set('auf4_fifanov_directo',d,{allowShrink:true});
+  try{ _fnovPresentacionesDirecto(f,on); }catch(e){ console.warn('presentaciones directo:',e); }
+  _fnovRefreshArrivals();
 };
+function _fnovNormH(h){ const m=String(h||'').trim().match(/^(\d{1,2})(?::(\d{2}))?$/); return m?String(+m[1]).padStart(2,'0')+':'+(m[2]||'00'):''; }
+function _fnovHoraEstimada(date,idx,a){ return !!(a&&a.estimada&&a.hEst&&_fnovNormH(getCalTime(date,idx,a.h||''))===a.hEst); }
+// Día y hora (aterrizaje + ~35 min); si pasa de medianoche, el día siguiente.
+function _fnovComplejoCuando(f){
+  const est=_fnovComplejoHora(f.hora), m=String(f.hora||'').match(/^(\d{2}):(\d{2})$/); if(!est||!m) return null;
+  let date=f.date; if(+m[1]*60+ +m[2]+35>=1440){ const d=new Date(f.date+'T12:00:00'); d.setDate(d.getDate()+1); date=d.toLocaleDateString('en-CA'); }
+  return {date,hora:est};
+}
+// «Se presenta(n) a entrenar …» ya cargado que nombre a ese jugador (por apellido).
+function _fnovPresentaActDe(nom){
+  const ap=_nomKey(String(nom||'').trim().split(' ').pop()); if(!ap) return null;
+  const acts=getDayActs(); let out=null;
+  (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ (acts[day.date]||[]).forEach((a,i)=>{
+    if(out||!a||!/^Se presentan? a entrenar /.test(String(a.txt||''))) return;
+    if(!new RegExp('\\b'+ap+'\\b').test(_nomKey(a.txt))) return;
+    out={date:day.date,idx:i,hora:_fnovNormH(getCalTime(day.date,i,a.h||'')),estimada:_fnovHoraEstimada(day.date,i,a)};
+  }); });
+  return out;
+}
+function _fnovPresentacionesDirecto(f,on){
+  const cu=_fnovComplejoCuando(f); if(!cu) return;
+  if(on){
+    if(!(typeof FIFANOV26_CAL_DAYS!=='undefined'&&FIFANOV26_CAL_DAYS.some(x=>x.date===cu.date))) return;
+    const acts=getDayActs(), list=acts[cu.date]||[]; let n=0;
+    f.players.forEach(p=>{ if(_fnovPresentaActDe(p.nom)) return; list.push({txt:'Se presenta a entrenar '+p.nom,h:cu.hora,estimada:true,hEst:cu.hora}); n++; });
+    if(n){ acts[cu.date]=list; stor.set(KDayActs,acts); try{ toast('Llegada al Complejo cargada ('+cu.hora+'h, estimada)'); }catch(_){} }
+  } else {
+    const noms=new Set(f.players.map(p=>p.nom)), acts=getDayActs(), idxs=[];
+    (acts[cu.date]||[]).forEach((a,i)=>{ const m=a&&String(a.txt||'').match(/^Se presenta a entrenar (.+)$/); if(m&&noms.has(m[1].trim())&&_fnovHoraEstimada(cu.date,i,a)) idxs.push(i); });
+    idxs.sort((x,y)=>y-x).forEach(i=>{ try{ deleteFifaNovAct(cu.date,i); }catch(e){ console.warn(e); } });
+  }
+}
+// Hora que muestra el interruptor: la real si ya está cargada (no estimada); si no, la estimada.
+function _fnovChipHora(f){
+  for(const p of f.players){ const r=_fnovPresentaActDe(p.nom); if(r&&r.hora&&!r.estimada) return r.hora; }
+  return _fnovComplejoHora(f.hora);
+}
 function _fnovComplejoHora(hora){ const m=String(hora||'').match(/^(\d{2}):(\d{2})$/); if(!m) return ''; const t=(+m[1]*60+ +m[2]+35)%1440; return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); }
 window._fnovPlayerToggle=function(keyEnc,nomEnc){
   const f=_fnovFlights().find(x=>x.key===decodeURIComponent(keyEnc)); if(!f) return;
@@ -18300,7 +18343,7 @@ function renderFifaNovLlegadas(){
         const lineas=f.players.map(p=>{ const sub=[p.pos||'',p.club?_clubCorto(p.club):''].filter(Boolean).join(' · ');
           return `<div class="ll-pl">${unico?'':`<button class="ll-mk${p.done?' on':''}" onclick="_fnovPlayerToggle('${enc(f.key)}','${enc(p.nom)}')" title="${p.done?'Ya llegó — click para desmarcar':'Marcar que ya llegó'}"><i class="ti ti-check"></i></button>`}<b>${esc(p.nom)}</b>${sub?`<i>${esc(sub)}</i>`:''}</div>`; }).join('');
         return `<div class="ll-row${f.done?' done':''}${f.directo?' directo':''}${f.confirmar&&!f.done?' confirmar':''}"><button class="ll-ck${f.done?' on':''}" onclick="_fnovFlightToggle('${enc(f.key)}')" title="${f.done?'Ya llegaron — click para desmarcar':(unico?'Marcar que ya llegó':'Marcar que llegaron todos')}"><i class="ti ti-check"></i></button>
-          <span class="ll-h">${f.hora||'—'}</span><span class="ll-n">${lineas}<button class="ll-dir${f.directo?' on':''}" onclick="_fnovDirectoToggle('${enc(f.key)}')" title="${f.directo?(f.hora?`Va directo al Complejo — llega hacia las ${_fnovComplejoHora(f.hora)} (aterriza ${f.hora}, unos 35 min de viaje). Click para sacarlo`:'Va directo al Complejo. Click para sacarlo'):'Marcar que va directo al Complejo'}"><span class="ll-sw"></span>Directo al Complejo${f.directo&&f.hora?`<span class="ll-ti"><i class="ti ti-clock"></i>${_fnovComplejoHora(f.hora)}</span>`:''}</button></span>${tag}</div>`;
+          <span class="ll-h">${f.hora||'—'}</span><span class="ll-n">${lineas}<button class="ll-dir${f.directo?' on':''}" onclick="_fnovDirectoToggle('${enc(f.key)}')" title="${f.directo?(f.hora?`Va directo al Complejo — llega hacia las ${_fnovComplejoHora(f.hora)} (aterriza ${f.hora}, unos 35 min de viaje). Click para sacarlo`:'Va directo al Complejo. Click para sacarlo'):'Marcar que va directo al Complejo'}"><span class="ll-sw"></span>Directo al Complejo${f.directo&&f.hora?`<span class="ll-ti"><i class="ti ti-clock"></i>${_fnovChipHora(f)}</span>`:''}</button></span>${tag}</div>`;
       }).join('')+`</div>`;
   }).join('');
   con.innerHTML=hero+`<div class="ni-sec"><div class="ll-bar"><span style="width:${todos?Math.round(llegaron/todos*100):0}%"></span></div>${body}</div>`;
@@ -18463,6 +18506,7 @@ function _fifaNovEvRowHtml(date,e,idx,total){
             <span class="ev-editable-txt" title="Click para editar título" onclick="editEvTxt('${date}',${idx},this)">${txt}</span>
             <span onclick="event.stopPropagation();_fifaNovCycleEvType('${date}',${idx})" style="cursor:pointer" title="Click para cambiar el tipo">${tag}</span>
             ${e.confirmar?`<span class="cv-tg tg-confirmar" title="Chequear con gerencia deportiva">Vuelo atrasado · chequear nuevo itinerario</span>`:''}
+            ${_fnovHoraEstimada(date,idx,e)?`<span class="cv-tg tg-estim" title="Aterrizaje + ~35 min. Cambiá la hora cuando el jugador la confirme">Hora estimada</span>`:''}
             ${e.oblig?`<span class="cv-tg tg-oblig" title="Compromiso contractual/obligatorio">Obligatoria</span>`:''}
             ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" class="ev-lk"><i class="ti ti-link"></i>${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
           </div>
