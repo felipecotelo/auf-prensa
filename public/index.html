@@ -9643,6 +9643,28 @@ function _recCoberturaLlegadaDerivados(){
   }catch(e){ console.warn('recordatorios de cobertura de llegadas:',e); }
   return out;
 }
+// Fotos individuales (Felipe, 08/11/2026): el día en que arranca el microciclo de una categoría juvenil, recordar sacar las fotos individuales de los convocados que todavía no tienen.
+// Sale solo desde la última convocatoria cargada; se resuelve solo cuando la foto está en la ficha. La hora es la de la convocatoria (si la tiene).
+function _recFotosJuvDerivados(){
+  const out=[];
+  try{
+    if(typeof window.JUVENILES==='undefined'||typeof window._juvGetPhoto!=='function') return out;
+    const manual=stor.get('auf4_rec_manual',{}), DOW=['dom','lun','mar','mié','jue','vie','sáb'];
+    Object.entries(window.JUVENILES).forEach(([cat,data])=>{
+      const yr=Object.keys(data.anos||{}).sort((x,y)=>parseInt(y)-parseInt(x))[0]; if(!yr) return;
+      const c=((data.anos[yr]||{}).convocatorias||[])[0]; if(!c||!c.fecha||!/microciclo|entren/i.test(c.fecha)) return;
+      const fechas=_gjFechas(c.fecha).filter(d=>d>=TODAY); if(!fechas.length) return;
+      const date=fechas[0]; if(date>_recSumarDias(TODAY,14)) return;
+      const sin=(c.jugadores||[]).map(j=>j.nom).filter(n=>n&&!window._juvGetPhoto(n)); if(!sin.length) return;
+      const label=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]&&JUV_CAT_META[cat].label)||cat;
+      const hm=String(c.fecha).match(/(\d{1,2}):(\d{2})\s*h/i), hora=hm?hm[1].padStart(2,'0')+':'+hm[2]:'';
+      const lista=sin.length>4?sin.slice(0,4).concat(['otros '+(sin.length-4)]):sin, nom=lista.length>1?lista.slice(0,-1).join(', ')+' y '+lista[lista.length-1]:lista[0];
+      const id='fjuv|'+cat+'|'+date, mn=manual[id]||{}, dd=new Date(date+'T12:00:00');
+      out.push({id,titulo:label+': sacar fotos individuales a '+nom,detalle:'Arranca el '+DOW[dd.getDay()]+' '+dd.getDate()+'/'+(dd.getMonth()+1)+(hora?' a las '+hora+'h':'')+' · faltan '+sin.length,vence:date,hora,sinHora:!hora,etiqueta:label,hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
+    });
+  }catch(e){ console.warn('recordatorios de fotos juveniles:',e); }
+  return out;
+}
 function _recConvJuevesDerivados(){
   const out=[];
   try{
@@ -9786,7 +9808,7 @@ function _recLinkFotoSuma(arr){
     return out;
   }catch(e){ console.warn('links de foto por jugador:',e); return arr; }
 }
-function _recTodos(){ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados()])); }
+function _recTodos(){ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados()])); }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -14821,7 +14843,7 @@ function _gcalNovSpec(date,idx,a){
   if(/^\d{1,2}$/.test(h)) time=h.padStart(2,'0')+':00';
   else if(/^\d{1,2}:\d{2}$/.test(h)) time=h.padStart(5,'0');
   if(a.tipo==='partido'&&!time) return null;
-  return {summary:a.txt+(_fnovHoraEstimada(date,idx,a)?' (hora estimada)':''), date, time, colorId:a.tipo==='partido'?'10':'7', durMin:a.tipo==='partido'?120:(a.tipo==='entreno'?90:60)};
+  return {summary:getEvTxt(date,idx,a.txt)+(_fnovHoraEstimada(date,idx,a)?' (hora estimada)':''), date, time, colorId:a.tipo==='partido'?'10':'7', durMin:a.tipo==='partido'?120:(a.tipo==='entreno'?90:60)};
 }
 let _gcalNovBusy=false, _gcalNovT=0;
 function _gcalNovSoon(){ clearTimeout(_gcalNovT); _gcalNovT=setTimeout(_gcalNovSyncAll,4000); }
