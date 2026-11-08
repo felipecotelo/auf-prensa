@@ -14847,6 +14847,58 @@ async function _gcalNovSyncAll(){
   }catch(err){ console.warn('[gcal] actividades de la Fecha FIFA nov:',err); }
   finally{ _gcalNovBusy=false; }
 }
+// ── Convocatorias juveniles → Google Calendar «Selección | Planificación» (automático) ───────────────────────
+// La última convocatoria de cada categoría (JUVENILES.<cat>.anos[<ciclo>].convocatorias[0]) cuya «fecha» diga días y hora
+// («Microciclo 08 · lunes a miércoles · 9-11 nov 2026 · 15:30h») genera un evento «Sub-16 | Entrenamiento» por día (hoy en adelante),
+// 1,5 h, sin invitados ni avisos. El id del evento sale de la categoría y el día, así que no se duplica aunque lo corran dos pestañas
+// a la vez: si ya existe, se actualiza en el lugar. El lugar solo se escribe si la convocatoria trae `lugar`. Sin hora no se crea nada.
+const _GJ_COLOR={sub20:'6',sub17:'5',sub16:'3',sub15:'9'};
+const _GJ_DOW=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const _GJ_MES={ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,set:8,oct:9,nov:10,dic:11};
+function _gjFechas(fecha){
+  const f=String(fecha||'').toLowerCase().normalize('NFC');
+  const iso=(y,m,d)=>y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  let a=null,b=null,m;
+  if((m=f.match(/(\d{1,2})\s*-\s*(\d{1,2})\s+([a-z]{3})[a-z]*\.?\s+(\d{4})/))&&_GJ_MES[m[3]]!=null){ a=iso(+m[4],_GJ_MES[m[3]],+m[1]); b=iso(+m[4],_GJ_MES[m[3]],+m[2]); }
+  else if((m=f.match(/(\d{1,2})\s+([a-z]{3})[a-z]*\.?\s*-\s*(\d{1,2})\s+([a-z]{3})[a-z]*\.?\s+(\d{4})/))&&_GJ_MES[m[2]]!=null&&_GJ_MES[m[4]]!=null){ a=iso(+m[5],_GJ_MES[m[2]],+m[1]); b=iso(+m[5],_GJ_MES[m[4]],+m[3]); }
+  else if((m=f.match(/(\d{1,2})\s+([a-z]{3})[a-z]*\.?\s+(\d{4})/))&&_GJ_MES[m[2]]!=null){ a=b=iso(+m[3],_GJ_MES[m[2]],+m[1]); }
+  if(!a) return [];
+  let d1=_GJ_DOW.indexOf((f.match(/(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+a\s+(lunes|martes|miércoles|jueves|viernes|sábado|domingo)/)||[])[1]);
+  let d2=_GJ_DOW.indexOf((f.match(/(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+a\s+(lunes|martes|miércoles|jueves|viernes|sábado|domingo)/)||[])[2]);
+  const out=[]; for(let d=new Date(a+'T12:00:00'); d<=new Date(b+'T12:00:00')&&out.length<31; d.setDate(d.getDate()+1)){
+    const dw=d.getDay();
+    if(d1>=0&&d2>=0){ const ok=d1<=d2?(dw>=d1&&dw<=d2):(dw>=d1||dw<=d2); if(!ok) continue; }
+    out.push(d.toISOString().slice(0,10));
+  }
+  return out;
+}
+let _gjBusy=false;
+async function _gcalJuvSyncAll(){
+  if(_gjBusy||IS_RESTRICTED||typeof window.JUVENILES==='undefined') return;
+  _gjBusy=true;
+  try{
+    const done=JSON.parse(localStorage.getItem('auf4_gcal_juv_sig')||'{}');
+    for(const [cat,data] of Object.entries(window.JUVENILES)){
+      const yr=Object.keys(data.anos||{}).sort((x,y)=>parseInt(y)-parseInt(x))[0]; if(!yr) continue;
+      const c=((data.anos[yr]||{}).convocatorias||[])[0]; if(!c||!c.fecha) continue;
+      if(!/microciclo|entren/i.test(c.fecha)) continue;
+      const hm=String(c.fecha).match(/(\d{1,2}):(\d{2})\s*h/i); if(!hm) continue;
+      const time=hm[1].padStart(2,'0')+':'+hm[2];
+      const label=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]&&JUV_CAT_META[cat].label)||cat;
+      for(const date of _gjFechas(c.fecha)){
+        if(date<TODAY) continue;
+        const customId=('aufjuv'+cat+date.replace(/-/g,'')).toLowerCase().replace(/[^a-v0-9]/g,'');
+        const spec={summary:label+' | Entrenamiento',date,time,colorId:_GJ_COLOR[cat]||'',durMin:90,plain:true,location:c.lugar||'',customId};
+        const sig=JSON.stringify(spec); if(done[customId]===sig) continue;
+        const r=await fetch('/api/gcal/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(spec)});
+        const j=await r.json();
+        if(j&&j.ok&&j.customId===customId){ done[customId]=sig; localStorage.setItem('auf4_gcal_juv_sig',JSON.stringify(done)); }
+        else { console.warn('[gcal] convocatoria juvenil:',j); return; }
+      }
+    }
+  }catch(err){ console.warn('[gcal] convocatorias juveniles:',err); }
+  finally{ _gjBusy=false; }
+}
 // Calendario → Atención: horario (llamado desde _fsapEditTime al confirmar).
 function _fsapSyncAtencionTime(date,idx){
   const acts=getDayActs();
@@ -27442,6 +27494,7 @@ function _revisarResolucionesModal(){
   // Orden: GitHub base → Supabase overlay (per-key más reciente gana sobre bulk de GitHub)
   await tryAutoLoad();
   await cloudPull();
+  setTimeout(()=>{ try{ _gcalJuvSyncAll(); }catch(_){} },10000); // convocatorias juveniles con días y hora → Calendar
   // Limpieza: borra KEvP de 2026-06-18_13 (slot viejo de s4, ahora es DT — Olivera no debe aparecer ahí)
   (()=>{
     const p=stor.get(KEvP,{});
@@ -30881,7 +30934,7 @@ const JUVENILES = {
         // microciclo nuevo hay que cargarlo en los DOS lugares (acá arriba de
         // todo, y en SUD17_2027_VIS.convocados + convocadosFecha).
         convocatorias: [
-          {fecha:'Microciclo 08 · lunes a miércoles · 9-11 nov 2026 · 15:30h', jugadores:[
+          {fecha:'Microciclo 08 · lunes a miércoles · 9-11 nov 2026 · 15:30h', lugar:'Complejo Celeste', jugadores:[
             {nom:'Benjamín Berrospe', club:'Montevideo City Torque', fechaNac:'2010-05-04'},
             {nom:'Guillermo Spinelli', club:'Defensor Sporting'},
             {nom:'Tomás Brolio', club:'Albion'},

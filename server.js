@@ -1513,13 +1513,14 @@ function gcalRequest(method, path, body) {
 // evento de todo el día.
 // Opcionales (actividades de la Fecha FIFA): colorId, durMin (duración en minutos, por defecto 30), plain:true (no envía descripción,
 // así un PATCH conserva la que ya tenga el evento) y, en eventos de todo el día, queda como «libre» (no ocupa el calendario).
-function buildGcalEventBody({ summary, personas, date, time, colorId, durMin, plain }) {
+function buildGcalEventBody({ summary, personas, date, time, colorId, durMin, plain, location }) {
   const description = (personas && personas.length)
     ? 'Convocados: ' + personas.join(', ') + '\n\nSincronizado automáticamente desde AUF Prensa.'
     : 'Sincronizado automáticamente desde AUF Prensa.';
   const ev = { summary: summary || '(sin título)' };
   if (!plain) ev.description = description;
   if (colorId) ev.colorId = String(colorId);
+  if (location) ev.location = String(location);
   const m = /^(\d{1,2}):(\d{2})$/.exec(time || '');
   if (m) {
     const h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
@@ -1553,11 +1554,23 @@ function buildGcalEventBody({ summary, personas, date, time, colorId, durMin, pl
 app.post('/api/gcal/event', async (req, res) => {
   try {
     if (!GCAL_CALENDAR_ID) { res.status(501).json({ error: 'GOOGLE_CALENDAR_ID no configurado' }); return; }
-    const { gcalEventId, summary, personas, date, time, colorId, durMin, plain } = req.body || {};
+    const { gcalEventId, summary, personas, date, time, colorId, durMin, plain, location, customId } = req.body || {};
     if (!date) { res.status(400).json({ error: 'falta date' }); return; }
-    const body = buildGcalEventBody({ summary, personas, date, time, colorId, durMin, plain });
+    const body = buildGcalEventBody({ summary, personas, date, time, colorId, durMin, plain, location });
     const calPath = `/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events`;
     let result;
+    if (customId) {
+      // Id determinista (a-v y 0-9, 5+ caracteres): crear o actualizar el MISMO evento sin duplicar, aunque dos pestañas lo pidan a la vez.
+      // Si ya existe (409) o quedó cancelado, se actualiza en el lugar y se vuelve a confirmar.
+      if (!/^[a-v0-9]{5,200}$/.test(customId)) { res.status(400).json({ error: 'customId inválido' }); return; }
+      try {
+        result = await gcalRequest('POST', `${calPath}?sendUpdates=none`, { ...body, id: customId });
+      } catch (e) {
+        result = await gcalRequest('PATCH', `${calPath}/${encodeURIComponent(customId)}?sendUpdates=none`, { ...body, status: 'confirmed' });
+      }
+      res.json({ ok: true, id: result.id, customId });
+      return;
+    }
     if (gcalEventId) {
       try {
         result = await gcalRequest('PATCH', `${calPath}/${encodeURIComponent(gcalEventId)}?sendUpdates=none`, body);
