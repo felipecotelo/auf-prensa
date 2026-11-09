@@ -9704,9 +9704,10 @@ function _recCoberturaLlegadaDerivados(){
     const fin=new Set(FIFANOV26.finales.filter(Boolean)), manual=stor.get('auf4_rec_manual',{}), eventos=[];
     const DOW=['dom','lun','mar','mié','jue','vie','sáb'];
     fin.forEach(nom=>{ const pr=_fnovPresentacion(nom); if(pr){ const g=_fnovPresentaActDe(nom); eventos.push({nom,date:pr.date,hora:pr.hora?pr.hora.padStart(5,'0'):'',que:'Se presenta a entrenar',estimada:!!pr.estimada,acto:g&&g.date===pr.date?g.date+'#'+g.idx:''}); } });
-    // Felipe (09/11/2026): los que se presentan en la misma fila del cronograma («Se presentan a entrenar Giménez, J. Rodríguez y Torreira») van en UN solo reel; las fotos, por separado.
-    const porActo={}; eventos.forEach(e=>{ if(e.acto) (porActo[e.acto]=porActo[e.acto]||[]).push(e); });
-    const reelGrupo=new Set(); Object.values(porActo).forEach(g=>{ if(g.length>1) g.forEach(e=>reelGrupo.add(e.nom+'|'+e.date)); });
+    // Felipe (09/11/2026): a mano, él decide qué llegadas van en UN solo reel (las fotos siguen por separado). Se guardan en 'auf4_rec_reel_juntos' como listas de nombres,
+    // ej. [["Lucas Torreira","José María Giménez","Juan Martín Rodríguez"]]. No es una regla automática: dos que se presentan juntos pueden llevar reel cada uno.
+    const porActo={}; (stor.get('auf4_rec_reel_juntos',[])||[]).forEach(lista=>{ const g=eventos.filter(e=>(lista||[]).includes(e.nom)); if(g.length>1) porActo['juntos|'+g.map(e=>e.nom).sort().join('+')]=g; });
+    const reelGrupo=new Set(); Object.values(porActo).forEach(g=>g.forEach(e=>reelGrupo.add(e.nom+'|'+e.date)));
     eventos.forEach(e=>{
       if(e.date<TODAY) return;
       const id='cubl|'+e.nom+'|'+e.date, mn=manual[id]||{}, dd=new Date(e.date+'T12:00:00');
@@ -9722,7 +9723,7 @@ function _recCoberturaLlegadaDerivados(){
         });
       }
     });
-    // Un reel por fila de grupo: sale cuando todos los de la fila ya tienen resuelto el «Cubrir llegada» (cubierto o «no se cubrió») y al menos uno se cubrió.
+    // Un reel para el grupo elegido a mano: sale cuando todos ya tienen resuelto el «Cubrir llegada» (cubierto o «no se cubrió») y al menos uno se cubrió.
     Object.entries(porActo).forEach(([acto,g])=>{
       if(g.length<2||g[0].date<TODAY) return;
       const est=g.map(e=>manual['cubl|'+e.nom+'|'+e.date]||{});
