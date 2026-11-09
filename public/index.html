@@ -1238,6 +1238,10 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .at-ct{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:999px;border:1px solid rgba(138,216,255,.35);background:rgba(0,157,216,.1);color:#8AD8FF;font-size:12px;font-weight:700}
 .at-ct i{font-size:13px}
 .at-none{font-size:11.5px;color:rgba(239,243,248,.35)}
+.at-aero{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:transparent;color:rgba(239,243,248,.38);cursor:pointer;flex-shrink:0}
+.at-aero i{font-size:13px;color:inherit}
+.at-aero:hover{border-color:rgba(74,222,128,.6);color:#4ADE80}
+.at-aero.on{background:#4ADE80;border-color:#4ADE80;color:#052E16}
 .at-prow2{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 20px;border-top:1px solid rgba(255,255,255,.07)}
 .at-prow2.none{opacity:.55}.at-prow2.baja .at-pn2{color:#FB923C}
 .at-pn2{font-size:13.5px;font-weight:600;color:#F4F7FB}.at-pn2 span{font-size:11.5px;font-weight:400;color:rgba(239,243,248,.5);margin-left:8px}
@@ -15565,7 +15569,7 @@ function renderFifaSepDisponibilidad(){
 
   const playersSection=!pool.length ? '' : `
     <div class="at-card">
-      <div class="at-eye">${finales?'Convocados':'Reservados'} — ${activos.length} jugadores${finales?'':' (lista larga — se ordena esta sección cuando estén los 26 finales)'}</div>
+      <div class="at-eye">${finales?'Convocados':'Reservados'} — ${activos.length} jugadores${finales?'':' (lista larga — se ordena esta sección cuando estén los 26 finales)'} · <span style="color:#4ADE80"><i class="ti ti-microphone-2"></i> ${activos.filter(p=>aeroMap[p.nom]).length} hablaron en el aeropuerto</span></div>
       ${playerRows}
     </div>`;
 
@@ -17778,15 +17782,19 @@ function renderFifaNovDisponibilidad(){
     </div>`;
 
   // ── Conteo por persona — abajo, derivado de la lista de arriba ──
+  // «Habló en el aeropuerto» (marca manual de la pestaña Llegadas, 'auf4_fifanov_aero'): cuenta como una atención más de la persona.
+  const aeroMap=stor.get('auf4_fifanov_aero',{});
   const countsFor=nom=>{ const c={}; atList.forEach(a=>{ if(a.quien===nom) c[a.tipo]=(c[a.tipo]||0)+1; }); return c; };
+  const aeroBtn=nom=>`<button type="button" class="at-aero${aeroMap[nom]?' on':''}" onclick="_fnovAeroToggle('${encodeURIComponent(nom).replace(/'/g,'%27')}')" title="${aeroMap[nom]?'Habló en el aeropuerto — click para sacar':'Marcar que habló en el aeropuerto'}"><i class="ti ti-microphone-2"></i></button>`;
   const counterRow=(nom,compact)=>{
     const c=countsFor(nom);
     const conDatos=FIFANOV_DISP_TIPOS.filter(t=>c[t.id]);
-    if(!conDatos.length) return `<span class="at-none">Sin atenciones</span>`;
-    return conDatos.map(t=>`<span class="at-ct" title="${t.label}"><i class="ti ${_AT_IC[t.id]||'ti-list'}"></i>${c[t.id]}</span>`).join('');
+    const chips=conDatos.map(t=>`<span class="at-ct" title="${t.label}"><i class="ti ${_AT_IC[t.id]||'ti-list'}"></i>${c[t.id]}</span>`).join('');
+    if(compact) return conDatos.length?chips:`<span class="at-none">Sin atenciones</span>`;
+    return (conDatos.length||aeroMap[nom]?chips:`<span class="at-none">Sin atenciones</span>`)+aeroBtn(nom);
   };
 
-  const totalOf=nom=>Object.values(countsFor(nom)).reduce((a,b)=>a+b,0);
+  const totalOf=nom=>Object.values(countsFor(nom)).reduce((a,b)=>a+b,0)+(aeroMap[nom]?1:0);
 
   const dtTotal=totalOf(dtNom);
   const dtSection=`
@@ -18462,6 +18470,7 @@ window._fnovAeroToggle=function(nomEnc){
   const nom=decodeURIComponent(nomEnc), d=stor.get('auf4_fifanov_aero',{});
   if(d[nom]) delete d[nom]; else d[nom]=true;
   stor.set('auf4_fifanov_aero',d,{allowShrink:true}); _fnovRefreshArrivals();
+  try{ if(document.querySelector('.at-aero')) renderFifaNovDisponibilidad(); }catch(_){}
 };
 function renderFifaNovLlegadas(){
   const con=document.getElementById('fifanov26-llegadas-container'); if(!con) return;
