@@ -9703,7 +9703,10 @@ function _recCoberturaLlegadaDerivados(){
     if(typeof FIFANOV26==='undefined'||!(FIFANOV26.finales||[]).length) return out;
     const fin=new Set(FIFANOV26.finales.filter(Boolean)), manual=stor.get('auf4_rec_manual',{}), eventos=[];
     const DOW=['dom','lun','mar','mié','jue','vie','sáb'];
-    fin.forEach(nom=>{ const pr=_fnovPresentacion(nom); if(pr) eventos.push({nom,date:pr.date,hora:pr.hora?pr.hora.padStart(5,'0'):'',que:'Se presenta a entrenar',estimada:!!pr.estimada}); });
+    fin.forEach(nom=>{ const pr=_fnovPresentacion(nom); if(pr){ const g=_fnovPresentaActDe(nom); eventos.push({nom,date:pr.date,hora:pr.hora?pr.hora.padStart(5,'0'):'',que:'Se presenta a entrenar',estimada:!!pr.estimada,acto:g&&g.date===pr.date?g.date+'#'+g.idx:''}); } });
+    // Felipe (09/11/2026): los que se presentan en la misma fila del cronograma («Se presentan a entrenar Giménez, J. Rodríguez y Torreira») van en UN solo reel; las fotos, por separado.
+    const porActo={}; eventos.forEach(e=>{ if(e.acto) (porActo[e.acto]=porActo[e.acto]||[]).push(e); });
+    const reelGrupo=new Set(); Object.values(porActo).forEach(g=>{ if(g.length>1) g.forEach(e=>reelGrupo.add(e.nom+'|'+e.date)); });
     eventos.forEach(e=>{
       if(e.date<TODAY) return;
       const id='cubl|'+e.nom+'|'+e.date, mn=manual[id]||{}, dd=new Date(e.date+'T12:00:00');
@@ -9712,11 +9715,24 @@ function _recCoberturaLlegadaDerivados(){
         hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
       if(mn.hecho&&!mn.no){
         const vence=mn.hechoEn?new Date(mn.hechoEn).toLocaleDateString('en-CA'):e.date;
-        [['fotl','Publicar fotos de la llegada de '],['reell','Publicar reel de la llegada de ']].forEach(([k,t])=>{
+        const tipos=[['fotl','Publicar fotos de la llegada de ']]; if(!reelGrupo.has(e.nom+'|'+e.date)) tipos.push(['reell','Publicar reel de la llegada de ']);
+        tipos.forEach(([k,t])=>{
           const i2=k+'|'+e.nom+'|'+e.date, m2=manual[i2]||{};
           out.push({id:i2,titulo:t+e.nom,detalle:'Llegada del '+dd.getDate()+'/'+(dd.getMonth()+1),vence,hora:'',sinHora:true,etiqueta:'Mayor',secuencial:true,grupo,orden:2,hecho:!!m2.hecho,hechoEn:m2.hecho?m2.hechoEn:null});
         });
       }
+    });
+    // Un reel por fila de grupo: sale cuando todos los de la fila ya tienen resuelto el «Cubrir llegada» (cubierto o «no se cubrió») y al menos uno se cubrió.
+    Object.entries(porActo).forEach(([acto,g])=>{
+      if(g.length<2||g[0].date<TODAY) return;
+      const est=g.map(e=>manual['cubl|'+e.nom+'|'+e.date]||{});
+      if(!est.every(m=>m.hecho||m.no)) return;
+      const cub=g.filter((e,i)=>est[i].hecho&&!est[i].no); if(!cub.length) return;
+      const ap=e=>{ const w=String(e.nom).trim().split(' '); return w[w.length-1]; };
+      const lista=cub.map(ap), nom=lista.length>1?lista.slice(0,-1).join(', ')+' y '+lista[lista.length-1]:lista[0];
+      const e0=g[0], dd=new Date(e0.date+'T12:00:00'), id='reelg|'+acto, m2=manual[id]||{};
+      const ult=cub.map(e=>(manual['cubl|'+e.nom+'|'+e.date]||{}).hechoEn).filter(Boolean).sort().pop();
+      out.push({id,titulo:'Publicar reel de la llegada de '+nom,detalle:'Llegada del '+dd.getDate()+'/'+(dd.getMonth()+1)+' · un solo reel',vence:ult?new Date(ult).toLocaleDateString('en-CA'):e0.date,hora:'',sinHora:true,etiqueta:'Mayor',hecho:!!m2.hecho,hechoEn:m2.hecho?m2.hechoEn:null});
     });
   }catch(e){ console.warn('recordatorios de cobertura de llegadas:',e); }
   return out;
