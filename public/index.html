@@ -18402,12 +18402,16 @@ function _fnovComplejoCuando(f){
 function _fnovPresentaActDe(nom){
   const ap=_nomKey(String(nom||'').trim().split(' ').pop()); if(!ap) return null;
   const homonimos=(typeof FIFANOV26!=='undefined'?(FIFANOV26.finales||[]):[]).filter(n=>n&&_nomKey(String(n).trim().split(' ').pop())===ap).length>1;
+  // Felipe también los nombra por el nombre de pila («Se presenta a entrenar Ronald»): vale solo si ese nombre no lo comparte otro de la lista final (Juan, Rodrigo, Federico…).
+  const _fin=(typeof FIFANOV26!=='undefined'?(FIFANOV26.finales||[]):[]).filter(Boolean), pn1=_nomKey(String(nom||'').trim().split(' ')[0]);
+  const pila=pn1.length>=4&&_fin.filter(n=>_nomKey(String(n).trim().split(' ')[0])===pn1).length<=1?pn1:'';
   const acts=getDayActs(); let out=null;
   (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ (acts[day.date]||[]).forEach((a,i)=>{
     if(out||!a||!/^Se presentan? a entrenar /.test(String(a.txt||''))) return;
     const tx=_nomKey(a.txt)+' '+_nomKey(getEvTxt(day.date,i,a.txt)); // el título que Felipe editó en el cronograma también cuenta
-    if(!new RegExp('\\b'+ap+'\\b').test(tx)) return;
-    if(homonimos){ const pn=_nomKey(nom).split(' ')[0]; if(!new RegExp('\\b'+pn+'\\b|\\b'+pn[0]+'\\.?\\s*'+ap+'\\b').test(tx)) return; } // dos con el mismo apellido (Araujo/Araújo): pide el nombre o la inicial
+    const porPila=!!pila&&new RegExp('\\b'+pila+'\\b').test(tx);
+    if(!porPila&&!new RegExp('\\b'+ap+'\\b').test(tx)) return;
+    if(homonimos&&!porPila){ const pn=_nomKey(nom).split(' ')[0]; if(!new RegExp('\\b'+pn+'\\b|\\b'+pn[0]+'\\.?\\s*'+ap+'\\b').test(tx)) return; } // dos con el mismo apellido (Araujo/Araújo): pide el nombre o la inicial
     out={date:day.date,idx:i,hora:_fnovNormH(getCalTime(day.date,i,a.h||'')),estimada:_fnovHoraEstimada(day.date,i,a)};
   }); });
   return out;
