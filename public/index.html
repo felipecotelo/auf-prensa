@@ -7081,6 +7081,9 @@ function _safeLocalOverwrite(key,newValueStr){
     // (descarta los días pasados): el guard de «no pisar lo que achica» lo dejaba clavado en cada
     // dispositivo y Inicio no mostraba entrenamientos ni partidos nuevos. Manda siempre el servidor.
     if(key==='auf4_calendario_hoy'){ localStorage.setItem(key,newValueStr); return true; }
+    // Títulos, estados, notas, links y horas del cronograma se guardan por posición: al borrar una actividad se reacomodan y el objeto «achica» a propósito.
+    // El guard los dejaba clavados en cada pestaña con las posiciones viejas (títulos corridos de fila: «De Arruabarrena y Canobbio» en la fila de Sanabria). Manda el servidor.
+    if(key==='auf4_evtxt'||key==='auf4_evstatus'||key==='auf4_evnotes'||key==='auf4_evlink'||key==='auf4_caltimes'){ localStorage.setItem(key,newValueStr); return true; }
     const oldRaw=localStorage.getItem(key);
     if(oldRaw==null){ localStorage.setItem(key,newValueStr); return true; }
     const newVal=JSON.parse(newValueStr);
@@ -9715,13 +9718,13 @@ function _recLlegadasDerivados(){
       const T=new Date(e.date+'T'+e.hora+':00'); if(isNaN(T)) return;
       // si aterriza de noche (desde las 20h) se presenta recién al día siguiente
       const dp=new Date(e.date+'T12:00:00'); if(parseInt(e.hora,10)>=20) dp.setDate(dp.getDate()+1);
-      if(dp.toLocaleDateString('en-CA')<TODAY) return; // el día en que se presentaba ya pasó
+      if(dp.toLocaleDateString('en-CA')<_recSumarDias(TODAY,-1)) return; // se presentaba antes de ayer: ya está en el Complejo desde hace días (Varela, De La Cruz…); si llegó ayer y no tiene presentación cargada (Bentancur), sigue avisando
       vistos.add(e.nom);
       let d=new Date(T.getTime()-24*3600*1000), h=d.getHours()+d.getMinutes()/60, vence=d.toLocaleDateString('en-CA'), hora=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
       if(h<9){ hora='09:00'; } else if(h>19){ const dn=new Date(d.getTime()); dn.setDate(dn.getDate()+1); vence=dn.toLocaleDateString('en-CA'); hora='09:00'; }
       if(vence<TODAY){ vence=TODAY; hora='09:00'; } // ya aterrizó (o falta menos de 24h): se pide hoy, sin marcarlo «vencido ayer»
       const id='chkc|'+e.nom+'|'+e.date, mn=manual[id]||{}, dl=new Date(e.date+'T12:00:00');
-      out.push({id,titulo:'Chequear con '+e.nom+' a qué hora se presenta el '+DOW[dp.getDay()]+' '+dp.getDate()+'/'+(dp.getMonth()+1)+' en el Complejo'+(mn.no?' · cancelado':''),detalle:(T<ahora?'Aterrizó':'Aterriza')+' en Uruguay el '+DOW[dl.getDay()]+' '+dl.getDate()+'/'+(dl.getMonth()+1)+' a las '+e.hora+'h · todavía sin presentación cargada',vence,hora,etiqueta:'Mayor',secuencial:true,grupo:'esc|'+e.nom+'|'+e.date,orden:2,hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
+      out.push({id,titulo:'Chequear con '+e.nom+(dp.toLocaleDateString('en-CA')<TODAY?' a qué hora se presentó el ':' a qué hora se presenta el ')+DOW[dp.getDay()]+' '+dp.getDate()+'/'+(dp.getMonth()+1)+' en el Complejo'+(mn.no?' · cancelado':''),detalle:(T<ahora?'Aterrizó':'Aterriza')+' en Uruguay el '+DOW[dl.getDay()]+' '+dl.getDate()+'/'+(dl.getMonth()+1)+' a las '+e.hora+'h · todavía sin presentación cargada',vence,hora,etiqueta:'Mayor',secuencial:true,grupo:'esc|'+e.nom+'|'+e.date,orden:2,hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
     });
   }catch(e){ console.warn('recordatorios de llegadas:',e); }
   return out;
@@ -9737,7 +9740,8 @@ function _recCoberturaLlegadaDerivados(){
     fin.forEach(nom=>{ const pr=_fnovPresentacion(nom); if(pr){ const g=_fnovPresentaActDe(nom); eventos.push({nom,date:pr.date,hora:pr.hora?pr.hora.padStart(5,'0'):'',que:'Se presenta a entrenar',estimada:!!pr.estimada,acto:g&&g.date===pr.date?g.date+'#'+g.idx:''}); } });
     // Felipe (09/11/2026): a mano, él decide qué llegadas van en UN solo reel (las fotos siguen por separado). Se guardan en 'auf4_rec_reel_juntos' como listas de nombres,
     // ej. [["Lucas Torreira","José María Giménez","Juan Martín Rodríguez"]]. No es una regla automática: dos que se presentan juntos pueden llevar reel cada uno.
-    const porActo={}; (stor.get('auf4_rec_reel_juntos',[])||[]).forEach(lista=>{ const g=eventos.filter(e=>(lista||[]).includes(e.nom)); if(g.length>1) porActo['juntos|'+g.map(e=>e.nom).sort().join('+')]=g; });
+    // Cada grupo puede ser una lista de nombres o {titulo,nombres}: con «titulo» el reel sale con ese texto, sin nombrar a nadie (ej. «Publicar reel de las llegadas de la mañana»).
+    const porActo={}, tituloDe={}; (stor.get('auf4_rec_reel_juntos',[])||[]).forEach(lista=>{ const noms=Array.isArray(lista)?lista:((lista&&lista.nombres)||[]); const g=eventos.filter(e=>noms.includes(e.nom)); if(g.length>1){ const k='juntos|'+g.map(e=>e.nom).sort().join('+'); porActo[k]=g; if(lista&&lista.titulo) tituloDe[k]=lista.titulo; } });
     const reelGrupo=new Set(); Object.values(porActo).forEach(g=>g.forEach(e=>reelGrupo.add(e.nom+'|'+e.date)));
     eventos.forEach(e=>{
       if(e.date<TODAY) return;
@@ -9764,7 +9768,7 @@ function _recCoberturaLlegadaDerivados(){
       const lista=cub.map(ap), nom=lista.length>1?lista.slice(0,-1).join(', ')+' y '+lista[lista.length-1]:lista[0];
       const e0=g[0], dd=new Date(e0.date+'T12:00:00'), id='reelg|'+acto, m2=manual[id]||{};
       const ult=cub.map(e=>(manual['cubl|'+e.nom+'|'+e.date]||{}).hechoEn).filter(Boolean).sort().pop();
-      out.push({id,titulo:'Publicar reel de la llegada de '+nom,detalle:'Llegada del '+dd.getDate()+'/'+(dd.getMonth()+1)+' · un solo reel',vence:ult?new Date(ult).toLocaleDateString('en-CA'):e0.date,hora:'',sinHora:true,etiqueta:'Mayor',hecho:!!m2.hecho,hechoEn:m2.hecho?m2.hechoEn:null});
+      out.push({id,titulo:tituloDe[acto]||('Publicar reel de la llegada de '+nom),detalle:'Llegada del '+dd.getDate()+'/'+(dd.getMonth()+1)+' · un solo reel',vence:ult?new Date(ult).toLocaleDateString('en-CA'):e0.date,hora:'',sinHora:true,etiqueta:'Mayor',hecho:!!m2.hecho,hechoEn:m2.hecho?m2.hechoEn:null});
     });
   }catch(e){ console.warn('recordatorios de cobertura de llegadas:',e); }
   return out;
