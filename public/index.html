@@ -17722,11 +17722,13 @@ window._fnovUpdateQuienLabel=function(){
 };
 // Colores por tipo de actividad en «Atenciones cargadas» (Felipe, 09/11/2026): se elige a mano y queda guardado; sin violeta.
 const _FNOV_AT_PALETA=['#38BDF8','#22C55E','#86EFAC','#2DD4BF','#FACC15','#FB923C','#F87171','#FFA8A0','#F472B6','#94A3B8'];
-const _FNOV_AT_COLOR_DEF={md1:'#38BDF8',md:'#38BDF8','coach-arrival':'#22C55E','player-arrival':'#22C55E','flash-interview':'#22C55E',zm:'#22C55E','shoot-of':'#FB923C','shoot-esp':'#FB923C',apertura:'#2DD4BF',auftv:'#FFA8A0',hotel:'#FACC15',zoom:'#60A5FA','prensa-local':'#86EFAC',rodaje:'#F472B6',marketing:'#F87171',otro:'#94A3B8'};
-function _fnovAtColor(tipo){ const m=stor.get('auf4_at_colores',{}); return m[tipo]||_FNOV_AT_COLOR_DEF[tipo]||'#94A3B8'; }
+const _FNOV_AT_COLOR_DEF={conf:'#38BDF8',md1:'#38BDF8',md:'#38BDF8','coach-arrival':'#22C55E','player-arrival':'#22C55E','flash-interview':'#22C55E',zm:'#22C55E','shoot-of':'#FB923C','shoot-esp':'#FB923C',apertura:'#2DD4BF',auftv:'#FFA8A0',hotel:'#FACC15',zoom:'#60A5FA','prensa-local':'#86EFAC',rodaje:'#F472B6',marketing:'#F87171',otro:'#94A3B8'};
+function _fnovAtKey(a){ return (a.tipo==='md1'||a.tipo==='md'||/conferencia/i.test(String(a.titulo||a.txt||'')))?'conf':a.tipo; }
+function _fnovAtColor(key){ const m=stor.get('auf4_at_colores',{}); return m[key]||_FNOV_AT_COLOR_DEF[key]||'#94A3B8'; }
 window._fnovAtColoresOpen=false;
 function _fnovAtColoresHtml(atList){
-  const tipos=FIFANOV_DISP_TIPOS.filter(t=>atList.some(a=>a.tipo===t.id));
+  const keys=[...new Set(atList.map(_fnovAtKey))];
+  const tipos=keys.map(k=>k==='conf'?{id:'conf',label:'Conferencias (pre partido)'}:(FIFANOV_DISP_TIPOS.find(t=>t.id===k)||{id:k,label:k}));
   const filas=tipos.map(t=>{ const cur=_fnovAtColor(t.id); return `<div class="at-colrow" data-tipo="${t.id}"><span class="at-collbl">${t.label}</span><span class="at-coldots">${_FNOV_AT_PALETA.map(c=>`<button type="button" class="at-cdot${c.toLowerCase()===String(cur).toLowerCase()?' on':''}" style="--c:${c}" onclick="_fnovAtSetColor('${t.id}','${c}')" title="${c}"></button>`).join('')}</span></div>`; }).join('');
   return `<div id="at-colores" class="at-colores" style="display:${window._fnovAtColoresOpen?'block':'none'}">${filas||'<div class="at-s" style="padding:6px 20px">Sin atenciones todavía.</div>'}</div>`;
 }
@@ -17839,14 +17841,14 @@ function renderFifaNovDisponibilidad(){
   const atRows=atList.length ? [..._atGroups.values()].map(group=>{
     const a0=group[0];
     const t=FIFANOV_DISP_TIPOS.find(x=>x.id===a0.tipo)||FIFANOV_DISP_TIPOS[FIFANOV_DISP_TIPOS.length-1];
-    const _col=_fnovAtColor(a0.tipo);
+    const _key=_fnovAtKey(a0), _col=_fnovAtColor(_key);
     const fechaFmt=a0.fecha?_fmtDateCorta(a0.fecha):'';
     const horaFmt=a0.origH&&a0.origTz&&a0.origTz!=='UY' ? `${a0.origH} ${a0.origTz} → ${a0.hora}h UY` : (a0.hora?a0.hora+'h':'');
     const obligBadge=FIFANOV_AT_OBLIG.includes(a0.tipo)?`<span class="at-pill red">Obligatoria</span>`:'';
     if(group.length===1 && !a0.batchId){
       const a=a0;
       const {isDone,firstLink}=_atPersonActions(a);
-      return `<div class="at-row at-col" data-tipo="${a0.tipo}" style="--ac:${_col}">
+      return `<div class="at-row at-col" data-tipo="${_key}" style="--ac:${_col}">
         ${_atIc(a.tipo)}
         <div class="at-main">
           <div class="at-t">${a.titulo?a.titulo:`${_fnovNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}`}${obligBadge}${isDone?_doneP:''}</div>
@@ -17875,7 +17877,7 @@ function renderFifaNovDisponibilidad(){
       </div>`;
     }).join('');
     return `<div class="at-grp">
-      <div class="at-row at-gh at-col" data-tipo="${a0.tipo}" style="--ac:${_col}" onclick="const p=document.getElementById('${gid}');const open=p.style.display!=='none';p.style.display=open?'none':'block';this.classList.toggle('open',!open)">
+      <div class="at-row at-gh at-col" data-tipo="${_key}" style="--ac:${_col}" onclick="const p=document.getElementById('${gid}');const open=p.style.display!=='none';p.style.display=open?'none':'block';this.classList.toggle('open',!open)">
         ${_atIc(a0.tipo)}
         <div class="at-main">
           <div class="at-t">${groupTitle}${obligBadge}</div>
