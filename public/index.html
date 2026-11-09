@@ -9656,7 +9656,7 @@ function _recLlegadasDerivados(){
     _tareasLog().forEach(t=>{ if(/^escribirle a /i.test(String(t.txt||''))&&String(t.fecha||'')>='2026-11-01') yaAnotado.add(quitar(t.txt)); });
     _recGet().forEach(r=>{ if(/^escribirle a /i.test(String(r.titulo||''))&&String(r.vence||'')>='2026-11-01') yaAnotado.add(quitar(r.titulo)); });
     const DOW=['dom','lun','mar','mié','jue','vie','sáb'], ahora=new Date(), eventos=[];
-    _fnovFlights().forEach(f=>{ if(!f.hora) return; const mates=f.players.map(p=>p.nom); f.players.forEach(p=>{ if(fin.has(p.nom)) eventos.push({nom:p.nom,date:f.date,hora:f.hora,que:'Aterriza en Uruguay',mates}); }); });
+    _fnovFlights().forEach(f=>{ if(!f.hora) return; const mates=f.players.map(p=>p.nom); f.players.forEach(p=>{ if(fin.has(p.nom)) eventos.push({nom:p.nom,date:f.date,hora:f.hora,que:'Aterriza en Uruguay',mates,dk:f.date+'|'+f.players[0].nom}); }); });
     fin.forEach(nom=>{ if(eventos.some(e=>e.nom===nom)) return; const pr=_fnovPresentacion(nom); if(pr&&pr.hora) eventos.push({nom,date:pr.date,hora:pr.hora.padStart(5,'0'),que:'Se presenta a entrenar',mates:[nom]}); });
     eventos.forEach(e=>{
       if(yaAnotado.has(_nomKey(e.nom))||llegado[e.nom]||presentado[e.nom]) return;
@@ -9672,6 +9672,7 @@ function _recLlegadasDerivados(){
     const vistos=new Set();
     eventos.forEach(e=>{
       if(e.que!=='Aterriza en Uruguay'||vistos.has(e.nom)||llegado[e.nom]||presentado[e.nom]) return;
+      if(e.dk&&stor.get('auf4_fifanov_directo',{})[e.dk]) return; // marcado «Directo al Complejo»: ya se sabe adónde va
       if(_fnovPresentacion(e.nom)||_fnovPresentaActDe(e.nom)) return;
       const T=new Date(e.date+'T'+e.hora+':00'); if(isNaN(T)||T<ahora) return;
       vistos.add(e.nom);
