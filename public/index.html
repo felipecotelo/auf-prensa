@@ -9684,17 +9684,19 @@ function _recLlegadasDerivados(){
     // recordar chequear a qué hora se presenta. Sale a la misma hora que el «Escribirle a»; se va solo al cargar «Se presenta a entrenar X» (o la fila de grupo).
     const vistos=new Set();
     eventos.forEach(e=>{
-      if(e.que!=='Aterriza en Uruguay'||vistos.has(e.nom)||llegado[e.nom]||presentado[e.nom]) return;
+      if(e.que!=='Aterriza en Uruguay'||vistos.has(e.nom)||presentado[e.nom]) return; // aunque ya haya llegado: si no tiene presentación cargada, igual hay que chequear
       if(e.dk&&stor.get('auf4_fifanov_directo',{})[e.dk]) return; // marcado «Directo al Complejo»: ya se sabe adónde va
       if(_fnovPresentacion(e.nom)||_fnovPresentaActDe(e.nom)) return;
-      const T=new Date(e.date+'T'+e.hora+':00'); if(isNaN(T)||T<ahora) return;
+      const T=new Date(e.date+'T'+e.hora+':00'); if(isNaN(T)) return;
+      // si aterriza de noche (desde las 20h) se presenta recién al día siguiente
+      const dp=new Date(e.date+'T12:00:00'); if(parseInt(e.hora,10)>=20) dp.setDate(dp.getDate()+1);
+      if(dp.toLocaleDateString('en-CA')<TODAY) return; // el día en que se presentaba ya pasó
       vistos.add(e.nom);
       let d=new Date(T.getTime()-24*3600*1000), h=d.getHours()+d.getMinutes()/60, vence=d.toLocaleDateString('en-CA'), hora=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
       if(h<9){ hora='09:00'; } else if(h>19){ const dn=new Date(d.getTime()); dn.setDate(dn.getDate()+1); vence=dn.toLocaleDateString('en-CA'); hora='09:00'; }
-      // si aterriza de noche (desde las 20h) se presenta recién al día siguiente
-      const dp=new Date(e.date+'T12:00:00'); if(parseInt(e.hora,10)>=20) dp.setDate(dp.getDate()+1);
+      if(vence<TODAY){ vence=TODAY; hora='09:00'; } // ya aterrizó (o falta menos de 24h): se pide hoy, sin marcarlo «vencido ayer»
       const id='chkc|'+e.nom+'|'+e.date, mn=manual[id]||{}, dl=new Date(e.date+'T12:00:00');
-      out.push({id,titulo:'Chequear con '+e.nom+' a qué hora se presenta el '+DOW[dp.getDay()]+' '+dp.getDate()+'/'+(dp.getMonth()+1)+' en el Complejo'+(mn.no?' · cancelado':''),detalle:'Aterriza en Uruguay el '+DOW[dl.getDay()]+' '+dl.getDate()+'/'+(dl.getMonth()+1)+' a las '+e.hora+'h · todavía sin presentación cargada',vence,hora,etiqueta:'Mayor',secuencial:true,grupo:'esc|'+e.nom+'|'+e.date,orden:2,hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
+      out.push({id,titulo:'Chequear con '+e.nom+' a qué hora se presenta el '+DOW[dp.getDay()]+' '+dp.getDate()+'/'+(dp.getMonth()+1)+' en el Complejo'+(mn.no?' · cancelado':''),detalle:(T<ahora?'Aterrizó':'Aterriza')+' en Uruguay el '+DOW[dl.getDay()]+' '+dl.getDate()+'/'+(dl.getMonth()+1)+' a las '+e.hora+'h · todavía sin presentación cargada',vence,hora,etiqueta:'Mayor',secuencial:true,grupo:'esc|'+e.nom+'|'+e.date,orden:2,hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
     });
   }catch(e){ console.warn('recordatorios de llegadas:',e); }
   return out;
