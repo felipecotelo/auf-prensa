@@ -18294,7 +18294,11 @@ function _fnovPresentacion(nom){
     (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ (getDayActs()[day.date]||[]).forEach((a,i)=>{
       if(out||!a) return; const m=String(a.txt||'').match(/^Se presenta a entrenar (.+)$/); if(!m||m[1].trim()!==nom) return;
       const hm=String(getCalTime(day.date,i,a.h||'')||'').trim().match(/^(\d{1,2})(?::(\d{2}))?/); out={date:day.date,hora:hm?(+hm[1])+':'+(hm[2]||'00'):'',estimada:_fnovHoraEstimada(day.date,i,a)}; }); });
-    if(!out) return null;
+    if(!out){ // «Se presentan a entrenar Giménez, J. Rodríguez y Torreira», «Se presenta a entrenar Sanabria»: filas de grupo o con nombre corto
+      const g=_fnovPresentaActDe(nom); if(!g) return null;
+      out={date:g.date,hora:g.hora?String(+g.hora.slice(0,2))+':'+g.hora.slice(3,5):'',estimada:g.estimada};
+    }
+    
     const d=new Date(out.date+'T12:00:00'), dif=Math.round((d-new Date(TODAY+'T12:00:00'))/86400000);
     out.corto=d.getDate()+'/'+(d.getMonth()+1);
     out.cuando=dif===0?'hoy':dif===1?'mañana':'el '+['dom','lun','mar','mié','jue','vie','sáb'][d.getDay()]+' '+out.corto;
@@ -18372,10 +18376,13 @@ function _fnovComplejoCuando(f){
 // «Se presenta(n) a entrenar …» ya cargado que nombre a ese jugador (por apellido).
 function _fnovPresentaActDe(nom){
   const ap=_nomKey(String(nom||'').trim().split(' ').pop()); if(!ap) return null;
+  const homonimos=(typeof FIFANOV26!=='undefined'?(FIFANOV26.finales||[]):[]).filter(n=>n&&_nomKey(String(n).trim().split(' ').pop())===ap).length>1;
   const acts=getDayActs(); let out=null;
   (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ (acts[day.date]||[]).forEach((a,i)=>{
     if(out||!a||!/^Se presentan? a entrenar /.test(String(a.txt||''))) return;
-    if(!new RegExp('\\b'+ap+'\\b').test(_nomKey(a.txt))) return;
+    const tx=_nomKey(a.txt)+' '+_nomKey(getEvTxt(day.date,i,a.txt)); // el título que Felipe editó en el cronograma también cuenta
+    if(!new RegExp('\\b'+ap+'\\b').test(tx)) return;
+    if(homonimos){ const pn=_nomKey(nom).split(' ')[0]; if(!new RegExp('\\b'+pn+'\\b|\\b'+pn[0]+'\\.?\\s*'+ap+'\\b').test(tx)) return; } // dos con el mismo apellido (Araujo/Araújo): pide el nombre o la inicial
     out={date:day.date,idx:i,hora:_fnovNormH(getCalTime(day.date,i,a.h||'')),estimada:_fnovHoraEstimada(day.date,i,a)};
   }); });
   return out;
