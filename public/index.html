@@ -15577,12 +15577,14 @@ function renderFifaSepDisponibilidad(){
     const gid='atgrp-'+(_atGroupN++)+'-'+a0.id;
     const groupTitle = a0.titulo || t.label;
     const groupMeta = [a0.txt, fechaFmt, horaFmt].filter(Boolean).join(' · ');
-    const peopleLabel = group.map(a=>{
+    // Apertura de entrenamiento para prensa: es abierto, no tiene sentido marcar a cada jugador (Felipe, 09/11/2026).
+    const _abierta=a0.tipo==='apertura';
+    const peopleLabel = _abierta ? `<span class="at-tbd" style="color:rgba(239,243,248,.6)">Abierto a la prensa · plantel completo</span>` : group.map(a=>{
       if(a.quien===FSAP_QUIEN_TBD) return `<span class="at-tbd">Jugadores a definir</span>`;
       const {isDone}=_atPersonActions(a);
       return `${_fsapNumTag(a.quien)}${a.quien}${isDone?' <i class="ti ti-check at-ok" title="Marcada como hecha en el Calendario"></i>':''}`;
     }).join(', ');
-    const personRows=group.map(a=>{
+    const personRows=_abierta?'':group.map(a=>{
       const {isDone,firstLink}=_atPersonActions(a);
       const isTbd=a.quien===FSAP_QUIEN_TBD;
       return `<div class="at-prow">
@@ -15610,7 +15612,7 @@ function renderFifaSepDisponibilidad(){
     </div>`;
 
   // ── Conteo por persona — abajo, derivado de la lista de arriba ──
-  const countsFor=nom=>{ const c={}; atList.forEach(a=>{ if(a.quien===nom) c[a.tipo]=(c[a.tipo]||0)+1; }); return c; };
+  const countsFor=nom=>{ const c={}; atList.forEach(a=>{ if(a.quien===nom&&a.tipo!=='apertura') c[a.tipo]=(c[a.tipo]||0)+1; }); return c; };
   const counterRow=(nom,compact)=>{
     const c=countsFor(nom);
     const conDatos=FIFASEP_DISP_TIPOS.filter(t=>c[t.id]);
@@ -17827,12 +17829,14 @@ function renderFifaNovDisponibilidad(){
     const gid='atgrp-'+(_atGroupN++)+'-'+a0.id;
     const groupTitle = a0.titulo || t.label;
     const groupMeta = [a0.txt, fechaFmt, horaFmt].filter(Boolean).join(' · ');
-    const peopleLabel = group.map(a=>{
+    // Apertura de entrenamiento para prensa: es abierto, no tiene sentido marcar a cada jugador (Felipe, 09/11/2026).
+    const _abierta=a0.tipo==='apertura';
+    const peopleLabel = _abierta ? `<span class="at-tbd" style="color:rgba(239,243,248,.6)">Abierto a la prensa · plantel completo</span>` : group.map(a=>{
       if(a.quien===FNOV_QUIEN_TBD) return `<span class="at-tbd">Jugadores a definir</span>`;
       const {isDone}=_atPersonActions(a);
       return `${_fnovNumTag(a.quien)}${a.quien}${isDone?' <i class="ti ti-check at-ok" title="Marcada como hecha en el Calendario"></i>':''}`;
     }).join(', ');
-    const personRows=group.map(a=>{
+    const personRows=_abierta?'':group.map(a=>{
       const {isDone,firstLink}=_atPersonActions(a);
       const isTbd=a.quien===FNOV_QUIEN_TBD;
       return `<div class="at-prow">
@@ -17862,7 +17866,7 @@ function renderFifaNovDisponibilidad(){
   // ── Conteo por persona — abajo, derivado de la lista de arriba ──
   // «Habló en el aeropuerto» (marca manual de la pestaña Llegadas, 'auf4_fifanov_aero'): cuenta como una atención más de la persona.
   const aeroMap=stor.get('auf4_fifanov_aero',{});
-  const countsFor=nom=>{ const c={}; atList.forEach(a=>{ if(a.quien===nom) c[a.tipo]=(c[a.tipo]||0)+1; }); return c; };
+  const countsFor=nom=>{ const c={}; atList.forEach(a=>{ if(a.quien===nom&&a.tipo!=='apertura') c[a.tipo]=(c[a.tipo]||0)+1; }); return c; };
   const aeroBtn=nom=>`<button type="button" class="at-aero${aeroMap[nom]?' on':''}" onclick="_fnovAeroToggle('${encodeURIComponent(nom).replace(/'/g,'%27')}')" title="${aeroMap[nom]?'Habló en el aeropuerto — click para sacar':'Marcar que habló en el aeropuerto'}"><i class="ti ti-microphone-2"></i></button>`;
   const counterRow=(nom,compact)=>{
     const c=countsFor(nom);
