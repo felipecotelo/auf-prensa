@@ -9967,7 +9967,7 @@ function _recLinkFotoSuma(arr){
     return out;
   }catch(e){ console.warn('links de foto por jugador:',e); return arr; }
 }
-function _recTodos(){ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); }
+function _recTodos(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -18382,7 +18382,9 @@ function _fnovInfografia(lista){
   }catch(e){ return ''; }
 }
 // «Se presenta a entrenar X» del calendario de la app (lo carga Felipe): día y hora, para decirlo en la ficha y en Llegadas. `cuando` es relativo a hoy («hoy», «mañana», «el sáb 7/11»).
-function _fnovPresentacion(nom){
+// Memo por corrida de _recTodos(): los datos no cambian dentro de una misma corrida y cada llamada relee y parsea los almacenes (tildar un recordatorio tardaba >1 s).
+function _fnovPresentacion(nom){ const M=window._presMemo; if(!M) return _fnovPresentacionRaw(nom); const k='p|'+nom; if(!(k in M)) M[k]=_fnovPresentacionRaw(nom); return M[k]; }
+function _fnovPresentacionRaw(nom){
   try{
     let out=null;
     (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).forEach(day=>{ (getDayActs()[day.date]||[]).forEach((a,i)=>{
@@ -18468,7 +18470,8 @@ function _fnovComplejoCuando(f){
   return {date,hora:est};
 }
 // «Se presenta(n) a entrenar …» ya cargado que nombre a ese jugador (por apellido).
-function _fnovPresentaActDe(nom,solo){ // solo={date,idx}: mira únicamente esa fila
+function _fnovPresentaActDe(nom,solo){ const M=window._presMemo; if(!M) return _fnovPresentaActDeRaw(nom,solo); const k='a|'+nom+'|'+(solo?solo.date+'#'+solo.idx:''); if(!(k in M)) M[k]=_fnovPresentaActDeRaw(nom,solo); return M[k]; }
+function _fnovPresentaActDeRaw(nom,solo){ // solo={date,idx}: mira únicamente esa fila
   const ap=_nomKey(String(nom||'').trim().split(' ').pop()); if(!ap) return null;
   const homonimos=(typeof FIFANOV26!=='undefined'?(FIFANOV26.finales||[]):[]).filter(n=>n&&_nomKey(String(n).trim().split(' ').pop())===ap).length>1;
   // Felipe también los nombra por el nombre de pila («Se presenta a entrenar Ronald»): vale solo si ese nombre no lo comparte otro de la lista final (Juan, Rodrigo, Federico…).
