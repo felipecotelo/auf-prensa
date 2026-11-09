@@ -1310,6 +1310,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .tg-team{color:#8AD8FF;border-color:rgba(138,216,255,.45);background:rgba(0,157,216,.1)}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .tg-entreno{color:#86EFAC;border-color:rgba(134,239,172,.5);background:rgba(134,239,172,.09)}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .tg-partido{color:#fff;border-color:#16A34A;background:#16A34A}
+:is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .tg-cita{color:#fff;border-color:#EC4899;background:#DB2777;box-shadow:0 0 0 3px rgba(236,72,153,.18)}
+:is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-cita .cal-event-h{color:#F9A8D4!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .tg-oblig{color:#FCA5A5;border-color:rgba(248,113,113,.55);background:rgba(248,113,113,.1);cursor:default}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-lk{color:#8AD8FF;font-size:14px;text-decoration:none;display:inline-flex;align-items:center}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-selected-parts{margin-top:4px;display:flex;flex-wrap:wrap;gap:5px}
@@ -18600,6 +18602,7 @@ const FIFANOV_TYPE_BADGE ={viaje:'cb-viaje',llegada:'cb-llegada',partido:'cb-par
 // Paleta pedida: viaje amarillo, cronograma celeste, entrenamiento verde
 // claro, partido verde oscuro, prensa/AUF naranja.
 const FIFANOV_TAG_HTML={
+  cita:    `<span class="cv-tg tg-cita" title="Llegada o citación en el Complejo: la hora clave">Llegada</span>`,
   viaje:   `<span class="cv-tg tg-viaje">Viaje</span>`,
   auf:     `<span class="cv-tg tg-auf">AUF</span>`,
   auftv:   `<span class="cv-tg tg-auf">AUFtv</span>`,
@@ -18625,7 +18628,7 @@ window._fifaNovCycleEvType=function(date,idx){
 };
 // Fondo de fila por tipo — mismos colores que las etiquetas, pero bien suaves,
 // para diferenciar de un vistazo sin tener que leer el tag.
-const FIFANOV_ROW_BG={viaje:'#FFFBEB',auf:'#FED7AA',auftv:'#FED7AA',entreno:'#F0FDF4',partido:'#ECFDF5',team:'#F0F9FF'};
+const FIFANOV_ROW_BG={cita:'#FDF2F8',viaje:'#FFFBEB',auf:'#FED7AA',auftv:'#FED7AA',entreno:'#F0FDF4',partido:'#ECFDF5',team:'#F0F9FF'};
 
 function _fnovFmtHora(h,e){
   if(!h||h==='TBD') return 'TBD';
@@ -18712,7 +18715,8 @@ function _fifaNovEvRowHtml(date,e,idx,total){
   const hora=getCalTime(date,idx,e.h||'TBD');
   const statusClass=s==='done'?'st-done':s==='sus'?'st-sus':s==='no'?'st-no':'';
   const icons={'done':'✓','sus':'⏸','no':'✗','':'○'};
-  const evType=e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':e.auf?'auf':e.auftv?'auftv':'team';
+  const _esCita=/^\s*(se presentan? a entrenar|citaci[oó]n|citad[oa]s?\b|llegada al complejo|llegan? al complejo)/i.test(String(txt||''));
+  const evType=_esCita&&e.tipo!=='viaje'&&e.tipo!=='partido'?'cita':e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':e.auf?'auf':e.auftv?'auftv':'team';
   const dotClass=evType==='viaje'?'ce-viaje':evType==='auf'?'ce-oblig':evType==='auftv'?'ce-info':evType==='entreno'?'ce-info':evType==='partido'?'ce-oblig':'ce-team';
   const tag=FIFANOV_TAG_HTML[evType];
   const rowBg=FIFANOV_ROW_BG[evType]||'';
