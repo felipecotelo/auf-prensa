@@ -9915,8 +9915,8 @@ function _recPendientes(){
   const lim=new Date(); lim.setHours(23,59,59,999);
   return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim).sort(_recCmp);
 }
-// Los marcados como hechos quedan a la vista con su tick durante 4 horas (se pueden destildar); pasado ese tiempo salen de la lista.
-const _REC_HECHO_HORAS=4;
+// Los marcados como hechos quedan a la vista con su tick durante 15 minutos (se pueden destildar); pasado ese tiempo salen de la lista (Felipe, 09/11/2026: con 4 horas se amontonaban).
+const _REC_HECHO_MIN=15;
 // Los recordatorios que se completan solos (cobertura, aniversarios, links de prensa…) traen `hechoEn: ahora` en cada
 // pintado, así que nunca cumplían el plazo. Se guarda en este dispositivo la primera vez que se los ve hechos y se
 // cuenta desde ahí. En la primera corrida, los que ya vencieron hace más de 4 h se dan por viejos (cuentan desde su vencimiento).
@@ -9931,7 +9931,7 @@ function _recHechoEnEstable(todos){
       let t=new Date(r.hechoEn).getTime();
       if(Math.abs(ahora-t)<120000){ // «ahora»: recién tildado o recalculado en cada pintado
         const due=primera?_recDue(r).getTime():NaN;
-        if(primera&&due<ahora-_REC_HECHO_HORAS*3600000) t=due;
+        if(primera&&due<ahora-_REC_HECHO_MIN*60000) t=due;
       }
       m[r.id]=t; cambio=true;
     }
@@ -9942,13 +9942,13 @@ function _recHechoEnEstable(todos){
   return m;
 }
 function _recHechosHoy(){
-  const lim=Date.now()-_REC_HECHO_HORAS*3600000;
+  const lim=Date.now()-_REC_HECHO_MIN*60000;
   const todos=_recTodos(), est=_recHechoEnEstable(todos);
   return todos.filter(r=>r.hecho && r.hechoEn && (est[r.id]??new Date(r.hechoEn).getTime())>lim)
     .sort((a,b)=>(est[a.id]??0)-(est[b.id]??0));
 }
-// Cada 5 min se vuelve a pintar el panel para que los que cumplieron las 4 h salgan solos, sin recargar.
-if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },300000);
+// Cada minuto se vuelve a pintar el panel para que los que cumplieron los 15 min salgan solos, sin recargar.
+if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },60000);
 function _recNoAplicaBtn(r,hecho){
   if(r.fnacCat&&!hecho) return `<button data-n="${String(r.fnacCat)}" onclick="_fnacModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">cargar</button>`;
   if(r.clubRaw&&!hecho) return `<button data-n="${String(r.clubRaw).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_clubResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
