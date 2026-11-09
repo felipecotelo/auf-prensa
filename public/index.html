@@ -10043,6 +10043,9 @@ function _recNoAplicaBtn(r,hecho){
   if(!r.derivado||hecho) return '';
   return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoAplica(this.dataset.id)" title="No aplica saludo: lo saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no aplica</button>`;
 }
+// Degradé del color de la categoría (Sub-16, Mayor…) en toda la fila del recordatorio, para ubicar de un vistazo de qué categoría es (Felipe, 09/11/2026).
+function _recGrad(r){ const ck=_catDeLabel(r&&r.etiqueta); if(!ck) return ''; const c=_catCol(ck);
+  return `;background-image:linear-gradient(90deg,color-mix(in srgb,${c} 30%,transparent) 0%,color-mix(in srgb,${c} 10%,transparent) 55%,transparent 100%)`; }
 function _recTick(r,hecho,oscuro){
   return hecho
     ? `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recHecho(this.dataset.id)" title="Hecho — tocá para destildar" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid #16A34A;background:#16A34A;color:#fff;cursor:pointer;padding:0;font-size:11px;line-height:1;font-weight:900;display:flex;align-items:center;justify-content:center">✓</button>`
@@ -10071,7 +10074,7 @@ function renderInicioRecordatoriosRaw(){
   const isMob=_inicioDark();
   const rows=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
     const e=_recEtiqueta(r), FX=hecho?null:_recFondo(r);
-    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px ${FX?'6px':'0'};${FX?`background:${isMob?'rgba(148,163,184,.16)':FX.bg};border-left:3px solid ${FX.c};border-radius:6px;margin:2px -6px 2px -9px;`:''}${hecho?'opacity:.55':''}">
+    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px ${FX?'6px':'0'};${FX?`background:${isMob?'rgba(148,163,184,.16)':FX.bg};border-left:3px solid ${FX.c};border-radius:6px;margin:2px -6px 2px -9px;`:''}${hecho?'opacity:.55':''}${_recGrad(r)}">
       ${_recTick(r,hecho,isMob)}
       <div style="flex:1;min-width:0">
         <div style="font-size:12.5px;font-weight:${_recNivel(r)&&!hecho?800:600};color:${_recNivel(r)&&!hecho?_REC_NIVELES[_recNivel(r)].c:(isMob?'#EFF3F8':'var(--text)')};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
@@ -10113,7 +10116,7 @@ function _recDockRenderRaw(){
     const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
       const e=_recEtiqueta(r);
       const nv=hecho?'':_recNivel(r), NV=_REC_NIVELES[nv], rojo=!!NV, FX=(!rojo&&!hecho)?_recFondo(r):null;
-      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px ${rojo||FX?'6px':'0'};border-top:1px solid var(--border);${rojo?`background:${NV.bg};border-left:3px solid ${NV.c};border-radius:6px;margin:2px 0;`:''}${FX?`background:${FX.bg};border-left:3px solid ${FX.c};border-radius:6px;margin:2px -6px 2px -9px;`:''}${hecho?'opacity:.55':''}">
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px ${rojo||FX?'6px':'0'};border-top:1px solid var(--border);${rojo?`background:${NV.bg};border-left:3px solid ${NV.c};border-radius:6px;margin:2px 0;`:''}${FX?`background:${FX.bg};border-left:3px solid ${FX.c};border-radius:6px;margin:2px -6px 2px -9px;`:''}${hecho?'opacity:.55':''}${_recGrad(r)}">
         ${_recTick(r,hecho,false)}
         <div style="flex:1;min-width:0">
           <div style="font-size:11.5px;font-weight:${rojo?800:700};color:${rojo?NV.tx:'var(--text)'};line-height:1.3;${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}</div>
