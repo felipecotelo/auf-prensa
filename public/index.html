@@ -9743,6 +9743,8 @@ function _recCoberturaLlegadaDerivados(){
     // Cada grupo puede ser una lista de nombres o {titulo,nombres}: con «titulo» el reel sale con ese texto, sin nombrar a nadie (ej. «Publicar reel de las llegadas de la mañana»).
     const porActo={}, tituloDe={}; (stor.get('auf4_rec_reel_juntos',[])||[]).forEach(lista=>{ const noms=Array.isArray(lista)?lista:((lista&&lista.nombres)||[]); const g=eventos.filter(e=>noms.includes(e.nom)); if(g.length>1){ const k='juntos|'+g.map(e=>e.nom).sort().join('+'); porActo[k]=g; if(lista&&lista.titulo) tituloDe[k]=lista.titulo; } });
     const reelGrupo=new Set(); Object.values(porActo).forEach(g=>g.forEach(e=>reelGrupo.add(e.nom+'|'+e.date)));
+    // Días en que Felipe no quiere reel individual por llegada (van en reels de grupo): lista de fechas en 'auf4_rec_sin_reel_individual'.
+    const sinReelInd=new Set(stor.get('auf4_rec_sin_reel_individual',[])||[]);
     eventos.forEach(e=>{
       if(e.date<TODAY) return;
       const id='cubl|'+e.nom+'|'+e.date, mn=manual[id]||{}, dd=new Date(e.date+'T12:00:00');
@@ -9751,7 +9753,7 @@ function _recCoberturaLlegadaDerivados(){
         hecho:!!mn.hecho,hechoEn:mn.hecho?mn.hechoEn:null});
       if(mn.hecho&&!mn.no){
         const vence=mn.hechoEn?new Date(mn.hechoEn).toLocaleDateString('en-CA'):e.date;
-        const tipos=[['fotl','Publicar fotos de la llegada de ']]; if(!reelGrupo.has(e.nom+'|'+e.date)) tipos.push(['reell','Publicar reel de la llegada de ']);
+        const tipos=[['fotl','Publicar fotos de la llegada de ']]; if(!reelGrupo.has(e.nom+'|'+e.date)&&!sinReelInd.has(e.date)) tipos.push(['reell','Publicar reel de la llegada de ']);
         tipos.forEach(([k,t])=>{
           const i2=k+'|'+e.nom+'|'+e.date, m2=manual[i2]||{};
           out.push({id:i2,titulo:t+e.nom,detalle:'Llegada del '+dd.getDate()+'/'+(dd.getMonth()+1),vence,hora:'',sinHora:true,etiqueta:'Mayor',secuencial:true,grupo,orden:2,hecho:!!m2.hecho,hechoEn:m2.hecho?m2.hechoEn:null});
