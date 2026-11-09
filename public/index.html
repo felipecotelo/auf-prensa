@@ -9967,7 +9967,10 @@ function _recLinkFotoSuma(arr){
     return out;
   }catch(e){ console.warn('links de foto por jugador:',e); return arr; }
 }
-function _recTodos(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
+function _recTodos(){ if(window._recCacheTodos) return window._recCacheTodos; return _recTodosRaw(); }
+// Una sola corrida de _recTodos() para todo un repintado (panel + lista): antes se armaba 3-4 veces por tildado.
+function _recConCache(fn){ const _o=!window._recCacheTodos; if(_o) window._recCacheTodos=_recTodosRaw(); try{ return fn(); } finally{ if(_o) window._recCacheTodos=null; } }
+function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -10038,7 +10041,8 @@ function _recEtiqueta(r){
   return {t:`mañana ${hh}`,c:'#64748B',bg:'#F1F5F9'};
 }
 const _recEsc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-function renderInicioRecordatorios(){
+function renderInicioRecordatorios(){ return _recConCache(renderInicioRecordatoriosRaw); }
+function renderInicioRecordatoriosRaw(){
   if(_recWide()) return ''; // en pantallas anchas va la tarjeta fija del borde derecho (_recDockRender)
   const pend=_recPendientes(), hechos=_recHechosHoy();
   if(!pend.length && !hechos.length) return '';
@@ -10067,7 +10071,8 @@ function _syncStickTop(){
 try{ window.addEventListener('resize',_syncStickTop); window.addEventListener('load',()=>{ _syncStickTop(); if(window.ResizeObserver){ const ro=new ResizeObserver(_syncStickTop); const n=document.querySelector('nav.nav'),t=document.getElementById('tabs-bar'); n&&ro.observe(n); t&&ro.observe(t); } }); }catch(_){}
 // Tarjeta fija, sutil, al borde derecho (pantallas anchas, solo en Inicio): lista de pendientes de hoy/vencidos/mañana.
 // Se puede minimizar a una campanita con el número (se recuerda durante el día). El centro de Inicio queda para Tareas.
-function _recDockRender(){
+function _recDockRender(){ return _recConCache(_recDockRenderRaw); }
+function _recDockRenderRaw(){
   const old=document.getElementById('rec-dock');
   const enInicio=document.getElementById('inicio')?.classList.contains('active');
   const pend=_recPendientes(), hechos=_recHechosHoy();
@@ -10531,6 +10536,10 @@ window._recHecho=function(id){
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
     const n=document.getElementById('rec-noti'); if(n) n.remove();
+    // Llegadas, reels y avisos de hoy: solo se repinta el panel de recordatorios (repintar todo Inicio tardaba ~1 s por tilde).
+    if(/^(escr|cubl|fotl|reell|reelg|chkc|fjuv|presx)\|/.test(String(id))){
+      try{ _recConCache(()=>{ _recDockRenderRaw(); const rb=document.getElementById('rec-box'); if(rb){ const h=renderInicioRecordatoriosRaw(); if(h) rb.outerHTML=h; else rb.remove(); } }); return; }catch(err){ console.warn('refresco rápido de recordatorios:',err); }
+    }
     if(typeof renderInicio==='function') renderInicio();
     return;
   }
