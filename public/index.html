@@ -18662,16 +18662,18 @@ const FIFANOV_TAG_HTML={
 // Mismos 5 tipos del picker "+ Agregar actividad" — click en la etiqueta de
 // una actividad ya cargada cicla entre ellos (nombre + color juntos) sin
 // tener que abrir ningún formulario.
-const FIFANOV_EV_TYPE_CYCLE=['team','auf','viaje','entreno','partido'];
+const FIFANOV_EV_TYPE_CYCLE=['team','auf','viaje','entreno','partido','cita'];
 window._fifaNovCycleEvType=function(date,idx){
   const acts=getDayActs();
   const e=acts[date]?.[idx]; if(!e) return;
-  const cur=e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':(e.auf||e.auftv)?'auf':'team';
+  const _citaTxt=/^\s*(se presentan? a entrenar|citaci[oó]n|citad[oa]s?\b|llegada al complejo|llegan? al complejo)/i.test(String(getEvTxt(date,idx,e.txt)||''));
+  const cur=(e.cita===true||(e.cita!==false&&_citaTxt&&e.tipo!=='viaje'&&e.tipo!=='partido'))?'cita':e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':(e.auf||e.auftv)?'auf':'team';
   const i=FIFANOV_EV_TYPE_CYCLE.indexOf(cur);
   const next=FIFANOV_EV_TYPE_CYCLE[(i+1)%FIFANOV_EV_TYPE_CYCLE.length];
-  delete e.tipo; delete e.auf; delete e.auftv;
+  delete e.tipo; delete e.auf; delete e.auftv; delete e.cita;
   if(next==='viaje'||next==='entreno'||next==='partido') e.tipo=next;
   else if(next==='auf') e.auf=true;
+  if(next==='cita') e.cita=true; else if(_citaTxt) e.cita=false; // elegir otro tipo manda sobre la detección por texto
   stor.set(KDayActs,acts);
   renderFifaNovCal();
 };
@@ -18765,7 +18767,7 @@ function _fifaNovEvRowHtml(date,e,idx,total){
   const statusClass=s==='done'?'st-done':s==='sus'?'st-sus':s==='no'?'st-no':'';
   const icons={'done':'✓','sus':'⏸','no':'✗','':'○'};
   const _esCita=/^\s*(se presentan? a entrenar|citaci[oó]n|citad[oa]s?\b|llegada al complejo|llegan? al complejo)/i.test(String(txt||''));
-  const evType=_esCita&&e.tipo!=='viaje'&&e.tipo!=='partido'?'cita':e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':e.auf?'auf':e.auftv?'auftv':'team';
+  const evType=(e.cita===true||(e.cita!==false&&_esCita))&&e.tipo!=='viaje'&&e.tipo!=='partido'?'cita':e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':e.auf?'auf':e.auftv?'auftv':'team';
   const dotClass=evType==='viaje'?'ce-viaje':evType==='auf'?'ce-oblig':evType==='auftv'?'ce-info':evType==='entreno'?'ce-info':evType==='partido'?'ce-oblig':'ce-team';
   const tag=FIFANOV_TAG_HTML[evType];
   const rowBg=FIFANOV_ROW_BG[evType]||'';
@@ -18889,6 +18891,7 @@ function renderFifaNovCal(){
               <button class="aap-type-btn" data-fnov-type="viaje" data-idle-bg="#FEF3C7" data-idle-fg="#92400E" onclick="_fnovSetType('${day.date}','viaje',this)" style="border:1.5px solid var(--border);background:#FEF3C7;color:#92400E">Viaje</button>
               <button class="aap-type-btn" data-fnov-type="entreno" data-idle-bg="#DCFCE7" data-idle-fg="#15803D" onclick="_fnovSetType('${day.date}','entreno',this)" style="border:1.5px solid var(--border);background:#DCFCE7;color:#15803D">Entrenamiento</button>
               <button class="aap-type-btn" data-fnov-type="partido" data-idle-bg="#052e16" data-idle-fg="#86efac" onclick="_fnovSetType('${day.date}','partido',this)" style="border:1.5px solid var(--border);background:#052e16;color:#86efac">Partido</button>
+              <button class="aap-type-btn" data-fnov-type="cita" data-idle-bg="#F97316" data-idle-fg="#fff" onclick="_fnovSetType('${day.date}','cita',this)" style="border:1.5px solid var(--border);background:#F97316;color:#fff" title="Llegada o citación en el Complejo: la hora clave">Llegada</button>
             </div>
             <select id="fnov-quien-${day.date}" class="aap-input" style="margin-bottom:6px">${_fifaNovQuienOptionsHtml()}</select>
             <input class="aap-input" id="fnov-txt-${day.date}" placeholder="Ej: Entrenamiento, viaje al estadio, zona mixta…" autocomplete="off"
@@ -19045,6 +19048,7 @@ window.addFifaNovAct=function(date){
   else if(type==='entreno') opt.tipo='entreno';
   else if(type==='partido') opt.tipo='partido';
   else if(type==='auf') opt.auf=true;
+  else if(type==='cita') opt.cita=true;
   const quien=(quienEl?.value||'').trim();
   if(quien) opt.personas=[quien]; // se puede sumar más gente después, editando la actividad
   acts[date].push(opt);
