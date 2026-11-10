@@ -9501,7 +9501,7 @@ function _recCumplesDerivados(){
           // El día exacto del cumpleaños va explícito (no «mañana»): si cae domingo o lunes el diseño se pide el viernes, y se aclara.
           const _dw=new Date(D+'T12:00:00'), _dn=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][_dw.getDay()], _dm=D.slice(8,10)+'/'+D.slice(5,7);
           const _sub=sub.replace(/(cumpl\w+\s+\d+\s+años)\s+.*$/,`$1 el ${_dn} ${_dm}`)+((_dw.getDay()===0||_dw.getDay()===1)?' · se pide el viernes':'');
-          out.push({id:'cumple-dis|'+k,titulo:'Mandar a hacer diseño por cumpleaños de '+nom,detalle:_sub,vence:_recDiaPedirDiseno(D),hora:'10:00',etiqueta:'Cumpleaños',hecho:!!st.diseno,hechoEn:st.diseno?(st.disenoEn||new Date().toISOString()):null,derivado:true});
+          out.push({id:'cumple-dis|'+k,titulo:'Mandar a hacer diseño por cumpleaños de '+nom,copiar:'Diseño por cumpleaños de '+nom+' para el '+_dm,detalle:_sub,vence:_recDiaPedirDiseno(D),hora:'10:00',etiqueta:'Cumpleaños',hecho:!!st.diseno,hechoEn:st.diseno?(st.disenoEn||new Date().toISOString()):null,derivado:true});
         } else {
           out.push({id:'cumple-pub|'+k,titulo:'Publicar saludo de cumpleaños de '+nom,detalle:sub,vence:D,hora:'09:00',etiqueta:'Cumpleaños',hecho:estado==='saludado',hechoEn:estado==='saludado'?new Date().toISOString():null,derivado:true});
         }
@@ -9517,7 +9517,7 @@ function _recCumplesDerivados(){
         const k='ani:'+D+'_'+c.txt, st=links2[k]||{}, estado=st.saludo||'pendiente';
         if(estado==='no_aplica') return;
         if(off>0){
-          out.push({id:'ani-dis|'+k,titulo:'Mandar a hacer diseño por aniversario: '+c.txt,detalle:'Fecha histórica · '+D.split('-').reverse().join('/'),vence:_recDiaPedirDiseno(D),hora:'10:00',etiqueta:'Fecha histórica',hecho:!!st.diseno,hechoEn:st.diseno?(st.disenoEn||new Date().toISOString()):null,derivado:true});
+          out.push({id:'ani-dis|'+k,titulo:'Mandar a hacer diseño por aniversario: '+c.txt,copiar:'Diseño por aniversario: '+c.txt+' para el '+D.slice(8,10)+'/'+D.slice(5,7),detalle:'Fecha histórica · '+D.split('-').reverse().join('/'),vence:_recDiaPedirDiseno(D),hora:'10:00',etiqueta:'Fecha histórica',hecho:!!st.diseno,hechoEn:st.diseno?(st.disenoEn||new Date().toISOString()):null,derivado:true});
         } else {
           out.push({id:'ani-pub|'+k,titulo:'Publicar aniversario: '+c.txt,detalle:'Fecha histórica · '+D.split('-').reverse().join('/'),vence:D,hora:'09:00',etiqueta:'Fecha histórica',hecho:estado==='saludado',hechoEn:estado==='saludado'?new Date().toISOString():null,derivado:true});
         }
@@ -10050,6 +10050,15 @@ const _REC_ETI_COL={'complejo celeste':'#2DD4BF','local':'#86EFAC','selecciones 
 function _recEtiCol(label){ const ck=_catDeLabel(label); if(ck) return _catCol(ck); return _REC_ETI_COL[String(label||'').trim().toLowerCase()]||''; }
 function _recGrad(r){ const c=_recEtiCol(r&&r.etiqueta); if(!c) return '';
   return `;background-image:linear-gradient(90deg,color-mix(in srgb,${c} 30%,transparent) 0%,color-mix(in srgb,${c} 10%,transparent) 55%,transparent 100%)`; }
+// Botón chico «copiar» (Felipe, 09/11/2026): copia el pedido listo para pegarlo en el chat del diseñador («Diseño por cumpleaños de X para el 11/11»).
+function _recCopiarBtn(r){ const t=String(r.copiar||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  return `<button type="button" data-t="${t}" onclick="event.stopPropagation();window._recCopiar(this)" title="Copiar el pedido para mandarlo al diseñador" style="flex-shrink:0;width:20px;height:20px;border-radius:50%;border:1px solid rgba(148,163,184,.6);background:transparent;color:#64748B;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:12px"><i class="ti ti-copy"></i></button>`; }
+window._recCopiar=function(btn){
+  const t=btn.dataset.t||'';
+  const ok=()=>{ btn.innerHTML='<i class="ti ti-check"></i>'; btn.style.color='#16A34A'; btn.style.borderColor='#16A34A'; try{ toast('Copiado: '+t); }catch(_){} setTimeout(()=>{ btn.innerHTML='<i class="ti ti-copy"></i>'; btn.style.color='#64748B'; btn.style.borderColor='rgba(148,163,184,.6)'; },1800); };
+  const viejo=()=>{ const ta=document.createElement('textarea'); ta.value=t; ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); ok(); }catch(_){} ta.remove(); };
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok,viejo); else viejo(); }catch(_){ viejo(); }
+};
 function _recTick(r,hecho,oscuro){
   return hecho
     ? `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recHecho(this.dataset.id)" title="Hecho — tocá para destildar" style="flex-shrink:0;width:17px;height:17px;margin-top:1px;border-radius:50%;border:1.5px solid #16A34A;background:#16A34A;color:#fff;cursor:pointer;padding:0;font-size:11px;line-height:1;font-weight:900;display:flex;align-items:center;justify-content:center">✓</button>`
@@ -10085,7 +10094,7 @@ function renderInicioRecordatoriosRaw(){
         ${r.detalle?`<div style="font-size:11px;color:${isMob?'rgba(239,243,248,.5)':'var(--muted)'};margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
       </div>
       <span style="font-size:10px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?(isMob?'rgba(22,163,74,.18)':'#DCFCE7'):(isMob?'rgba(255,255,255,.08)':e.bg)};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${hecho?'hecho':e.t}</span>
-      ${!hecho?`<span style="align-self:center">${_recNivelBtns(r)}</span>`:''}
+      ${r.copiar&&!hecho?`<span style="align-self:center">${_recCopiarBtn(r)}</span>`:''}${!hecho?`<span style="align-self:center">${_recNivelBtns(r)}</span>`:''}
       ${r.derivado&&!hecho?`<span style="align-self:center">${_recNoAplicaBtn(r,hecho)}</span>`:''}
     </div>`;
   }).join('');
@@ -10128,7 +10137,7 @@ function _recDockRenderRaw(){
           <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
             <span style="font-size:9.5px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?'#DCFCE7':e.bg};border-radius:5px;padding:1px 6px">${hecho?'hecho':e.t}</span>
             ${r.etiqueta?(()=>{ const c=_recEtiCol(r.etiqueta); return `<span style="font-size:9.5px;font-weight:700;${c?`color:color-mix(in srgb,${c} 55%,#0B1220);background:color-mix(in srgb,${c} 24%,#fff);border:1px solid color-mix(in srgb,${c} 55%,#fff)`:'color:#0369A1;background:#E0F2FE'};border-radius:5px;padding:1px 6px">#${_recEsc(r.etiqueta)}</span>`; })():''}
-            ${hecho?'':_recNivelBtns(r)}
+            ${r.copiar&&!hecho?_recCopiarBtn(r):''}${hecho?'':_recNivelBtns(r)}
             ${_recNoAplicaBtn(r,hecho)}
           </div>
         </div>
