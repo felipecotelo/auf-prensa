@@ -1307,7 +1307,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-st.st-no.act{background:rgba(248,113,113,.14)!important;border-color:rgba(248,113,113,.6)!important;color:#F87171!important}
 /* Cada bloque queda apenas teñido con el color de su etiqueta (Felipe, 09/11/2026): viaje amarillo, llegada naranja, cronograma rojo, partido verde oscuro, entrenamiento verde claro, AUF rosado salmón */
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-viaje{background:rgba(252,211,77,.13)!important}
-:is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-prensa{background:rgba(56,189,248,.12)!important}
+:is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-prensa{background:var(--pcol-bg,rgba(56,189,248,.12))!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-cita{background:rgba(251,146,60,.15)!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-team{background:rgba(239,68,68,.13)!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-partido{background:rgba(22,163,74,.2)!important}
@@ -18791,6 +18791,9 @@ function _fnovPersonaChipsHtml(date,idx,e){
     ${ct.length?`<div class="ev-parts-lbl">DT / Cuerpo técnico</div><div class="ev-parts-chips" style="margin-bottom:8px">${ctChips}</div>`:''}
     ${nombres.length?`<div class="ev-parts-lbl">Jugadores</div><div class="ev-parts-chips">${todosBtn}${playerChips}</div>`:''}`;
 }
+// Felipe (10/11/2026): lo de Prensa no lleva todo el mismo color; cada tipo (conferencia, shooting, apertura de entrenamiento, nota AUFtv) toma el color elegido en «Atenciones cargadas».
+function _fnovPrensaKey(txt){ const t=String(txt||''); return /apertura/i.test(t)?'apertura':/shooting/i.test(t)?'shoot-of':/conferencia/i.test(t)?'conf':/auftv/i.test(t)?'auftv':''; }
+function _fnovHexRgba(h,a){ const m=/^#?([0-9a-f]{6})$/i.exec(String(h||'')); if(!m) return ''; const n=parseInt(m[1],16); return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+a+')'; }
 function _fifaNovEvRowHtml(date,e,idx,total){
   const k=evKey(date,idx);
   const s=(getEvStatus()[k])||'';
@@ -18803,10 +18806,11 @@ function _fifaNovEvRowHtml(date,e,idx,total){
   const _esCita=/^\s*(se presentan? a entrenar|citaci[oó]n|citad[oa]s?\b|llegada al complejo|llegan? al complejo)/i.test(String(txt||''));
   const evType=(e.cita===true||(e.cita!==false&&_esCita))&&e.tipo!=='viaje'&&e.tipo!=='partido'?'cita':e.tipo==='viaje'?'viaje':e.tipo==='entreno'?'entreno':e.tipo==='partido'?'partido':_fnovEsPrensa(e)?'prensa':e.auf?'auf':e.auftv?'auftv':'team';
   const dotClass=evType==='viaje'?'ce-viaje':evType==='auf'?'ce-oblig':evType==='auftv'?'ce-info':evType==='entreno'?'ce-info':evType==='partido'?'ce-oblig':'ce-team';
-  const tag=FIFANOV_TAG_HTML[evType];
+  let tag=FIFANOV_TAG_HTML[evType], _rowStyle='';
+  if(evType==='prensa'){ const _pk=_fnovPrensaKey(txt); if(_pk){ const _c=_fnovAtColor(_pk); tag=tag.replace('class="cv-tg tg-prensa"','class="cv-tg tg-prensa" style="color:'+_c+';border-color:'+_fnovHexRgba(_c,.6)+';background:'+_fnovHexRgba(_c,.14)+'"'); _rowStyle=' style="--pcol-bg:'+_fnovHexRgba(_c,.12)+'"'; } }
   const rowBg=FIFANOV_ROW_BG[evType]||'';
   return `
-    <div class="cal-ev ev-${evType}${e.confirmar?' ev-confirmar':(/^Aterrizan? en Uruguay\b/i.test(String(txt||''))?' ev-llegada':'')}${s==='done'?' ev-isdone':s==='sus'?' ev-issus':s==='no'?' ev-isno':''}" id="cev-${date}-${idx}">
+    <div class="cal-ev ev-${evType}${e.confirmar?' ev-confirmar':(/^Aterrizan? en Uruguay\b/i.test(String(txt||''))?' ev-llegada':'')}${s==='done'?' ev-isdone':s==='sus'?' ev-issus':s==='no'?' ev-isno':''}" id="cev-${date}-${idx}"${_rowStyle}>
       <div class="cal-ev-row">
         <div class="ev-sts">
           <button class="ev-st st-done${s==='done'?' act':''}" onclick="_fnovSetEvSt('${date}',${idx},'done')" title="Hecho"><i class="ti ti-check"></i></button>
@@ -18824,7 +18828,7 @@ function _fifaNovEvRowHtml(date,e,idx,total){
             ${e.oblig?`<span class="cv-tg tg-oblig" title="Compromiso contractual/obligatorio">Obligatoria</span>`:''}
             ${parseLinks(link).map((u,i)=>`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Ver link${parseLinks(link).length>1?' '+(i+1):''}: ${u}" class="ev-lk"><i class="ti ti-link"></i>${parseLinks(link).length>1?`<sup style="font-size:8px">${i+1}</sup>`:''}</a>`).join('')}
           </div>
-          ${_fnovPersonasOf(e).length?`<div class="ev-selected-parts">${_fnovPersonasOf(e).map(n=>`<span class="ev-pp">${n}</span>`).join('')}</div>`:''}
+          ${(_fnovPersonasOf(e).length&&_fnovPrensaKey(txt)!=='apertura')?`<div class="ev-selected-parts">${_fnovPersonasOf(e).map(n=>`<span class="ev-pp">${n}</span>`).join('')}</div>`:''}
         </div>
         <span class="ev-acts">
           <button class="ev-act" onclick="deleteFifaNovAct('${date}',${idx},event)" title="Eliminar esta actividad"><i class="ti ti-trash"></i></button>
