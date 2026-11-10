@@ -1305,6 +1305,13 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-st.st-done.act{background:rgba(74,222,128,.16)!important;border-color:rgba(74,222,128,.6)!important;color:#4ADE80!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-st.st-sus.act{background:rgba(252,211,77,.14)!important;border-color:rgba(252,211,77,.6)!important;color:#FCD34D!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-st.st-no.act{background:rgba(248,113,113,.14)!important;border-color:rgba(248,113,113,.6)!important;color:#F87171!important}
+/* «Quién participa»: varias personas como etiquetas con ×, y un buscador para seguir sumando (Felipe, 10/11/2026) */
+.pw-qbox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;min-height:42px;border:1.5px solid var(--border);border-radius:10px;box-sizing:border-box;cursor:text}
+.pw-qchips{display:contents}
+.pw-qchip{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 10px;border-radius:999px;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.5);color:#BAE6FD;font-size:.82em;font-weight:700}
+.pw-qchip button{border:none;background:rgba(255,255,255,.12);color:inherit;width:18px;height:18px;border-radius:50%;cursor:pointer;line-height:1;font-size:12px;padding:0}
+.pw-qchip button:hover{background:rgba(248,113,113,.5)}
+.pw-qbox .pw-qsearch{flex:1;min-width:150px;border:none!important;background:transparent!important;box-shadow:none!important;outline:none!important;padding:4px 2px!important;font-size:.88em;width:auto!important;color:inherit}
 /* Cada bloque queda apenas teñido con el color de su etiqueta (Felipe, 09/11/2026): viaje amarillo, llegada naranja, cronograma rojo, partido verde oscuro, entrenamiento verde claro, AUF rosado salmón */
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-viaje{background:rgba(252,211,77,.13)!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-ev.ev-prensa{background:var(--pcol-bg,rgba(56,189,248,.12))!important}
@@ -43862,7 +43869,7 @@ function _renderVentana(id){
 
         <div style="margin-bottom:12px;position:relative">
           <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN PARTICIPARÍA</label>
-          <input id="pw-sol-quien" type="text" autocomplete="off" placeholder="Elegí uno o varios (delegación, ventana, estructura…)" onfocus="_pwSolQuienFocus(this)" oninput="_pwSolQuienInput(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-sol-quien-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+          <div class="pw-qbox" onclick="document.getElementById('pw-sol-quien-q').focus()"><span id="pw-sol-quien-chips" class="pw-qchips"></span><input id="pw-sol-quien-q" class="pw-qsearch" type="text" autocomplete="off" placeholder="Sumá a una o más personas (delegación, ventana, estructura…)" onfocus="_pwQShow('pw-sol-quien')" oninput="_pwQShow('pw-sol-quien')" onkeydown="_pwQKey(event,'pw-sol-quien')" onblur="_pwQBlur('pw-sol-quien')"></div><input id="pw-sol-quien" type="hidden">{const s=document.getElementById('pw-sol-quien-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
           <div id="pw-sol-quien-sug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#0F1830;border:1px solid rgba(255,255,255,.16);border-radius:14px;margin-top:4px;box-shadow:0 12px 32px rgba(0,0,0,.5);max-height:260px;overflow-y:auto"></div>
         </div>
 
@@ -44023,39 +44030,48 @@ function _pwSolFmt(f){
   });
 }
 // "Quién participaría": admite varios (separados por coma). Ofrece primero a quienes ya están en la ventana de prensa (ej. Gustavo Bueno) y después a todos los que podrían ser (delegación, estructura, comité…).
-let _pwSolQuienMatches=[];
-function _pwSolQuienState(){
-  const inp=document.getElementById('pw-sol-quien');
-  const parts=(inp?inp.value:'').split(',');
-  const chosen=parts.slice(0,-1).map(x=>x.trim()).filter(Boolean);
-  let last=(parts[parts.length-1]||'').trim();
-  if(last && _pwPersonOptions().some(o=>_nomKey(o.label)===_nomKey(last))){ chosen.push(last); last=''; }
-  return {chosen,last};
+// Varias personas en «Quién participa»: el valor guardado sigue siendo la lista separada por coma (campo oculto); acá se muestran como etiquetas y se siguen sumando.
+function _pwQEsc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+let _pwQMatches={};
+function _pwQNames(id){ const h=document.getElementById(id); return ((h&&h.value)||'').split(',').map(x=>x.trim()).filter(Boolean); }
+function _pwQSet(id,names){ const h=document.getElementById(id); if(h) h.value=names.join(', '); _pwQRender(id); }
+function _pwQRender(id){
+  const box=document.getElementById(id+'-chips'); if(!box) return;
+  box.innerHTML=_pwQNames(id).map((n,i)=>`<span class="pw-qchip">${_pwQEsc(n)}<button type="button" title="Quitar" onmousedown="event.preventDefault();_pwQDel('${id}',${i})">×</button></span>`).join('');
 }
-function _pwSolQuienFocus(inp){ _pwSolQuienInput(inp); }
-function _pwSolQuienInput(inp){
-  const sug=document.getElementById('pw-sol-quien-sug'); if(!sug) return;
-  const {chosen,last}=_pwSolQuienState();
-  const qn=_gnavNorm(last), ya=new Set(chosen.map(_nomKey));
-  const vw=(_pwGetAll().find(v=>v.id===_pwCurId))||{};
+function _pwQDel(id,i){ const n=_pwQNames(id); n.splice(i,1); _pwQSet(id,n); _pwQShow(id); }
+function _pwQAdd(id,label){
+  label=String(label||'').trim(); if(!label) return;
+  const n=_pwQNames(id); if(!n.some(x=>_nomKey(x)===_nomKey(label))) n.push(label); _pwQSet(id,n);
+  const q=document.getElementById(id+'-q'); if(q) q.value='';
+}
+function _pwQShow(id){
+  const sug=document.getElementById(id+'-sug'), q=document.getElementById(id+'-q'); if(!sug||!q) return;
+  const qn=_gnavNorm(q.value), ya=new Set(_pwQNames(id).map(_nomKey));
+  const vw=(_pwGetAll().find(v=>v.id===(id==='pw-aten-prot'?_pwAtenVwId:_pwCurId)))||{};
   const enVentana=new Set((vw.participantes||[]).map(p=>_nomKey(_pwCanonLabel(p.label))));
   const opts=_pwPersonOptions().filter(o=>!ya.has(_nomKey(o.label)));
   const fil=qn?opts.filter(o=>_gnavNorm(o.label).includes(qn)||_gnavNorm(o.rol||'').includes(qn)):opts;
   const matches=[...fil.filter(o=>enVentana.has(_nomKey(o.label))),...fil.filter(o=>!enVentana.has(_nomKey(o.label)))].slice(0,60);
-  _pwSolQuienMatches=matches;
+  _pwQMatches[id]=matches;
   if(!matches.length){ sug.style.display='none'; return; }
-  sug.innerHTML=matches.map((o,i)=>`<div onmousedown="event.preventDefault();_pwSolQuienPick(${i})" style="padding:8px 13px;cursor:pointer;font-size:.85em;border-bottom:1px solid rgba(255,255,255,.06)" onmouseenter="this.style.background='rgba(255,255,255,.08)'" onmouseleave="this.style.background='transparent'"><span style="font-weight:700;color:#EFF3F8">${o.label}</span>${o.rol?`<span style="color:rgba(239,243,248,.6)"> · ${o.rol}</span>`:''}${enVentana.has(_nomKey(o.label))?'<span style="float:right;font-size:.7em;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#22D3EE">En la ventana</span>':''}</div>`).join('');
+  sug.innerHTML=matches.map((o,i)=>`<div onmousedown="event.preventDefault();_pwQPick('${id}',${i})" style="padding:8px 13px;cursor:pointer;font-size:.85em;border-bottom:1px solid rgba(255,255,255,.06)" onmouseenter="this.style.background='rgba(255,255,255,.08)'" onmouseleave="this.style.background='transparent'"><span style="font-weight:700;color:#EFF3F8">${_pwQEsc(o.label)}</span>${o.rol?`<span style="color:rgba(239,243,248,.6);font-size:.85em"> · ${_pwQEsc(o.rol)}</span>`:''}${enVentana.has(_nomKey(o.label))?'<span style="color:#7DD3FC;font-size:.75em;font-weight:800"> · en la ventana</span>':''}</div>`).join('');
   sug.style.display='block';
 }
-function _pwSolQuienPick(i){
-  const o=_pwSolQuienMatches[i]; if(!o) return;
-  const inp=document.getElementById('pw-sol-quien'); if(!inp) return;
-  const {chosen}=_pwSolQuienState(); chosen.push(o.label);
-  inp.value=chosen.join(', ')+', ';
-  const sug=document.getElementById('pw-sol-quien-sug'); if(sug) sug.style.display='none';
-  inp.focus();
+function _pwQPick(id,i){
+  const o=(_pwQMatches[id]||[])[i]; if(!o) return;
+  _pwQAdd(id,o.label); _pwQShow(id);          // la lista queda abierta para sumar a otra persona
+  const q=document.getElementById(id+'-q'); if(q) q.focus();
 }
-window._pwSolQuienPick=_pwSolQuienPick;
+function _pwQKey(ev,id){
+  const q=ev.target;
+  if(ev.key==='Enter'||ev.key===','){
+    ev.preventDefault(); const t=q.value.trim();
+    if(t){ const m=(_pwQMatches[id]||[]); if(m.length&&_gnavNorm(m[0].label).includes(_gnavNorm(t))) _pwQAdd(id,m[0].label); else _pwQAdd(id,t); _pwQShow(id); }
+  } else if(ev.key==='Backspace'&&!q.value){ const n=_pwQNames(id); if(n.length){ n.pop(); _pwQSet(id,n); _pwQShow(id); } }
+}
+function _pwQBlur(id){ setTimeout(()=>{ const q=document.getElementById(id+'-q'), s=document.getElementById(id+'-sug'); if(q&&q.value.trim()) _pwQAdd(id,q.value.trim()); if(s) s.style.display='none'; },200); }
+window._pwQPick=_pwQPick; window._pwQDel=_pwQDel; window._pwQShow=_pwQShow; window._pwQKey=_pwQKey; window._pwQBlur=_pwQBlur;
 
 // ── Registro libre: vista y CRUD de atenciones ────────────────────────────────
 const _pwFmtAten={presencial:'Presencial',zoom:'Zoom',telefonica:'Telefónica',movil:'Móvil',escrita:'Escrita'};
@@ -44187,7 +44203,7 @@ function _pwEnsureAtenModal(){
       <!-- Quién habló + fecha -->
       <div style="margin-bottom:12px;position:relative">
         <label style="font-size:.75em;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">QUIÉN PARTICIPA <span style="font-weight:600;text-transform:none;letter-spacing:0;opacity:.8">· con quién piden la nota</span></label>
-        <input id="pw-aten-prot" type="text" autocomplete="off" placeholder="¿Con quién piden la nota? Tocá para ver la delegación…" onfocus="_pwAtenProtFocus(this)" oninput="_pwAtenProtInput(this)" onblur="setTimeout(()=>{const s=document.getElementById('pw-aten-prot-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
+        <div class="pw-qbox" onclick="document.getElementById('pw-aten-prot-q').focus()"><span id="pw-aten-prot-chips" class="pw-qchips"></span><input id="pw-aten-prot-q" class="pw-qsearch" type="text" autocomplete="off" placeholder="Sumá a una o más personas…" onfocus="_pwQShow('pw-aten-prot')" oninput="_pwQShow('pw-aten-prot')" onkeydown="_pwQKey(event,'pw-aten-prot')" onblur="_pwQBlur('pw-aten-prot')"></div><input id="pw-aten-prot" type="hidden">{const s=document.getElementById('pw-aten-prot-sug');if(s)s.style.display='none'},200)" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:.88em;box-sizing:border-box">
         <div id="pw-aten-prot-sug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#0F1830;border:1px solid rgba(255,255,255,.16);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.5);max-height:200px;overflow-y:auto"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:12px">
@@ -44305,6 +44321,7 @@ function _pwAtenResetForm(){
   _pwAtenFmtVal=''; _pwAtenEstVal=''; _pwAtenDias=[]; _pwAtenFranjaVal=''; _pwAtenCoordSet(false);
   ['pw-aten-programa','pw-aten-medio','pw-aten-notas','pw-aten-link','pw-aten-emailtxt','pw-aten-email'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('pw-aten-fmtsol').value='';
+  _pwQSet('pw-aten-prot',[]); { const _q=document.getElementById('pw-aten-prot-q'); if(_q) _q.value=''; }
   const _hoy=_hoyLocal().split('-');
   document.getElementById('pw-aten-fecha-yyyy').value=_hoy[0];
   document.getElementById('pw-aten-fecha-mm').value=_hoy[1];
@@ -44318,43 +44335,7 @@ function _pwAtenResetForm(){
 }
 // "Quién participa" (con quién piden la nota) admite VARIOS (ej. el DT y un jugador): el campo guarda los nombres separados por coma.
 // Lo ya elegido queda; el buscador trabaja sobre lo que se está escribiendo después de la última coma.
-let _pwAtenProtMatches=[];
-function _pwAtenProtState(){
-  const inp=document.getElementById('pw-aten-prot');
-  const parts=(inp?inp.value:'').split(',');
-  const chosen=parts.slice(0,-1).map(s=>s.trim()).filter(Boolean);
-  let last=(parts[parts.length-1]||'').trim();
-  // si lo último ya es un nombre completo de la lista, cuenta como elegido y se puede seguir sumando
-  if(last && _pwPersonOptions().some(o=>_nomKey(o.label)===_nomKey(last))){ chosen.push(last); last=''; }
-  return {chosen,last};
-}
-function _pwAtenProtShowSug(){
-  const sug=document.getElementById('pw-aten-prot-sug'); if(!sug) return;
-  const {chosen,last}=_pwAtenProtState();
-  const qn=_gnavNorm(last);
-  const ya=new Set(chosen.map(_nomKey));
-  // Primero quienes ya participan en esta ventana (ej. Ignacio María González y Lautaro Muñiz), después el resto.
-  const vw=(_pwGetAll().find(v=>v.id===_pwAtenVwId))||{};
-  const enVentana=new Set((vw.participantes||[]).map(p=>_nomKey(_pwCanonLabel(p.label))));
-  const opts=_pwPersonOptions().filter(o=>!ya.has(_nomKey(o.label)));
-  const fil=qn ? opts.filter(o=>_gnavNorm(o.label).includes(qn)||_gnavNorm(o.rol).includes(qn)) : opts;
-  const matches=[...fil.filter(o=>enVentana.has(_nomKey(o.label))), ...fil.filter(o=>!enVentana.has(_nomKey(o.label)))];
-  _pwAtenProtMatches=matches.slice(0,16);
-  if(!_pwAtenProtMatches.length){ sug.style.display='none'; return; }
-  sug.innerHTML=_pwAtenProtMatches.map((o,i)=>`<div onmousedown="event.preventDefault();_pwAtenProtPick(${i})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.06);font-size:.85em;color:#EFF3F8" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">${o.label}<span style="color:rgba(239,243,248,.6);font-size:.85em"> · ${o.rol}</span>${enVentana.has(_nomKey(o.label))?'<span style="font-size:.7em;font-weight:800;color:#22D3EE;margin-left:6px;letter-spacing:.08em">EN ESTA VENTANA</span>':''}</div>`).join('');
-  sug.style.display='block';
-}
-function _pwAtenProtPick(i){
-  const o=_pwAtenProtMatches[i]; if(!o) return;
-  const inp=document.getElementById('pw-aten-prot'); if(!inp) return;
-  const {chosen}=_pwAtenProtState();
-  chosen.push(o.label);
-  inp.value=chosen.join(', ');
-  const sug=document.getElementById('pw-aten-prot-sug'); if(sug) sug.style.display='none';
-}
-window._pwAtenProtPick=_pwAtenProtPick;
-function _pwAtenProtFocus(inp){ _pwAtenProtShowSug(); }
-function _pwAtenProtInput(inp){ _pwAtenProtShowSug(); }
+
 
 function _pwAtenNueva(vwId){
   _pwEnsureAtenModal();
@@ -44370,7 +44351,7 @@ function _pwAtenEdit(vwId,idx){
   _pwAtenVwId=vwId; _pwAtenEditIdx=idx;
   _pwAtenResetForm();
   document.getElementById('pw-aten-title').textContent='Editar atención';
-  document.getElementById('pw-aten-prot').value=a.protagonistaLabel||a.protagonistaKey||'';
+  _pwQSet('pw-aten-prot',(a.protagonistaLabel||a.protagonistaKey||'').split(',').map(x=>x.trim()).filter(Boolean));
   document.getElementById('pw-aten-programa').value=a.programa||'';
   document.getElementById('pw-aten-medio').value=a.medio||'';
   const _afParts=(a.fecha||'').split('-');
@@ -44970,7 +44951,7 @@ function _pwOpenSolModal(id,si){
   document.getElementById('pw-sol-recibido-hora').value=s?.recibidoHora||'';
   document.getElementById('pw-sol-programa').value=s?.programa||'';
   document.getElementById('pw-sol-medio').value=s?.medio||'';
-  const quienEl=document.getElementById('pw-sol-quien'); if(quienEl) quienEl.value=s?.quien||'';
+  const quienEl=document.getElementById('pw-sol-quien'); if(quienEl){ _pwQSet('pw-sol-quien',String(s?.quien||'').split(',').map(x=>x.trim()).filter(Boolean)); const _q=document.getElementById('pw-sol-quien-q'); if(_q) _q.value=''; }
   const linkEl=document.getElementById('pw-sol-link'); if(linkEl) linkEl.value=s?.link||'';
   document.getElementById('pw-sol-notas').value=s?.notas||'';
   _pwSolFmtVal=''; setTimeout(()=>_pwSolFmt(s?.formato||''),0);
