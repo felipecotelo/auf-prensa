@@ -9248,7 +9248,7 @@ const TK_TAGS=[
   {id:'sub16',label:'Sub-16',color:'#B388EB',alias:['sub16','s16']},
   {id:'sub15',label:'Sub-15',color:'#7C9BFF',alias:['sub15','s15']},
   {id:'juveniles',label:'Selecciones Juveniles',color:'#F472B6',alias:['juveniles','selecciones juveniles','sj']},
-  {id:'complejo',label:'Complejo Celeste',color:'#7DD3FC',alias:['complejo','celeste','cc']},
+  {id:'complejo',label:'Complejo Celeste',color:'#2DD4BF',alias:['complejo','celeste','cc']},
 ];
 // Etiqueta que hereda el recordatorio de una tarea: la primera etiqueta de la tarea (o 'Tarea' si no tiene)
 // Detección automática por el texto ("sub-16", "la mayor", "complejo celeste"…). Es virtual: no se guarda, así que las tareas viejas
@@ -10044,7 +10044,9 @@ function _recNoAplicaBtn(r,hecho){
   return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoAplica(this.dataset.id)" title="No aplica saludo: lo saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no aplica</button>`;
 }
 // Degradé del color de la categoría (Sub-16, Mayor…) en toda la fila del recordatorio, para ubicar de un vistazo de qué categoría es (Felipe, 09/11/2026).
-function _recGrad(r){ const ck=_catDeLabel(r&&r.etiqueta); if(!ck) return ''; const c=_catCol(ck);
+const _REC_ETI_COL={'complejo celeste':'#2DD4BF','local':'#86EFAC','selecciones juveniles':'#F472B6'};
+function _recEtiCol(label){ const ck=_catDeLabel(label); if(ck) return _catCol(ck); return _REC_ETI_COL[String(label||'').trim().toLowerCase()]||''; }
+function _recGrad(r){ const c=_recEtiCol(r&&r.etiqueta); if(!c) return '';
   return `;background-image:linear-gradient(90deg,color-mix(in srgb,${c} 30%,transparent) 0%,color-mix(in srgb,${c} 10%,transparent) 55%,transparent 100%)`; }
 function _recTick(r,hecho,oscuro){
   return hecho
@@ -10074,10 +10076,10 @@ function renderInicioRecordatoriosRaw(){
   const isMob=_inicioDark();
   const rows=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
     const e=_recEtiqueta(r), FX=hecho?null:_recFondo(r);
-    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px ${FX?'6px':'0'};${FX?`background:${isMob?'rgba(148,163,184,.16)':FX.bg};border-left:3px solid ${FX.c};border-radius:6px;margin:2px -6px 2px -9px;`:''}${hecho?'opacity:.55':''}${_recGrad(r)}">
+    return `<div style="display:flex;align-items:flex-start;gap:9px;padding:5px 8px 5px 12px;border-radius:6px;margin:2px 0;${(!hecho&&_recNivel(r))?`box-shadow:inset 5px 0 0 ${_recNivel(r)==='rojo'?'#DC2626':'#EAB308'};`:''}${FX&&!_recNivel(r)?`background:${isMob?'rgba(148,163,184,.16)':FX.bg};box-shadow:inset 5px 0 0 ${FX.c};`:''}${hecho?'opacity:.55':''}${_recGrad(r)}">
       ${_recTick(r,hecho,isMob)}
       <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:${_recNivel(r)&&!hecho?800:600};color:${_recNivel(r)&&!hecho?_REC_NIVELES[_recNivel(r)].c:(isMob?'#EFF3F8':'var(--text)')};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
+        <div style="font-size:12.5px;font-weight:${_recNivel(r)&&!hecho?800:600};color:${_recNivel(r)&&!hecho?_REC_NIVELES[_recNivel(r)].c:(isMob?'#EFF3F8':'var(--text)')};${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}${r.etiqueta?` <span style="font-size:10px;font-weight:700;${_recEtiCol(r.etiqueta)?`color:${isMob?'#fff':`color-mix(in srgb,${_recEtiCol(r.etiqueta)} 55%,#0B1220)`};background:color-mix(in srgb,${_recEtiCol(r.etiqueta)} ${isMob?'35':'24'}%,${isMob?'transparent':'#fff'})`:`color:#0369A1;background:${isMob?'rgba(14,165,233,.15)':'#E0F2FE'}`};border-radius:5px;padding:1px 6px;margin-left:4px;white-space:nowrap">#${_recEsc(r.etiqueta)}</span>`:''}</div>
         ${r.detalle?`<div style="font-size:11px;color:${isMob?'rgba(239,243,248,.5)':'var(--muted)'};margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
       </div>
       <span style="font-size:10px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?(isMob?'rgba(22,163,74,.18)':'#DCFCE7'):(isMob?'rgba(255,255,255,.08)':e.bg)};border-radius:6px;padding:2px 7px;white-space:nowrap;flex-shrink:0">${hecho?'hecho':e.t}</span>
@@ -10116,14 +10118,14 @@ function _recDockRenderRaw(){
     const filas=[...pend.map(r=>[r,false]),...hechos.map(r=>[r,true])].sort((x,y)=>_recCmp(x[0],y[0])).map(([r,hecho])=>{
       const e=_recEtiqueta(r);
       const nv=hecho?'':_recNivel(r), NV=_REC_NIVELES[nv], rojo=!!NV, FX=(!rojo&&!hecho)?_recFondo(r):null;
-      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px ${rojo||FX?'6px':'0'};border-top:1px solid var(--border);${rojo?`background:${NV.bg};border-left:3px solid ${NV.c};border-radius:6px;margin:2px 0;`:''}${FX?`background:${FX.bg};border-left:3px solid ${FX.c};border-radius:6px;margin:2px -6px 2px -9px;`:''}${hecho?'opacity:.55':''}${_recGrad(r)}">
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 8px 6px 12px;border-top:1px solid var(--border);border-radius:6px;margin:2px 0;${rojo?`box-shadow:inset 5px 0 0 ${nv==='rojo'?'#DC2626':'#EAB308'};`:''}${FX&&!rojo?`background:${FX.bg};box-shadow:inset 5px 0 0 ${FX.c};`:''}${hecho?'opacity:.55':''}${_recGrad(r)}">
         ${_recTick(r,hecho,false)}
         <div style="flex:1;min-width:0">
           <div style="font-size:11.5px;font-weight:${rojo?800:700};color:${rojo?NV.tx:'var(--text)'};line-height:1.3;${hecho?'text-decoration:line-through;text-decoration-color:rgba(100,116,139,.6)':''}">${_recEsc(r.titulo)}</div>
           ${r.detalle?`<div style="font-size:10.5px;color:var(--muted);margin-top:1px">${_recEsc(r.detalle)}</div>`:''}
           <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
             <span style="font-size:9.5px;font-weight:700;color:${hecho?'#15803D':e.c};background:${hecho?'#DCFCE7':e.bg};border-radius:5px;padding:1px 6px">${hecho?'hecho':e.t}</span>
-            ${r.etiqueta?(()=>{ const ck=_catDeLabel(r.etiqueta), c=ck?_catCol(ck):''; return `<span style="font-size:9.5px;font-weight:700;${c?`color:color-mix(in srgb,${c} 55%,#0B1220);background:color-mix(in srgb,${c} 24%,#fff);border:1px solid color-mix(in srgb,${c} 55%,#fff)`:'color:#0369A1;background:#E0F2FE'};border-radius:5px;padding:1px 6px">#${_recEsc(r.etiqueta)}</span>`; })():''}
+            ${r.etiqueta?(()=>{ const c=_recEtiCol(r.etiqueta); return `<span style="font-size:9.5px;font-weight:700;${c?`color:color-mix(in srgb,${c} 55%,#0B1220);background:color-mix(in srgb,${c} 24%,#fff);border:1px solid color-mix(in srgb,${c} 55%,#fff)`:'color:#0369A1;background:#E0F2FE'};border-radius:5px;padding:1px 6px">#${_recEsc(r.etiqueta)}</span>`; })():''}
             ${hecho?'':_recNivelBtns(r)}
             ${_recNoAplicaBtn(r,hecho)}
           </div>
