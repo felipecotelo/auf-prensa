@@ -18458,6 +18458,8 @@ function _fnovInfografia(lista){
     const catDe=h=>{ const m=String(h.label||'').match(/sub-?\s?(\d+)/i); return m?'Sub-'+m[1]:null; };
     // Aclaraciones (*) de procesos juveniles (Felipe, 06/11/2026): casos donde faltan categorías por motivos ajenos al jugador.
     const ACLAR_JUV={'Facundo Pellistri':'no tuvieron competencia en sub-20 por el COVID','Martín Satriano':'no tuvieron competencia en sub-20 por el COVID'};
+    // Felipe (11/11/2026): el COVID aplica a toda la generación (nacidos en 2001 y 2002: no hubo Sudamericano ni Mundial Sub-20), no solo a esos dos → se suma sola a quien tenga proceso juvenil y ninguna Sub-20.
+    gente.forEach(g=>{ const y=parseInt(String(g.fn||'').slice(0,4),10); if(!ACLAR_JUV[g.nom]&&(y===2001||y===2002)&&g.juv.length&&!g.juv.some(h=>catDe(h)==='Sub-20')) ACLAR_JUV[g.nom]='no tuvieron competencia en sub-20 por el COVID'; });
     const conAst=n=>ACLAR_JUV[n]?n+'*':n;
     const aclarEnLista=Object.keys(ACLAR_JUV).filter(n=>gente.some(g=>g.nom===n));
     const aclarTxt=(()=>{ const por=new Map(); aclarEnLista.forEach(n=>{ const t=ACLAR_JUV[n]; por.set(t,(por.get(t)||[]).concat(n)); }); return [...por].map(([t,ns])=>'*'+ns.join(' y ')+' '+(ns.length===1?t.replace('no tuvieron','no tuvo'):t)).join(' · '); })();
