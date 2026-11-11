@@ -1153,6 +1153,11 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .dg-pr{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .dg-no{font-size:10.5px;color:rgba(239,243,248,.35)}
 .dg-tg{font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:2px 8px;border-radius:999px;border:1px solid rgba(138,216,255,.4);color:#8AD8FF;white-space:nowrap}
+.dg-tg.dg-prev{border:1px dashed rgba(252,211,77,.6);color:#FDE68A;background:rgba(252,211,77,.07)}
+.dg .gr-chip.pv{border-color:rgba(252,211,77,.55);border-style:dashed}
+.dg .gr-chip .pvm{font-size:9px;font-weight:800;letter-spacing:.08em;color:#FCD34D;margin-left:6px}
+.dg-leg{font-size:11px;line-height:1.4;color:rgba(239,243,248,.62);margin:2px 0 10px}
+.dg-leg b{color:#FDE68A}
 .dg-inj{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:7px;flex-shrink:0}
 .dg-fls{display:inline-flex;gap:3px;margin-left:4px}
 .dg-fl{width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:transparent;color:rgba(239,243,248,.35);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
@@ -17182,6 +17187,9 @@ function renderFifaNovGrafica(){
     });
   });
 
+  // Felipe (11/11/2026): ayuda para no repetir — quiénes estuvieron en los diseños (MD-1 y MD) de la Fecha FIFA anterior (set-oct, en Asia).
+  const prevUse={}; try{ const gp=getFifaSepGrafica(); (FIFASEP26.partidosData||[]).forEach(pp=>{ ['md1','md'].forEach(st=>{ ((gp[pp.rival]||{})[st]||{players:[]}).players.forEach(nom=>{ (prevUse[nom]=prevUse[nom]||[]).push(pp.rival.slice(0,3).toUpperCase()+' '+(st==='md1'?'MD-1':'MD')); }); }); }); }catch(_){}
+  const prevTxt=nom=>(prevUse[nom]||[]).join(', ');
   const _numByNom={}; pool.forEach(p=>{ if(p.num!=null) _numByNom[p.nom]=p.num; });
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
   // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
@@ -17191,7 +17199,8 @@ function renderFifaNovGrafica(){
     return `<div class="player-chips">${pool.map(p=>{
       const isSel=sel.includes(p.nom);
       const nomEnc=encodeURIComponent(p.nom);
-      return `<span class="gr-chip${isSel?' sel':''}" onclick="_toggleFifaNovGraficaPlayer('${rival}','${stage}','${nomEnc}')">${_numTag(p.num)}${p.nom}</span>`;
+      const pv=prevUse[p.nom];
+      return `<span class="gr-chip${isSel?' sel':''}${pv?' pv':''}" ${pv?`title="Estuvo en los diseños de la Fecha FIFA anterior: ${prevTxt(p.nom)}"`:''} onclick="_toggleFifaNovGraficaPlayer('${rival}','${stage}','${nomEnc}')">${_numTag(p.num)}${p.nom}${pv?'<span class="pvm">ANT.</span>':''}</span>`;
     }).join('')}</div>`;
   }
   function selectedChips(rival,stage){
@@ -17234,6 +17243,7 @@ function renderFifaNovGrafica(){
   const _FI={star:'ti-star',up:'ti-trending-up',down:'ti-trending-down'};
   const playerList=pool.map(p=>{
     const tags=(usage[p.nom]||[]).map(t=>`<span class="dg-tg">${t}</span>`).join('');
+    const prevTags=(prevUse[p.nom]||[]).map(t=>`<span class="dg-tg dg-prev" title="Estuvo en los diseños de la Fecha FIFA anterior">ANT. ${t}</span>`).join('');
     const nomEnc=encodeURIComponent(p.nom);
     const inj=getResInjury(p.nom);
     const injDot=inj!=='green'?`<i class="dg-inj" style="background:${inj==='red'?'#F87171':'#FCD34D'}" title="${INJ_LABELS[inj]}"></i>`:'';
@@ -17244,7 +17254,7 @@ function renderFifaNovGrafica(){
     }).join('');
     return `<div class="dg-row${tags?' used':''}">
       <span class="dg-pn">${_numTag(p.num)}${p.nom}${injDot}</span>
-      <span class="dg-pr">${tags||'<span class="dg-no">sin uso</span>'}<span class="dg-fls">${flagBtns}</span></span>
+      <span class="dg-pr">${tags}${prevTags}${(!tags&&!prevTags)?'<span class="dg-no">sin uso</span>':''}<span class="dg-fls">${flagBtns}</span></span>
     </div>`;
   }).join('');
 
@@ -17253,6 +17263,7 @@ function renderFifaNovGrafica(){
       <div class="dg-main">${matchCards}</div>
       <div class="dg-side">
         <div class="dg-eye">${FIFANOV26.finales?'Plantel':'Reservados'} — ${pool.length} jugadores</div>
+        ${Object.keys(prevUse).length?`<div class="dg-leg"><b>ANT.</b> = ya estuvo en los diseños de la Fecha FIFA anterior (${Object.keys(prevUse).length} jugadores). Para no repetir mucho.</div>`:''}
         <div class="dg-list">${playerList}</div>
       </div>
     </div>`;
