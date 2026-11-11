@@ -9932,6 +9932,34 @@ function _recAtencionesDerivados(){
   }catch(e){ console.warn('recordatorios de atenciones:',e); }
   return out;
 }
+// Diseños del MD-1 y del MD de la Mayor (Felipe, 11/11/2026): siempre que haya partido de la Mayor,
+//  · MD-2 a la mañana: «Elegir jugadores para el MD-1» y «Mandar a diseñar el MD-1»
+//  · MD-1 a la mañana: «Elegir jugador para el MD» y «Mandar a diseñar el MD»  (la hora del MD-1 la puse yo: 10:00, igual que el «Pedir diseño» de la Sub-15).
+// Los partidos salen de los días tipo «partido» de la Fecha FIFA en curso (FIFANOV26_CAL_DAYS); al armar la próxima Fecha FIFA hay que sumar su lista de días acá.
+function _recMayorPartidosLista(){
+  const out=[];
+  try{ [typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:null].filter(Boolean).forEach(dias=>dias.forEach(d=>{ if(d&&d.tipo==='partido'&&d.rival&&d.date) out.push({date:d.date,rival:String(d.rival).replace(/\s*[\u{1F1E6}-\u{1F1FF}]{2}\s*$/u,''),lugar:d.lugar||''}); })); }catch(_){}
+  return out;
+}
+function _recMayorMdDerivados(){
+  const out=[];
+  try{
+    const manual=stor.get('auf4_rec_manual',{}), DOW=['dom','lun','mar','mié','jue','vie','sáb'];
+    _recMayorPartidosLista().forEach(m=>{
+      const D=m.date; if(D<=TODAY||D>_recSumarDias(TODAY,5)) return; // el aviso sale desde el MD-2; el mismo día del partido ya no hay nada que diseñar
+      const dd=new Date(D+'T12:00:00'), det='Partido del '+DOW[dd.getDay()]+' '+dd.getDate()+'/'+(dd.getMonth()+1)+(m.lugar?' · '+m.lugar:'');
+      [[-2,'MD-1','jugadores','mdm|'+D+'|1'],[-1,'MD','jugador','mdm|'+D+'|0']].forEach(([off,pieza,plural,base])=>{
+        const vence=_recSumarDias(D,off); if(vence<_recSumarDias(TODAY,-1)) return; // lo de ayer o antes ya no se muestra si quedó sin hacer
+        const grupo=base;
+        [['s','Elegir '+plural+' para el '+pieza+' vs. '+m.rival,1],['d','Mandar a diseñar el '+pieza+' vs. '+m.rival,2]].forEach(([k,t,o])=>{
+          const id=base+'|'+k, mn=manual[id]||{};
+          out.push({id,titulo:t,detalle:det,vence,hora:'10:00',etiqueta:'Mayor',secuencial:true,grupo,orden:o,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+        });
+      });
+    });
+  }catch(e){ console.warn('recordatorios MD-1/MD de la Mayor:',e); }
+  return out;
+}
 // Notas de AUFtv (Felipe, 11/11/2026): siempre que marque una nota de AUFtv a un jugador, 24 h antes («Preparar nota a X») y («Coordinar con X la nota»). Sale de «Atenciones cargadas» (tipo auftv).
 function _recAuftvDerivados(){
   const out=[];
@@ -10042,7 +10070,7 @@ function _recLinkFotoSuma(arr){
 function _recTodos(){ if(window._recCacheTodos) return window._recCacheTodos; return _recTodosRaw(); }
 // Una sola corrida de _recTodos() para todo un repintado (panel + lista): antes se armaba 3-4 veces por tildado.
 function _recConCache(fn){ const _o=!window._recCacheTodos; if(_o) window._recCacheTodos=_recTodosRaw(); try{ return fn(); } finally{ if(_o) window._recCacheTodos=null; } }
-function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
+function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -10617,13 +10645,13 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc|mdm)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
     const n=document.getElementById('rec-noti'); if(n) n.remove();
     // Llegadas, reels y avisos de hoy: solo se repinta el panel de recordatorios (repintar todo Inicio tardaba ~1 s por tilde).
-    if(/^(escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc)\|/.test(String(id))){
+    if(/^(escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc|mdm)\|/.test(String(id))){
       try{ _recConCache(()=>{ _recDockRenderRaw(); const rb=document.getElementById('rec-box'); if(rb){ const h=renderInicioRecordatoriosRaw(); if(h) rb.outerHTML=h; else rb.remove(); } }); return; }catch(err){ console.warn('refresco rápido de recordatorios:',err); }
     }
     if(typeof renderInicio==='function') renderInicio();
