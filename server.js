@@ -699,6 +699,14 @@ function parseIcsYearly(ics) {
     const b = '\n' + block.split('END:VEVENT')[0];
     if (!/\nRRULE:[^\n]*FREQ=YEARLY/.test(b)) continue;
     if (/\nRECURRENCE-ID/.test(b) || /\nSTATUS:CANCELLED/.test(b)) continue;
+    // Serie ya terminada (UNTIL pasado o COUNT cumplido): Google parte una serie en dos al cambiarle la fecha («este y los siguientes») y la primera
+    // queda con UNTIL; sin este filtro su fecha vieja seguía apareciendo (Matías Viña figuraba cumpliendo el 11/11 además del 09/11, 11/11/2026).
+    const _rr = (b.match(/\nRRULE:([^\n]*)/) || [])[1] || '';
+    const _hoy = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+    const _um = _rr.match(/UNTIL=(\d{8})/);
+    if (_um && _um[1] < _hoy) continue;
+    const _cm = _rr.match(/COUNT=(\d+)/), _d0 = b.match(/\nDTSTART[^:\n]*:(\d{4})/);
+    if (_cm && _d0 && (+_d0[1] + (+_cm[1]) - 1) < +_hoy.slice(0, 4)) continue;
     const sm = b.match(/\nSUMMARY:(.*)/);
     const dm = b.match(/\nDTSTART[^:\n]*:(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?/);
     if (!sm || !dm) continue;
