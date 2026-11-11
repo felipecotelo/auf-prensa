@@ -1165,11 +1165,11 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .dg-pr{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .dg-no{font-size:10.5px;color:rgba(239,243,248,.35)}
 .dg-tg{font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:2px 8px;border-radius:999px;border:1px solid rgba(138,216,255,.4);color:#8AD8FF;white-space:nowrap}
-.dg-tg.dg-prev{border:1px dashed rgba(252,211,77,.6);color:#FDE68A;background:rgba(252,211,77,.07)}
-.dg .gr-chip.pv{border-color:rgba(252,211,77,.55);border-style:dashed}
-.dg .gr-chip .pvm{font-size:9px;font-weight:800;letter-spacing:.08em;color:#FCD34D;margin-left:6px}
+.dg-tg.dg-prev{border:1px solid rgba(255,255,255,.22);color:rgba(239,243,248,.62);background:rgba(255,255,255,.05);letter-spacing:.06em}
+.dg .gr-chip.pv{border-color:rgba(255,255,255,.3);border-style:dashed}
+.dg .gr-chip .pvm{font-size:9px;font-weight:700;letter-spacing:.06em;color:rgba(239,243,248,.5);margin-left:6px}
 .dg-leg{font-size:11px;line-height:1.4;color:rgba(239,243,248,.62);margin:2px 0 10px}
-.dg-leg b{color:#FDE68A}
+.dg-leg b{color:rgba(239,243,248,.85)}
 .dg-inj{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:7px;flex-shrink:0}
 .dg-fls{display:inline-flex;gap:3px;margin-left:4px}
 .dg-fl{width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:transparent;color:rgba(239,243,248,.35);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
@@ -16844,7 +16844,7 @@ const FIFANOV26 = {
       {nom:'José María Giménez', club:'RC Deportivo de La Coruña', clubPais:'🇪🇸', tmId:250845, fechaNac:'1995-01-20', num:2},
       {nom:'Federico Pereira', club:'Deportivo Toluca FC', clubPais:'🇲🇽'},
       {nom:'Mathías Olivera', club:'SSC Napoli', clubPais:'🇮🇹', tmId:376514, fechaNac:'1997-10-31', num:16},
-      {nom:'Juan Martín Rodríguez', club:'Cagliari Calcio', clubPais:'🇮🇹', fechaNac:'2005-05-30', tmId:1228231},
+      {nom:'Juan Martín Rodríguez', club:'Cagliari Calcio', clubPais:'🇮🇹', num:24, fechaNac:'2005-05-30', tmId:1228231},
       {nom:'Nicolás Marichal', club:'Dinamo Moscú', clubPais:'🇷🇺'},
       {nom:'Alexander Barboza', club:'SE Palmeiras', clubPais:'🇧🇷'},
       {nom:'Joaquín Piquerez', club:'SE Palmeiras', clubPais:'🇧🇷', fechaNac:'1998-08-24', num:22},
@@ -17179,6 +17179,8 @@ window._saveFifaNovGraficaLink=function(rival,stage,input){
   g[rival][stage].link=input.value.trim();
   setFifaNovGrafica(g);
 };
+// Siglas FIFA de rivales (Fecha FIFA anterior): se ven en los diseños usados «MD-1 vs. JPN».
+function _sigla(rival){ const m={'Japón':'JPN','Corea del Sur':'KOR','India':'IND','Argentina':'ARG','República Dominicana':'DOM','Brasil':'BRA','Chile':'CHI','Perú':'PER','Colombia':'COL','Paraguay':'PAR','Bolivia':'BOL','Venezuela':'VEN','Ecuador':'ECU','México':'MEX','Estados Unidos':'USA'}; return m[rival]||String(rival||'').slice(0,3).toUpperCase(); }
 function renderFifaNovGrafica(){
   const con=document.getElementById('fifanov26-grafica-body');
   if(!con) return;
@@ -17200,8 +17202,8 @@ function renderFifaNovGrafica(){
   });
 
   // Felipe (11/11/2026): ayuda para no repetir — quiénes estuvieron en los diseños (MD-1 y MD) de la Fecha FIFA anterior (set-oct, en Asia).
-  const prevUse={}; try{ const gp=getFifaSepGrafica(); (FIFASEP26.partidosData||[]).forEach(pp=>{ ['md1','md'].forEach(st=>{ ((gp[pp.rival]||{})[st]||{players:[]}).players.forEach(nom=>{ (prevUse[nom]=prevUse[nom]||[]).push(pp.rival.slice(0,3).toUpperCase()+' '+(st==='md1'?'MD-1':'MD')); }); }); }); }catch(_){}
-  const prevTxt=nom=>(prevUse[nom]||[]).join(', ');
+  const prevUse={}; try{ const gp=getFifaSepGrafica(); (FIFASEP26.partidosData||[]).forEach(pp=>{ ['md1','md'].forEach(st=>{ ((gp[pp.rival]||{})[st]||{players:[]}).players.forEach(nom=>{ (prevUse[nom]=prevUse[nom]||[]).push((st==='md1'?'MD-1':'MD')+' vs. '+_sigla(pp.rival)); }); }); }); }catch(_){}
+  const prevTxt=nom=>(prevUse[nom]||[]).join(' · ');
   const _numByNom={}; pool.forEach(p=>{ if(p.num!=null) _numByNom[p.nom]=p.num; });
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
   // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
@@ -17212,7 +17214,7 @@ function renderFifaNovGrafica(){
       const isSel=sel.includes(p.nom);
       const nomEnc=encodeURIComponent(p.nom);
       const pv=prevUse[p.nom];
-      return `<span class="gr-chip${isSel?' sel':''}${pv?' pv':''}" ${pv?`title="Estuvo en los diseños de la Fecha FIFA anterior: ${prevTxt(p.nom)}"`:''} onclick="_toggleFifaNovGraficaPlayer('${rival}','${stage}','${nomEnc}')">${_numTag(p.num)}${p.nom}${pv?'<span class="pvm">ANT.</span>':''}</span>`;
+      return `<span class="gr-chip${isSel?' sel':''}${pv?' pv':''}" ${pv?`title="Estuvo en los diseños de la Fecha FIFA anterior: ${prevTxt(p.nom)}"`:''} onclick="_toggleFifaNovGraficaPlayer('${rival}','${stage}','${nomEnc}')">${_numTag(p.num)}${p.nom}${pv?`<span class="pvm">${prevTxt(p.nom)}</span>`:''}</span>`;
     }).join('')}</div>`;
   }
   function selectedChips(rival,stage){
@@ -17255,7 +17257,7 @@ function renderFifaNovGrafica(){
   const _FI={star:'ti-star',up:'ti-trending-up',down:'ti-trending-down'};
   const playerList=pool.map(p=>{
     const tags=(usage[p.nom]||[]).map(t=>`<span class="dg-tg">${t}</span>`).join('');
-    const prevTags=(prevUse[p.nom]||[]).map(t=>`<span class="dg-tg dg-prev" title="Estuvo en los diseños de la Fecha FIFA anterior">ANT. ${t}</span>`).join('');
+    const prevTags=(prevUse[p.nom]||[]).map(t=>`<span class="dg-tg dg-prev" title="Estuvo en los diseños de la Fecha FIFA anterior">${t}</span>`).join('');
     const nomEnc=encodeURIComponent(p.nom);
     const inj=getResInjury(p.nom);
     const injDot=inj!=='green'?`<i class="dg-inj" style="background:${inj==='red'?'#F87171':'#FCD34D'}" title="${INJ_LABELS[inj]}"></i>`:'';
@@ -17276,7 +17278,7 @@ function renderFifaNovGrafica(){
       <div class="dg-main">${matchCards}</div>
       <div class="dg-side">
         <div class="dg-eye">${FIFANOV26.finales?'Plantel':'Reservados'} — ${pool.length} jugadores</div>
-        ${Object.keys(prevUse).length?`<div class="dg-leg"><b>ANT.</b> = ya estuvo en los diseños de la Fecha FIFA anterior (${Object.keys(prevUse).length} jugadores). Para no repetir mucho.</div>`:''}
+        ${Object.keys(prevUse).length?`<div class="dg-leg"><b>En gris</b>: ya estuvo en los diseños de la Fecha FIFA anterior, con la pieza y el rival (${Object.keys(prevUse).length} jugadores). Para no repetir mucho.</div>`:''}
         <div class="dg-leg2"><span style="color:#BBF7D0;border-color:#22C55E;background:rgba(34,197,94,.18)">★ + ↑ ideal</span><span style="color:#D1FAE5;border-color:#86EFAC;background:rgba(134,239,172,.1)">↑ buena opción</span><span style="color:#FDE68A;border-color:#FCD34D;background:rgba(252,211,77,.1)">★ sola</span><span style="color:rgba(239,243,248,.6);border-color:rgba(255,255,255,.2)">sin marca · meh</span><span style="color:#FCA5A5;border-color:#F87171;background:rgba(248,113,113,.14)">↓ mala opción</span></div>
         <div class="dg-list">${playerList}</div>
       </div>
