@@ -1166,6 +1166,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .dg-no{font-size:10.5px;color:rgba(239,243,248,.35)}
 .dg-tg{font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:2px 8px;border-radius:999px;border:1px solid rgba(138,216,255,.4);color:#8AD8FF;white-space:nowrap}
 .dg .gr-chip.pv{border-color:rgba(255,255,255,.3);border-style:dashed}
+.dg-sep{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.5);margin:14px 0 2px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.18)}
+.dg-sep:first-child{margin-top:2px}
 .dg-leg{font-size:11px;line-height:1.4;color:rgba(239,243,248,.62);margin:2px 0 10px}
 .dg-leg b{color:rgba(239,243,248,.85)}
 .dg-inj{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:7px;flex-shrink:0}
@@ -17253,7 +17255,7 @@ function renderFifaNovGrafica(){
 
   const flags=g.flags||{};
   const _FI={star:'ti-star',up:'ti-trending-up',down:'ti-trending-down'};
-  const playerList=pool.map(p=>{
+  const playerRows=pool.map(p=>{
     const tags=(usage[p.nom]||[]).map(t=>`<span class="dg-tg">${t}</span>`).join('');
     const prevTags='';
     const prevSm=(prevUse[p.nom]||[]).length?`<small class="dg-pv" title="Estuvo en los diseños de la Fecha FIFA anterior">${prevTxt(p.nom)}</small>`:'';
@@ -17266,11 +17268,14 @@ function renderFifaNovGrafica(){
       return `<button class="dg-fl f-${f.id}${on?' on':''}" onclick="_toggleFifaNovGraficaFlag('${nomEnc}','${f.id}')" title="${f.title}"><i class="ti ${_FI[f.id]||'ti-circle'}"></i></button>`;
     }).join('');
     const _el=(pf.down)?'el-mala':(pf.star&&pf.up)?'el-ideal':(pf.up)?'el-buena':(pf.star)?'el-star':'el-none';
-    return `<div class="dg-row${tags?' used':''}${_el?' '+_el:''}">
+    return {u:!!tags,h:`<div class="dg-row${tags?' used':''}${_el?' '+_el:''}">
       <span class="dg-pn">${_numTag(p.num)}${p.nom}${injDot}${prevSm}</span>
       <span class="dg-pr">${tags}${prevTags}${(!tags&&!prevTags)?'<span class="dg-no">sin uso</span>':''}<span class="dg-fls">${flagBtns}</span></span>
-    </div>`;
-  }).join('');
+    </div>`};
+  });
+  // Felipe (11/11/2026): los ya elegidos para algún diseño van separados arriba, con su propio rótulo.
+  const _usados=playerRows.filter(r=>r.u), _resto=playerRows.filter(r=>!r.u);
+  const playerList=(_usados.length?`<div class="dg-sep">Elegidos · ${_usados.length}</div>`+_usados.map(r=>r.h).join('')+`<div class="dg-sep">Resto del plantel · ${_resto.length}</div>`:'')+_resto.map(r=>r.h).join('');
 
   con.innerHTML=`
     <div class="dg">
