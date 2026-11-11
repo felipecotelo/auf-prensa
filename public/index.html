@@ -9932,6 +9932,26 @@ function _recAtencionesDerivados(){
   }catch(e){ console.warn('recordatorios de atenciones:',e); }
   return out;
 }
+// Notas de AUFtv (Felipe, 11/11/2026): siempre que marque una nota de AUFtv a un jugador, 24 h antes («Preparar nota a X») y («Coordinar con X la nota»). Sale de «Atenciones cargadas» (tipo auftv).
+function _recAuftvDerivados(){
+  const out=[];
+  try{
+    const manual=stor.get('auf4_rec_manual',{}), DOW=['dom','lun','mar','mié','jue','vie','sáb'];
+    (getFifaNovAt()||[]).forEach(a=>{
+      if(!a||a.tipo!=='auftv'||a.descartado) return;
+      const D=String(a.fecha||'').slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(D)||D<TODAY) return;
+      const hm=String(a.hora||'').match(/^(\d{1,2})(?::(\d{2}))?/), hora=hm?hm[1].padStart(2,'0')+':'+(hm[2]||'00'):'';
+      const dd=new Date(D+'T12:00:00'), det='Nota para AUFtv el '+DOW[dd.getDay()]+' '+dd.getDate()+'/'+(dd.getMonth()+1)+(hora?' a las '+hora+'h':'');
+      String(a.quien||'').split(',').map(x=>x.trim()).filter(n=>n&&!/a definir/i.test(n)).forEach((nom,i)=>{
+        [['aftp','Preparar nota a '+nom,1],['aftc','Coordinar con '+nom+' la nota',2]].forEach(([k,t,o])=>{
+          const id=k+'|'+a.id+'|'+i, mn=manual[id]||{};
+          out.push({id,titulo:t,detalle:det,vence:_recSumarDias(D,-1),hora:hora||'09:00',sinHora:!hora,etiqueta:'AUFtv',orden:o,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+        });
+      });
+    });
+  }catch(e){ console.warn('recordatorios de notas de AUFtv:',e); }
+  return out;
+}
 // Mundial Sub-15 (fase final, un MD-1 por partido): «Pedir diseño del MD-1» 2 días antes a las 10:00 y «Publicar diseño del MD-1» el día antes a las 18:00
 // (mismos horarios que los cargados a mano para la fase de grupos, que van hasta el 26/10). Se derivan de los partidos que FIFA va creando.
 // Después de publicar en redes (MD-1 o informe): mandar el link del tuit a la prensa, al canal de difusión y a los grupos de noticias de los CT (de la Mayor a la sub-15)
@@ -10022,7 +10042,7 @@ function _recLinkFotoSuma(arr){
 function _recTodos(){ if(window._recCacheTodos) return window._recCacheTodos; return _recTodosRaw(); }
 // Una sola corrida de _recTodos() para todo un repintado (panel + lista): antes se armaba 3-4 veces por tildado.
 function _recConCache(fn){ const _o=!window._recCacheTodos; if(_o) window._recCacheTodos=_recTodosRaw(); try{ return fn(); } finally{ if(_o) window._recCacheTodos=null; } }
-function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
+function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -10074,7 +10094,7 @@ function _recNoAplicaBtn(r,hecho){
   return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoAplica(this.dataset.id)" title="No aplica saludo: lo saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no aplica</button>`;
 }
 // Degradé del color de la categoría (Sub-16, Mayor…) en toda la fila del recordatorio, para ubicar de un vistazo de qué categoría es (Felipe, 09/11/2026).
-const _REC_ETI_COL={'complejo celeste':'#2DD4BF','local':'#86EFAC','selecciones juveniles':'#F472B6','cumpleaños':'#A3E635','fecha histórica':'#E5B567','prensa':'#F59E0B','tarea':'#FB7185'};
+const _REC_ETI_COL={'complejo celeste':'#2DD4BF','local':'#86EFAC','selecciones juveniles':'#F472B6','cumpleaños':'#A3E635','fecha histórica':'#E5B567','prensa':'#F59E0B','tarea':'#FB7185','auftv':'#FFA8A0'};
 function _recEtiCol(label){ const ck=_catDeLabel(label); if(ck) return _catCol(ck); return _REC_ETI_COL[String(label||'').trim().toLowerCase()]||''; }
 function _recGrad(r){ const c=(r&&r.catCol&&_catCol(r.catCol))||_recEtiCol(r&&r.etiqueta); if(!c) return '';
   return `;background-image:linear-gradient(90deg,color-mix(in srgb,${c} 30%,transparent) 0%,color-mix(in srgb,${c} 10%,transparent) 55%,transparent 100%)`; }
@@ -10597,13 +10617,13 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
     const n=document.getElementById('rec-noti'); if(n) n.remove();
     // Llegadas, reels y avisos de hoy: solo se repinta el panel de recordatorios (repintar todo Inicio tardaba ~1 s por tilde).
-    if(/^(escr|cubl|fotl|reell|reelg|chkc|fjuv|presx)\|/.test(String(id))){
+    if(/^(escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc)\|/.test(String(id))){
       try{ _recConCache(()=>{ _recDockRenderRaw(); const rb=document.getElementById('rec-box'); if(rb){ const h=renderInicioRecordatoriosRaw(); if(h) rb.outerHTML=h; else rb.remove(); } }); return; }catch(err){ console.warn('refresco rápido de recordatorios:',err); }
     }
     if(typeof renderInicio==='function') renderInicio();
