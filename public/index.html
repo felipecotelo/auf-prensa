@@ -9864,7 +9864,9 @@ function _recFotosJuvDerivados(){
       const c=((data.anos[yr]||{}).convocatorias||[])[0]; if(!c||!c.fecha||!/microciclo|entren/i.test(c.fecha)) return;
       const fechas=_gjFechas(c.fecha).filter(d=>d>=TODAY); if(!fechas.length) return;
       const date=fechas[0]; if(date>_recSumarDias(TODAY,14)) return;
-      const sin=(c.jugadores||[]).map(j=>j.nom).filter(n=>n&&!window._juvGetPhoto(n)); if(!sin.length) return;
+      // Felipe (11/11/2026): a algunos les sacan foto aunque ya tengan una vieja en la ficha → lista manual 'auf4_fotos_renovar' [{nom,date}] (date = día en que arranca el microciclo).
+      const _ren=new Set((stor.get('auf4_fotos_renovar',[])||[]).filter(x=>x&&x.date===date).map(x=>x.nom));
+      const sin=(c.jugadores||[]).map(j=>j.nom).filter(n=>n&&(!window._juvGetPhoto(n)||_ren.has(n))); if(!sin.length) return;
       const label=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]&&JUV_CAT_META[cat].label)||cat;
       const hm=String(c.fecha).match(/(\d{1,2}):(\d{2})\s*h/i), hora=hm?hm[1].padStart(2,'0')+':'+hm[2]:'';
       const lista=sin.length>4?sin.slice(0,4).concat(['otros '+(sin.length-4)]):sin, nom=lista.length>1?lista.slice(0,-1).join(', ')+' y '+lista[lista.length-1]:lista[0];
