@@ -1298,6 +1298,10 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .at-prow2.hablo .at-pn2{color:#BEF264}
 .at-prow2{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 20px;border-top:1px solid rgba(255,255,255,.07)}
 .at-prow2.none{opacity:.55}.at-prow2.baja .at-pn2{color:#FB923C}
+.at-prow2.dest-conf{background:linear-gradient(90deg,color-mix(in srgb,var(--dc) 42%,transparent),color-mix(in srgb,var(--dc) 9%,transparent) 65%,transparent);box-shadow:inset 6px 0 0 var(--dc)}
+.at-prow2.dest-conf .at-pn2{color:#fff;font-weight:800}
+.at-prow2.dest-tv{background:linear-gradient(90deg,color-mix(in srgb,var(--dc) 22%,transparent),color-mix(in srgb,var(--dc) 5%,transparent) 60%,transparent);box-shadow:inset 4px 0 0 var(--dc)}
+.at-prow2.dest-tv .at-pn2{color:color-mix(in srgb,var(--dc) 55%,#fff)}
 .at-pn2{font-size:13.5px;font-weight:600;color:#F4F7FB}.at-pn2 span{font-size:11.5px;font-weight:400;color:rgba(239,243,248,.5);margin-left:8px}
 /* Calendario de las Fechas FIFA (sep-oct y nov): estilo nuevo, solo con ids propios — no toca el calendario del Mundial */
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .cal-day{border-radius:22px!important;border:1px solid rgba(255,255,255,.14)!important;margin-bottom:12px;overflow:hidden;background:radial-gradient(380px 140px at 100% 0,rgba(0,157,216,.12),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)!important;box-shadow:none!important}
@@ -16789,7 +16793,7 @@ const FIFANOV26 = {
   // Confirmado por Felipe (11/11/2026) para el partido vs. Argentina: 26 jugadores a cancha (el resto del plantel queda afuera de la lista pero viaja) y 11 cambios.
   // El banco de 23 personas sigue siendo la regla de la Fecha FIFA anterior (sin confirmar). Lo de República Dominicana (17/11) todavía no se sabe.
   reglasLista: [
-    'En la lista del partido vs. Argentina van 26 jugadores a cancha: los demás quedan afuera de la lista pero viajan con el grupo',
+    'En la lista del partido vs. Argentina van 26 jugadores a cancha: quedan 2 afuera, Sebastián Jaume (van 3 arqueros) y 1 jugador de campo por definir; viajan todos',
     'Se permiten 11 cambios en el partido vs. Argentina: amistoso internacional',
     'En el banco podrán sentarse máximo 23 personas (sin confirmar para esta fecha): once del cuerpo técnico y doce suplentes',
   ],
@@ -16803,7 +16807,7 @@ const FIFANOV26 = {
   // Martes 17/11 (último día de la Fecha FIFA): vs. República Dominicana, CONFIRMADO (23/10): en Maldonado, 20:30 (hora de Uruguay).
   // Estadio confirmado (23/10/2026): Campus de Maldonado.
   partidosData: [
-    {fecha:'2026-11-13', rival:'Argentina', rivalBandera:'🇦🇷', sede:'La Bombonera · Buenos Aires, Argentina', hora:'20:00', horaLocal:'20:00', local:false, confirmado:true, cambios:11, listaCancha:26, viajanTodos:true, datosColor:['Se permiten 11 cambios','Van 26 jugadores a cancha; viajan todos los convocados']},
+    {fecha:'2026-11-13', rival:'Argentina', rivalBandera:'🇦🇷', sede:'La Bombonera · Buenos Aires, Argentina', hora:'20:00', horaLocal:'20:00', local:false, confirmado:true, cambios:11, listaCancha:26, viajanTodos:true, datosColor:['Se permiten 11 cambios','Van 26 jugadores a cancha; quedan 2 afuera de la lista: Sebastián Jaume (van 3 arqueros) y 1 jugador de campo por definir','Viajan todos'],fueraLista:['Sebastián Jaume']},
     {fecha:'2026-11-17', rival:'República Dominicana', rivalBandera:'🇩🇴', sede:'Campus de Maldonado', hora:'20:30', horaLocal:'20:30', local:true, confirmado:true, var:'sin', datosColor:['Tentativo: llegaría a Uruguay el 15/11 y va directo a Maldonado','Se hospedaría en el Complejo Solanas']}, // var: 'sin' | 'con' (cambia en cada partido: define árbitros y cuerpo arbitral)
   ],
   itinerario: [],
@@ -18034,6 +18038,9 @@ function renderFifaNovDisponibilidad(){
   };
 
   const totalOf=nom=>Object.values(countsFor(nom)).reduce((a,b)=>a+b,0)+(aeroMap[nom]?1:0);
+  // Felipe (11/11/2026): destacar a quien hizo algo de AUF — conferencia (lo más importante, más que hablar en el aeropuerto) y nota para AUFtv (destaca, pero menos).
+  const confDe=nom=>atList.filter(a=>a.quien===nom&&_fnovAtKey(a)==='conf').length, tvDe=nom=>atList.filter(a=>a.quien===nom&&a.tipo==='auftv').length;
+  const _destRk=nom=>confDe(nom)?2:tvDe(nom)?1:0;
 
   const dtTotal=totalOf(dtNom);
   const dtSection=`
@@ -18049,12 +18056,12 @@ function renderFifaNovDisponibilidad(){
       </div>
     </div>`;
 
-  const sorted=[...activos].sort((a,b)=>totalOf(b.nom)-totalOf(a.nom)||a.nom.localeCompare(b.nom));
+  const sorted=[...activos].sort((a,b)=>_destRk(b.nom)-_destRk(a.nom)||totalOf(b.nom)-totalOf(a.nom)||a.nom.localeCompare(b.nom));
   const playerRows=sorted.map(p=>{
     const noAt=totalOf(p.nom)===0;
     const isBaja=!!(p.lesionEnGira||p.bajaGira);
     return `
-    <div class="at-prow2${noAt?' none':''}${isBaja?' baja':''}${aeroMap[p.nom]?' hablo':''}">
+    <div class="at-prow2${noAt?' none':''}${isBaja?' baja':''}${aeroMap[p.nom]?' hablo':''}${confDe(p.nom)?' dest-conf':(tvDe(p.nom)?' dest-tv':'')}"${confDe(p.nom)?` style="--dc:${_fnovAtColor('conf')}" title="Habló en conferencia"`:(tvDe(p.nom)?` style="--dc:${_fnovAtColor('auftv')}" title="Tiene nota para AUFtv"`:'')}>
       <div class="at-pn2" title="${isBaja?'Dado de baja de la gira':''}">${_fnovNumTag(p.nom)}${p.nom}<span>${_clubCorto(p.club||'')}</span></div>
       <div class="at-cts">${counterRow(p.nom,false)}</div>
     </div>`;
