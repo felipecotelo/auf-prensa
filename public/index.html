@@ -17223,7 +17223,12 @@ function renderFifaNovGrafica(){
 
   // Felipe (11/11/2026): ayuda para no repetir — quiénes estuvieron en los diseños (MD-1 y MD) de la Fecha FIFA anterior (set-oct, en Asia).
   const prevUse={}; try{ const gp=getFifaSepGrafica(); (FIFASEP26.partidosData||[]).forEach(pp=>{ ['md1','md'].forEach(st=>{ ((gp[pp.rival]||{})[st]||{players:[]}).players.forEach(nom=>{ (prevUse[nom]=prevUse[nom]||[]).push((st==='md1'?'MD-1':'MD')+' vs. '+_sigla(pp.rival)); }); }); }); }catch(_){}
-  const _dn=n=>({'Juan Martín Rodríguez':'Juan Rodríguez'})[n]||n; // nombre corto en pantalla (Felipe, 11/11/2026)
+  // Nombre corto en pantalla (Felipe, 11/11/2026): inicial + apellido («M. Araújo», «N. De La Cruz»); Juan Rodríguez queda completo porque así lo pidió.
+  const _dn=n=>{ n=String(n||''); if(n==='Juan Martín Rodríguez') return 'Juan Rodríguez';
+    const t=n.split(/\s+/).filter(Boolean); if(t.length<2) return n;
+    const part=/^(de|del|da|do|dos|das|di|van|von|la|las|los)$/i;
+    let k=1; if(t.length>=3&&!part.test(t[1])&&!part.test(t[2])) k=2; // dos nombres de pila (Juan Manuel Sanabria, José María Giménez)
+    return t[0].charAt(0).toUpperCase()+'. '+t.slice(k).join(' '); };
   const prevTxt=nom=>(prevUse[nom]||[]).join(' · ');
   const _numByNom={}; pool.forEach(p=>{ if(p.num!=null) _numByNom[p.nom]=p.num; });
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
