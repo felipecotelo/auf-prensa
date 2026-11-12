@@ -1024,6 +1024,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .pz-pro .p-slot-num{top:calc(var(--nu)*-.22);right:calc(var(--nu)*-.26);min-width:var(--nu);height:var(--nu);padding:0 3px;box-sizing:border-box;border-radius:var(--nu);display:flex;align-items:center;justify-content:center;line-height:1;font-family:'Space Grotesk','Inter',sans-serif;font-size:calc(var(--nu)*.53);font-weight:700;letter-spacing:-.02em;background:#009DD8;color:#fff;border:2px solid #135640;z-index:11}
 .pz-pro .p-slot-num.pz-nu{background:#1E293B;color:rgba(255,255,255,.65)}
 .pz-pro .p-slot-lbl{font-size:clamp(9px,2.9cqw,11px);max-width:min(110px,19cqw);padding:2px 6px;border-radius:5px}
+.pz-pro .pitch .p-slot-lbl{max-width:none;overflow:visible;text-overflow:clip} /* apellidos completos en la cancha (Felipe, 12/11/2026) */
 .pz-pro .p-slot-remove{z-index:14;top:-6px!important;left:-6px!important;width:20px!important;height:20px!important;font-size:12px!important}
 /* Badges de ficha (capitán, gol, tarjeta, lesión...): circulares, borde fino, sin emojis */
 .pz-bg{position:absolute;z-index:12;display:flex;align-items:center;justify-content:center;box-sizing:border-box;line-height:1}
@@ -18560,7 +18561,12 @@ window._pzDescargarCancha=async function(btn,fname){
   try{
     if(!window.html2canvas) await new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'; sc.onload=ok; sc.onerror=()=>ko(new Error('no se pudo cargar el generador de imágenes')); document.head.appendChild(sc); });
     if(document.fonts&&document.fonts.ready) await document.fonts.ready;
-    const canvas=await html2canvas(el,{scale:3,backgroundColor:'#0B2C21',useCORS:true,logging:false});
+    const canvas=await html2canvas(el,{scale:3,backgroundColor:'#0B2C21',useCORS:true,logging:false,onclone:(doc)=>{
+      // html2canvas no respeta object-fit: las fotos salían achatadas. Se reemplaza cada <img> por un fondo «cover» alineado arriba.
+      doc.querySelectorAll('.p-slot-av img').forEach(im=>{ const d=doc.createElement('div'); d.style.cssText='position:absolute;inset:0;background:url("'+im.src+'") center top/cover no-repeat'; im.replaceWith(d); });
+      // Los apellidos largos se cortaban (max-width + puntos suspensivos): en la imagen van completos.
+      doc.querySelectorAll('.p-slot-lbl').forEach(l=>{ l.style.maxWidth='none'; l.style.overflow='visible'; l.style.textOverflow='clip'; l.style.padding='2px 7px'; });
+    }});
     const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.95)); if(!blob) throw new Error('no se pudo generar la imagen');
     const url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=(fname||'alineacion')+'.jpg'; document.body.appendChild(a); a.click(); a.remove();
     window.__ultimoJpg=url; setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -38081,9 +38087,9 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
         <div class="pl pl-pt"></div><div class="pl pl-pb"></div>
         <div class="pl pl-gt"></div><div class="pl pl-gb"></div>
         ${pitchSlots}
-        ${dtVal?`<div style="position:absolute;bottom:8px;right:8px;z-index:5;pointer-events:none;padding:5px 12px 6px;border-radius:10px;background:rgba(6,20,15,.82);border:1px solid rgba(255,255,255,.3);box-shadow:0 2px 10px rgba(0,0,0,.5);line-height:1.1;text-align:right">
-          <div style="font-size:8px;font-weight:800;color:#8AD8FF;letter-spacing:.2em">DIRECTOR TÉCNICO</div>
-          <div style="font-size:15px;font-weight:900;color:#fff;letter-spacing:.01em;margin-top:2px">${dtVal.split(' ').pop()}</div>
+        ${dtVal?`<div style="position:absolute;bottom:8px;right:8px;z-index:5;pointer-events:none;padding:4px 9px 5px;border-radius:8px;background:rgba(6,20,15,.8);border:1px solid rgba(255,255,255,.26);box-shadow:0 2px 8px rgba(0,0,0,.45);line-height:1.1;text-align:right">
+          <div style="font-size:6.5px;font-weight:800;color:#8AD8FF;letter-spacing:.16em">DIRECTOR TÉCNICO</div>
+          <div style="font-size:11.5px;font-weight:900;color:#fff;letter-spacing:.01em;margin-top:1px">${(()=>{ const t=String(dtVal).trim().split(/\s+/); return t.length>1?t[0].charAt(0).toUpperCase()+'. '+t.slice(1).join(' '):t[0]; })()}</div>
         </div>`:``}
       </div>
     </div>
