@@ -1256,6 +1256,13 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .at-col{background:color-mix(in srgb,var(--ac) 10%,transparent);box-shadow:inset 3px 0 0 var(--ac)}
 .at-col .at-ic{border-color:color-mix(in srgb,var(--ac) 65%,transparent);background:color-mix(in srgb,var(--ac) 20%,transparent);color:var(--ac)}
 .at-eye-col{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.at-hdr{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;user-select:none}
+.at-ht{flex:1;min-width:0}
+.at-htitle{font-size:17px;font-weight:700;color:#F4F7FB;letter-spacing:-.01em}
+.at-hsub{font-size:11px;color:rgba(239,243,248,.55);margin-top:2px}
+.at-hchev{font-size:18px;color:rgba(239,243,248,.7);transition:transform .15s}
+.at-card.closed .at-hchev{transform:rotate(-90deg)}
+.at-hdr:hover .at-htitle{color:#8AD8FF}
 .at-colbtn{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(239,243,248,.75);font:700 11px 'Inter',sans-serif;letter-spacing:.06em;cursor:pointer;text-transform:none}
 .at-colbtn:hover{border-color:rgba(138,216,255,.6);color:#8AD8FF}
 .at-colores{padding:4px 20px 12px;border-top:1px solid rgba(255,255,255,.07)}
@@ -14843,7 +14850,7 @@ function renderFifaSepGrafica(){
   const _numByNom={}; pool.forEach(p=>{ if(p.num!=null) _numByNom[p.nom]=p.num; });
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
   // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
-  const _numTag=n=>n!=null?`<span style="opacity:.65;font-weight:700;margin-right:4px">#${n}</span>`:'';
+  const _numTag=n=>`<span style="display:inline-block;min-width:2.4em;opacity:.65;font-weight:700;margin-right:4px">#${n!=null?n:'X'}</span>`; // ancho fijo y «#X» sin dorsal para que los nombres queden alineados (Felipe, 11/11/2026)
   function playerGrid(rival,stage){
     const sel=g[rival][stage].players||[];
     return `<div class="player-chips">${pool.map(p=>{
@@ -15514,7 +15521,7 @@ function _fsapNumTag(nom){
   const n=_fsapNumOf(nom);
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
   // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
-  return n!=null?`<span style="opacity:.65;font-weight:700;margin-right:4px">#${n}</span>`:'';
+  return `<span style="display:inline-block;min-width:2.4em;opacity:.65;font-weight:700;margin-right:4px">#${n!=null?n:'X'}</span>`; // ancho fijo y «#X» sin dorsal para que los nombres queden alineados
 }
 // Versión texto plano — para <option> de un <select>, donde el HTML de arriba
 // se mostraría literal en vez de renderizarse.
@@ -17214,7 +17221,7 @@ function renderFifaNovGrafica(){
   const _numByNom={}; pool.forEach(p=>{ if(p.num!=null) _numByNom[p.nom]=p.num; });
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
   // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
-  const _numTag=n=>n!=null?`<span style="opacity:.65;font-weight:700;margin-right:4px">#${n}</span>`:'';
+  const _numTag=n=>`<span style="display:inline-block;min-width:2.4em;opacity:.65;font-weight:700;margin-right:4px">#${n!=null?n:'X'}</span>`; // ancho fijo y «#X» sin dorsal para que los nombres queden alineados (Felipe, 11/11/2026)
   function playerGrid(rival,stage){
     const sel=g[rival][stage].players||[];
     return `<div class="player-chips">${pool.map(p=>{
@@ -17767,7 +17774,7 @@ function _fnovNumTag(nom){
   const n=_fnovNumOf(nom);
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
   // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
-  return n!=null?`<span style="opacity:.65;font-weight:700;margin-right:4px">#${n}</span>`:'';
+  return `<span style="display:inline-block;min-width:2.4em;opacity:.65;font-weight:700;margin-right:4px">#${n!=null?n:'X'}</span>`; // ancho fijo y «#X» sin dorsal para que los nombres queden alineados
 }
 // Versión texto plano — para <option> de un <select>, donde el HTML de arriba
 // se mostraría literal en vez de renderizarse.
@@ -17860,7 +17867,15 @@ function _fnovAtColoresHtml(atList){
   const filas=tipos.map(t=>{ const cur=_fnovAtColor(t.id); return `<div class="at-colrow" data-tipo="${t.id}"><span class="at-collbl">${t.label}</span><span class="at-coldots">${_FNOV_AT_PALETA.map(c=>`<button type="button" class="at-cdot${c.toLowerCase()===String(cur).toLowerCase()?' on':''}" style="--c:${c}" onclick="_fnovAtSetColor('${t.id}','${c}')" title="${c}"></button>`).join('')}</span></div>`; }).join('');
   return `<div id="at-colores" class="at-colores" style="display:${window._fnovAtColoresOpen?'block':'none'}">${filas||'<div class="at-s" style="padding:6px 20px">Sin atenciones todavía.</div>'}</div>`;
 }
-window._fnovAtToggleColores=function(){ window._fnovAtColoresOpen=!window._fnovAtColoresOpen; const el=document.getElementById('at-colores'); if(el) el.style.display=window._fnovAtColoresOpen?'block':'none'; };
+// «Atenciones cargadas» minimizable (Felipe, 11/11/2026): la lista es larguísima y tapa lo de abajo (los convocados); arranca cerrada y se recuerda lo que elija.
+window._fnovAtListaOpen=function(){ try{ return localStorage.getItem('auf4_at_lista_abierta')==='1'; }catch(_){ return false; } };
+window._fnovAtToggleLista=function(){
+  const abrir=!window._fnovAtListaOpen(); try{ localStorage.setItem('auf4_at_lista_abierta',abrir?'1':'0'); }catch(_){}
+  const card=document.getElementById('at-lista-card'), body=document.getElementById('at-lista-body'); if(!card||!body) return;
+  card.classList.toggle('closed',!abrir); body.style.display=abrir?'block':'none';
+  const sub=card.querySelector('.at-hsub'); if(sub) sub.textContent=sub.textContent.replace(/·.*$/,'· '+(abrir?'tocá para ocultar':'tocá para ver'));
+};
+window._fnovAtToggleColores=function(){ if(!window._fnovAtListaOpen()) window._fnovAtToggleLista(); window._fnovAtColoresOpen=!window._fnovAtColoresOpen; const el=document.getElementById('at-colores'); if(el) el.style.display=window._fnovAtColoresOpen?'block':'none'; };
 window._fnovAtSetColor=function(tipo,hex){
   const m=stor.get('auf4_at_colores',{}); m[tipo]=hex; stor.set('auf4_at_colores',m);
   document.querySelectorAll('.at-col[data-tipo="'+tipo+'"]').forEach(e=>e.style.setProperty('--ac',hex));
@@ -18018,10 +18033,16 @@ function renderFifaNovDisponibilidad(){
     </div>`;
   }).join('') : `<div class="at-empty">Sin atenciones cargadas todavía.</div>`;
   const listSection=`
-    <div class="at-card">
-      <div class="at-eye at-eye-col"><span>Atenciones cargadas — ${atList.length}</span><button type="button" class="at-colbtn" onclick="_fnovAtToggleColores()" title="Elegir el color de cada tipo de actividad"><i class="ti ti-palette"></i>Colores</button></div>
+    <div class="at-card${window._fnovAtListaOpen()?'':' closed'}" id="at-lista-card">
+      <div class="at-hdr" onclick="_fnovAtToggleLista()" title="Mostrar u ocultar la lista de atenciones">
+        <i class="ti ti-chevron-down at-hchev"></i>
+        <div class="at-ht"><div class="at-htitle">Atenciones cargadas</div><div class="at-hsub">${atList.length} ${atList.length===1?'atención':'atenciones'} · ${window._fnovAtListaOpen()?'tocá para ocultar':'tocá para ver'}</div></div>
+        <button type="button" class="at-colbtn" onclick="event.stopPropagation();_fnovAtToggleColores()" title="Elegir el color de cada tipo de actividad"><i class="ti ti-palette"></i>Colores</button>
+      </div>
+      <div id="at-lista-body" style="display:${window._fnovAtListaOpen()?'block':'none'}">
       ${_fnovAtColoresHtml(atList)}
       ${atRows}
+      </div>
     </div>`;
 
   // ── Conteo por persona — abajo, derivado de la lista de arriba ──
