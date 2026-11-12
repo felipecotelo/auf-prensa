@@ -18554,26 +18554,6 @@ window._fnovExportarInfo=async function(btn){
   }catch(e){ if(typeof toast==='function') toast('⚠ No se pudo exportar: '+(e&&e.message||e)); else alert('No se pudo exportar: '+(e&&e.message||e)); }
   finally{ if(wrap) wrap.remove(); btn.disabled=false; if(lbl) lbl.textContent=txt0; }
 };
-// Descarga la cancha con la formación como JPG (Felipe, 12/11/2026: para pasársela al diseñador). Solo la cancha, a 3× (≈1100 px de ancho). html2canvas se carga al tocar el botón.
-window._pzDescargarCancha=async function(btn,fname){
-  const outer=btn&&btn.parentElement&&btn.parentElement.nextElementSibling; const el=outer&&outer.classList&&outer.classList.contains('pitch-outer')?outer:(btn&&btn.closest('.piz-col-center')||document).querySelector('.pitch-outer'); if(!el) return;
-  const old=btn.innerHTML; btn.innerHTML='Generando…'; btn.disabled=true;
-  try{
-    if(!window.html2canvas) await new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'; sc.onload=ok; sc.onerror=()=>ko(new Error('no se pudo cargar el generador de imágenes')); document.head.appendChild(sc); });
-    if(document.fonts&&document.fonts.ready) await document.fonts.ready;
-    const canvas=await html2canvas(el,{scale:3,backgroundColor:'#0B2C21',useCORS:true,logging:false,onclone:(doc)=>{
-      // html2canvas no respeta object-fit: las fotos salían achatadas. Se reemplaza cada <img> por un fondo «cover» alineado arriba.
-      doc.querySelectorAll('.p-slot-av img').forEach(im=>{ const d=doc.createElement('div'); d.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;background-image:url("'+im.src+'");background-repeat:no-repeat;background-size:cover;background-position:50% 0%'; im.replaceWith(d); });
-      // Los apellidos largos se cortaban (max-width + puntos suspensivos): en la imagen van completos.
-      doc.querySelectorAll('.p-slot-lbl').forEach(l=>{ l.style.maxWidth='none'; l.style.overflow='visible'; l.style.textOverflow='clip'; l.style.padding='2px 7px'; });
-    }});
-    const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.95)); if(!blob) throw new Error('no se pudo generar la imagen');
-    const url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=(fname||'alineacion')+'.jpg'; document.body.appendChild(a); a.click(); a.remove();
-    window.__ultimoJpg=url; setTimeout(()=>URL.revokeObjectURL(url),60000);
-    if(typeof toast==='function') toast('Imagen descargada');
-  }catch(e){ if(typeof toast==='function') toast('⚠ No se pudo exportar: '+(e&&e.message||e)); else alert('No se pudo exportar: '+(e&&e.message||e)); }
-  finally{ btn.innerHTML=old; btn.disabled=false; }
-};
 function _fnovInfografia(lista){
   try{
     if(!lista||!lista.length) return '';
@@ -38077,9 +38057,8 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
   ).join('');
 
   const pitchHtml = `
-    <div style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <div style="margin-bottom:6px">
       <div class="form-sel-btns" style="flex-wrap:wrap">${formBtns}</div>
-      <button type="button" class="form-btn" onclick="_pzDescargarCancha(this,'${String('alineacion-'+(cat||'mayor')+'-'+(m.rival||'')+'-'+String(m.fecha||'').slice(0,10)+(leg===2?'-vuelta':'')).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9-]+/g,'-').toLowerCase()}')" title="Descargar la formación como imagen JPG para pasársela al diseñador"><i class="ti ti-download" style="font-size:12px"></i> Descargar JPG</button>
     </div>
     <div class="pitch-outer">
       <div class="pitch">
