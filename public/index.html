@@ -17203,6 +17203,7 @@ function renderFifaNovGrafica(){
 
   // Felipe (11/11/2026): ayuda para no repetir — quiénes estuvieron en los diseños (MD-1 y MD) de la Fecha FIFA anterior (set-oct, en Asia).
   const prevUse={}; try{ const gp=getFifaSepGrafica(); (FIFASEP26.partidosData||[]).forEach(pp=>{ ['md1','md'].forEach(st=>{ ((gp[pp.rival]||{})[st]||{players:[]}).players.forEach(nom=>{ (prevUse[nom]=prevUse[nom]||[]).push((st==='md1'?'MD-1':'MD')+' vs. '+_sigla(pp.rival)); }); }); }); }catch(_){}
+  const _dn=n=>({'Juan Martín Rodríguez':'Juan Rodríguez'})[n]||n; // nombre corto en pantalla (Felipe, 11/11/2026)
   const prevTxt=nom=>(prevUse[nom]||[]).join(' · ');
   const _numByNom={}; pool.forEach(p=>{ if(p.num!=null) _numByNom[p.nom]=p.num; });
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
@@ -17214,13 +17215,13 @@ function renderFifaNovGrafica(){
       const isSel=sel.includes(p.nom);
       const nomEnc=encodeURIComponent(p.nom);
       const pv=prevUse[p.nom];
-      return `<span class="gr-chip${isSel?' sel':''}${pv?' pv':''}" ${pv?`title="Estuvo en los diseños de la Fecha FIFA anterior: ${prevTxt(p.nom)}"`:''} onclick="_toggleFifaNovGraficaPlayer('${rival}','${stage}','${nomEnc}')">${_numTag(p.num)}${p.nom}</span>`;
+      return `<span class="gr-chip${isSel?' sel':''}${pv?' pv':''}" ${pv?`title="Estuvo en los diseños de la Fecha FIFA anterior: ${prevTxt(p.nom)}"`:''} onclick="_toggleFifaNovGraficaPlayer('${rival}','${stage}','${nomEnc}')">${_numTag(p.num)}${_dn(p.nom)}</span>`;
     }).join('')}</div>`;
   }
   function selectedChips(rival,stage){
     const sel=g[rival][stage].players||[];
     if(!sel.length) return '<span style="font-size:10.5px;color:var(--hint)">— sin seleccionar —</span>';
-    return `<div class="player-chips" style="pointer-events:none">${sel.map(nom=>`<span class="gr-chip sel" style="cursor:default">${_numTag(_numByNom[nom])}${nom}</span>`).join('')}</div>`;
+    return `<div class="player-chips" style="pointer-events:none">${sel.map(nom=>`<span class="gr-chip sel" style="cursor:default">${_numTag(_numByNom[nom])}${_dn(nom)}</span>`).join('')}</div>`;
   }
   function stageBlock(rival,stage,label){
     const link=g[rival][stage].link||'';
@@ -17269,7 +17270,7 @@ function renderFifaNovGrafica(){
     }).join('');
     const _el=(pf.down)?'el-mala':(pf.star&&pf.up)?'el-ideal':(pf.up)?'el-buena':(pf.star)?'el-star':'el-none';
     return {u:!!tags,h:`<div class="dg-row${tags?' used':''}${_el?' '+_el:''}">
-      <span class="dg-pn">${_numTag(p.num)}${p.nom}${injDot}${prevSm}</span>
+      <span class="dg-pn">${_numTag(p.num)}${_dn(p.nom)}${injDot}${prevSm}</span>
       <span class="dg-pr">${tags}${prevTags}${(!tags&&!prevTags)?'<span class="dg-no">sin uso</span>':''}<span class="dg-fls">${flagBtns}</span></span>
     </div>`};
   });
