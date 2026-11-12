@@ -1146,9 +1146,9 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .dg-in{width:100%;margin-top:9px;box-sizing:border-box;height:32px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:rgba(239,243,248,.75);font-size:12px;outline:none}
 .dg-in:focus{border-color:rgba(138,216,255,.6)}
 .dg-list{margin-top:8px}
-.dg-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07);font-size:13px}
-.dg-pn{display:flex;align-items:center;font-weight:600;color:rgba(239,243,248,.45);min-width:0;white-space:nowrap}
-.dg-pv{margin-left:8px;font-size:10px;font-weight:600;color:rgba(239,243,248,.42);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.dg-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;min-height:42px;box-sizing:border-box;border-top:1px solid rgba(255,255,255,.07);font-size:13px}
+.dg-pn{display:flex;align-items:center;font-weight:600;color:rgba(239,243,248,.45);min-width:0;flex:1 1 auto;overflow:hidden;white-space:nowrap}
+.dg-pv{margin-left:8px;white-space:nowrap;flex:0 1 auto;font-size:10px;font-weight:600;color:rgba(239,243,248,.42);overflow:hidden;text-overflow:ellipsis;min-width:0}
 .dg-row.used .dg-pn{color:#F4F7FB}
 .dg-pn span{margin-right:5px}
 /* Qué tan elegible es cada jugador según sus botones (Felipe, 11/11/2026), un color distinto por nivel: ideal (estrella + arriba) verde fuerte, buena (arriba) celeste, estrella sola ámbar, mala (abajo) roja, sin marca gris */
@@ -1162,7 +1162,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .dg-row.el-mala{background:linear-gradient(90deg,rgba(248,113,113,.22),rgba(248,113,113,.04));box-shadow:inset 4px 0 0 #F87171}
 .dg-row.el-mala .dg-pn{color:#FCA5A5}
 .dg-row.el-none{background:linear-gradient(90deg,rgba(148,163,184,.13),rgba(148,163,184,.03));box-shadow:inset 4px 0 0 #64748B}
-.dg-pr{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.dg-pr{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;flex-shrink:0;white-space:nowrap;justify-content:flex-end}
 .dg-no{font-size:10.5px;color:rgba(239,243,248,.35)}
 .dg-tg{font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:2px 8px;border-radius:999px;border:1px solid rgba(138,216,255,.4);color:#8AD8FF;white-space:nowrap}
 .dg .gr-chip.pv{border-color:rgba(255,255,255,.3);border-style:dashed}
@@ -9983,7 +9983,12 @@ function _recMayorMdDerivados(){
         const grupo=base;
         [['s','Elegir '+plural+' para el '+pieza+' vs. '+m.rival,1],['d','Mandar a diseñar el '+pieza+' vs. '+m.rival,2]].forEach(([k,t,o])=>{
           const id=base+'|'+k, mn=manual[id]||{};
-          out.push({id,titulo:t,detalle:det,vence,hora:'10:00',etiqueta:'Mayor',secuencial:true,grupo,orden:o,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+          // Conectado con Diseño (Felipe, 11/11/2026: «ya seleccioné»): elegir jugadores en Diseño tilda «Elegir…»; cargar el link del diseño tilda «Mandar a diseñar…».
+          let _auto=false;
+          try{ const _pd=(FIFANOV26.partidosData||[]).find(x=>x.fecha===D), _gg=_pd&&getFifaNovGrafica()[_pd.rival], _st=_gg&&_gg[off===-2?'md1':'md'];
+            if(_st) _auto=(k==='s')?((_st.players||[]).length>0):!!String(_st.link||'').trim(); }catch(_){}
+          const _hecho=!!mn.hecho||_auto;
+          out.push({id,titulo:t,detalle:det+(_auto&&!mn.hecho?' · ya está en Diseño':''),vence,hora:'10:00',etiqueta:'Mayor',secuencial:true,grupo,orden:o,derivado:true,hecho:_hecho,hechoEn:_hecho?(mn.hechoEn||new Date().toISOString()):null});
         });
       });
     });
