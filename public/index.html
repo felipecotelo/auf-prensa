@@ -19913,19 +19913,31 @@ const CAL_MAYOR_VENTANAS=[
   [2026,'Marzo','Amistosos internacionales · Inglaterra y Argelia','23/3 al 31/3',2,'AM'],[2026,'Junio','Amistosos de preparación','1/6 al 9/6',0,'AM'],
   [2026,'Jun–Jul','Copa Mundial FIFA 2026','11/6 · fase de grupos',0,'WC'],
   [2026,'Sep–Oct','Fecha FIFA set-oct 2026','21/9 al 6/10',0,'FF','fifasep26'],[2026,'Noviembre','Fecha FIFA nov 2026','9/11 al 17/11',0,'FF','fifanov26'],
+  // Próximas Fechas FIFA (Felipe, 13/11/2026): salen del «Calendario internacional masculino 2023-2030» de la FIFA (versión del 19/12/2023); pueden cambiar. Tipo 'FU' = futura: no suma a las estadísticas del ciclo.
+  [2027,'Marzo','Fecha FIFA marzo 2027','22/3 al 30/3',0,'FU','','Hasta 2 partidos'],[2027,'Junio','Fecha FIFA junio 2027','7/6 al 15/6',0,'FU','','Hasta 2 partidos'],
+  [2027,'Sep–Oct','Fecha FIFA set-oct 2027','20/9 al 5/10',0,'FU','','Hasta 4 partidos'],[2027,'Noviembre','Fecha FIFA nov 2027','8/11 al 16/11',0,'FU','','Hasta 2 partidos'],
+  [2028,'Marzo','Fecha FIFA marzo 2028','20/3 al 28/3',0,'FU','','Hasta 2 partidos'],[2028,'Junio','Fecha FIFA junio 2028','29/5 al 6/6',0,'FU','','Hasta 2 partidos · reservada para la preparación de los torneos continentales (Copa América 2028)'],
+  [2028,'Jun–Jul','Copa América 2028','',0,'FU','','Torneo de la CONMEBOL · fechas por confirmar'],
+  [2028,'Sep–Oct','Fecha FIFA set-oct 2028','18/9 al 3/10',0,'FU','','Hasta 4 partidos'],[2028,'Noviembre','Fecha FIFA nov 2028','13/11 al 21/11',0,'FU','','Hasta 2 partidos'],
+  [2029,'Marzo','Fecha FIFA marzo 2029','19/3 al 27/3',0,'FU','','Hasta 2 partidos'],[2029,'Junio','Fecha FIFA junio 2029','4/6 al 12/6',0,'FU','','Hasta 2 partidos'],
+  [2029,'Sep–Oct','Fecha FIFA set-oct 2029','24/9 al 9/10',0,'FU','','Hasta 4 partidos'],[2029,'Noviembre','Fecha FIFA nov 2029','12/11 al 20/11',0,'FU','','Hasta 2 partidos'],
+  [2030,'Marzo','Fecha FIFA marzo 2030','18/3 al 26/3',0,'FU','','Hasta 2 partidos'],[2030,'Junio','Fecha FIFA junio 2030','3/6 al 11/6',0,'FU','','Hasta 2 amistosos · preparación de la Copa Mundial 2030'],
+  [2030,'Jun–Jul','Copa Mundial FIFA 2030','',0,'FU','','Fechas por confirmar'],
+  [2030,'Sep–Oct','Fecha FIFA set-oct 2030','23/9 al 8/10',0,'FU','','Hasta 4 partidos'],[2030,'Noviembre','Fecha FIFA nov 2030','11/11 al 19/11',0,'FU','','Hasta 2 partidos'],
 ];
 function renderCalendarioMayor(){
   const el=document.getElementById('calmayor-body'); if(!el) return;
   const mayor=(typeof PERIPLO_MATCHES!=='undefined'?PERIPLO_MATCHES:[]).filter(m=>!m.sub);
   const pools={}; mayor.forEach(m=>{ if(m.tipo!=='CA'&&m.tipo!=='WC'){ (pools[m.yr]=pools[m.yr]||[]).push(m); } });
-  const TIPO={EL:{c:'#8AD8FF',l:'Eliminatorias'},AM:{c:'#CBD5E1',l:'Amistosos'},CA:{c:'#4ADE80',l:'Copa América'},WC:{c:'#FCD34D',l:'Copa Mundial'},FF:{c:'#22D3EE',l:'Fecha FIFA'}};
+  const TIPO={EL:{c:'#8AD8FF',l:'Eliminatorias'},AM:{c:'#CBD5E1',l:'Amistosos'},CA:{c:'#4ADE80',l:'Copa América'},WC:{c:'#FCD34D',l:'Copa Mundial'},FF:{c:'#22D3EE',l:'Fecha FIFA'},FU:{c:'#94A3B8',l:'Próxima Fecha FIFA'}};
   const MESN={Marzo:'MAR',Junio:'JUN','Jun–Jul':'JUN–JUL',Setiembre:'SEP',Octubre:'OCT',Noviembre:'NOV','Sep–Oct':'SEP–OCT'};
   const hoy=TODAY;
   const col=(r)=>{ const [a,b]=String(r||'').replace(/\(.*\)/,'').trim().split('-').map(Number); return isNaN(a)||isNaN(b)?'rgba(239,243,248,.6)':a>b?'#86EFAC':a<b?'#FCA5A5':'#FCD34D'; };
   let tot={pj:0,g:0,e:0,p:0}, ventanas=0, jugadas=0;
   const rowsPorAnio={};
   CAL_MAYOR_VENTANAS.forEach(v=>{
-    const [yr,mes,titulo,fechas,n,tp,go]=v;
+    const [yr,mes,titulo,fechas,n,tp,go,nota]=v;
+    if(tp==='FU'){ (rowsPorAnio[yr]=rowsPorAnio[yr]||[]).push({mes,titulo,fechas,tp,go:'',ms:[],estado:'Próxima',jugada:false,nota,futura:true}); return; } // futuras: se listan, pero no suman a las estadísticas del ciclo
     let ms=[];
     if(tp==='CA') ms=mayor.filter(m=>m.yr===yr&&m.tipo==='CA');
     else if(tp==='WC') ms=mayor.filter(m=>m.yr===yr&&m.tipo==='WC');
@@ -19949,8 +19961,8 @@ function renderCalendarioMayor(){
     return `<div class="jm-card cm-card${r.go?'':' off'}" style="--cat:${t.c}" ${r.go?`onclick="showTournament('${r.go}')" title="Abrir el módulo de esta Fecha FIFA"`:''}>
       <span class="pz-d"><b>${d?d[1]:'<i class="ti ti-calendar-event" style="font-size:22px;opacity:.7"></i>'}</b><span>${MESN[r.mes]||r.mes}</span></span>
       <span class="jm-mt"><span class="rd-eye" style="display:block;margin-bottom:3px;--cat:${t.c}">${t.l}${r.fechas?` · ${r.fechas}`:''}</span><b>${r.titulo}</b>
-        ${r.ms.length?`<span class="ff-rv">${r.ms.map(m=>`<i>${_escudoSeleccion(m.rival,22)}<em>${m.rival}</em>${m.res?`<u style="color:${col(m.res)}">${m.res.replace('-','–')}</u>`:''}</i>`).join('')}</span>`:`<span>${r.tp==='WC'?'Eliminados en fase de grupos':'Preparación del Mundial · sin partidos oficiales cargados'}</span>`}
-        <span style="font-size:11.5px;color:rgba(239,243,248,.4)">DT ${dt(yr,r.mes)}</span></span>
+        ${r.futura?`<span>${r.nota||''}</span>`:r.ms.length?`<span class="ff-rv">${r.ms.map(m=>`<i>${_escudoSeleccion(m.rival,22)}<em>${m.rival}</em>${m.res?`<u style="color:${col(m.res)}">${m.res.replace('-','–')}</u>`:''}</i>`).join('')}</span>`:`<span>${r.tp==='WC'?'Eliminados en fase de grupos':'Preparación del Mundial · sin partidos oficiales cargados'}</span>`}
+        ${r.futura?'':`<span style="font-size:11.5px;color:rgba(239,243,248,.4)">DT ${dt(yr,r.mes)}</span>`}</span>
       <span class="jm-sc"><em style="color:${stCol};border-color:${stCol}66">${r.estado}</em></span>
       ${r.go?'<i class="ti ti-chevron-right jm-ch"></i>':''}
     </div>`;
@@ -19963,8 +19975,9 @@ function renderCalendarioMayor(){
       <div class="fs-tile"><span class="v" style="color:#4ADE80">${tot.g}</span><span class="t">ganados · ${tot.e} empates · ${tot.p} derrotas</span></div>
       <div class="fs-tile"><span class="v">${ventanas-jugadas}</span><span class="t">por jugar o en curso</span></div>
     </div>
-    <div class="fs-chips" style="margin-bottom:0"><span><b style="color:#8AD8FF">●</b> Eliminatorias</span><span><b style="color:#CBD5E1">●</b> Amistosos</span><span><b style="color:#4ADE80">●</b> Copa América</span><span><b style="color:#FCD34D">●</b> Copa Mundial</span><span><b style="color:#22D3EE">●</b> Fecha FIFA actual</span></div>
+    <div class="fs-chips" style="margin-bottom:0"><span><b style="color:#8AD8FF">●</b> Eliminatorias</span><span><b style="color:#CBD5E1">●</b> Amistosos</span><span><b style="color:#4ADE80">●</b> Copa América</span><span><b style="color:#FCD34D">●</b> Copa Mundial</span><span><b style="color:#22D3EE">●</b> Fecha FIFA actual</span><span><b style="color:#94A3B8">●</b> Próximas (calendario FIFA)</span></div>
     ${Object.keys(rowsPorAnio).sort().map(yr=>`<div class="rd-eyebar" style="margin-top:28px;color:#FCD34D">${yr}</div>${rowsPorAnio[yr].map(r=>card(+yr,r)).join('')}`).join('')}
+    <div style="margin-top:22px;font-size:11px;color:rgba(239,243,248,.4)">Las Fechas FIFA desde 2027 siguen el «Calendario internacional masculino 2023-2030» de la FIFA (versión del 19/12/2023); pueden cambiar.</div>
   </div>`;
 }
 function renderPeriplo(view){
