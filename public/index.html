@@ -1594,6 +1594,12 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-p-chip{border-radius:999px!important;background:transparent!important;color:rgba(239,243,248,.75)!important;border:1px solid rgba(255,255,255,.18)!important}
 :is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-p-chip.sel,:is(#fifasep26-cal-timeline,#fifanov26-cal-timeline) .ev-p-chip.sel-bielsa{background:rgba(0,157,216,.2)!important;color:#8AD8FF!important;border-color:rgba(138,216,255,.55)!important}
 .sh-tabs{margin:0 0 14px!important}
+/* selector segmentado (Partidos / Goles…): una sola pastilla con la opción activa rellena */
+.jg-pills.sh-tabs{display:inline-flex;flex-wrap:nowrap;gap:2px;padding:3px;border-radius:999px;background:linear-gradient(180deg,#10182C,#0A1022);border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 2px rgba(0,0,0,.35);max-width:100%;overflow-x:auto;scrollbar-width:none}
+.jg-pills.sh-tabs::-webkit-scrollbar{display:none}
+.jg-pills.sh-tabs button{height:30px;padding:0 18px;border:0;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.14em;color:rgba(239,243,248,.55);white-space:nowrap;transition:background .18s,color .18s,box-shadow .18s}
+.jg-pills.sh-tabs button:hover{color:rgba(239,243,248,.9)}
+.jg-pills.sh-tabs button.on{color:#06121E;background:linear-gradient(180deg,#8AD8FF,#46B9F0);border:0;box-shadow:0 2px 8px rgba(0,157,216,.35)}
 .sh-note{display:flex;align-items:center;gap:12px;margin-bottom:14px;border-radius:999px;border:1px solid rgba(255,255,255,.14);padding:8px 10px 8px 22px;background:linear-gradient(180deg,#10182C,#0A1022)}
 .sh-ni{flex:1;min-width:0}
 .sh-nt{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.7)}
@@ -20349,7 +20355,7 @@ function _patchStatPhotos(){
     const d=JUGADORES[nom]; if(!d) return;
     const ms=_slug(nom), as=d.auf||'';
     const plPhoto=PLAYERS.find(p=>p.name===nom)?.photo||'';
-    const photo=d.foto||plPhoto||window._getPhotoByName?.(nom)||'';
+    const photo=window._getPhotoByName?.(nom)||d.foto||plPhoto||'';
     if(photo && !img.dataset.tried && img.getAttribute('src')!==photo){
       img.src=photo;
       img.style.display='';
@@ -21324,7 +21330,7 @@ function renderJugadores(){
     const pos=customPos||d.pos;
     const col=posColor[pos]||'#64748B';
     const plPhoto=PLAYERS.find(x=>x.name===nom)?.photo||null;
-    const photo=d.foto||plPhoto;
+    const photo=window._getPhotoByName?.(nom)||d.foto||plPhoto;
     const customClub=getJugClub()[nom];
     const customPais=getJugClub()[nom+'__pais'];
     const club=customClub!==undefined?customClub:(d.club||'—');
@@ -21532,7 +21538,7 @@ function _buildJugadorHTML(nom,closeId){
   const aufSlug=auf.auf||null;
   const total=auf.total||null;
   const comp=auf.comp||null;
-  const photo=auf.foto||(p?.photo)||null;
+  const photo=window._getPhotoByName?.(nom)||auf.foto||(p?.photo)||null;
   const initials=nom.split(' ').filter(w=>/^[A-ZÁÉÍÓÚÑÜ]/.test(w)).slice(0,2).map(w=>w[0]).join('');
   const col=posColor[pos]||'#555';
   const golesVal=isGK?(total?.gc!=null?total.gc:'—'):(total?.g??'—');
@@ -21620,7 +21626,7 @@ function showJugador(nom){
   const auf=JUGADORES[nom];
   if(!auf) return;
   const p=PLAYERS.find(x=>x.name===nom)||null;
-  const photo=auf.foto||(p?.photo)||window._getPhotoByName?.(nom)||null;
+  const photo=window._getPhotoByName?.(nom)||auf.foto||(p?.photo)||null;
   const posColor={POR:'#0F4C81',DEF:'#15803D',MED:'#0E7490',DEL:'#B45309'};
   const posLbl={POR:'Portero',DEF:'Defensa',MED:'Mediocampista',DEL:'Delantero'};
   const _customPos=getJugPos()[nom];
@@ -25478,7 +25484,7 @@ function buildAllHistFromJugadores(){
     const safe=nom.replace(/'/g,"\\'");
     const dBadge=(showDelta&&pp)?statDeltaBadge(pp.n,deltaKey):'';
     const isFall=!!(d.fallecido||fallecidosLS[nom]);
-    const _initSrc=d.foto||(pp?.photo)||window._getPhotoByName?.(nom)||'';
+    const _initSrc=window._getPhotoByName?.(nom)||d.foto||(pp?.photo)||'';
     // Estado de convocatoria: reserva vigente > convocatoria final vigente > última convocatoria (ciclo anterior)
     const _nv=(typeof FIFANOV26!=='undefined')?FIFANOV26:null;
     const _sp=(typeof FIFASEP26!=='undefined')?FIFASEP26:null;
