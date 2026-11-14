@@ -18393,11 +18393,11 @@ function renderFifaNov26(tabId){
         // Quien juega en Uruguay (hoy solo Jaume) no viaja: el avión no aplica y cuenta que se presente a entrenar (cono, `auf4_fifanov_presentado`).
         const _localNov = (typeof _clubFlagEmoji==='function' ? _clubFlagEmoji(p.club,p.clubPais) : p.clubPais)==='🇺🇾';
         const _presentadoNov = !!(stor.get('auf4_fifanov_presentado',{})[p.nom]);
-        const _llegadoNov = _localNov ? _presentadoNov : !!(stor.get('auf4_fifanov_llegado',{})[p.nom]);
+        const _llegadoNov = _localNov ? _presentadoNov : _fnovLlegadoDe(p.nom);
         // Fecha en que llega a Uruguay (se anota a mano; después se conecta con el calendario): `auf4_fifanov_llegada` {nom:'AAAA-MM-DD'}
         const _llegadaNov = String(stor.get('auf4_fifanov_llegada',{})[p.nom]||'');
         const _llegadaTxt = (()=>{ const m=_llegadaNov.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? (+m[3])+'/'+(+m[2]) : '—'; })();
-        const _sinShootingNov = !!(stor.get('auf4_fifanov_shooting',{})[p.nom]);
+        const _sinShootingNov = !!(stor.get('auf4_fifanov_shooting',{})[p.nom]) && !_fnovShootingHecho(p.nom);
         const cardBorder = inj==='red' ? '#DC2626' : (inj==='yellow' ? '#F59E0B' : ((_llegadoNov && !lesionOut && !bajaActiva) ? '#22D3EE' : (nuevoIn ? '#16A34A' : ((lesionOut||bajaActiva) ? '#DC2626' : null)))); // lesión = rojo · molestia = amarillo · en Uruguay = celeste · disponible = normal
         // Mismo store compartido que usa el toggle "C" de Jugadores/Local/Juveniles
         // (auf4_capitan) — marcar acá se refleja en todas las fichas del jugador.
@@ -18405,8 +18405,8 @@ function renderFifaNov26(tabId){
         // Provisorios de esta gira puntual — no son estado permanente del jugador,
         // por eso van aparte (auf4_fifanov_llegado / auf4_fifanov_shooting) y no
         // en los stores compartidos con Jugadores/Local/Juveniles.
-        const isLlegado = !!(stor.get('auf4_fifanov_llegado',{})[p.nom]);
-        const faltaShooting = !!(stor.get('auf4_fifanov_shooting',{})[p.nom]);
+        const isLlegado = _fnovLlegadoDe(p.nom);
+        const faltaShooting = !!(stor.get('auf4_fifanov_shooting',{})[p.nom]) && !_fnovShootingHecho(p.nom);
         // Marcadores (UY/avión o cono, cámara): arriba a la derecha en móvil y en la ficha de Jaume; en las demás, dentro de la columna del puesto, todo centrado.
         const _chipsNov = `
             ${_localNov
@@ -18559,6 +18559,18 @@ window._fnovExportarInfo=async function(btn){
   }catch(e){ if(typeof toast==='function') toast('⚠ No se pudo exportar: '+(e&&e.message||e)); else alert('No se pudo exportar: '+(e&&e.message||e)); }
   finally{ if(wrap) wrap.remove(); btn.disabled=false; if(lbl) lbl.textContent=txt0; }
 };
+// Las fichas siguen a Llegadas y al cronograma (Felipe, 14/11/2026): el chip «UY» se prende solo si el jugador ya se presentó a entrenar o si pasó la fecha de llegada anotada (a menos que alguien lo haya marcado a mano, tick o destilde),
+// y la cámara deja de pedir shooting si hay una actividad «Shooting…» ya pasada en el cronograma con ese jugador entre los participantes.
+function _fnovLlegadoDe(nom){
+  const ll=stor.get('auf4_fifanov_llegado',{});
+  if(ll[nom]!==undefined) return !!ll[nom];
+  if(stor.get('auf4_fifanov_presentado',{})[nom]) return true;
+  const f=String(stor.get('auf4_fifanov_llegada',{})[nom]||'');
+  return /^\d{4}-\d{2}-\d{2}$/.test(f)&&f<=TODAY;
+}
+function _fnovShootingHecho(nom){
+  try{ const da=getDayActs(); return (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).some(d=>d&&d.date<=TODAY&&(da[d.date]||[]).some(a=>a&&/shooting/i.test(a.txt||'')&&(a.personas||[]).includes(nom))); }catch(_){ return false; }
+}
 function _fnovInfografia(lista){
   try{
     if(!lista||!lista.length) return '';
