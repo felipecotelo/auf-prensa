@@ -18027,9 +18027,9 @@ function renderFifaNovDisponibilidad(){
       return `<div class="at-row at-col" data-tipo="${_key}" style="--ac:${_col}">
         ${_atIc(a.tipo)}
         <div class="at-main">
-          <div class="at-t">${a.titulo?a.titulo:`${_fnovNumTag(a.quien)}${a.quien}${a.txt?' · '+a.txt:''}`}${obligBadge}${isDone?_doneP:''}</div>
-          ${a.titulo?`<div class="at-s">${a.quien===FNOV_QUIEN_TBD?`<span class="at-tbd">${a.quien}</span>`:`${_fnovNumTag(a.quien)}${a.quien}`}${a.txt?' · '+a.txt:''}</div>`:''}
-          <div class="at-m">${t.label}${fechaFmt?' · '+fechaFmt:''}${horaFmt?' · '+horaFmt:''}</div>
+          <div class="at-t">${a.titulo||_fnovTituloAuto(a,t)}${obligBadge}${isDone?_doneP:''}</div>
+          <div class="at-s">${a.quien===FNOV_QUIEN_TBD?`<span class="at-tbd">${a.quien}</span>`:`${_fnovNumTag(a.quien)}${a.quien}`}${a.txt?' · '+a.txt:''}</div>
+          <div class="at-m">${[a.titulo?t.label:'',fechaFmt,horaFmt].filter(Boolean).join(' · ')}</div>
         </div>
         <span class="at-acts">${_actBtns({...a,__link:firstLink})}</span>
       </div>`;
@@ -18574,6 +18574,15 @@ function _fnovLlegadoDe(nom){
 }
 function _fnovShootingHecho(nom){
   try{ const da=getDayActs(); return (typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[]).some(d=>d&&d.date<=TODAY&&(da[d.date]||[]).some(a=>a&&/shooting/i.test(a.txt||'')&&(a.personas||[]).includes(nom))); }catch(_){ return false; }
+}
+// Un solo criterio para las atenciones de a una persona (Felipe, 14/11/2026): el título es el tipo («Coach arrival vs. Argentina») y abajo va la persona; el «vs. rival» solo en las del día de partido.
+function _fnovTituloAuto(a,t){
+  let suf='';
+  if(['coach-arrival','player-arrival','flash-interview'].includes(a.tipo)){
+    const f=String(a.fecha||'').slice(0,10), pd=(FIFANOV26.partidosData||[]).filter(x=>x.fecha>=f).sort((x,y)=>x.fecha.localeCompare(y.fecha))[0];
+    if(pd&&pd.rival) suf=' vs. '+pd.rival;
+  }
+  return t.label+suf;
 }
 function _fnovInfografia(lista){
   try{
