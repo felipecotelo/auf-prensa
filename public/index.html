@@ -33046,6 +33046,7 @@ const WC17_2026 = {
   // `listaFinal:true` hace que Convocados muestre estos 21, pero la convocatoria de ENTRENAMIENTO vigente (convocadosFecha +
   // JUVENILES.sub17.anos['2025-2026'].convocatorias[0]) sigue mandando en Jugadores hasta que Felipe avise.
   listaFinal:true,
+  viajeFecha:'2026-11-14', // viajaron a Catar (Felipe, 14/11/2026): desde este día Jugadores muestra solo los 21 convocados (con número) y el resto va abajo en gris
   convocadosFecha:'Preparación Mundial · lunes a sábado · 2-7 nov 2026',
   estiloMundial:true, // Convocados con la estética de la Mayor + el proceso abajo (igual que el Mundial Sub-15)
   convocados:[
@@ -41451,8 +41452,9 @@ function _buildJuvCompBody(compId, color, catData){
   else if(_juvCompTab==='jugadores'){
     // Pool unificado: convocados formales + preparacion + lista larga
     // Con `listaFinal` (Mundial), `convocados` es la lista final y se ve en la pestaña Convocados; acá manda la convocatoria de entrenamiento vigente.
-    const formalConv = comp.listaFinal ? [] : (comp.convocados||[]).filter(j=>!j.descartado);
-    const _estMund = comp.estiloMundial && !comp.listaFinal;
+    const _viajo = !!(comp.listaFinal && comp.viajeFecha && TODAY>=comp.viajeFecha); // ya viajó al torneo: manda la lista final
+    const formalConv = (comp.listaFinal && !_viajo) ? [] : (comp.convocados||[]).filter(j=>!j.descartado);
+    const _estMund = comp.estiloMundial && (!comp.listaFinal || _viajo);
     // Si no hay convocados formales, usar la última convocatoria como "activos".
     // Prioridad: convocatorias propias de la competencia (comp.convocatorias) >
     // última convocatoria del CICLO general (microciclos de entrenamiento del
@@ -41468,7 +41470,7 @@ function _buildJuvCompBody(compId, color, catData){
       : cycleConvocatorias.length ? cycleConvocatorias[0]
       : null;
     const lastCall = lastCallEntry?.jugadores||[];
-    const fechaConvBanner = formalConv.length ? (comp.convocadosFecha||'') : (lastCallEntry?.fecha||'');
+    const fechaConvBanner = _viajo ? ('Convocatoria final · '+((typeof _COMP_NOM!=='undefined'&&_COMP_NOM[compId])||'Mundial')) : (formalConv.length ? (comp.convocadosFecha||'') : (lastCallEntry?.fecha||''));
     const prepAsActive = !formalConv.length && !lastCallEntry && (comp.preparacion||[]).length > 0;
     const allMap = {};
     // 1. convocados activos primero (formal, última convocatoria, o preparacion completa)
@@ -41509,7 +41511,7 @@ function _buildJuvCompBody(compId, color, catData){
     // En el Mundial los convocados se distinguen con un encabezado navy con el dorsal grande (estilo Mayor);
     // la ficha de abajo es la de siempre, con su botonera.
     // Con lista final publicada, los que siguen entrenando pero no están entre los convocados al torneo se marcan aparte.
-    const _finNoms = comp.listaFinal ? new Set((comp.convocados||[]).filter(j=>!j.descartado).map(j=>j.nom)) : null;
+    const _finNoms = (comp.listaFinal && !_viajo) ? new Set((comp.convocados||[]).filter(j=>!j.descartado).map(j=>j.nom)) : null;
     const fichasActivas = activos.slice().sort((a,b)=>(_estMund||comp.dorsalNavy)?((a.num??99)-(b.num??99)):0).map(p=>_mkJuvCompCard((_finNoms&&!_finNoms.has(p.nom))?{...p,fuera:true}:p,false,true)).join('');
     const fichasPool = pool.map(p=>_mkJuvCompCard(p,true,false)).join('');
     // Banners fotos
