@@ -24364,7 +24364,7 @@ function renderEstadisticas(){
   setTimeout(()=>{ try{ window._rkFifaLoad&&window._rkFifaLoad(); }catch(_){} },0);
   con.innerHTML=`
     <div id="rk-fifa"></div>
-    <div class="jg-pills sh-tabs"><button class="${tab==='auf-historia'?'on':''}" onclick="showStatsSubTab('auf-historia')">Generales</button><button class="${tab==='copa-mundial'?'on':''}" onclick="showStatsSubTab('copa-mundial')">Copa Mundial 2026</button><button class="${tab==='bielsa'?'on':''}" onclick="showStatsSubTab('bielsa')">Bielsa</button></div>
+    <div class="jg-pills sh-tabs"><button class="${tab==='auf-historia'?'on':''}" onclick="showStatsSubTab('auf-historia')">Generales</button><button class="${tab==='copa-mundial'?'on':''}" onclick="showStatsSubTab('copa-mundial')">Copa Mundial 2026</button><button class="${tab==='bielsa'?'on':''}" onclick="showStatsSubTab('bielsa')">Bielsa</button><button class="${tab==='forlan'?'on':''}" onclick="showStatsSubTab('forlan')">Forlán</button></div>
 
     ${tab==='copa-mundial' ? `
     <div class="jg-pills sh-tabs">
@@ -24400,6 +24400,8 @@ function renderEstadisticas(){
     ${_legendsEdit?`<div class="sh-edit-on">Modo edición activo: tocá la estrella junto a un jugador para marcarlo o quitarlo como leyenda</div>`:''}
 
     ${buildAllHistFromJugadores()}
+    ` : tab==='forlan' ? `
+    ${buildForlanEstadHtml()}
     ` : tab==='bielsa' ? `
     ${buildBielsaStatsHtml()}
     ${buildBielsaConfsHtml()}
@@ -24554,6 +24556,56 @@ function buildAlonsoStatsHtml(){
 // ════════════════════════════════════════════════════════════════════════════
 // BIELSA HELPER FUNCTIONS — used in Estadísticas tab AND renderTecnicos
 // ════════════════════════════════════════════════════════════════════════════
+// Pestaña «Forlán» de Estadísticas (Mayor): mismos números que la de Bielsa, calculados solos de la Pizarra (set-oct + nov)
+function buildForlanEstadHtml(){
+  const d=_forlanStatsData();
+  const t=d.porFecha.reduce((a,f)=>({pj:a.pj+f.pj,g:a.g+f.g,e:a.e+f.e,p:a.p+f.p,gf:a.gf+f.gf,gc:a.gc+f.gc}),{pj:0,g:0,e:0,p:0,gf:0,gc:0});
+  const pct=t.pj?Math.round(((t.g+t.e/3)/t.pj)*100):0;
+  const ult=d.matches.length?d.matches[d.matches.length-1].rival:'';
+  const sub=ult?`*post ${ult} · interino`:'*interino';
+  const esc=(typeof _escudoSeleccion==='function')?(r=>_escudoSeleccion(r,16)):(()=>'');
+  const comps=d.porFecha.filter(f=>f.pj>0).map(f=>({
+    dot:'#22D3EE', label:f.lbl, pj:f.pj,g:f.g,e:f.e,p:f.p,gf:f.gf,gc:f.gc,
+    detail:f.rows.slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(r=>`${esc(r.rival)} ${r.rival} ${r.gl}-${r.gr}`).join(' <span style="color:rgba(251,113,133,.8)">·</span> ')
+  }));
+  const scorers=Object.entries(d.scorers).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+  const usados=Object.entries(d.players).sort((a,b)=>b[1].pj-a[1].pj||b[1].tit-a[1].tit||a[0].localeCompare(b[0])).slice(0,12);
+  const forms=Object.entries(d.forms).sort((a,b)=>b[1].pj-a[1].pj);
+  return `
+    <div class="stats-section">
+      <div class="sx-eye">Números totales <em>${sub}</em></div>
+      <div class="sx-big"><div class="l">Partidos dirigidos</div><div><div class="n">${t.pj}</div><div class="s">${pct}% de efectividad</div></div></div>
+      <div class="sx-trio">
+        <div class="sx-k" style="--kc:#4ADE80"><div class="n">${t.g}</div><div class="l">Ganados</div></div>
+        <div class="sx-k" style="--kc:#FACC15"><div class="n">${t.e}</div><div class="l">Empatados</div></div>
+        <div class="sx-k" style="--kc:#F87171"><div class="n">${t.p}</div><div class="l">Perdidos</div></div>
+      </div>
+      <div class="sx-duo">
+        <div class="sx-k row" style="--kc:#4ADE80"><div><div class="l">Goles a favor</div></div><div class="n">${t.gf}</div></div>
+        <div class="sx-k row" style="--kc:#F87171"><div><div class="l">En contra</div></div><div class="n">${t.gc}</div></div>
+      </div>
+      <div class="sx-warn"><strong>Indisciplinas:</strong> ${d.ta} amarilla${d.ta===1?'':'s'} · ${d.tr} roja${d.tr===1?'':'s'}${forms.length?` &nbsp;·&nbsp; <strong>Formaciones:</strong> ${forms.map(([f,o])=>`${f} (${o.pj} PJ)`).join(', ')}`:''}</div>
+    </div>
+    ${comps.length?`<div class="stats-section">
+      <div class="sx-eye">Por Fecha FIFA</div>
+      <div style="display:flex;flex-direction:column;gap:6px">${comps.map(c=>`
+        <div class="sx-comp" style="--cc:${c.dot}">
+          <div class="sx-ch"><i class="dot"></i><span class="nm">${c.label}</span>
+            <div class="st"><div><b>${c.pj}</b><i>PJ</i></div><div class="w"><b>${c.g}</b><i>G</i></div><div class="d"><b>${c.e}</b><i>E</i></div><div class="l"><b>${c.p}</b><i>P</i></div><div class="g"><b>${c.gf}·${c.gc}</b><i>GF·GC</i></div></div>
+          </div>
+          <div class="sx-cd">${c.detail}</div>
+        </div>`).join('')}</div>
+    </div>`:''}
+    ${scorers.length?`<div class="stats-section">
+      <div class="sx-eye">Goleadores</div>
+      <div class="sx-cd" style="line-height:2">${scorers.map(([n,c])=>`<b>${n}</b> ${c}`).join(' <span style="color:rgba(251,113,133,.8)">·</span> ')}${d.ec?` <span style="color:rgba(251,113,133,.8)">·</span> <em>En contra (rival) ${d.ec}</em>`:''}</div>
+    </div>`:''}
+    ${usados.length?`<div class="stats-section">
+      <div class="sx-eye">Más utilizados</div>
+      <div class="sx-cd" style="line-height:2">${usados.map(([n,o])=>`<b>${n}</b> ${o.pj} PJ${o.tit?` (${o.tit} tit.)`:''}`).join(' <span style="color:rgba(251,113,133,.8)">·</span> ')}</div>
+    </div>`:''}
+  `;
+}
 function buildBielsaStatsHtml(){
   const lnk=(t,u)=>u?`<a href="${u}" target="_blank" rel="noopener">${t}</a>`:t;
   const a='https://www.auf.org.uy/';
@@ -25076,7 +25128,7 @@ function _forlanFechasHtml(){
     const r=rec(ev); const res={}; r.matches.forEach(m=>{ res[m.rival]=m; });
     const matches=(EV.partidosData||[]).map(pd=>{ const m=res[pd.rival]; return {rival:pd.rival,res:m?`${m.gl}–${m.gr}`:'',col:m?(m.gl>m.gr?'#86EFAC':m.gl===m.gr?'#FCD34D':'#FCA5A5'):''}; });
     const jugada=r.pj>0, completa=r.pj>=(EV.partidos||matches.length);
-    const pill=jugada?`<b style="font-size:26px;color:#F4F7FB">${r.g}G ${r.e}E ${r.p}P</b><em>${completa?'Cerrada':'En curso'}</em>`:`<b style="font-size:20px;color:rgba(239,243,248,.6)">${EV.partidos||matches.length} PJ</b><em>Próxima</em>`;
+    const pill=jugada?`<b style="font-size:26px;color:#F4F7FB"><span style="color:#4ADE80">${r.g}G</span> <span style="color:#FACC15">${r.e}E</span> <span style="color:#F87171">${r.p}P</span></b><em>${completa?'Cerrada':'En curso'}</em>`:`<b style="font-size:20px;color:rgba(239,243,248,.6)">${EV.partidos||matches.length} PJ</b><em>Próxima</em>`;
     return {d1:cfg.d1,mes:cfg.mes,title:cfg.title,sub:cfg.sub,matches,pill,go:cfg.go};
   };
   const cards=[
