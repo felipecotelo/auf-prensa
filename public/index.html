@@ -17582,6 +17582,8 @@ window._fifaNovAddAt=function(){
     const primary=checked.includes(origQuien) ? origQuien : checked[0];
     quienes = primary ? [primary, ...checked.filter(q=>q!==primary)] : [];
   }
+  // Apertura de entrenamiento: es abierto, no hace falta elegir a nadie (queda «plantel completo»)
+  if(!quienes.length && document.getElementById('fnov-at-tipo')?.value==='apertura') quienes=[FNOV_QUIEN_TBD];
   if(!quienes.length){ toast('⚠️ Elegí a quién'); return; }
   const hRaw=(document.getElementById('fnov-at-hora')?.value||'').trim();
   const tz=_fifaNovAtTz;
@@ -17733,7 +17735,7 @@ window._fifaNovEditAt=function(id){
   if(body) body.style.display='block';
   const toggleBtn=document.getElementById('fnov-at-toggle-btn');
   if(toggleBtn) toggleBtn.textContent='✕ Cerrar';
-  document.getElementById('fnov-at-tipo').value=a.tipo;
+  document.getElementById('fnov-at-tipo').value=a.tipo; window._fnovAtTipoChange&&window._fnovAtTipoChange();
   document.querySelectorAll('#fnov-at-quien-panel input[type=checkbox]').forEach(c=>{ c.checked = c.value===a.quien; });
   window._fnovUpdateQuienLabel();
   document.getElementById('fnov-at-titulo').value=a.titulo||'';
@@ -17763,7 +17765,7 @@ window._fifaNovEditAtBatch=function(batchId){
   if(body) body.style.display='block';
   const toggleBtn=document.getElementById('fnov-at-toggle-btn');
   if(toggleBtn) toggleBtn.textContent='✕ Cerrar';
-  document.getElementById('fnov-at-tipo').value=a0.tipo;
+  document.getElementById('fnov-at-tipo').value=a0.tipo; window._fnovAtTipoChange&&window._fnovAtTipoChange();
   const quienesSet=new Set(group.map(a=>a.quien));
   document.querySelectorAll('#fnov-at-quien-panel input[type=checkbox]').forEach(c=>{ c.checked = quienesSet.has(c.value); });
   window._fnovUpdateQuienLabel();
@@ -17874,6 +17876,11 @@ function _fifaNovQuienCheckboxesHtml(){
   const bar=`<div class="fna-bar"><span id="fnov-at-quien-count">Nadie elegido</span><span class="fna-bar-b"><button type="button" onclick="_fnovToggleAllQuienes(true)">Todos</button><button type="button" onclick="_fnovToggleAllQuienes(false)">Ninguno</button></span></div>`;
   return bar+`<div class="fna-grid">`+tbdRow+row(dtNom,dtNom+' · DT',{cls:'dt'})+nombres.map(n=>row(n,n,{num:numDe(n)})).join('')+`</div>`;
 }
+window._fnovAtTipoChange=function(){
+  const ab=document.getElementById('fnov-at-tipo')?.value==='apertura';
+  const sec=document.getElementById('fnov-at-quien-sec'), note=document.getElementById('fnov-at-open-note');
+  if(sec) sec.style.display=ab?'none':''; if(note) note.style.display=ab?'':'none';
+};
 window._fnovToggleAllQuienes=function(checkAll){
   document.querySelectorAll('#fnov-at-quien-panel input[type=checkbox]').forEach(c=>{
     c.checked = checkAll && c.value===FNOV_QUIEN_TBD ? false : checkAll;
@@ -17963,9 +17970,13 @@ function renderFifaNovDisponibilidad(){
       <div id="fnov-at-body" class="fna" style="display:none;margin-top:12px">
         <div class="fna-sec">
           <div class="fna-lbl"><i class="ti ti-clipboard-list"></i>Qué actividad</div>
-          <div class="fna-sel"><select id="fnov-at-tipo">${tipoOptions}</select><i class="ti ti-chevron-down"></i></div>
+          <div class="fna-sel"><select id="fnov-at-tipo" onchange="_fnovAtTipoChange()">${tipoOptions}</select><i class="ti ti-chevron-down"></i></div>
         </div>
-        <div class="fna-sec">
+        <div class="fna-sec" id="fnov-at-open-note" style="display:none">
+          <div class="fna-lbl"><i class="ti ti-users"></i>Quién<em>plantel completo</em></div>
+          <div style="padding:10px 14px;border:1px dashed rgba(255,255,255,.18);border-radius:16px;color:rgba(239,243,248,.7);font-size:.82em">Es abierto a la prensa: no hace falta elegir jugadores.</div>
+        </div>
+        <div class="fna-sec" id="fnov-at-quien-sec">
           <div class="fna-lbl"><i class="ti ti-users"></i>Quién<em>podés elegir varios</em></div>
           <button type="button" id="fnov-at-quien-btn" class="fna-quien" onclick="event.stopPropagation();_fnovToggleQuienPanel()">
             <span id="fnov-at-quien-label" class="fna-qlabel"><span class="fna-ph">Elegí a quién</span></span>
