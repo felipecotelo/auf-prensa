@@ -17274,9 +17274,12 @@ function renderFifaNovGrafica(){
   // margin-right en vez de un espacio de texto: dentro de un contenedor flex
   // el espacio al arranque de un item se colapsa y el número queda pegado al nombre.
   const _numTag=n=>`<span style="display:inline-block;min-width:2.3em;text-align:center;padding:1px 3px;border-radius:6px;background:rgba(148,163,184,.16);opacity:.8;font-weight:700;margin-right:6px;box-sizing:border-box">#${n!=null?n:'X'}</span>`; // ancho fijo y «#X» sin dorsal para que los nombres queden alineados (Felipe, 11/11/2026)
+  // Liberados / bajas del plantel (bajaGira, lesionEnGira): ya no son elegibles para los partidos posteriores al primero (Felipe, 15/11/2026: Varela, De Arrascaeta y Piquerez no entran en los diseños del vs. República Dominicana).
+  const _primeraFecha=(FIFANOV26.partidosData||[]).map(x=>x.fecha||'').filter(Boolean).sort()[0]||'';
+  const _fueraPara=(p,rival,sel)=>{ if(!(p.bajaGira||p.lesionEnGira)) return false; if(sel.includes(p.nom)) return false; const pd=(FIFANOV26.partidosData||[]).find(x=>x.rival===rival); return !!(pd&&pd.fecha&&_primeraFecha&&pd.fecha>_primeraFecha); };
   function playerGrid(rival,stage){
     const sel=g[rival][stage].players||[];
-    return `<div class="player-chips">${pool.map(p=>{
+    return `<div class="player-chips">${pool.filter(p=>!_fueraPara(p,rival,sel)).map(p=>{
       const isSel=sel.includes(p.nom);
       const nomEnc=encodeURIComponent(p.nom);
       const pv=prevUse[p.nom];
@@ -17321,7 +17324,7 @@ function renderFifaNovGrafica(){
 
   const flags=g.flags||{};
   const _FI={star:'ti-star',up:'ti-trending-up',down:'ti-trending-down'};
-  const playerRows=pool.map(p=>{
+  const playerRows=pool.filter(p=>!((p.bajaGira||p.lesionEnGira)&&!(usage[p.nom]||[]).length&&!(prevUse[p.nom]||[]).length)).map(p=>{
     const tags=(usage[p.nom]||[]).map(t=>`<span class="dg-tg">${t}</span>`).join('');
     const prevTags='';
     const prevSm=(prevUse[p.nom]||[]).length?`<small class="dg-pv" title="Estuvo en los diseños de la Fecha FIFA anterior">${prevTxt(p.nom)}</small>`:'';
