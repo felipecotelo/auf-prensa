@@ -37929,6 +37929,8 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
   const bajaSet = new Set();
   const isIndiaFifaSep = m.compId==='fifasep26' && m.rival==='India';
   const fueraSel = new Set(); // fuera de la lista de 26 de este partido (ver partidosData[].fueraLista)
+  // Liberados (bajaGira) de la Fecha FIFA nov: no están en los partidos posteriores al primero (Felipe, 15/11/2026: Varela, De Arrascaeta y Piquerez no van en la Pizarra del vs. Rep. Dominicana).
+  const _liberadosPosteriores=(()=>{ try{ const ev=(m.compId&&typeof _fifaEvOf==='function')?_fifaEvOf(m.compId):null; if(!ev||m.compId!=='fifanov26') return false; const pds=(ev.partidosData||[]); const pd=pds.find(x=>x.rival===m.rival); const f0=pds.map(x=>x.fecha||'').filter(Boolean).sort()[0]; return !!(pd&&pd.fecha&&f0&&pd.fecha>f0); }catch(_){ return false; } })();
   try{ const _evS=(m.compId&&typeof _fifaEvOf==='function')?_fifaEvOf(m.compId):null; const _pdS=_evS&&(_evS.partidosData||[]).find(x=>x.rival===m.rival); ((_pdS&&_pdS.fueraLista)||[]).forEach(n=>fueraSel.add(n)); }catch(_){}
   const _fevSP = (typeof _fifaEvOf==='function') ? _fifaEvOf(m.compId) : null; // Fecha FIFA del partido (set-oct o nov)
   if(_fevSP && _fevSP.reservados){
@@ -37984,7 +37986,7 @@ window._openJuvSP = function(cat, year, matchId, leg, slotId, posLabel){
     const ph = window._juvGetPhoto?.(nom) || (_fevSP ? (window._getPhotoByName?.(nom)||JUGADORES?.[nom]?.foto) : null) || null;
     const inits = nom.split(' ').map(w=>w[0]).join('').slice(0,2);
     const inUse = usedNoms.has(nom) && nom!==curNom;
-    const isBaja = (isIndiaFifaSep && bajaSet.has(nom)) || fueraSel.has(nom);
+    const isBaja = ((isIndiaFifaSep||_liberadosPosteriores) && bajaSet.has(nom)) || fueraSel.has(nom);
     return `<div class="sp-item${nom===curNom?' sp-sel':''}${inUse?' sp-used':''}"
       data-name="${nom.toLowerCase()}"
       title="${isBaja?'Dado de baja — no disponible para este partido':''}"
@@ -38281,6 +38283,10 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
       if(j.lesionEnGira||j.bajaGira) bajaSetBench.add(j.nom);
     }));
   }
+  // Liberados de la Fecha FIFA nov: en gris y sin poder sumarlos en los partidos posteriores al primero.
+  try{ const _evN=(cat==='fifamayor'&&m.compId==='fifanov26'&&typeof _fifaEvOf==='function')?_fifaEvOf(m.compId):null;
+    if(_evN&&_evN.reservados){ const _pds=(_evN.partidosData||[]); const _pdN=_pds.find(x=>x.rival===m.rival); const _f0=_pds.map(x=>x.fecha||'').filter(Boolean).sort()[0];
+      if(_pdN&&_pdN.fecha&&_f0&&_pdN.fecha>_f0) Object.values(_evN.reservados).forEach(arr=>(arr||[]).forEach(j=>{ if(j.lesionEnGira||j.bajaGira) bajaSetBench.add(j.nom); })); } }catch(_){}
 
   // Fuera de la lista de 26 de ESTE partido (partidosData[].fueraLista, ej. Jaume y Damiani vs. Argentina): igual que los dados de baja, en gris y sin poder sumarlos.
   const fueraSetBench = new Set();
