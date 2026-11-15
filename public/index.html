@@ -813,6 +813,9 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .pz-sw{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:0 0 14px}
 .pz-card{display:flex;align-items:center;gap:16px;text-align:left;padding:14px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0B1226);color:#F4F7FB;font-family:inherit;cursor:pointer;transition:border-color .15s,background .15s}
 .pz-card:hover{border-color:rgba(255,255,255,.3)}
+.pz-card.done,.ni-row.done{border:3px solid var(--rc)!important}
+.pz-card.done{padding:12px 16px}.ni-row.done{padding:14px 18px}
+.pz-ok{color:var(--rc);margin-right:5px;font-size:1.05em;vertical-align:-2px}
 .pz-card.on{border-color:rgba(0,157,216,.75);box-shadow:0 0 0 1px rgba(0,157,216,.25);background:radial-gradient(300px 150px at 100% 0,rgba(0,157,216,.24),transparent 65%),linear-gradient(180deg,#112038,#0B1428)}
 .pz-d{min-width:44px;text-align:center;flex-shrink:0}
 .pz-d b{display:block;font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1}
@@ -2117,6 +2120,9 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ig-cont em{font-style:normal;font-size:12px;color:rgba(239,243,248,.55)}
 @media(max-width:560px){.ni-stats.two{grid-template-columns:1fr}}
 .ni-dls{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.ni-mt{display:flex;flex-direction:column;gap:8px}
+.ni-det{display:flex;flex-wrap:wrap;gap:6px 22px;padding:0 22px;font-size:12.5px;color:rgba(239,243,248,.8)}
+.ni-det b{display:block;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.5);margin-bottom:1px}
 .ni-row,.ni-dl{display:flex;align-items:center;gap:18px;padding:16px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
 .ni-row .pz-m b{font-size:16px}
 .ni-dl .pz-m b{font-size:14px;font-weight:600;line-height:1.35}
@@ -16848,8 +16854,8 @@ const FIFANOV26 = {
   // El banco de 23 personas sigue siendo la regla de la Fecha FIFA anterior (sin confirmar). Lo de República Dominicana (17/11) todavía no se sabe.
   reglasLista: [
     'En la lista del partido vs. Argentina van 26 jugadores a cancha: quedan 2 afuera, Sebastián Jaume (van 3 arqueros) y Bruno Damiani; viajan todos',
-    'Se permiten 11 cambios en el partido vs. Argentina: amistoso internacional',
-    'En el banco podrán sentarse máximo 23 personas (sin confirmar para esta fecha): once del cuerpo técnico y doce suplentes',
+    'Se permiten 8 cambios en el partido vs. Argentina: amistoso internacional',
+    'En la lista del partido vs. República Dominicana van 25 jugadores (28 convocados menos 3 liberados): irían todos; cambios y banco por confirmar',
   ],
   reglasPorConfirmar: false,
   // Rivales y sede todavía no se saben (máximo 2 partidos). Cuando se confirmen,
@@ -16861,7 +16867,7 @@ const FIFANOV26 = {
   // Martes 17/11 (último día de la Fecha FIFA): vs. República Dominicana, CONFIRMADO (23/10): en Maldonado, 20:30 (hora de Uruguay).
   // Estadio confirmado (23/10/2026): Campus de Maldonado.
   partidosData: [
-    {fecha:'2026-11-13', rival:'Argentina', rivalBandera:'🇦🇷', sede:'La Bombonera · Buenos Aires, Argentina', hora:'20:00', horaLocal:'20:00', local:false, confirmado:true, cambios:11, listaCancha:26, viajanTodos:true, datosColor:['Se permiten 11 cambios','Van 26 jugadores a cancha; quedan 2 afuera de la lista: Sebastián Jaume (van 3 arqueros) y Bruno Damiani','Viajan todos'],fueraLista:['Sebastián Jaume','Bruno Damiani']},
+    {fecha:'2026-11-13', rival:'Argentina', rivalBandera:'🇦🇷', sede:'La Bombonera · Buenos Aires, Argentina', hora:'20:00', horaLocal:'20:00', local:false, confirmado:true, cambios:8, listaCancha:26, viajanTodos:true, datosColor:['Se permiten 8 cambios','Van 26 jugadores a cancha; quedan 2 afuera de la lista: Sebastián Jaume (van 3 arqueros) y Bruno Damiani','Viajan todos'],fueraLista:['Sebastián Jaume','Bruno Damiani']},
     {fecha:'2026-11-17', rival:'República Dominicana', rivalBandera:'🇩🇴', sede:'Campus de Maldonado', hora:'20:30', horaLocal:'20:30', local:true, confirmado:true, var:'sin', datosColor:['Tentativo: llegaría a Uruguay el 15/11 y va directo a Maldonado','Se hospedaría en el Complejo Solanas']}, // var: 'sin' | 'con' (cambia en cada partido: define árbitros y cuerpo arbitral)
   ],
   itinerario: [],
@@ -18664,13 +18670,13 @@ function _fnovCorrobHtml(m){
   const paso=(n,tit,est,det,lista)=>`<div class="cr-p" style="--c:${col[est]}"><span class="cr-n">${n}</span><div class="cr-b"><b>${tit}<i class="ti ${ic[est]}"></i></b><span>${det}</span>${lista&&lista.length?`<ul>${lista.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div></div>`;
   const ext=(k,n,tit,fte)=>{ const x=c[k]; if(!x) return paso(n,tit,'pend','Pendiente de corroborar',[]);
     return paso(n,tit,x.estado==='ok'?'ok':'dif',(x.estado==='ok'?'Coincide':'Hay diferencias')+' · '+(x.fuente||fte)+(x.ts?' · '+fmt(x.ts):''),[...(x.difs||[]),...((x.obs||[]).map(o=>`<i>${o}</i>`))]); };
-  const det1=ch.estado==='ok'?`Coherente: ${ch.n.st} titulares, ${ch.n.subs} cambios, ${ch.n.gol} goles${ch.n.tar?`, ${ch.n.tar} tarjetas`:''}`:ch.estado==='pend'?'Sin datos todavía':'Revisá estos puntos';
+  const det1=ch.estado==='ok'?`${ch.n.st} titulares · ${ch.n.subs} cambios · ${ch.n.gol} goles${ch.n.tar?` · ${ch.n.tar} tarjetas`:''}`:ch.estado==='pend'?'Sin cargar':'Revisá estos puntos';
   return `<div class="cr-box" title="Estado de las estadísticas de este partido">
     <div class="cr-t">Estado de los datos</div>
-    ${paso(1,'Cargado en la Pizarra',ch.estado,det1,ch.items)}
+    ${paso(1,'Cargado en la Pizarra',ch.estado,det1,ch.estado==='pend'?[]:ch.items)}
     ${ext('liviana',2,'Fuente liviana','ESPN / FotMob')}
     ${ext('auf',3,'AUF (oficial)','AUF')}
-    <div class="cr-nota">Se compara lo grueso (titulares, ingresos, salidas, tarjetas y autores de goles); 1-2 minutos de diferencia no cuentan. Hoy la Pizarra no registra quién sale en cada cambio.</div>
+    <div class="cr-nota">Se compara lo grueso (titulares, cambios, tarjetas y goles); ±2 min no cuentan.</div>
   </div>`;
 }
 function _fnovInfografia(lista){
@@ -19774,11 +19780,32 @@ window._fifaInfoPro=function(tKey){
     +_enUyHtml
     +_cumHtml
     +`</div></div>`:'';
+  // Partidos ya jugados: resultado, goles, tarjetas y liberados salen solos de la Pizarra (Felipe, 15/11/2026: «la web tiene que estar conectada»).
+  const _pzL=(esNov?(typeof _fifaNovPizarraMatches==='function'?_fifaNovPizarraMatches():[]):(typeof _fifaSepPizarraMatches==='function'?_fifaSepPizarraMatches():[]))||[];
+  const _f0=ps.map(x=>x.fecha||'').filter(Boolean).sort()[0]||'';
+  const _sn=n=>{ n=String(n||''); if(n==='__EC__') return 'En contra'; const t=n.split(/\s+/).filter(Boolean); if(t.length<2) return n; const pt=/^(de|del|da|do|dos|das|di|van|von|la|las|los)$/i; let k=1; if(t.length>=3&&!pt.test(t[1])&&!pt.test(t[2])) k=2; return t[0].charAt(0).toUpperCase()+'. '+t.slice(k).join(' '); };
+  const _libN=esNov?Object.values(EV.reservados||{}).flat().filter(j=>j&&j.bajaGira).map(j=>j.nom):[];
   const partidos=`<div class="ni-sec"><div class="ni-h">Partidos</div><div class="ni-list">`+ps.map(x=>{
     const f=dm(x.fecha), vis=x.local===false;
-    return `<div class="ni-row"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span>
+    const lm=_pzL.filter(Boolean).find(z=>z.rival===x.rival)||null;
+    const jug=!!(lm&&lm.gLocal!=null&&lm.gRival!=null&&lm.gLocal!==''&&lm.gRival!=='');
+    if(!jug) return `<div class="ni-row"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span>
       <span class="pz-m"><b>Uruguay vs. ${x.rival}</b><span>${x.sede||''}</span></span>
       <span class="pz-r"><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em><strong style="${x.confirmado?'color:#86EFAC':'color:#FCD34D'}">${x.confirmado?'Confirmado':'Por confirmar'}</strong><strong style="font-size:.86em;${x.hora?'color:#86EFAC':'color:#FCD34D'}">${x.hora?x.hora+'h':'Horario por confirmar'}</strong></span></div>`;
+    const gl=+lm.gLocal, gr=+lm.gRival, rc=gl>gr?'#86EFAC':gl<gr?'#FCA5A5':'#FCD34D';
+    const gols=((lm.golMins&&lm.golMins.length)?lm.golMins:Object.entries(lm.goles||{}).flatMap(([n,c])=>Array(+c||0).fill({nom:n,min:''}))).slice().sort((a,b)=>(+a.min||0)-(+b.min||0));
+    const tj=lm.tarjetas||[], am=tj.filter(t=>t.col!=='r'), rj=tj.filter(t=>t.col==='r');
+    const les=Object.values(EV.reservados||{}).flat().filter(j=>j&&j.lesionEnGira).map(j=>j.nom);
+    const det=[
+      ['Goles',gols.length?gols.map(g=>_sn(g.nom)+(g.min?' '+g.min+"'":'')).join(' · '):'Sin goles de Uruguay'],
+      ['Amarillas',am.length?am.map(t=>_sn(t.nom)+(t.min?' '+t.min+"'":'')).join(' · '):'Ninguna'],
+      ['Expulsiones',rj.length?rj.map(t=>_sn(t.nom)+(t.min?' '+t.min+"'":'')).join(' · '):'Ninguna'],
+      ['Lesiones',les.length?les.map(_sn).join(' · '):'Ninguna registrada'],
+      ...((x.fecha===_f0&&_libN.length)?[['Liberados tras el partido',_libN.map(_sn).join(' · ')]]:[]),
+    ].map(([k,v])=>`<span><b>${k}</b>${v}</span>`).join('');
+    return `<div class="ni-mt"><div class="ni-row done" style="--rc:${rc}"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span>
+      <span class="pz-m"><b>Uruguay vs. ${x.rival}</b><span>${x.sede||''}</span></span>
+      <span class="pz-r"><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em><strong style="color:${rc};font-size:18px"><i class="ti ti-circle-check pz-ok"></i>${gl} – ${gr}</strong><strong style="font-size:.8em;color:rgba(239,243,248,.6)">Finalizado</strong></span></div><div class="ni-det">${det}</div></div>`;
   }).join('')+`</div></div>`;
   const plazos=(EV.deadlines||[]).length?`<div class="ni-sec"><div class="ni-h">Fechas límite</div><div class="ni-dls">`+(EV.deadlines||[]).map(d=>{
     const f=dm(d.fecha), n=dias(d.fecha);
@@ -39061,10 +39088,10 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             const jugado=lm.gLocal!=null&&lm.gRival!=null&&lm.gLocal!==''&&lm.gRival!=='';
             const rc=jugado?(lm.gLocal>lm.gRival?'#86EFAC':lm.gLocal<lm.gRival?'#FCA5A5':'#FCD34D'):'';
             const vis=pp.local===false;
-            return `<button onclick="window._amistDetailOpen=${lm.id};${_fifaRenderCall(filterCompId)}" class="pz-card${lm.id===m.id?' on':''}">
+            return `<button onclick="window._amistDetailOpen=${lm.id};${_fifaRenderCall(filterCompId)}" class="pz-card${lm.id===m.id?' on':''}${jugado?' done':''}"${jugado?` style="--rc:${rc}"`:''}>
               <span class="pz-d"><b>${dia}</b><span>${mes}</span></span>
               <span class="pz-m"><b>Uruguay vs. ${lm.rival}</b><span>${pp.sede||''}</span></span>
-              <span class="pz-r"><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em><strong style="${jugado?'color:'+rc:''}">${jugado?lm.gLocal+' – '+lm.gRival:(pp.hora?pp.hora+'h':'Por confirmar')}</strong></span>
+              <span class="pz-r"><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em><strong style="${jugado?'color:'+rc:''}">${jugado?`<i class="ti ti-circle-check pz-ok"></i>${lm.gLocal} – ${lm.gRival}`:(pp.hora?pp.hora+'h':'Por confirmar')}</strong></span>
             </button>`;}).join('')}
         </div>` : '';
       const _novP2 = _novPs.find(x=>x.rival===m.rival)||{hora:(leg===2?(m.horaVuelta||m.hora):m.hora)||'', sede:[...new Set([leg===2?(m.lugarVuelta||m.lugar):m.lugar, m.paisSede].filter(Boolean))].join(', ')||({'mundial-sub15-2026':'Bakú, Azerbaiyán'}[m.compId]||''), confirmado:true};

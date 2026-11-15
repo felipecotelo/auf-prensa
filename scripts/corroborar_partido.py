@@ -96,6 +96,10 @@ def main():
             if r: et[(r, t.get('col'))] = t.get('min')
         for k in sorted(set(pt) - set(et)): difs.append('Tarjeta en la Pizarra pero no en la fuente: %s (%s)' % k)
         for k in sorted(set(et) - set(pt)): difs.append('Tarjeta en la fuente pero no en la Pizarra: %s (%s)' % k)
+        for k in set(pt) & set(et):
+            try:
+                if abs(int(pt[k]) - int(et[k])) > TOL: obs.append('Minuto de la tarjeta de %s: Pizarra %s\' · fuente %s\'' % (k[0], pt[k], et[k]))
+            except Exception: pass
     # autores de goles
     if 'goles' in ext:
         pg = {}
