@@ -2222,6 +2222,12 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .dg-tx b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:15px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;line-height:1.2}
 .dg-tx i{display:block;margin-top:3px;font-style:normal;font-size:12px;color:rgba(239,243,248,.6);line-height:1.3}
 .dg-star{color:#FCD34D;font-size:14px;flex-shrink:0}
+.dg-hh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dg-add{margin-left:auto;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 11px;border-radius:999px;border:1px dashed rgba(138,216,255,.5);background:rgba(0,157,216,.1);color:#8AD8FF;font:700 10.5px/1 inherit;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.dg-ed{display:flex;gap:4px;flex-shrink:0}
+.dg-ed button{width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);color:rgba(239,243,248,.7);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.dg-ed button:hover{border-color:#FCD34D;color:#FCD34D}.dg-ed button:last-child:hover{border-color:#F87171;color:#F87171}
+.dg-hint{font-size:11.5px;color:rgba(239,243,248,.55)}.dg-hint a{color:#8AD8FF}
 .ni-rule{display:flex;align-items:center;gap:18px;padding:16px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:radial-gradient(240px 120px at 0 0,rgba(0,157,216,.16),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
 .ni-rule>b{font-family:'Space Grotesk','Inter',sans-serif;font-size:44px;font-weight:700;letter-spacing:-.04em;line-height:1;color:#38BDF8;min-width:56px;text-align:center}
 .ni-rule.pc{border-style:dashed;border-color:rgba(252,211,77,.45);background:radial-gradient(240px 120px at 0 0,rgba(252,211,77,.12),transparent 70%),linear-gradient(180deg,#10182C,#0A1022)}
@@ -14528,12 +14534,24 @@ window._delegAddSearch=function(gi,tKey){
   const res=document.getElementById('deleg-add-results');
   if(!res) return;
   const all=_delegPool().filter(p=>!q||norm(p.label).includes(q));
-  if(!all.length){ res.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:12.5px">Sin resultados</div>`; return; }
-  res.innerHTML=all.slice(0,40).map(p=>`
+  const _raw=(document.getElementById('deleg-add-inp')?.value||'').trim().replace(/[<>&"]/g,'');
+  const _man=_raw?`<div onclick="window._delegAddManual(${gi},'${tKey}')" style="padding:10px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#8AD8FF;font-size:12.5px;font-weight:700"><i class="ti ti-user-plus"></i>Agregar «${_raw}» a mano</div>`:'';
+  if(!all.length){ res.innerHTML=`<div style="padding:16px 8px 6px;text-align:center;color:var(--muted);font-size:12.5px">No está en Estructura</div>`+_man; return; }
+  res.innerHTML=_man+all.slice(0,40).map(p=>`
     <div onclick="window._delegAddPick(${gi},'${p.key}','${tKey}')" style="padding:9px 8px;border-bottom:0.5px solid var(--border);cursor:pointer;display:flex;flex-direction:column">
       <span style="font-size:12.5px;font-weight:700;color:var(--text)">${p.label}</span>
       <span style="font-size:10.5px;color:var(--muted)">${p.rol||''}</span>
     </div>`).join('');
+};
+window._delegAddManual=function(gi,tKey){
+  const nm=(document.getElementById('deleg-add-inp')?.value||'').trim();
+  if(!nm) return;
+  const role=(window.prompt('Cargo de '+nm+' en la delegación (puede quedar vacío):','')||'').trim();
+  const d=getDelegacion(tKey);
+  d[gi].people.push({name:nm,iso:'uy',role});
+  setDelegacion(d,tKey);
+  document.getElementById('deleg-add-modal').style.display='none';
+  renderInfoGeneral(tKey);
 };
 window._delegAddPick=function(gi,key,tKey){
   const found=_delegPool().find(p=>p.key===key);
@@ -16881,7 +16899,7 @@ const FIFANOV26 = {
   reglasLista: [
     'Se permiten 26 jugadores en plantilla vs. Argentina: 2 del plantel quedaron afuera: Damiani y Jaume',
     'Se permiten 8 cambios en 3 ventanas vs. Argentina',
-    'Se permiten 25 jugadores en plantilla vs. República Dominicana: 28 convocados menos 3 liberados, irían todos; el banco se confirma más cerca del partido',
+    'Se permiten 26 jugadores en plantilla vs. República Dominicana: Con los 3 futbolistas liberados, quedan 25 a disposición, van todos',
     'Cambios permitidos en el partido vs. República Dominicana: por confirmar',
   ],
   reglasPorConfirmar: false,
@@ -19867,10 +19885,13 @@ window._fifaInfoPro=function(tKey){
   const toggle=`<div class="ni-sec" style="display:flex;justify-content:flex-end"><button class="pz-chip" onclick="(function(b){var c=document.querySelector('#${tKey}-infogeneral-container .grp-card');if(!c)return;var v=c.style.display==='none';c.style.display=v?'':'none';b.querySelector('span').textContent=v?'Ocultar notas completas':'Ver notas completas';})(this)"><i class="ti ti-notes"></i><span>${editing?'Ocultar notas completas':'Ver notas completas'}</span></button></div>`;
   // Delegación con el diseño nuevo (en modo edición queda el editor de siempre)
   const _dg=(typeof getDelegacion==='function')?getDelegacion(tKey):[];
-  const delegHtml=(!editing&&_dg.length)?`<div class="ni-sec"><div class="ni-h">Delegación · ${_dg.reduce((n,g)=>n+g.people.length,0)} ${_dg.reduce((n,g)=>n+g.people.length,0)===1?'integrante':'integrantes'}</div>`
-    +_dg.map(g=>`<div class="dg-area"><div class="dg-ah"><b>${g.area}</b><em>${g.people.length}</em></div><div class="dg-grid">`
-      +g.people.map(p=>`<div class="dg-p${p.highlight?' hl':''}"><span class="dg-fl">${flagImg(p.iso,22)}</span><span class="dg-tx"><b>${p.name}</b><i>${p.role||''}</i></span>${p.highlight?'<span class="dg-star"><i class="ti ti-star-filled"></i></span>':''}</div>`).join('')
-      +`</div></div>`).join('')+`</div>`:'';
+  const _dgE=!!(window._dgEdit&&window._dgEdit[tKey]), _dgN=_dg.reduce((n,g)=>n+g.people.length,0);
+  const delegHtml=(!editing&&_dg.length)?`<div class="ni-sec"><div class="ni-h dg-hh"><span>Delegación · ${_dgN} ${_dgN===1?'integrante':'integrantes'}</span><button class="pz-chip${_dgE?' pri':''}" onclick="window._dgEdit=window._dgEdit||{};window._dgEdit['${tKey}']=!window._dgEdit['${tKey}'];renderInfoGeneral('${tKey}')"><i class="ti ti-${_dgE?'check':'pencil'}"></i>${_dgE?'Listo':'Editar delegación'}</button></div>`
+    +_dg.map((g,gi)=>`<div class="dg-area"><div class="dg-ah"><b>${g.area}</b><em>${g.people.length}</em>${_dgE?`<button class="dg-add" onclick="window._delegAddOpen(${gi},'${tKey}')"><i class="ti ti-plus"></i>Agregar</button>`:''}</div><div class="dg-grid">`
+      +g.people.map((p,pi)=>`<div class="dg-p${p.highlight?' hl':''}"><span class="dg-fl">${flagImg(p.iso,22)}</span><span class="dg-tx"><b>${p.name}</b><i>${p.role||''}</i></span>${_dgE?`<span class="dg-ed"><button title="Destacar" onclick="toggleDelegHighlight(${gi},${pi},'${tKey}')"><i class="ti ti-star${p.highlight?'-filled':''}"></i></button><button title="Quitar" onclick="if(confirm('¿Quitar de la delegación?'))delDelegPerson(${gi},${pi},'${tKey}')"><i class="ti ti-x"></i></button></span>`:(p.highlight?'<span class="dg-star"><i class="ti ti-star-filled"></i></span>':'')}</div>`).join('')
+      +`</div></div>`).join('')
+    +(_dgE?`<div class="dg-hint">Para cambiar nombre, cargo u orden usá <a href="#" onclick="toggleInfoEdit('${tKey}');return false">la edición avanzada</a>.</div>`:'')
+    +`</div>`:'';
   con.insertAdjacentHTML('afterbegin', hero+stats+partidos+stats2+plazos+reglas+delegHtml+toggle);
   const _gc=con.querySelectorAll('.grp-card');
   if(_gc[0]&&!editing) _gc[0].style.display='none';
