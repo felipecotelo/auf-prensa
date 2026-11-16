@@ -3938,6 +3938,8 @@ select.rd-in{padding:0 10px}
 .rd-av img{width:100%;height:100%;object-fit:cover}
 .rd-av>i{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;background:#0A1022;border:1px solid rgba(255,255,255,.3);color:#F4F7FB;font-size:10px;display:flex;align-items:center;justify-content:center}
 .rd-pn{flex:1;min-width:0}
+.rd-perfil{cursor:pointer;background:transparent;font-family:inherit;font-weight:700;font-size:10.5px;letter-spacing:.06em;flex-shrink:0}
+.rd-perfil:hover{background:color-mix(in srgb,var(--c,#8AD8FF) 14%,transparent)}
 .rd-pn b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:15.5px;font-weight:700;letter-spacing:-.02em;color:#F4F7FB;line-height:1.2}
 .rd-pn span{display:block;margin-top:3px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.55)}
 .jf.jf-ret{border:1px dashed rgba(148,163,184,.4);background:linear-gradient(180deg,rgba(148,163,184,.04),rgba(148,163,184,.01))}.jf.jf-ret .jf-ph-in img{filter:grayscale(.3) opacity(.92)}.jf.jf-ret .jf-nm,.jf.jf-ret .jf-num{opacity:.85}.jf.jf-ret .jf-tag{border-style:dashed;color:#94A3B8}
@@ -39999,6 +40001,23 @@ window._getPersonPhoto = function(name){
   try{ const _n=String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); if(window._juvPhotoCacheNorm&&window._juvPhotoCacheNorm[_n]) return window._juvPhotoCacheNorm[_n]; }catch(_){}
   return null;
 };
+// Perfil de Estructura (ficha) de una persona del CT / delegación, buscándola por nombre (con las grafías alternativas de _PERSONA_ALIAS).
+window._ctPerfilKey=function(name){
+  try{
+    const nk=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+    const c=window._ctPerfilMapC;
+    if(!c||(Date.now()-c.ts)>8000){
+      const m={}; _estBuildAllSections().forEach(d=>{ if(d.past||d.showAll) return; d.personas.forEach(p=>{ const k=nk(p.label); if(k&&!m[k]) m[k]=p.key; }); });
+      window._ctPerfilMapC={ts:Date.now(),m};
+    }
+    const al=_PERSONA_ALIAS[nk(name)]; const m=window._ctPerfilMapC.m;
+    return m[nk(name)]||(al&&m[nk(al)])||null;
+  }catch(_){ return null; }
+};
+window._ctPerfilBtn=function(name){
+  const k=window._ctPerfilKey(name); if(!k) return '';
+  return `<button type="button" class="rd-pill rd-perfil" title="Ver su perfil en Estructura" onclick="event.stopPropagation();showSection('estructura');setTimeout(()=>_estOpenFicha('${String(k).replace(/'/g,"\\'")}'),80)"><i class="ti ti-user-circle"></i>Perfil</button>`;
+};
 window._clickCtPhoto = function(nomEncoded){
   const nom = decodeURIComponent(nomEncoded);
   const key = _nameSlug(nom);
@@ -41924,6 +41943,7 @@ function _buildJuvCompBody(compId, color, catData){
           <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(m.name)}',this)">
         </div>
         <div class="rd-pn"><b>${m.name}</b><span>${m.rol}</span></div>
+        ${window._ctPerfilBtn(m.name)}
         ${m.dt?`<span class="rd-pill" style="--c:${ccr}">DT</span>`:''}
         ${_juvCompCtEdit?`<button class="rd-ic del" title="Quitar" onclick="_juvCompCTRemove('${ctKey}',${idx})"><i class="ti ti-x"></i></button>`:''}
       </div>`;
@@ -41985,6 +42005,7 @@ function _buildJuvCompBody(compId, color, catData){
           <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(m.name)}',this)">
         </div>
         <div class="rd-pn"><b>${m.name}</b><span>${m.rol}</span></div>
+        ${window._ctPerfilBtn(m.name)}
         ${_juvCompDelEdit?`
         <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">
           <button class="rd-ic" style="width:22px;height:22px;font-size:11px" onclick="_juvCompDelMove('${ctKey}',${idx},-1)" ${idx===0?'disabled':''}><i class="ti ti-chevron-up"></i></button>
