@@ -19928,14 +19928,12 @@ window._fifaInfoPro=function(tKey){
   const _dgE=!!(window._dgEdit&&window._dgEdit[tKey]), _dgN=_dg.reduce((n,g)=>n+g.people.length,0);
   const delegHtml=(!editing&&_dg.length)?`<div class="ni-sec"><div class="ni-h dg-hh"><span>Delegación · ${_dgN} ${_dgN===1?'integrante':'integrantes'}</span><button class="pz-chip${_dgE?' pri':''}" onclick="window._dgEdit=window._dgEdit||{};window._dgEdit['${tKey}']=!window._dgEdit['${tKey}'];renderInfoGeneral('${tKey}')"><i class="ti ti-${_dgE?'check':'pencil'}"></i>${_dgE?'Listo':'Editar delegación'}</button></div>`
     +_dg.map((g,gi)=>`<div class="dg-area"><div class="dg-ah"><b>${g.area}</b><em>${g.people.length}</em>${_dgE?`<button class="dg-add" onclick="window._delegAddOpen(${gi},'${tKey}')"><i class="ti ti-plus"></i>Agregar</button>`:''}</div><div class="dg-grid">`
-      +g.people.map((p,pi)=>{ const ph=window._getPersonPhoto?window._getPersonPhoto(p.name):null, ini=String(p.name||'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-        const av=ph?`<img src="${ph}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:`<span>${ini}</span>`;
-        const pf=window._ctPerfilBtn?window._ctPerfilBtn(p.name):'';
-        return `<div class="rd-ppl${p.highlight?' hl':''}" style="--cat:${_catCol('mayor')}"><div class="rd-av" onclick="_clickCtPhoto('${_encJs(p.name)}')" title="Cargar/editar foto"><div>${av}</div><i class="ti ti-camera"></i><input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(p.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(p.name)}',this)"></div><div class="rd-pn"><b>${p.name}</b><span>${p.role||''}</span></div>${pf}${_dgE?`<span class="dg-ed"><button title="Destacar" onclick="toggleDelegHighlight(${gi},${pi},'${tKey}')"><i class="ti ti-star${p.highlight?'-filled':''}"></i></button><button title="Quitar" onclick="if(confirm('¿Quitar de la delegación?'))delDelegPerson(${gi},${pi},'${tKey}')"><i class="ti ti-x"></i></button></span>`:(p.highlight?'<span class="dg-star"><i class="ti ti-star-filled"></i></span>':'')}</div>`; }).join('')
+      +g.people.map((p,pi)=>window._personCard(p.name,p.role,{iso:p.iso,highlight:p.highlight,extra:_dgE?`<span class="dg-ed"><button title="Destacar" onclick="toggleDelegHighlight(${gi},${pi},'${tKey}')"><i class="ti ti-star${p.highlight?'-filled':''}"></i></button><button title="Quitar" onclick="if(confirm('¿Quitar de la delegación?'))delDelegPerson(${gi},${pi},'${tKey}')"><i class="ti ti-x"></i></button></span>`:(p.highlight?'<span class="dg-star"><i class="ti ti-star-filled"></i></span>':'')})).join('')
       +`</div></div>`).join('')
     +(_dgE?`<div class="dg-hint">Para cambiar nombre, cargo u orden usá <a href="#" onclick="toggleInfoEdit('${tKey}');return false">la edición avanzada</a>.</div>`:'')
     +`</div>`:'';
   con.insertAdjacentHTML('afterbegin', hero+stats+partidos+stats2+plazos+reglas+delegHtml+toggle);
+  setTimeout(()=>window._ctFillPhotos&&window._ctFillPhotos(),1200);
   const _gc=con.querySelectorAll('.grp-card');
   if(_gc[0]&&!editing) _gc[0].style.display='none';
   if(_gc[1]&&!editing&&delegHtml) _gc[1].style.display='none';
@@ -39836,6 +39834,7 @@ async function _loadPhotosFromSupabase(){
         if(!_idbPhotos[rawKey]){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
       }
     });
+    window._ctFillPhotos&&window._ctFillPhotos();
     // Re-renderizar secciones activas
     if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles?.();
     if(document.getElementById('sec-local')?.classList.contains('active') && typeof renderSecLocal==='function') renderSecLocal();
@@ -39984,6 +39983,7 @@ function _nameSlug(nom){ return 'ct-p:'+nom.toLowerCase().normalize('NFD').repla
 const _PERSONA_ALIAS={'ignacio maria gonzalez':'Ignacio González','kevin bekmann':'Kevin Beckman','kevin beckmann':'Kevin Beckman','mateo rodriguez calleriza':'Mateo Rodríguez','mathias blanco':'Matías Blanco'};
 window._getPersonPhoto = function(name){
   try{ const _k=String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); if(_PERSONA_ALIAS[_k]) name=_PERSONA_ALIAS[_k]; }catch(_){}
+  try{ const _f=window._ctPerfilPersona&&window._ctPerfilPersona(name); if(_f){ const _ph=_estResolvePhoto(_f.p); if(_ph) return _ph; } }catch(_){}
   const est = window._estPhotoCache||{};
   const juv = window._juvPhotoCache||{};
   // 1. Clave slug unificada (ct-p:...)
@@ -40008,18 +40008,37 @@ window._getPersonPhoto = function(name){
   return null;
 };
 // Perfil de Estructura (ficha) de una persona del CT / delegación, buscándola por nombre (con las grafías alternativas de _PERSONA_ALIAS).
-window._ctPerfilKey=function(name){
+window._ctPerfilPersona=function(name){
   try{
     const nk=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
     const c=window._ctPerfilMapC;
     if(!c||(Date.now()-c.ts)>8000){
-      const m={}; _estBuildAllSections().forEach(d=>{ if(d.past||d.showAll) return; d.personas.forEach(p=>{ const k=nk(p.label); if(k&&!m[k]) m[k]=p.key; }); });
+      const m={}; _estBuildAllSections().forEach(d=>{ if(d.past||d.showAll) return; d.personas.forEach(p=>{ const k=nk(p.label); if(k&&!m[k]) m[k]={key:p.key,p}; }); });
       window._ctPerfilMapC={ts:Date.now(),m};
     }
     const al=_PERSONA_ALIAS[nk(name)]; const m=window._ctPerfilMapC.m;
     return m[nk(name)]||(al&&m[nk(al)])||null;
   }catch(_){ return null; }
 };
+window._ctPerfilKey=function(name){ const f=window._ctPerfilPersona(name); return f?f.key:null; };
+window._ctAbrirFicha=function(key){ showSection('estructura'); setTimeout(()=>_estOpenFicha(key),80); };
+// Tarjeta de una persona del CT / delegación: sale de su ficha de Estructura (foto, nombre y perfil); sin ficha, con lo que se cargó. Misma estética en la Mayor y en Juveniles.
+window._personCard=function(name,role,o){
+  o=o||{};
+  const f=window._ctPerfilPersona(name), shown=f?f.p.label:name;
+  const ph=window._getPersonPhoto?window._getPersonPhoto(name):null;
+  const ini=String(shown||'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const esc=t=>String(t||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const flag=(o.iso&&o.iso!=='uy'&&typeof flagImg==='function')?`<i class="dg-fg">${flagImg(o.iso,12)}</i>`:'';
+  return `<div class="dg-p${o.highlight?' hl':''}" data-n="${esc(name)}"${f?` onclick="_ctAbrirFicha('${String(f.key).replace(/'/g,"\\'")}')" style="cursor:pointer" title="Ver su perfil"`:''}>
+    <span class="dg-av">${ph?`<img src="${ph}" loading="lazy" alt="">`:`<b>${ini}</b>`}${flag}</span>
+    <span class="dg-tx"><b>${shown}</b><i>${role||''}</i></span>${o.extra?`<span onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:5px;flex-shrink:0">${o.extra}</span>`:''}</div>`;
+};
+// Las fotos de Estructura llegan después de dibujar la pantalla: se completan en el lugar, sin volver a dibujar.
+window._ctFillPhotos=function(){
+  try{ document.querySelectorAll('.dg-p[data-n]').forEach(c=>{ const av=c.querySelector('.dg-av'); if(!av||av.querySelector('img')) return; const ph=window._getPersonPhoto(c.dataset.n); if(ph){ const fg=av.querySelector('.dg-fg'); av.innerHTML=`<img src="${ph}" loading="lazy" alt="">`+(fg?fg.outerHTML:''); } }); }catch(_){}
+};
+[1500,4000,9000,20000].forEach(t=>setTimeout(()=>window._ctFillPhotos(),t));
 window._ctPerfilBtn=function(name){
   const k=window._ctPerfilKey(name); if(!k) return '';
   return `<button type="button" class="rd-ic rd-perfil" title="Ver su perfil en Estructura" onclick="event.stopPropagation();showSection('estructura');setTimeout(()=>_estOpenFicha('${String(k).replace(/'/g,"\\'")}'),80)"><i class="ti ti-user-circle"></i></button>`;
@@ -41936,24 +41955,7 @@ function _buildJuvCompBody(compId, color, catData){
     const rolesUsados = new Set(ct.map(m=>m.rol));
     const rolesDatalist = [...new Set([...rolesUsados,'Director técnico','Ayudante técnico','Preparador físico','Entrenador de arqueros','Videoanalista','Coordinador'])];
 
-    const memberRow = (m, idx) => {
-      const photo = window._getPersonPhoto?.(m.name);
-      const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      const avatar = photo
-        ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-        : `<span>${initials}</span>`;
-      return `
-      <div class="rd-ppl" style="--cat:${ccr}">
-        <div class="rd-av" onclick="_clickCtPhoto('${_encJs(m.name)}')" title="Cargar/editar foto">
-          <div>${avatar}</div><i class="ti ti-camera"></i>
-          <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(m.name)}',this)">
-        </div>
-        <div class="rd-pn"><b>${m.name}</b><span>${m.rol}</span></div>
-        ${window._ctPerfilBtn(m.name)}
-        ${m.dt?`<span class="rd-pill" style="--c:${ccr}">DT</span>`:''}
-        ${_juvCompCtEdit?`<button class="rd-ic del" title="Quitar" onclick="_juvCompCTRemove('${ctKey}',${idx})"><i class="ti ti-x"></i></button>`:''}
-      </div>`;
-    };
+    const memberRow = (m, idx) => window._personCard(m.name, m.rol, {iso:m.iso, extra:(m.dt?`<span class="rd-pill" style="--c:${ccr}">DT</span>`:'')+(_juvCompCtEdit?`<button class="rd-ic del" title="Quitar" onclick="_juvCompCTRemove('${ctKey}',${idx})"><i class="ti ti-x"></i></button>`:'')});
 
     const editBtn = `<button class="rd-btn ghost sm${_juvCompCtEdit?' on':''}" style="--cat:${ccr}" onclick="_juvCompCTToggleEdit()"><i class="ti ti-${_juvCompCtEdit?'check':'pencil'}"></i>${_juvCompCtEdit?'Listo':'Editar CT'}</button>`;
 
@@ -41998,28 +42000,7 @@ function _buildJuvCompBody(compId, color, catData){
     const dfid = 'juv-comp-del-'+compId;
     const delRolesUsados = new Set(del.map(m=>m.rol));
     const delRolesDatalist = [...new Set([...delRolesUsados,'Presidente de la delegación','Delegado','Gerente Deportivo','Doctor','Fisioterapeuta','Prensa y marketing','Fotógrafo','Utilero'])];
-    const delMemberRow = (m, idx) => {
-      const photo = window._getPersonPhoto?.(m.name);
-      const initials = m.name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      const avatar = photo
-        ? `<img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-        : `<span>${initials}</span>`;
-      return `
-      <div class="rd-ppl" style="--cat:${ccr}">
-        <div class="rd-av" onclick="_clickCtPhoto('${_encJs(m.name)}')" title="Cargar/editar foto">
-          <div>${avatar}</div><i class="ti ti-camera"></i>
-          <input type="file" accept="image/*" id="ct-photo-input-${encodeURIComponent(m.name)}" style="display:none" onchange="_ctPhotoSelected('${_encJs(m.name)}',this)">
-        </div>
-        <div class="rd-pn"><b>${m.name}</b><span>${m.rol}</span></div>
-        ${window._ctPerfilBtn(m.name)}
-        ${_juvCompDelEdit?`
-        <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0">
-          <button class="rd-ic" style="width:22px;height:22px;font-size:11px" onclick="_juvCompDelMove('${ctKey}',${idx},-1)" ${idx===0?'disabled':''}><i class="ti ti-chevron-up"></i></button>
-          <button class="rd-ic" style="width:22px;height:22px;font-size:11px" onclick="_juvCompDelMove('${ctKey}',${idx},1)" ${idx===del.length-1?'disabled':''}><i class="ti ti-chevron-down"></i></button>
-        </div>
-        <button class="rd-ic del" title="Quitar" onclick="_juvCompDelRemove('${ctKey}',${idx})"><i class="ti ti-x"></i></button>`:''}
-      </div>`;
-    };
+    const delMemberRow = (m, idx) => window._personCard(m.name, m.rol, {iso:m.iso, extra:_juvCompDelEdit?`<span style="display:flex;flex-direction:column;gap:3px"><button class="rd-ic" style="width:22px;height:22px;font-size:11px" onclick="_juvCompDelMove('${ctKey}',${idx},-1)" ${idx===0?'disabled':''}><i class="ti ti-chevron-up"></i></button><button class="rd-ic" style="width:22px;height:22px;font-size:11px" onclick="_juvCompDelMove('${ctKey}',${idx},1)" ${idx===del.length-1?'disabled':''}><i class="ti ti-chevron-down"></i></button></span><button class="rd-ic del" title="Quitar" onclick="_juvCompDelRemove('${ctKey}',${idx})"><i class="ti ti-x"></i></button>`:''});
     const delEditBtn = `<button class="rd-btn ghost sm${_juvCompDelEdit?' on':''}" style="--cat:${ccr}" onclick="_juvCompDelToggleEdit()"><i class="ti ti-${_juvCompDelEdit?'check':'pencil'}"></i>${_juvCompDelEdit?'Listo':'Editar delegación'}</button>`;
     const delAddForm = _juvCompDelEdit ? `
       <div class="rd-form" style="--cat:${ccr};margin-top:10px">
@@ -47487,6 +47468,7 @@ async function exportarFotosIDB(){
     window._estPhotoCache=cache;
     if(typeof _patchMayorPhotos==='function') _patchMayorPhotos();
     if(typeof _patchStatPhotos==='function') _patchStatPhotos();
+    window._ctFillPhotos&&window._ctFillPhotos();
     if(window._juvGlobalPlayers && typeof window.renderJuveniles==='function') window.renderJuveniles();
     if(window._inicioListo && document.getElementById('inicio')?.classList.contains('active') && typeof renderInicio==='function') renderInicio();
   }catch(_){ window._estPhotoCache={}; }
