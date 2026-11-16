@@ -2125,17 +2125,13 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ni-det b{display:block;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.5);margin-bottom:1px}
 .ni-row,.ni-dl{display:flex;align-items:center;gap:18px;padding:16px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
 .ni-row .pz-m b{font-size:16px}
-.ni-mt.done{border:3px solid var(--rc);border-radius:20px;background:linear-gradient(180deg,#10182C,#0A1022);gap:0;overflow:hidden}
-.ni-mt.done .ni-row{border:0;border-radius:0;background:none;padding:16px 20px 14px;cursor:pointer}
-.ni-mt.done .ni-det{display:none}
-.ni-mt.done.open .ni-det{display:grid}
-.ni-chev{display:flex;flex-direction:column;align-items:center;gap:2px;color:rgba(239,243,248,.6);font-size:10px;letter-spacing:.08em;text-transform:uppercase;min-width:54px}
-.ni-chev i{font-size:20px;transition:transform .2s}
-.ni-chev em{font-style:normal}
-.ni-mt.done:not(.open) .ni-chev em::after{content:''}
-.ni-mt.done.open .ni-chev i{transform:rotate(180deg)}
-.ni-mt.done.open .ni-chev em{font-size:0}.ni-mt.done.open .ni-chev em::after{content:'Ocultar';font-size:10px}
-.ni-mt.done.open .ni-det{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;padding:14px 20px 18px;border-top:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.025)}
+.ni-fx.done{cursor:pointer}
+.ni-fx .ni-det{display:none;margin:9px -22px -8px;padding:14px 22px 18px;border-top:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2);cursor:default}
+.ni-fx.open .ni-det{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.ni-more{display:inline-flex!important;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.6)}
+.ni-more em{font-style:normal}.ni-more i{font-size:16px;transition:transform .2s}
+.ni-fx.open .ni-more i{transform:rotate(180deg)}
+.ni-fx.open .ni-more em{font-size:0}.ni-fx.open .ni-more em::after{content:'Ocultar';font-size:10px}
 .ni-dc{border-radius:12px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-left:3px solid var(--k);min-width:0}
 .ni-dc.w{grid-column:1/-1}
 .ni-dc b{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--k);margin:0 0 7px}
@@ -19808,12 +19804,19 @@ window._fifaInfoPro=function(tKey){
   const _sn=n=>{ n=String(n||''); if(n==='__EC__') return 'En contra'; const t=n.split(/\s+/).filter(Boolean); if(t.length<2) return n; const pt=/^(de|del|da|do|dos|das|di|van|von|la|las|los)$/i; let k=1; if(t.length>=3&&!pt.test(t[1])&&!pt.test(t[2])) k=2; return t[0].charAt(0).toUpperCase()+'. '+t.slice(k).join(' '); };
   const _libN=esNov?Object.values(EV.reservados||{}).flat().filter(j=>j&&j.bajaGira).map(j=>j.nom):[];
   const partidos=`<div class="ni-sec"><div class="ni-h">Partidos</div><div class="ni-list">`+ps.map(x=>{
-    const f=dm(x.fecha), vis=x.local===false;
+    const vis=x.local===false;
     const lm=_pzL.filter(Boolean).find(z=>z.rival===x.rival)||null;
     const jug=!!(lm&&lm.gLocal!=null&&lm.gRival!=null&&lm.gLocal!==''&&lm.gRival!=='');
-    if(!jug) return `<div class="ni-row"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span>
-      <span class="pz-m"><b>Uruguay vs. ${x.rival}</b><span>${x.sede||''}</span></span>
-      <span class="pz-r"><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em><strong style="${x.confirmado?'color:#86EFAC':'color:#FCD34D'}">${x.confirmado?'Confirmado':'Por confirmar'}</strong><strong style="font-size:.86em;${x.hora?'color:#86EFAC':'color:#FCD34D'}">${x.hora?x.hora+'h':'Horario por confirmar'}</strong></span></div>`;
+    const _Dt=new Date(String(x.fecha).slice(0,10)+'T12:00:00'), _RKn=EV.rankingFifa||{};
+    const _fxd=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][_Dt.getDay()]+' '+_Dt.getDate()+' '+['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][_Dt.getMonth()];
+    const _eqf=(n,esU)=>`<div class="fx-eq${esU?' uy':''}"><span class="fx-esc">${_escudoSeleccion(n,40)}</span><b>${n}</b><i data-rkn="${n}" data-rkf="${jug?String(x.fecha).slice(0,10):''}">${_RKn[n]?_RKn[n]+'º del ranking FIFA':''}</i></div>`;
+    const _eU=_eqf('Uruguay',true), _eR=_eqf(x.rival,false);
+    const _foot=(more)=>`<div class="fx-foot"><span><i class="ti ti-building-stadium"></i>${x.sede||'Sede por confirmar'}</span>${more||''}<em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em></div>`;
+    if(!jug){
+      const st=_fifaNovEstado(x);
+      return `<div class="fx-card ni-fx" style="--fxc:#38BDF8"><div class="fx-top"><span class="fx-eb">${EV.label} · ${_fxd}</span><span class="fx-st" style="color:${st[1]};border-color:${st[1]}66">${st[0]}</span></div>
+        <div class="fx-body">${vis?_eR:_eU}<div class="fx-mid"><b>${x.horaLocal||x.hora||'—'}</b><i>${x.hora&&x.hora!=='—'?'Hora de Uruguay':'Hora por confirmar'}</i></div>${vis?_eU:_eR}</div>${_foot()}</div>`;
+    }
     const gl=+lm.gLocal, gr=+lm.gRival, rc=gl>gr?'#86EFAC':gl<gr?'#FCA5A5':'#FCD34D';
     const gols=((lm.golMins&&lm.golMins.length)?lm.golMins:Object.entries(lm.goles||{}).flatMap(([n,c])=>Array(+c||0).fill({nom:n,min:''}))).slice().sort((a,b)=>(+a.min||0)-(+b.min||0));
     const tj=lm.tarjetas||[], am=tj.filter(t=>t.col!=='r'), rj=tj.filter(t=>t.col==='r');
@@ -19826,9 +19829,10 @@ window._fifaInfoPro=function(tKey){
       +_cell('r','#FCA5A5','<span class="ni-cd"></span>','Expulsiones',_ch(rj,_pl),'Ninguna')
       +_cell('l','#FDBA74','<i class="ti ti-bandage"></i>','Lesiones',_ch(les,n=>`<em>${_sn(n)}</em>`),'Ninguna registrada')
       +((x.fecha===_f0&&_libN.length)?_cell('x','#7DD3FC','<i class="ti ti-logout"></i>','Liberados tras el partido',_ch(_libN,n=>`<em>${_sn(n)}</em>`),'',true):'');
-    return `<div class="ni-mt done" style="--rc:${rc}"><div class="ni-row done" role="button" tabindex="0" onclick="this.parentNode.classList.toggle('open')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.parentNode.classList.toggle('open')}"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span>
-      <span class="pz-m"><b>Uruguay vs. ${x.rival}</b><span>${x.sede||''}</span></span>
-      <span class="pz-r"><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em><strong style="color:${rc};font-size:18px"><i class="ti ti-circle-check pz-ok"></i>${gl} – ${gr}</strong><strong style="font-size:.8em;color:rgba(239,243,248,.6)">Finalizado</strong></span><span class="ni-chev"><i class="ti ti-chevron-down"></i><em>Ver detalle</em></span></div><div class="ni-det">${det}</div></div>`;
+    const _tg=gl>gr?'Victoria':gl<gr?'Derrota':'Empate';
+    return `<div class="fx-card ni-fx done" style="--fxc:${rc}" onclick="if(!event.target.closest('.ni-det'))this.classList.toggle('open')"><div class="fx-top"><span class="fx-eb">${EV.label} · ${_fxd}</span><span class="fx-st" style="color:${rc};border-color:${rc}66"><i class="ti ti-circle-check" style="margin-right:5px;font-size:13px"></i>${_tg}</span></div>
+      <div class="fx-body">${vis?_eR:_eU}<div class="fx-mid"><b style="color:${rc}">${vis?gr+' - '+gl:gl+' - '+gr}</b><i>Final</i></div>${vis?_eU:_eR}</div>
+      ${_foot('<span class="ni-more"><em>Ver detalle</em><i class="ti ti-chevron-down"></i></span>')}<div class="ni-det">${det}</div></div>`;
   }).join('')+`</div></div>`;
   const plazos=(EV.deadlines||[]).length?`<div class="ni-sec"><div class="ni-h">Fechas límite</div><div class="ni-dls">`+(EV.deadlines||[]).map(d=>{
     const f=dm(d.fecha), n=dias(d.fecha);
@@ -19837,7 +19841,7 @@ window._fifaInfoPro=function(tKey){
   }).join('')+`</div></div>`:'';
   // Regla repetida de la Fecha FIFA anterior que todavía no se confirmó para esta (`reglasPorConfirmar`): se marca en ámbar y avisa cuántos convocados quedarían afuera.
   const _rpc=!!EV.reglasPorConfirmar, _maxL=parseInt((String((EV.reglasLista||[])[0]||'').match(/\d+/)||[0])[0],10), _afuera=(EV.finales||[]).filter(Boolean).length-_maxL;
-  const reglas=(EV.reglasLista||[]).length?`<div class="ni-sec"><div class="ni-h">Reglas de la lista${_rpc?' <span class="ni-pc">Por confirmar</span>':''}</div>`
+  const reglas=(EV.reglasLista||[]).length?`<div class="ni-sec"><div class="ni-h">Reglas por partido${_rpc?' <span class="ni-pc">Por confirmar</span>':''}</div>`
     +(_rpc&&_maxL&&_afuera>0?`<div class="ni-pcnote"><i class="ti ti-alert-triangle"></i>Hay ${(EV.finales||[]).filter(Boolean).length} convocados y el máximo por partido sería ${_maxL}: ${_afuera} ${_afuera===1?'quedaría afuera':'quedarían afuera'} de la lista de cada partido. Regla copiada de la Fecha FIFA anterior, falta confirmarla para noviembre.</div>`:'')
     +`<div class="ni-dls">`+(EV.reglasLista||[]).map(t=>{
     const n=(String(t).match(/\d+/)||[''])[0], pr=String(t).split(':');
