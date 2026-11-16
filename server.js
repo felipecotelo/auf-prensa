@@ -1337,6 +1337,45 @@ function parseDescensoHTML(html) {
   }).filter(Boolean);
 }
 
+// ── Sudamericano Sub-20 2027 (CONMEBOL, Colombia): grupos, tablas y partidos leídos de 365scores (competencia 5453) ──
+// El sorteo ya está hecho; el fixture todavía no se publicó. Cuando aparezca (o cambien horarios / resultados) la app lo toma sola.
+let _sud20Cache = null;
+app.get('/api/sud20-2027', async (req, res) => {
+  try {
+    if (_sud20Cache && (Date.now() - _sud20Cache.ts) < 120000) return res.json(_sud20Cache.data);
+    const nm = n => String(n || '').replace(/\s+Sub-?20$/i, '').trim();
+    const sc = v => (v == null || v < 0) ? null : Math.round(v);
+    const get = async path => { try { return JSON.parse(await fetchText(`${_365_BASE}/${path}&competitions=5453`)); } catch (e) { return {}; } };
+    const [st, fx, rs] = await Promise.all([
+      get(`standings/?${_365_QS}&live=false&isPreview=true`),
+      get(`games/fixtures/?${_365_QS}&showOdds=false`),
+      get(`games/results/?${_365_QS}&showOdds=false`),
+    ]);
+    const bloque = (st.standings || [])[0] || {};
+    const gname = {}; (bloque.groups || []).forEach(g => { gname[g.num] = String(g.name || '').replace(/^Grupo\s+/i, '') || String(g.num); });
+    const tabla = (bloque.rows || []).map(r => ({
+      grupo: gname[r.groupNum] || String(r.groupNum), pos: r.position, equipo: nm(r.competitor && r.competitor.name), id: r.competitor && r.competitor.id,
+      pj: r.gamePlayed || 0, g: r.gamesWon || 0, e: r.gamesEven || 0, p: r.gamesLost || 0, gf: r.for || 0, gc: r.against || 0, pts: Math.round(r.points || 0),
+    }));
+    const vistos = new Set();
+    const partidos = [...(fx.games || []), ...(rs.games || [])].filter(m => m && m.competitionId === 5453 && m.homeCompetitor && m.awayCompetitor)
+      .filter(m => { if (vistos.has(m.id)) return false; vistos.add(m.id); return true; })
+      .filter(m => String(m.startTime || '').slice(0, 4) === '2027')
+      .map(m => {
+        const estado = m.statusGroup === 3 ? 'vivo' : m.statusGroup === 2 ? 'prog' : (m.statusText === 'Aplazado' ? 'aplazado' : 'fin');
+        return { id: m.id, home: nm(m.homeCompetitor.name), away: nm(m.awayCompetitor.name),
+          gh: estado === 'prog' ? null : sc(m.homeCompetitor.score), ga: estado === 'prog' ? null : sc(m.awayCompetitor.score),
+          utc: m.startTime, estado, minuto: m.gameTimeDisplay || '', fase: m.stageName || '', ronda: m.roundName || '', grupo: m.groupName || '',
+          sede: (m.venue && (m.venue.name || m.venue.shortName)) || '' };
+      }).sort((a, b) => String(a.utc).localeCompare(String(b.utc)));
+    const data = { ok: true, tabla, partidos, updatedAt: new Date().toISOString() };
+    _sud20Cache = { ts: Date.now(), data };
+    res.json(data);
+  } catch (e) {
+    res.status(502).json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/api/descenso-uy', async (req, res) => {
   try {
     if (_descensoCache && (Date.now() - _descensoCache.ts) < DESCENSO_TTL) {

@@ -36297,6 +36297,11 @@ const SUD20_2027 = {
   tipo:'oficial',
   fecha:'22 de enero – 7 de febrero de 2027 · Colombia',
   // Formato oficial publicado por CONMEBOL Torneos el 16/11/2026 (sorteo de grupos todavía sin hacer).
+  // Sorteo del 13/11/2026 (CONMEBOL, Luque). La tabla y el fixture se leen solos del servidor (/api/sud20-2027).
+  grupos:{
+    'Grupo A':['Colombia','Paraguay','Chile','Ecuador','Perú'],
+    'Grupo B':['Uruguay','Brasil','Argentina','Venezuela','Bolivia'],
+  },
   infoGeneral:{
     'Selecciones':'10',
     'Partidos':'27',
@@ -37804,6 +37809,83 @@ window._mundSyncFifa=_mundSyncFifa;
 setTimeout(()=>Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)),7000);
 setInterval(()=>{ if(document.hidden) return; Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)); },_SYNC_MIN); // con la pestaña oculta no consulta a FIFA; al volver se pone al día
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) Object.keys(_MUND_CFG).forEach(c=>_mundSyncFifa(c)); });
+// ── Sudamericano Sub-20 2027 (CONMEBOL): grupos, tablas y partidos de Uruguay leídos solos del servidor (/api/sud20-2027, que lee 365scores) ──
+// Igual que el Mundial: crea los partidos de Uruguay que faltan en la app (con su Pizarra y su Diseño), completa hora y sede si están vacías y
+// nunca pisa lo que se cargó a mano. Si la hora publicada difiere de la cargada, deja el aviso `fifaDif`.
+window._sud20Data=window._sud20Data||null;
+async function _sud20Fetch(force){
+  if(!force&&window._sud20Data&&(Date.now()-window._sud20Data.ts)<60000) return window._sud20Data;
+  try{
+    const r=await fetch('/api/sud20-2027',{cache:'no-store'}); const j=await r.json();
+    if(!j||!j.ok) throw new Error('sin datos');
+    window._sud20Data={ts:Date.now(),tabla:j.tabla||[],partidos:j.partidos||[]};
+  }catch(_){ window._sud20Data=window._sud20Data?{...window._sud20Data,error:true}:{ts:0,error:true,tabla:[],partidos:[]}; }
+  return window._sud20Data;
+}
+function _sud20Html(d){
+  const fmtD=iso=>{ try{ return new Date(iso).toLocaleDateString('es-UY',{day:'numeric',month:'short',timeZone:'America/Montevideo'}); }catch(_){ return ''; } };
+  const fmtT=iso=>String(iso||'').slice(11,16);
+  if(!d||(!d.tabla.length&&!d.partidos.length)) return `<div class="gt-card"><div class="gt-eb">Sudamericano Sub-20 · tablas de posiciones</div><div class="gt-msg">${d&&d.error?'No se pudo leer la información ahora. Se reintenta sola.':'Cargando…'}</div></div>`;
+  const grupos=[...new Set(d.tabla.map(t=>t.grupo))].sort();
+  const hora=d.ts?new Date(d.ts).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
+  const tablas=grupos.map(g=>{
+    const rows=d.tabla.filter(t=>t.grupo===g).sort((a,b)=>a.pos-b.pos).map((t,i)=>`<tr class="${t.equipo==='Uruguay'?'uy':''}"><td class="pos">${i+1}</td><td class="eq"><span>${_escudoSeleccion(t.equipo,22)}</span>${t.equipo}</td><td>${t.pj}</td><td>${t.g}</td><td>${t.e}</td><td>${t.p}</td><td>${t.gf}</td><td>${t.gc}</td><td>${t.gf-t.gc}</td><td><b>${t.pts}</b></td></tr>`).join('');
+    const ms=d.partidos.filter(m=>/Grupo|Group/i.test(m.grupo||'')?new RegExp(g+'$').test(m.grupo):d.tabla.some(t=>t.grupo===g&&t.equipo===m.home));
+    const chips=ms.map(m=>{ const uy=m.home==='Uruguay'||m.away==='Uruguay'; const fin=m.estado==='fin'||m.estado==='vivo';
+      return `<div class="gt-ch${uy?' uy':''}"><span class="gt-d">${fmtD(m.utc)}</span><span class="gt-t">${m.home}</span><b>${fin?m.gh+' – '+m.ga:fmtT(m.utc)+'h'}</b><span class="gt-t r">${m.away}</span>${m.estado==='vivo'?'<i class="gt-live">en juego</i>':''}</div>`; }).join('');
+    return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">Grupo ${g}<em>|</em><u>Clasifican los cuatro primeros</u></span><span class="gt-upd">CONMEBOL · actualizado ${hora}h</span></div>
+      <table class="gt"><thead><tr><th></th><th class="l">Selección</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>
+      ${chips?`<div class="gt-sub">Partidos del grupo</div><div class="gt-ms">${chips}</div>`:`<div class="gt-nota">El fixture todavía no se publicó: aparece solo cuando CONMEBOL lo confirme.</div>`}</div>`;
+  }).join('');
+  const fase=d.partidos.filter(m=>!/Grupo|Group/i.test(m.grupo||'')&&/semi|final|clasific|preclas|cuartos|playoff/i.test(m.fase+' '+m.ronda));
+  const kos=fase.length?`<div class="gt-card"><div class="gt-top"><span class="gt-eb">Fase final</span></div><div class="gt-ms">${fase.map(m=>{ const fin=m.estado==='fin'||m.estado==='vivo'; return `<div class="gt-ch${m.home==='Uruguay'||m.away==='Uruguay'?' uy':''}"><span class="gt-d">${fmtD(m.utc)}</span><span class="gt-t">${m.home}</span><b>${fin?m.gh+' – '+m.ga:fmtT(m.utc)+'h'}</b><span class="gt-t r">${m.away}</span></div>`; }).join('')}</div></div>`:'';
+  return tablas+kos+`<div class="gt-nota">Orden por puntos, diferencia de gol y goles a favor. Los desempates oficiales los define CONMEBOL.</div>`;
+}
+window._sud20Mount=async function(){
+  const draw=()=>{ const el=document.getElementById('sud20-pos'); if(el) el.innerHTML=_sud20Html(window._sud20Data); };
+  draw(); await _sud20Fetch(); draw();
+  if(!window._sud20Timer) window._sud20Timer=setInterval(async()=>{ if(!document.getElementById('sud20-pos')) return; await _sud20Fetch(true); draw(); },60000);
+};
+const _SUD20_KEY='auf4_amist_juv_sub20_2025-2027';
+async function _sud20Sync(force){
+  const tsk='auf4_sud20_sync';
+  try{ if(!force&&Date.now()-(parseInt(localStorage.getItem(tsk)||'0',10))<10*60000) return; }catch(_){}
+  const d=await _sud20Fetch(true); if(!d||d.error) return;
+  try{ localStorage.setItem(tsk,String(Date.now())); }catch(_){}
+  const uru=(d.partidos||[]).filter(m=>m.home==='Uruguay'||m.away==='Uruguay'); if(!uru.length) return;
+  let list=[]; try{ list=JSON.parse(localStorage.getItem(_SUD20_KEY)||'[]'); if(!Array.isArray(list)) list=[]; }catch(_){ list=[]; }
+  const nrm=x=>String(x||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z]/g,'');
+  let cambio=false, nuevos=0;
+  uru.forEach(m=>{
+    const esL=m.home==='Uruguay', rival=esL?m.away:m.home, fecha=String(m.utc).slice(0,10), hUY=String(m.utc).slice(11,16);
+    const ex=list.find(x=>String(x.sud20Id||'')===String(m.id))||list.find(x=>x.compId==='sud20-2027'&&String(x.fecha).slice(0,10)===fecha&&nrm(x.rival)===nrm(rival));
+    const lugar=m.sede?(m.sede+(/colombia/i.test(m.sede)?'':' (Colombia)')):'';
+    const fase=/Grupo|Group/i.test(m.grupo||'')?m.grupo.replace(/^Group/i,'Grupo'):(m.ronda||m.fase||'');
+    if(ex){
+      if(!ex.sud20Id){ ex.sud20Id=m.id; cambio=true; }
+      if(fase&&!ex.fase){ ex.fase=fase; cambio=true; }
+      if(!ex.lugar&&lugar){ ex.lugar=lugar; cambio=true; }
+      if(!ex.hora&&hUY){ ex.hora=hUY; cambio=true; }
+      const mm=String(ex.hora||'').match(/(\d{1,2}):(\d{2})/); const exUY=mm?String(parseInt(mm[1],10)).padStart(2,'0')+':'+mm[2]:'';
+      const dif=(exUY&&hUY&&exUY!==hUY)?hUY:''; if((ex.fifaDif||'')!==dif){ if(dif) ex.fifaDif=dif; else delete ex.fifaDif; cambio=true; }
+      if(ex.gLocal==null&&ex.gRival==null&&m.estado==='fin'&&m.gh!=null&&m.ga!=null){ ex.gLocal=esL?m.gh:m.ga; ex.gRival=esL?m.ga:m.gh; cambio=true; } // solo si no hay marcador cargado; no toca `confirmado`
+      if(m.estado==='aplazado'&&!ex.suspendido){ ex.suspendido=true; cambio=true; }
+    } else {
+      list.push({id:Number(m.id)||Date.now(),sud20Id:m.id,rival,fecha,hora:hUY,lugar,compId:'sud20-2027',oficial:true,fase,paisSede:'Colombia',
+        gLocal:null,gRival:null,titulares:[],subs:[],goles:{},dtPartido:'',gLocal2:null,gRival2:null,titulares2:[],subs2:[],goles2:{},dt2:''});
+      cambio=true; nuevos++;
+    }
+  });
+  if(cambio){
+    try{ stor.set(_SUD20_KEY,list); }catch(_){ try{ localStorage.setItem(_SUD20_KEY,JSON.stringify(list)); }catch(__){} }
+    if(nuevos&&typeof toast==='function') toast(`Sudamericano Sub-20: ${nuevos} partido${nuevos>1?'s':''} nuevo${nuevos>1?'s':''} de Uruguay`);
+    if(document.getElementById('sec-juveniles')?.classList.contains('active')) window.renderJuveniles?.();
+  }
+}
+window._sud20Sync=_sud20Sync;
+setTimeout(()=>_sud20Sync(),9000);
+setInterval(()=>{ if(!document.hidden) _sud20Sync(); },10*60000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) _sud20Sync(); });
 // ── Cuadro de la fase final del Mundial Sub-15 (Categoría A): se arma solo desde la API de FIFA ──
 window._mundKO=window._mundKO||{};
 function _mundBracketHtml(ko){
@@ -40799,6 +40881,7 @@ function _renderJuvenilesSafe(el){
         if(comp.infoGeneral||comp.grupos) CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
         if(comp.estiloMundial) CTABS = _juvCompTabsMundial(comp);
         else if(_MUND_CFG[_juvComp]) CTABS.push({id:'posiciones',label:'Posiciones',icon:'ti-list-numbers'},{id:'diseno',label:'Diseño',icon:'ti-photo'});
+        else if(comp.id==='sud20-2027') CTABS.push({id:'posiciones',label:'Posiciones',icon:'ti-list-numbers'});
         if((_MUND_CFG[_juvComp]&&_MUND_CFG[_juvComp].cierre)||comp.cierre) CTABS.unshift({id:'resumen',label:'Resumen',icon:'ti-trophy'});
         // Orden fijo en todas las categorías (la memoria muscular no cambia según el torneo); lo que no aplica a una competencia simplemente no aparece
         const _CT_ORD=['resumen','convocados','jugadores','fixture','posiciones','diseno','goleadores','ct_del','amistosos','info'];
@@ -41518,6 +41601,7 @@ function _buildJuvCompBody(compId, color, catData){
     CTABS.splice(1,0,{id:'info',label:'Info general',icon:'ti-info-circle'});
   }
   if(comp.estiloMundial) CTABS = _juvCompTabsMundial(comp);
+  else if(comp.id==='sud20-2027'&&!CTABS.some(t=>t.id==='posiciones')){ const _fi=CTABS.findIndex(t=>t.id==='fixture'); CTABS.splice(_fi<0?CTABS.length:_fi+1,0,{id:'posiciones',label:'Posiciones',icon:'ti-list-numbers'}); }
   let content = '';
 
   if(_juvCompTab==='info'){
@@ -41639,6 +41723,11 @@ function _buildJuvCompBody(compId, color, catData){
    } else {
     content = _renderCompPartidosEstaticos(comp.partidos, cc);
    }
+  }
+
+  else if(_juvCompTab==='posiciones' && compId==='sud20-2027'){
+    content = '<div id="sud20-pos"></div>';
+    setTimeout(()=>window._sud20Mount&&window._sud20Mount(),0);
   }
 
   else if(_juvCompTab==='posiciones' && _MUND_CFG[compId]){
