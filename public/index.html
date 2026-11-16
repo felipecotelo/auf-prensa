@@ -813,8 +813,8 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .pz-sw{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:0 0 14px}
 .pz-card{display:flex;align-items:center;gap:16px;text-align:left;padding:14px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0B1226);color:#F4F7FB;font-family:inherit;cursor:pointer;transition:border-color .15s,background .15s}
 .pz-card:hover{border-color:rgba(255,255,255,.3)}
-.pz-card.done,.ni-row.done{border:3px solid var(--rc)!important}
-.pz-card.done{padding:12px 16px}.ni-row.done{padding:14px 18px}
+.pz-card.done{border:3px solid var(--rc)!important}
+.pz-card.done{padding:12px 16px}
 .pz-ok{color:var(--rc);margin-right:5px;font-size:1.05em;vertical-align:-2px}
 .pz-card.on{border-color:rgba(0,157,216,.75);box-shadow:0 0 0 1px rgba(0,157,216,.25);background:radial-gradient(300px 150px at 100% 0,rgba(0,157,216,.24),transparent 65%),linear-gradient(180deg,#112038,#0B1428)}
 .pz-d{min-width:44px;text-align:center;flex-shrink:0}
@@ -2125,6 +2125,18 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ni-det b{display:block;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.5);margin-bottom:1px}
 .ni-row,.ni-dl{display:flex;align-items:center;gap:18px;padding:16px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
 .ni-row .pz-m b{font-size:16px}
+.ni-mt.done{border:3px solid var(--rc);border-radius:20px;background:linear-gradient(180deg,#10182C,#0A1022);gap:0;overflow:hidden}
+.ni-mt.done .ni-row{border:0;border-radius:0;background:none;padding:16px 20px 14px}
+.ni-mt.done .ni-det{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;padding:14px 20px 18px;border-top:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.025)}
+.ni-dc{border-radius:12px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-left:3px solid var(--k);min-width:0}
+.ni-dc.w{grid-column:1/-1}
+.ni-dc b{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--k);margin:0 0 7px}
+.ni-dc b i.ti{font-size:14px}
+.ni-cd{display:inline-block;width:8px;height:12px;border-radius:2px;background:var(--k)}
+.ni-ch{display:flex;flex-wrap:wrap;gap:5px}
+.ni-ch em{font-style:normal;font-size:12.5px;font-weight:600;color:#F4F7FB;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.08)}
+.ni-ch em small{font-size:11px;font-weight:600;color:var(--k);margin-left:4px}
+.ni-ch .ni-no{font-weight:500;color:rgba(239,243,248,.45);background:none;padding:3px 0}
 .ni-dl .pz-m b{font-size:14px;font-weight:600;line-height:1.35}
 .ll-bar{height:6px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;margin:0 0 18px}
 .ll-bar span{display:block;height:100%;background:linear-gradient(90deg,#4ADE80,#22D3EE);border-radius:999px}
@@ -19796,14 +19808,15 @@ window._fifaInfoPro=function(tKey){
     const gols=((lm.golMins&&lm.golMins.length)?lm.golMins:Object.entries(lm.goles||{}).flatMap(([n,c])=>Array(+c||0).fill({nom:n,min:''}))).slice().sort((a,b)=>(+a.min||0)-(+b.min||0));
     const tj=lm.tarjetas||[], am=tj.filter(t=>t.col!=='r'), rj=tj.filter(t=>t.col==='r');
     const les=Object.values(EV.reservados||{}).flat().filter(j=>j&&j.lesionEnGira).map(j=>j.nom);
-    const det=[
-      ['Goles',gols.length?gols.map(g=>_sn(g.nom)+(g.min?' '+g.min+"'":'')).join(' · '):'Sin goles de Uruguay'],
-      ['Amarillas',am.length?am.map(t=>_sn(t.nom)+(t.min?' '+t.min+"'":'')).join(' · '):'Ninguna'],
-      ['Expulsiones',rj.length?rj.map(t=>_sn(t.nom)+(t.min?' '+t.min+"'":'')).join(' · '):'Ninguna'],
-      ['Lesiones',les.length?les.map(_sn).join(' · '):'Ninguna registrada'],
-      ...((x.fecha===_f0&&_libN.length)?[['Liberados tras el partido',_libN.map(_sn).join(' · ')]]:[]),
-    ].map(([k,v])=>`<span><b>${k}</b>${v}</span>`).join('');
-    return `<div class="ni-mt"><div class="ni-row done" style="--rc:${rc}"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span>
+    const _ch=(arr,fn)=>arr.length?arr.map(fn).join(''):'';
+    const _pl=t=>`<em>${_sn(t.nom)}${t.min?`<small>${t.min}'</small>`:''}</em>`;
+    const _cell=(k,col,ico,tit,inner,none,w)=>`<div class="ni-dc${w?' w':''}" style="--k:${col}"><b>${ico}${tit}</b><div class="ni-ch">${inner||`<em class="ni-no">${none}</em>`}</div></div>`;
+    const det=_cell('g','#86EFAC','<i class="ti ti-ball-football"></i>','Goles',_ch(gols,_pl),'Sin goles de Uruguay')
+      +_cell('a','#FCD34D','<span class="ni-cd"></span>','Amarillas',_ch(am,_pl),'Ninguna')
+      +_cell('r','#FCA5A5','<span class="ni-cd"></span>','Expulsiones',_ch(rj,_pl),'Ninguna')
+      +_cell('l','#FDBA74','<i class="ti ti-bandage"></i>','Lesiones',_ch(les,n=>`<em>${_sn(n)}</em>`),'Ninguna registrada')
+      +((x.fecha===_f0&&_libN.length)?_cell('x','#7DD3FC','<i class="ti ti-logout"></i>','Liberados tras el partido',_ch(_libN,n=>`<em>${_sn(n)}</em>`),'',true):'');
+    return `<div class="ni-mt done" style="--rc:${rc}"><div class="ni-row done"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span>
       <span class="pz-m"><b>Uruguay vs. ${x.rival}</b><span>${x.sede||''}</span></span>
       <span class="pz-r"><em class="pz-tag ${vis?'v':'l'}">${vis?'Visitante':'Local'}</em><strong style="color:${rc};font-size:18px"><i class="ti ti-circle-check pz-ok"></i>${gl} – ${gr}</strong><strong style="font-size:.8em;color:rgba(239,243,248,.6)">Finalizado</strong></span></div><div class="ni-det">${det}</div></div>`;
   }).join('')+`</div></div>`;
