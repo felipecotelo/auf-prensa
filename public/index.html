@@ -9608,7 +9608,8 @@ function _recDue(r){ return new Date(r.vence+'T'+(r.sinHora?'00:00':(r.hora||'09
 // Orden: lo importante (rojo) primero; después por vencimiento; y entre los de un mismo grupo, por paso (orden 1, 2, 3…).
 // Nivel de importancia de un recordatorio: rojo / amarillo (o ninguno). Por defecto, lo marcado 'importante' es rojo;
 // el usuario lo puede recolorear con los botoncitos (se guarda en auf4_rec_nivel por id).
-const _REC_NIVELES={rojo:{c:'#DC2626',tx:'#B91C1C',bg:'#FEF2F2',rank:3},amarillo:{c:'#CA8A04',tx:'#A16207',bg:'#FEFCE8',rank:1}};
+// El nivel «amarillo» se guarda con esa clave (datos ya cargados) pero se ve en rosa: el amarillo es el color de la Sub-17 (Felipe, 16/11/2026).
+const _REC_NIVELES={rojo:{c:'#DC2626',tx:'#B91C1C',bg:'#FEF2F2',rank:3,l:'urgente'},amarillo:{c:'#DB2777',tx:'#9D174D',bg:'#FDF2F8',rank:1,l:'importante'}};
 function _recNivel(r){ let o; try{ o=(stor.get('auf4_rec_nivel',{})||{})[r.id]; }catch(_){} if(o==='ninguno') return ''; if(o&&_REC_NIVELES[o]) return o; return r.importante?'rojo':''; }
 window._recNivelSet=function(id,n){
   const m=stor.get('auf4_rec_nivel',{})||{};
@@ -9622,7 +9623,7 @@ window._recNivelSet=function(id,n){
 };
 function _recNivelBtns(r){
   const cur=_recNivel(r), id=String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-  return `<span style="display:inline-flex;gap:3px;align-items:center;flex-shrink:0">${Object.entries(_REC_NIVELES).map(([k,v])=>`<button data-id="${id}" onclick="event.stopPropagation();_recNivelSet(this.dataset.id,'${k}')" title="Importancia: ${k}${cur===k?' (tocá para quitar)':''}" style="width:10px;height:10px;padding:0;border-radius:50%;cursor:pointer;border:1.5px solid ${v.c};background:${cur===k?v.c:'transparent'};opacity:${cur===k?1:.55}"></button>`).join('')}</span>`;
+  return `<span style="display:inline-flex;gap:3px;align-items:center;flex-shrink:0">${Object.entries(_REC_NIVELES).map(([k,v])=>`<button data-id="${id}" onclick="event.stopPropagation();_recNivelSet(this.dataset.id,'${k}')" title="Importancia: ${v.l||k}${cur===k?' (tocá para quitar)':''}" style="width:10px;height:10px;padding:0;border-radius:50%;cursor:pointer;border:1.5px solid ${v.c};background:${cur===k?v.c:'transparent'};opacity:${cur===k?1:.55}"></button>`).join('')}</span>`;
 }
 // Fondo propio para lo que no es del trabajo diario (hoy: la limpieza del código): gris azulado, para que no se mezcle con el resto.
 function _recFondo(r){ return (/^rec-limpieza/.test(String(r&&r.id||''))||(r&&r.fondo==='gris'))?{bg:'#E9EEF4',c:'#94A3B8'}:null; }
