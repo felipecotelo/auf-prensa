@@ -33233,9 +33233,24 @@ const WC17_2026 = {
     'Domingo 13/12: tercer puesto y final (Estadio Áhmad bin Ali)',
   ],
   ct:[
-    {iso:'uy',name:'Ignacio María González',rol:'Director técnico',dt:true},
+    {iso:'uy',name:'Ignacio González',rol:'Director técnico',dt:true},
+    {iso:'uy',name:'Álvaro Fernández',rol:'Ayudante técnico'},
+    {iso:'uy',name:'Esteban Gesto',rol:'Preparador físico'},
+    {iso:'uy',name:'Juan Prieto',rol:'Preparador físico'},
+    {iso:'uy',name:'Santiago Morandi',rol:'Entrenador de arqueros'},
+    {iso:'uy',name:'Kevin Beckmann',rol:'Videoanalista'},
   ],
-  delegacion:[],
+  delegacion:[
+    {name:'Marcelo García',rol:'Presidente'},
+    {name:'Juan Cruz Arburuas',rol:'Secretario del Consejo Juvenil'},
+    {name:'Jorge Ananía',rol:'Gerente Deportivo'},
+    {name:'Juan Carlos García',rol:'Doctor'},
+    {name:'Mathías Alza',rol:'Fisioterapeuta'},
+    {name:'Juan Manuel Rodríguez',rol:'Fisioterapeuta'},
+    {name:'Mateo Rodríguez Calleriza',rol:'Jefe de prensa'},
+    {name:'Chin Kobayashi',rol:'Utilero'},
+    {name:'Mathías Blanco',rol:'Utilero'},
+  ],
   preparacion:[
     // Pool extendido — no convocados al Microciclo 10
     {nom:'Emiliano Machado',      club:'Wanderers', fechaNac:'2009-04-01', tmId:1594018},
@@ -39956,12 +39971,16 @@ window._juvPhotoSelected = function(nomEncoded, input){
 function _nameSlug(nom){ return 'ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''); }
 
 // Busca la foto de una persona por nombre en todos los caches posibles
+// Mismas personas con el nombre escrito distinto (segundo nombre / grafía): la foto vive bajo el nombre de Estructura.
+const _PERSONA_ALIAS={'ignacio maria gonzalez':'Ignacio González','kevin bekmann':'Kevin Beckman','kevin beckmann':'Kevin Beckman','mateo rodriguez calleriza':'Mateo Rodríguez','mathias blanco':'Matías Blanco'};
 window._getPersonPhoto = function(name){
+  try{ const _k=String(name).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); if(_PERSONA_ALIAS[_k]) name=_PERSONA_ALIAS[_k]; }catch(_){}
   const est = window._estPhotoCache||{};
   const juv = window._juvPhotoCache||{};
   // 1. Clave slug unificada (ct-p:...)
   const slug = _nameSlug(name);
   if(est[slug]) return est[slug];
+  if(est['mayor:'+slug.slice(5)]) return est['mayor:'+slug.slice(5)]; // fotos cargadas desde la Mayor
   // 2. Clave corta de Estructura (iguzmán, dperezjuv, etc.) — ANTES que la
   // caché de Juveniles a propósito: esta función se usa para CT/delegación
   // (staff), y un nombre común (ej. "Matías Pérez") puede pertenecer a la
