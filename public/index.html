@@ -998,6 +998,9 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .jm-iv b{font-family:'Space Grotesk','Inter',sans-serif;font-size:18px;letter-spacing:-.03em;margin-right:4px}
 .jm-ck{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(255,255,255,.25);background:transparent;color:rgba(239,243,248,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;padding:0}
 .jm-ck.on{border-color:#4ADE80;background:#16A34A;color:#fff}
+.jm-sp{width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);background:transparent;color:rgba(239,243,248,.3);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0;font-size:15px}
+.jm-sp:hover{border-color:#F59E0B;color:#F59E0B}.jm-sp.on{border-color:#F59E0B;background:rgba(245,158,11,.16);color:#F59E0B}
+.jm-card.susp{opacity:.66}.jm-card.susp .jm-mt b{text-decoration:line-through;text-decoration-color:rgba(245,158,11,.7)}
 .jm-ch{color:rgba(239,243,248,.35);font-size:14px;flex-shrink:0}
 .jm-fd{margin-left:8px;padding:1px 8px;border-radius:999px;border:1px solid rgba(252,211,77,.5);background:rgba(252,211,77,.1);color:#FCD34D;font-size:10px;font-weight:700;letter-spacing:.04em}
 .jm-th{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(239,243,248,.6);margin:18px 0 10px}
@@ -8051,7 +8054,7 @@ function renderInicioHoySeleccion(dayOffset){
         try{ list=JSON.parse(localStorage.getItem(k)||'[]'); }catch(_){}
         const _mundI=list.filter(x=>x.compId==='mundial-sub15-2026').sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
         list.forEach(m=>{
-          if((m.fecha||'').slice(0,10)===isoHoy){
+          if((m.fecha||'').slice(0,10)===isoHoy&&!m.suspendido){
             const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
             const ebNom=(typeof _COMP_NOM!=='undefined'&&_COMP_NOM[m.compId])||m.torneo||('Selección '+catLbl);
             const ebDet=(m.compId==='mundial-sub15-2026'&&(!m.fase||/clasific|grupo/i.test(m.fase)))?'Partido '+(_mundI.indexOf(m)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):(m.torneo?'':'Amistoso'));
@@ -9708,7 +9711,7 @@ function _recPartidosDerivados(){
       let list=[]; try{ list=JSON.parse(localStorage.getItem(k)||'[]'); }catch(_){}
       if(!Array.isArray(list)) continue;
       list.forEach(m=>{
-        const D=(m.fecha||'').slice(0,10); if(!D||!m.rival) return;
+        const D=(m.fecha||'').slice(0,10); if(!D||!m.rival||m.suspendido) return;
         const lbl=String(metaCat(cat)).replace(/^Sub-/,'sub-')+' vs. '+m.rival, uid=(m.id||(k+D+m.rival));
         const nStart=Object.values((m.lineup||{}).starters||{}).filter(Boolean).length, nMax=(m.compId==='mundial-sub15-2026')?8:11;
         const hora=m.hora?' · '+String(m.hora).replace(/(\d{1,2}:\d{2})(?!\d)\s*h*/g,'$1h'):'';
@@ -10404,7 +10407,7 @@ function _partidosSeleccionHoy(){
       let list=[]; try{ list=JSON.parse(localStorage.getItem(k)||'[]'); }catch(_){}
       if(!Array.isArray(list)) continue;
       const _mund=list.filter(x=>x.compId==='mundial-sub15-2026').sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
-      list.forEach(m=>{ if((m.fecha||'').slice(0,10)!==TODAY||!m.rival) return;
+      list.forEach(m=>{ if((m.fecha||'').slice(0,10)!==TODAY||!m.rival||m.suspendido) return;
         const catLbl=(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[cat]?.label)||cat;
         const fin=m.gLocal!=null&&m.gRival!=null&&(m.confirmado||m.gLocal!=='');
         const nom=_COMP_NOM[m.compId]||m.torneo||('Selección '+catLbl);
@@ -38531,6 +38534,10 @@ function _amistPatch(cat, year, id, fn){
   const m = list.find(m=>m.id===id); if(!m) return;
   fn(m); _saveAmistosos(cat, year, list); _amistRerender(cat, year);
 }
+// Suspendido: el partido sigue cargado pero no cuenta para recordatorios, «Hoy en Selección» ni TV de hoy (Felipe, 16/11/2026).
+window._amistToggleSuspendido = function(cat, year, id){
+  _amistPatch(cat, year, id, m=>{ if(m.suspendido) delete m.suspendido; else m.suspendido = true; });
+};
 // Confirmar un partido = "ya se jugó, contá sus stats" — antes _juvOfficialStats
 // adivinaba esto solo por fecha (m.fecha<=TODAY), y eso fallaba seguido (partido
 // sin fecha exacta, cargado antes/después del día real, etc.) — el usuario pidió
@@ -39419,17 +39426,19 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         const _h=(String(m.hora||'').match(/(\d{1,2}:\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/(\d{1,2}:\d{2})/)||[])[1];
         _rightJ=_h?`<span class="jm-sc"><b>${_h}h</b><em>Por jugar</em></span>`:`<span class="jm-sc"><b style="color:rgba(239,243,248,.4)">–</b><em>Hora por confirmar</em></span>`;
       }
+      if(m.suspendido&&!hasRes) _rightJ=`<span class="jm-sc"><b style="color:#F59E0B">–</b><em style="color:#F59E0B;border-color:#F59E0B66">Suspendido</em></span>`;
       // Mismo criterio en todas las tarjetas: día de la semana · hora (Uruguay) · estadio.
       const _hSub=(String(m.hora||'').match(/(\d{1,2}:\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/(\d{1,2}:\d{2})/)||[])[1];
       const _wd=m.fecha?new Date(String(m.fecha).slice(0,10)+'T12:00:00').toLocaleDateString('es-UY',{weekday:'long'}).replace(/^\w/,c=>c.toUpperCase()):'';
       const _subJ=[_wd,_hSub?_hSub+'h':'',m.lugar||''].filter(Boolean).join(' · ');
       const _fdif=m.fifaDif?` <span class="jm-fd" title="La hora cargada difiere de la que publica FIFA">FIFA indica ${m.fifaDif}h</span>`:'';
       return `${torneoHdr}
-        <div class="jm-card" style="--cat:${_catCol(cat)}" onclick="_amistOpenDetail(${m.id})">
+        <div class="jm-card${m.suspendido?' susp':''}" style="--cat:${_catCol(cat)}" onclick="_amistOpenDetail(${m.id})">
           <span class="pz-d"><b>${_dayJ}</b><span>${_mesJ}</span></span>
           <span class="jm-esc">${_escudoSeleccion(m.rival,30)}</span>
           <span class="jm-mt"><b>Uruguay vs. <em>${m.rival}</em>${ivBadge}${auftvBadge}</b><span>${_subJ||'&nbsp;'}${_fdif}</span></span>
           ${(!hasRes&&!m.esIdaYVuelta&&(m.compId==='mundial-sub15-2026'||m.tv==='none'||m.yt))?_rightJ.replace(/<\/span>$/,_tvHtml(m.compId,m)+'</span>'):_rightJ}
+          <button class="jm-sp${m.suspendido?' on':''}" onclick="event.stopPropagation();_amistToggleSuspendido('${cat}','${year}',${m.id})" title="${m.suspendido?'Suspendido (tocá para reactivarlo)':'Marcar el partido como suspendido'}"><i class="ti ti-ban"></i></button>
           <button class="jm-ck${m.confirmado?' on':''}" onclick="event.stopPropagation();_amistToggleConfirmado('${cat}','${year}',${m.id})" title="${m.confirmado?'Confirmado — cuenta para las estadísticas (tocá para deshacer)':'Confirmar partido para que cuente en las estadísticas'}"><i class="ti ti-check"></i></button>
           <i class="ti ti-chevron-right jm-ch"></i>
         </div>`;
@@ -40310,7 +40319,9 @@ function _convTitulo(pp, info, partidos){
   const mv=nombre.match(/^\s*(?:viajeros?|viaje|gira)\s+(?:a|por|de)\s+(.+)$/i);
   const esViaje=!!mv||/^\s*(viajeros?|viaje|gira)\b/i.test(nombre);
   const esEntr=!esViaje&&(/^\s*microciclo\b/i.test(nombre)||/entrenamiento/i.test(nombre));
-  const base={t:nombre,s:info.sub||resto.join(' · '),eye:'Convocatoria vigente'};
+  // «Vigente» solo si hoy cae dentro de las fechas o todavía no empezó; si ya terminó y no hubo otra, es la última convocatoria (Felipe, 16/11/2026).
+  const _ey=(info.rango&&info.rango[1]<TODAY)?'Última convocatoria':'Convocatoria vigente';
+  const base={t:nombre,s:info.sub||resto.join(' · '),eye:_ey};
   if(esViaje){
     const dest=mv?mv[1].trim():'';
     const amist=partidos&&partidos.length&&partidos.every(m=>!m.compId);
@@ -40329,7 +40340,7 @@ function _convTitulo(pp, info, partidos){
     const n=nombre.match(/^\s*microciclo\s+(\S+)/i);
     return {t:'Entrenamientos en el Complejo Celeste',
       s:[cap(dias),fechas,...salv.map(cap)].filter(Boolean).join(' · '),
-      eye:'Convocatoria vigente'+(n?' · Microciclo '+n[1]:'')};
+      eye:_ey+(n?' · Microciclo '+n[1]:'')};
   }
   return base;
 }
