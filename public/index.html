@@ -8084,10 +8084,23 @@ function renderInicioHoySeleccion(dayOffset){
         }
       }
     }catch(_){}
+    // Actividades que Felipe cargó para ese día (cronograma de la Mayor: conferencia, entrenamientos, concentración…). Antes solo salían los días «viaje / llegada / entreno / descanso» y esto quedaba afuera.
+    let fifaSepTit='🇺🇾 Fecha FIFA — Selección Mayor';
+    try{
+      const _cd=[...(typeof FIFASEP26_CAL_DAYS!=='undefined'?FIFASEP26_CAL_DAYS:[]),...(typeof FIFANOV26_CAL_DAYS!=='undefined'?FIFANOV26_CAL_DAYS:[])].find(d=>d.date===isoHoy);
+      const _off=(_cd&&_cd.eventos)?_cd.eventos.length:0, _evS=(typeof getEvStatus==='function')?getEvStatus():{};
+      const _fh=h=>{ const t=String(h==null?'':h).trim(); if(!t||/^(tbd\*?|am|ht)$/i.test(t)) return ''; return /^\d{1,2}(:\d{2})?$/.test(t)?t+'h':t; };
+      const _lista=(getDayActs()[isoHoy]||[]).map((e,i)=>{ const st=_evS[isoHoy+'_'+(_off+i)]||''; if(st==='no'||!e||!e.txt) return null; const h0=getCalTime(isoHoy,_off+i,e.h); return {e,h0,hh:_fh(h0),done:st==='done'}; }).filter(Boolean)
+        .sort((a,b)=>parseEvTime(String(a.h0||''))-parseEvTime(String(b.h0||'')));
+      if(_lista.length){
+        if(!_cd) fifaSepTit='🇺🇾 Selección Mayor';
+        _lista.forEach(x=>fifaSepHoy.push({icon:x.e.tipo==='entreno'?'ti-run':x.e.tipo==='team'?'ti-users':(x.e.personas&&x.e.personas.length?'ti-microphone':'ti-calendar-event'), txt:`${x.hh?x.hh+' · ':''}${x.e.txt}`, sub:(x.e.personas||[]).filter(Boolean).join(', '), done:x.done, onclick:`showSection('mayor')`}));
+      }
+    }catch(_){}
     const fifaSepRows=fifaSepHoy.map(e=>`
       <div onclick="${e.onclick||''}" class="ih-row" style="${e.onclick?'cursor:pointer':''}">
         <i class="ti ${e.icon}" style="font-size:16px;flex-shrink:0;width:18px;text-align:center;color:${isMob?'rgba(239,243,248,.5)':'#64748B'}"></i>
-        <span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}">${e.txt}</span>
+        <div style="flex:1;min-width:0${e.done?';opacity:.55':''}"><span style="font-size:${isMob?'12.5px':'12px'};font-weight:700;color:${rowColor}${e.done?';text-decoration:line-through':''}">${e.txt}</span>${e.sub?`<span style="font-size:11px;color:${subColor}"> · ${e.sub}</span>`:''}</div>
       </div>`).join('');
 
     // ── Entrenamientos de hoy (Juveniles) ───────────────────────────────────
@@ -8103,7 +8116,11 @@ function renderInicioHoySeleccion(dayOffset){
     // horas de medianoche vs. mediodía en el Date object.
     const _iso=(y,mo,d)=>`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     function _parseMicrocicloRange(label){
-      const seg=(label||'').split('·').map(s=>s.trim()).pop();
+      const segs=(label||'').split('·').map(s=>s.trim()).filter(Boolean).reverse(); // el último tramo puede ser la hora («15:30h»): se prueban todos
+      for(const sg of segs){ const r=_parseMicroSeg(sg); if(r) return r; }
+      return null;
+    }
+    function _parseMicroSeg(seg){
       if(!seg) return null;
       let m=seg.match(/^(\d{1,2})-(\d{1,2})\s+(\w{3})\.?\s+(\d{4})$/i); // "7-11 sep 2026"
       if(m){
@@ -8224,7 +8241,7 @@ function renderInicioHoySeleccion(dayOffset){
     const body=vacio
       ? `<div style="font-size:${isMob?'12.5px':'12px'};color:${subColor}">No hay nada específico para hoy — revisá las tareas.</div>`
       : (partidoRows?subHdr('Partidos')+partidoRows:'')
-      +(fifaSepRows?subHdr('🇺🇾 Fecha FIFA — Selección Mayor')+fifaSepRows:'')
+      +(fifaSepRows?subHdr(fifaSepTit)+fifaSepRows:'')
       +(entrenoRows?subHdr('Entrenamientos y cobertura')+entrenoRows:'')
       +((cumples.length||cumplesCal.length)?subHdr('Cumpleaños')+cumpleRows+cumpleCalRows:'')
       +(cumpleEstructuraRows?subHdr('Cumpleaños · Estructura')+cumpleEstructuraRows:'')
