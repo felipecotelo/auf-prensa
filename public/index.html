@@ -2019,6 +2019,10 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .cr-b span{display:block;color:var(--c)}
 .cr-b ul{margin:4px 0 0;padding-left:16px;color:rgba(239,243,248,.75)}
 .cr-b li i{opacity:.6;font-style:normal}
+.cr-ai{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(56,189,248,.28);background:rgba(56,189,248,.08);font-size:11px;line-height:1.4;color:#BAE6FD}
+.cr-ai i{color:#7DD3FC;font-size:14px;margin-top:1px;flex-shrink:0}
+@keyframes crp{0%,100%{opacity:1}50%{opacity:.3}}
+.cr-b b i.live{animation:crp 1.4s ease-in-out infinite}
 .cr-nota{margin-top:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);font-size:10px;color:rgba(239,243,248,.4);line-height:1.4}
 .pz-mini-foot b{display:block;font-size:12px;font-weight:600;color:#F4F7FB}
 .pz-mini-foot span{display:block;margin:2px 0 10px;font-size:11px;color:rgba(239,243,248,.6);line-height:1.35}
@@ -18776,20 +18780,75 @@ function _fnovProvTxt(nom){
   const n=_fnovProvDe(nom);
   return n==='auf'?' · Confirmado por AUF':n==='liviana'?' · Corroborado con ESPN/FotMob; falta AUF':n==='pizarra'?' · Provisorio: cargado en la Pizarra, sin corroborar':'';
 }
+// «Estado de los datos» de un partido de la Fecha FIFA. Sabe en qué momento está el partido (antes, en juego, terminado) y habla en consecuencia:
+// antes del partido no alarma por datos que todavía no existen; muestra cuenta regresiva y qué va a hacer la app cuando termine (Felipe, 17/11/2026).
+function _crInicio(m){
+  try{
+    const ev=(typeof _fifaEvOf==='function')?_fifaEvOf((m&&m.compId)||'fifanov26'):null, pd=((ev&&ev.partidosData)||[]).find(x=>x.rival===m.rival)||{};
+    const f=String(m.fecha||pd.fecha||'').slice(0,10), hm=String(pd.hora||m.hora||'').match(/(\d{1,2}):(\d{2})/);
+    return {f, start:(f&&hm)?new Date(`${f}T${hm[1].padStart(2,'0')}:${hm[2]}:00-03:00`).getTime():null, hora:hm?hm[1]+':'+hm[2]:''};
+  }catch(_){ return {f:'',start:null,hora:''}; }
+}
+function _crFase(ini,hayDatos){
+  const now=Date.now();
+  if(ini.start){ if(now<ini.start) return 'antes'; if(now<ini.start+125*60000) return hayDatos==='res'?'fin':'vivo'; return 'fin'; }
+  if(ini.f&&ini.f>TODAY) return 'antes'; if(ini.f&&ini.f===TODAY) return 'antes'; return 'fin';
+}
+function _crDur(ms){ const mi=Math.max(0,Math.round(ms/60000)), d=Math.floor(mi/1440), h=Math.floor((mi%1440)/60), r=mi%60; return d?`${d} ${d===1?'día':'días'}${h?' '+h+' h':''}`:h?`${h} h${r?' '+r+' min':''}`:`${r} min`; }
+function _crTxt(ini,fase){
+  const now=Date.now();
+  if(fase==='antes'){
+    if(!ini.start) return ini.f===TODAY?'Es hoy · hora por confirmar':'Todavía no se jugó';
+    const dia=ini.f===TODAY?'Hoy':(ini.f===new Date(Date.now()+86400000).toLocaleDateString('en-CA',{timeZone:'America/Montevideo'})?'Mañana':ini.f.slice(8,10)+'/'+ini.f.slice(5,7));
+    return `${dia} ${ini.hora}h · faltan ${_crDur(ini.start-now)}`;
+  }
+  if(fase==='vivo'){ const mn=Math.max(1,Math.round((now-ini.start)/60000)); return `En juego · van unos ${Math.min(mn,95)} min desde el pitazo`; }
+  return '';
+}
+window._crTick=function(){
+  try{
+    const box=document.querySelector('.cr-box[data-fase]'); if(!box||!window._crM) return;
+    const ini=_crInicio(window._crM), ch=_fnovChequeosPartido(window._crM), hay=(ch.estado!=='pend'&&!/Falta el marcador/.test((ch.items||[]).join('|')))?'res':'';
+    const fase=_crFase(ini,hay);
+    if(fase!==box.dataset.fase){ box.outerHTML=_fnovCorrobHtml(window._crM); return; }
+    box.querySelectorAll('.cr-cd').forEach(el=>{ el.textContent=_crTxt(ini,fase); });
+  }catch(_){}
+};
+if(!window._crTimer) window._crTimer=setInterval(()=>{ if(!document.hidden) window._crTick(); },30000);
 function _fnovCorrobHtml(m){
   if(!m) return '';
+  window._crM=m;
   const ch=_fnovChequeosPartido(m), c=getFifaNovCorrob()[m.rival]||{};
-  const col={ok:'#86EFAC',warn:'#FCD34D',dif:'#FCD34D',pend:'rgba(239,243,248,.45)'}, ic={ok:'ti-circle-check',warn:'ti-alert-triangle',dif:'ti-alert-triangle',pend:'ti-circle-dashed'};
+  const ini=_crInicio(m), hayRes=(ch.estado!=='pend'&&!/Falta el marcador/.test((ch.items||[]).join('|')))?'res':'';
+  const fase=_crFase(ini,hayRes);
+  const col={ok:'#86EFAC',warn:'#FCD34D',dif:'#FCD34D',pend:'rgba(239,243,248,.45)',info:'#7DD3FC',wait:'rgba(239,243,248,.4)',live:'#86EFAC'}, ic={ok:'ti-circle-check',warn:'ti-alert-triangle',dif:'ti-alert-triangle',pend:'ti-circle-dashed',info:'ti-clock',wait:'ti-hourglass-empty',live:'ti-broadcast'};
   const fmt=ts=>{ try{ const d=new Date(ts); return d.toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'}); }catch(_){ return ''; } };
-  const paso=(n,tit,est,det,lista)=>`<div class="cr-p" style="--c:${col[est]}"><span class="cr-n">${n}</span><div class="cr-b"><b>${tit}<i class="ti ${ic[est]}"></i></b><span>${det}</span>${lista&&lista.length?`<ul>${lista.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div></div>`;
+  const paso=(n,tit,est,det,lista)=>`<div class="cr-p" style="--c:${col[est]}"><span class="cr-n">${n}</span><div class="cr-b"><b>${tit}<i class="ti ${ic[est]}${est==='live'?' live':''}"></i></b><span>${det}</span>${lista&&lista.length?`<ul>${lista.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}</div></div>`;
   const ext=(k,n,tit,fte)=>{ const x=c[k]; if(!x) return paso(n,tit,'pend','Pendiente de corroborar',[]);
     return paso(n,tit,x.estado==='ok'?'ok':'dif',(x.estado==='ok'?'Coincide':'Hay diferencias')+' · '+(x.fuente||fte)+(x.ts?' · '+fmt(x.ts):''),[...(x.difs||[]),...((x.obs||[]).map(o=>`<i>${o}</i>`))]); };
-  const det1=ch.estado==='ok'?`${ch.n.st} titulares · ${ch.n.subs} cambios · ${ch.n.gol} goles${ch.n.tar?` · ${ch.n.tar} tarjetas`:''}`:ch.estado==='pend'?'Sin cargar':'Revisá estos puntos';
-  return `<div class="cr-box" title="Estado de las estadísticas de este partido">
+  const st=Object.values((m.lineup&&m.lineup.starters)||{}).filter(Boolean).length;
+  const ai=t=>`<div class="cr-ai"><i class="ti ti-sparkles"></i><span>${t}</span></div>`;
+  let cuerpo;
+  if(fase==='antes'){
+    cuerpo=ai('Cuando termine el partido leo el resultado en las fuentes, lo cruzo con tu Pizarra y te aviso si algo no coincide.')
+      +paso(1,'Pizarra','info',`<span class="cr-cd">${_crTxt(ini,'antes')}</span>${st?` · ${st} titulares cargados`:''}`,[])
+      +paso(2,'Fuente liviana','wait','Se activa cuando termine el partido',[])
+      +paso(3,'AUF (oficial)','wait','Se activa cuando termine el partido',[]);
+  } else if(fase==='vivo'){
+    cuerpo=ai('Partido en juego. Cargá titulares, cambios y tarjetas a medida que pasan; apenas termine empiezo a corroborar.')
+      +paso(1,'Pizarra','live',`<span class="cr-cd">${_crTxt(ini,'vivo')}</span>${st?` · ${st} titulares cargados`:''}`,[])
+      +paso(2,'Fuente liviana','wait','Empieza cuando termine el partido',[])
+      +paso(3,'AUF (oficial)','wait','Empieza cuando termine el partido',[]);
+  } else {
+    const falta=ch.estado==='pend'||/Falta el marcador/.test((ch.items||[]).join('|'));
+    const det1=ch.estado==='ok'?`${ch.n.st} titulares · ${ch.n.subs} cambios · ${ch.n.gol} goles${ch.n.tar?` · ${ch.n.tar} tarjetas`:''}`:ch.estado==='pend'?'Sin cargar':'Revisá estos puntos';
+    cuerpo=(falta?ai('El partido ya terminó. Cargá el marcador y los datos en la Pizarra y los corroboro con las fuentes.'):'')
+      +paso(1,'Cargado en la Pizarra',ch.estado,det1,ch.estado==='pend'?[]:ch.items)
+      +ext('liviana',2,'Fuente liviana','ESPN / FotMob')+ext('auf',3,'AUF (oficial)','AUF');
+  }
+  return `<div class="cr-box" data-fase="${fase}" title="Estado de las estadísticas de este partido">
     <div class="cr-t">Estado de los datos</div>
-    ${paso(1,'Cargado en la Pizarra',ch.estado,det1,ch.estado==='pend'?[]:ch.items)}
-    ${ext('liviana',2,'Fuente liviana','ESPN / FotMob')}
-    ${ext('auf',3,'AUF (oficial)','AUF')}
+    ${cuerpo}
     <div class="cr-nota">Se compara lo grueso (titulares, cambios, tarjetas y goles); ±2 min no cuentan.</div>
   </div>`;
 }
