@@ -10244,7 +10244,7 @@ function _recLinkFotoSuma(arr){
 function _recTodos(){ if(window._recCacheTodos) return window._recCacheTodos; return _recTodosRaw(); }
 // Una sola corrida de _recTodos() para todo un repintado (panel + lista): antes se armaba 3-4 veces por tildado.
 function _recConCache(fn){ const _o=!window._recCacheTodos; if(_o) window._recCacheTodos=_recTodosRaw(); try{ return fn(); } finally{ if(_o) window._recCacheTodos=null; } }
-function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
+function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados(), ..._recPaqueteDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -10303,7 +10303,68 @@ window._idaResp=function(fecha,modo,paga){
     try{ if(typeof renderInicio==='function'&&document.getElementById('inicio')?.classList.contains('active')) renderInicio(); }catch(_){}
   }catch(_){}
 };
+// ── Paquete de actividades de prensa de cada partido de la Mayor (Felipe, 17/11/2026) ──
+// De cada partido se desprenden seis actividades: conferencia del DT en el MD-1, coach arrival y player arrival en el MD, y flash interview, conferencia del DT y zona mixta
+// después del partido. La app pregunta primero si va a haber (recordatorio con botones) y, si sí, las carga solas: el DT ya queda puesto y los jugadores como «a definir».
+const _PKG_KEY='auf4_pkg_prensa';
+const _PKG_ITEMS=[
+  {id:'md1',   tipo:'md1',             nombre:'Conferencia del DT en el MD-1',   t:r=>`Conferencia MD-1 vs. ${r}`,                 dia:-1, dt:true},
+  {id:'coach', tipo:'coach-arrival',   nombre:'Coach arrival',                   t:r=>`Coach arrival vs. ${r}`,                    dia:0,  dt:true,  ko:-100},
+  {id:'player',tipo:'player-arrival',  nombre:'Player arrival',                  t:r=>`Player arrival vs. ${r}`,                   dia:0,  dt:false, ko:-105},
+  {id:'flash', tipo:'flash-interview', nombre:'Flash interview post-partido',    t:r=>`Flash interview post-partido vs. ${r}`,     dia:0,  dt:false},
+  {id:'conf',  tipo:'md',              nombre:'Conferencia del DT post-partido', t:r=>`Conferencia del DT post-partido vs. ${r}`,  dia:0,  dt:true},
+  {id:'zm',    tipo:'zm',              nombre:'Zona mixta post-partido',         t:r=>`Zona mixta post-partido vs. ${r}`,          dia:0,  dt:false},
+];
+function _pkgDec(){ try{ return stor.get(_PKG_KEY,{})||{}; }catch(_){ return {}; } }
+function _pkgPartido(rival){ try{ return ((FIFANOV26&&FIFANOV26.partidosData)||[]).find(x=>x.rival===rival)||null; }catch(_){ return null; } }
+function _pkgDia(f,n){ const d=new Date(String(f).slice(0,10)+'T12:00:00'); d.setDate(d.getDate()+n); return d.toLocaleDateString('en-CA'); }
+function _pkgYa(it,rival,pd){ const F=String(pd.fecha).slice(0,10), fe=_pkgDia(F,it.dia); return getFifaNovAt().some(a=>a.tipo===it.tipo&&a.fecha===fe); }
+function _recPaqueteDerivados(){
+  try{
+    const dec=_pkgDec();
+    return ((FIFANOV26&&FIFANOV26.partidosData)||[]).filter(p=>p.rival&&p.fecha&&String(p.fecha).slice(0,10)>=TODAY&&!dec[p.rival]).map(p=>{
+      const F=String(p.fecha).slice(0,10), ap=_pkgDia(F,-3), v=ap>TODAY?ap:TODAY;
+      return {id:'pkg|'+p.rival,titulo:`¿Habrá actividades de prensa en el partido vs. ${p.rival}?`,detalle:'Conferencia MD-1, coach y player arrival, flash interview, conferencia y zona mixta post-partido',etiqueta:'Mayor',vence:v,hora:'09:00',sinHora:true,hecho:false,pkgRival:p.rival};
+    });
+  }catch(_){ return []; }
+}
+window._pkgCargar=function(rival,ids){
+  try{
+    const pd=_pkgPartido(rival); if(!pd){ toast('No encuentro el partido vs. '+rival); return; }
+    const F=String(pd.fecha).slice(0,10), hm=String(pd.hora||'').match(/(\d{1,2}):(\d{2})/), ko=hm?(+hm[1]*60+ +hm[2]):null;
+    const hhmm=m=>{ m=((m%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); };
+    const DT=(FIFANOV26&&FIFANOV26.dt)||'Diego Forlán';
+    let list=getFifaNovAt(), creadas=[], omitidas=[], n=0;
+    const nuevas=[];
+    _PKG_ITEMS.filter(it=>ids.includes(it.id)).forEach(it=>{
+      const fecha=_pkgDia(F,it.dia);
+      if(list.some(a=>a.tipo===it.tipo&&a.fecha===fecha)){ omitidas.push(it.nombre); return; }
+      const quien=it.dt?DT:FNOV_QUIEN_TBD;
+      const e={id:Date.now()+(n++), tipo:it.tipo, titulo:it.t(rival), txt:'', fecha, hora:(it.ko!=null&&ko!=null)?hhmm(ko+it.ko):'', quien, auto:true};
+      if(quien===FNOV_QUIEN_TBD) e.batchId=Date.now()+n+1000;
+      list.push(e); nuevas.push(e); creadas.push(it.nombre);
+    });
+    if(nuevas.length){ stor.set(KFifaNovAt,list); nuevas.forEach(e=>{ try{ _fnovSyncCalFromAtencion(e, e.batchId?[e]:undefined); }catch(_){} }); }
+    const dec=_pkgDec(); dec[rival]={estado:'si',tipos:ids,cargadas:creadas,ya:omitidas,ts:new Date().toISOString()}; stor.set(_PKG_KEY,dec);
+    toast(creadas.length?`Cargué ${creadas.length} actividad${creadas.length>1?'es':''} del partido vs. ${rival}${omitidas.length?` (${omitidas.length} ya estaban)`:''}. Falta poner quién participa.`:'Esas actividades ya estaban cargadas.');
+    try{ _recDockRender(); }catch(_){}
+    try{ if(typeof renderFifaNovDisponibilidad==='function') renderFifaNovDisponibilidad(); }catch(_){}
+  }catch(e){ try{ toast('No pude cargar las actividades: '+e.message); }catch(_){} }
+};
+window._pkgTodas=function(rival){ window._pkgCargar(rival,_PKG_ITEMS.map(i=>i.id)); };
+window._pkgNo=function(rival){ const dec=_pkgDec(); dec[rival]={estado:'no',ts:new Date().toISOString()}; stor.set(_PKG_KEY,dec); try{ toast('Listo: sin actividades de prensa para el partido vs. '+rival); }catch(_){} try{ _recDockRender(); }catch(_){} };
+window._pkgElegir=function(rival){
+  const pd=_pkgPartido(rival); if(!pd) return;
+  const ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  const rows=_PKG_ITEMS.map(it=>{ const ya=_pkgYa(it,rival,pd); return `<label style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);${ya?'opacity:.55':''}"><input type="checkbox" value="${it.id}" ${ya?'disabled':'checked'}> <span style="flex:1">${it.nombre}</span>${ya?'<span style="font-size:10.5px;color:var(--muted)">ya cargada</span>':''}</label>`; }).join('');
+  ov.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;max-width:380px;width:100%;font-family:inherit"><div style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:4px">Actividades del partido vs. ${rival}</div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Tildá las que va a haber. Las cargo solas; después solo falta poner quién participa.</div>${rows}<div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end"><button id="pkg-x" style="border:1px solid var(--border);background:none;color:var(--text);border-radius:8px;padding:7px 14px;cursor:pointer;font-family:inherit">Cancelar</button><button id="pkg-ok" style="border:none;background:#0EA5E9;color:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:700;font-family:inherit">Cargar</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  ov.querySelector('#pkg-x').onclick=()=>ov.remove();
+  ov.querySelector('#pkg-ok').onclick=()=>{ const ids=[...ov.querySelectorAll('input:checked')].map(i=>i.value); ov.remove(); if(!ids.length){ window._pkgNo(rival); return; } window._pkgCargar(rival,ids); };
+};
 function _recNoAplicaBtn(r,hecho){
+  if(r.pkgRival&&!hecho){ const rv=String(r.pkgRival).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); const b=(t,fn)=>`<button data-r="${rv}" onclick="event.stopPropagation();${fn}(this.dataset.r)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap">${t}</button>`; return `<span style="display:inline-flex;gap:4px;flex-wrap:wrap">${b('Sí, cargar','_pkgTodas')}${b('Elegir','_pkgElegir')}${b('No habrá','_pkgNo')}</span>`; }
   if(r.idaFecha&&!hecho){ const b=(t,m,pg)=>`<button onclick="event.stopPropagation();_idaResp('${r.idaFecha}','${m}','${pg}')" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap">${t}</button>`; return `<span style="display:inline-flex;gap:4px;flex-wrap:wrap">${b('Mi auto','propio','')}${b('Otro auto · AUF','otro','AUF')}${b('Otro auto','otro','')}</span>`; }
   if(r.fnacCat&&!hecho) return `<button data-n="${String(r.fnacCat)}" onclick="_fnacModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">cargar</button>`;
   if(r.clubRaw&&!hecho) return `<button data-n="${String(r.clubRaw).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_clubResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
