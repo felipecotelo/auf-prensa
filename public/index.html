@@ -8474,6 +8474,7 @@ window._loadMisIdas = async function(){
     const d = await r.json();
     window._lastMisIdasData = d;
     try{ localStorage.setItem('inicio-misidas',JSON.stringify(d)); }catch(_){}
+    try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} // los días con «Maldonado» generan la pregunta del auto
     // getElementById solo agarra el primero: mobile y desktop renderizan ambos layouts en el DOM
     // (uno oculto por CSS), así que puede haber 2 elementos con el mismo id — evitamos duplicar
     // seteando el texto completo (no acumulando con +=) para que sea idempotente ante 2 llamados.
@@ -10223,7 +10224,7 @@ function _recLinkFotoSuma(arr){
 function _recTodos(){ if(window._recCacheTodos) return window._recCacheTodos; return _recTodosRaw(); }
 // Una sola corrida de _recTodos() para todo un repintado (panel + lista): antes se armaba 3-4 veces por tildado.
 function _recConCache(fn){ const _o=!window._recCacheTodos; if(_o) window._recCacheTodos=_recTodosRaw(); try{ return fn(); } finally{ if(_o) window._recCacheTodos=null; } }
-function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
+function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -10263,7 +10264,27 @@ function _recHechosHoy(){
 }
 // Cada minuto se vuelve a pintar el panel para que los que cumplieron los 15 min salgan solos, sin recargar.
 if(!window._recHechoTimer) window._recHechoTimer=setInterval(()=>{ try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} },60000);
+// «Maldonado» en el Calendar = ida al Campus por la Selección: la app pregunta cómo fue (auto propio u otro, quién paga) y la anota como una ida (Felipe, 17/11/2026).
+function _idaLog(){ try{ return stor.get('auf4_ida_log',{})||{}; }catch(_){ return {}; } }
+function _recIdasDerivados(){
+  try{
+    const d=(window._lastMisIdasData&&window._lastMisIdasData.maldonadoDias)||(()=>{ try{ return (JSON.parse(localStorage.getItem('inicio-misidas')||'null')||{}).maldonadoDias||[]; }catch(_){ return []; } })();
+    const log=_idaLog(), lim=new Date(); lim.setDate(lim.getDate()-14);
+    return d.filter(f=>f<=TODAY&&new Date(f+'T12:00:00')>=lim&&!log[f]).map(f=>({id:'ida|'+f,titulo:'¿Fuiste a Maldonado en tu auto?',detalle:'Ida del '+f.slice(8,10)+'/'+f.slice(5,7)+' · figura «Maldonado» en tu Calendar',etiqueta:'Nafta',vence:f,hora:'20:00',sinHora:true,hecho:false,idaFecha:f}));
+  }catch(_){ return []; }
+}
+window._idaResp=function(fecha,modo,paga){
+  try{
+    const log=_idaLog(); log[fecha]={modo,paga:paga||'',ida:true,lugar:'Maldonado',ts:new Date().toISOString()}; stor.set('auf4_ida_log',log);
+    // Siempre es una ida más (suma en «Otros»): el modo y quién paga quedan en el registro para la nafta.
+    const v=_getOtrasIdas(); if(!v.some(x=>x.id==='ida-'+fecha+'-maldonado')){ v.push({id:'ida-'+fecha+'-maldonado',label:'Maldonado',lugar:'Campus de Maldonado',cantidad:1,fecha,auto:modo,paga:paga||''}); stor.set(KOtrasIdas,v); }
+    try{ toast('Anotada la ida del '+fecha.slice(8,10)+'/'+fecha.slice(5,7)+(modo==='propio'?' en tu auto':' en otro auto'+(paga?' · paga '+paga:''))); }catch(_){}
+    try{ _recDockRender(); }catch(_){}
+    try{ if(typeof renderInicio==='function'&&document.getElementById('inicio')?.classList.contains('active')) renderInicio(); }catch(_){}
+  }catch(_){}
+};
 function _recNoAplicaBtn(r,hecho){
+  if(r.idaFecha&&!hecho){ const b=(t,m,pg)=>`<button onclick="event.stopPropagation();_idaResp('${r.idaFecha}','${m}','${pg}')" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap">${t}</button>`; return `<span style="display:inline-flex;gap:4px;flex-wrap:wrap">${b('Mi auto','propio','')}${b('Otro auto · AUF','otro','AUF')}${b('Otro auto','otro','')}</span>`; }
   if(r.fnacCat&&!hecho) return `<button data-n="${String(r.fnacCat)}" onclick="_fnacModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">cargar</button>`;
   if(r.clubRaw&&!hecho) return `<button data-n="${String(r.clubRaw).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_clubResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
   if(r.nomPend&&!hecho) return `<button data-n="${String(r.nomPend).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_nombreResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;

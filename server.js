@@ -795,7 +795,12 @@ async function computeMisIdas() {
     }
   }
 
-  return { complejo, aufPm, fifaDays, year: thisYear, updatedAt: new Date().toISOString() };
+  // Días con «Maldonado» (evento de día completo del Calendar personal: Felipe va al Campus por la Selección). La app pregunta cómo fue cada uno
+  // (auto propio u otro, quién paga) y lo anota como una ida. Se devuelven los últimos 30 días hasta hoy.
+  const _iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const _desde = new Date(); _desde.setDate(_desde.getDate() - 30); _desde.setHours(0, 0, 0, 0);
+  const maldonadoDias = [...new Set(personalEvents.filter(e => e.summary.trim().toLowerCase() === 'maldonado' && e.start >= _desde && e.start <= finDeHoy).map(e => _iso(e.start)))].sort();
+  return { complejo, aufPm, fifaDays, maldonadoDias, year: thisYear, updatedAt: new Date().toISOString() };
 }
 
 app.get('/api/mis-idas', async (req, res) => {
