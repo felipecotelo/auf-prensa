@@ -17371,6 +17371,15 @@ const KFifaNovStatsDelta='auf4_fifanov_stats_delta';
 function _fifaNovPizarraMatches(){
   try{ return JSON.parse(localStorage.getItem('auf4_amist_juv_fifamayor_nov26')||'[]')||[]; }catch(_){ return []; }
 }
+// Goles encajados con la Selección ANTES de la gira (solo se afirma donde es seguro): los arqueros sin partidos tienen 0. El resto queda sin dato hasta cargarlo partido por partido.
+const FIFANOV26_GC_BASE={'Ignacio de Arruabarrena':0,'Sebastián Jaume':0};
+function _fnovGolesEnc(nom){
+  const t=(typeof JUGADORES!=='undefined'&&JUGADORES[nom]&&JUGADORES[nom].total)||{};
+  if(t.gc!=null) return {val:t.gc,gira:null};
+  const base=FIFANOV26_GC_BASE[nom]; let gira=0, pend=false;
+  Object.values(getFifaNovStatsDelta()).forEach(md=>{ const x=md&&md[nom]; if(x){ if(x.gc==null) pend=true; else gira+=x.gc; } });
+  return {val:(base!=null&&!pend)?base+gira:null,gira:pend?null:gira};
+}
 function _fifaNovDeltaDesdePizarra(){
   const list=_fifaNovPizarraMatches();
   const out={};
@@ -17388,6 +17397,21 @@ function _fifaNovDeltaDesdePizarra(){
     }
     out[m.rival]={};
     jugaron.forEach(nom=>{ out[m.rival][nom]={pj:1,g:gol[nom]||0}; });
+    // Goles encajados de los arqueros (Felipe, 18/11/2026): cuentan solo los que entraron con él en la cancha. Si el rival no hizo goles, 0 para todos; si hizo y el arquero jugó todo el partido,
+    // todos los goles; si entró o salió con goles del rival de por medio y no se cargaron los minutos de esos goles (`golesRival`), queda pendiente (gcPend) y no se afirma un número.
+    try{
+      const gks=new Set(((FIFANOV26.reservados||{}).POR||[]).map(j=>j.nom)), gR=parseInt(m.gRival,10)||0;
+      const subs=m.subs||[], mins=(m.golesRival||[]).map(x=>parseInt(x&&x.min!=null?x.min:x,10)).filter(n=>!isNaN(n));
+      jugaron.filter(n=>gks.has(n)).forEach(nom=>{
+        const esTit=starters.includes(nom), sub=subs.find(x=>x.nom===nom), ent=esTit?0:parseInt(sub&&sub.min,10), sal=parseInt((subs.find(x=>x.por===nom)||{}).min,10);
+        const otroArq=jugaron.some(n=>n!==nom&&gks.has(n));
+        let gc=null;
+        if(gR===0) gc=0;
+        else if(mins.length===gR&&(esTit||!isNaN(ent))) gc=mins.filter(mm=>mm>(esTit?0:ent)&&(isNaN(sal)||mm<=sal)).length;
+        else if(esTit&&!otroArq) gc=gR;
+        out[m.rival][nom].gc=gc; if(gc==null) out[m.rival][nom].gcPend=true;
+      });
+    }catch(_){}
   });
   return out;
 }
@@ -18736,7 +18760,8 @@ function renderFifaNov26(tabId){
         // Arqueros: importan los goles que le hicieron, casi nunca hacen uno
         // propio — mismo criterio que ya usa la ficha de Jugadores (total.gc).
         const isGK=p.pos==='POR';
-        const golesVal=isGK?(d?.total?.gc??null):g;
+        const _ge=isGK?_fnovGolesEnc(p.nom):null;
+        const golesVal=isGK?(_ge.val):g;
         const golesLabel=isGK?'Goles enc.':'Goles';
         // "+N" al lado del número — puramente informativo ("jugó N partidos
         // en esta Fecha FIFA"), viene de auf4_fifanov_stats_delta (confirmado
@@ -18749,6 +18774,7 @@ function renderFifaNov26(tabId){
         const _fsDelta=getFifaNovStatsDelta();
         let deltaPj=0, deltaG=0;
         Object.values(_fsDelta).forEach(md=>{ const pd=md[p.nom]; if(pd){ deltaPj+=pd.pj||0; if(!isGK) deltaG+=pd.g||0; } });
+        if(isGK&&_ge&&_ge.gira!=null) deltaG=_ge.gira;
         const _base=FIFANOV26_STATS_BASELINE[p.nom];
         const deltaMin=_base?Math.max(0,min-_base.min):0;
         const edad=d?.fechaNac?_nacAge(d.fechaNac):null;
