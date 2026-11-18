@@ -10463,7 +10463,12 @@ window._hitoDesestimar=function(id){
 function _recHitosDerivados(){
   try{
     const man=stor.get('auf4_rec_manual',{}), out=[], lim=_pkgDia(TODAY,-2), des=stor.get('auf4_hitos_desest',{})||{};
-    _hitosDeLaGira().filter(h=>h.fecha>=lim).forEach(h=>{
+    const _HG=_hitosDeLaGira().filter(h=>h.fecha>=lim);
+    // Apellido para los títulos («De Arruabarrena», «Damiani»): se sacan los nombres de pila y se respeta la partícula.
+    const _ape=nom=>{ const w=String(nom).trim().split(/\s+/), P=/^(de|da|do|di|del|la|los|van|von)$/i; let i=w.length-1; while(i>0&&P.test(w[i-1])) i--; return w.slice(i).map((x,k)=>k===0&&P.test(x)?x[0].toUpperCase()+x.slice(1):x).join(' '); };
+    _HG.forEach(h=>{
+      // Debut y primer gol del mismo jugador en el mismo partido van en UN solo recordatorio («el debut + primer gol de X»)
+      if(h.k==='primer'&&_HG.some(x=>x.k==='debut'&&x.nom===h.nom&&x.fecha===h.fecha)) return;
       if(['hist','primer','doblete','racha'].includes(h.k)){ // avisos sueltos: se ven enseguida y se tildan solos
         const id=`hito|aviso|${h.k}|${_nomKey(h.nom)}|${h.n||0}`, mn=man[id]||{}; if(des[id]) return;
         const _lst=a=>a.length>3?a.slice(0,3).join(', ')+' y '+(a.length-3)+' más':a.length>1?a.slice(0,-1).join(', ')+' y '+a[a.length-1]:a[0];
@@ -10473,12 +10478,14 @@ function _recHitosDerivados(){
         return;
       }
       const nk=_nomKey(h.nom), base=`hito|${h.k}|${nk}${h.n?'|'+h.n:''}`; if(des[base]) return;
-      const que=h.k==='debut'?`el debut de ${h.nom}`:h.k==='goles'?`los ${h.n} goles de ${h.nom}`:`los ${h.n} partidos de ${h.nom}`;
-      const det=`vs. ${h.rival}`+(h.k==='debut'?' · debutó':h.k==='goles'?` · llegó a ${h.n} goles`:` · llegó a ${h.n} partidos`);
-      const pasos=[['dis',`Mandar a hacer diseño por ${que}`,1],['pub',h.k==='debut'?`Publicar el diseño del debut de ${h.nom}`:`Publicar el diseño de ${que}`,2]];
+      const ape=_ape(h.nom), conPrimer=h.k==='debut'&&_HG.some(x=>x.k==='primer'&&x.nom===h.nom&&x.fecha===h.fecha);
+      const que=h.k==='debut'?`el debut${conPrimer?' + primer gol':''} de ${ape}`:h.k==='goles'?`los ${h.n} goles de ${ape}`:`los ${h.n} partidos de ${ape}`;
+      const det=`vs. ${h.rival}`+(h.k==='debut'?(conPrimer?' · debutó y convirtió':' · debutó'):h.k==='goles'?` · llegó a ${h.n} goles`:` · llegó a ${h.n} partidos`);
+      // Los pasos vencen el mismo día: el siguiente aparece apenas se da por hecho el anterior (Felipe, 18/11/2026).
+      const pasos=[['dis',`Mandar a diseñar por ${que}`,1],['pub',`Publicar diseño por ${que}`,2]];
       if(h.k==='pj') pasos.push(['cam',`Mandar a hacer la camiseta por ${que}`,3]);
       pasos.forEach(([c,t,o])=>{ const id=base+'|'+c, mn=man[id]||{};
-        out.push({id,titulo:t,detalle:det,etiqueta:'Mayor',vence:_pkgDia(h.fecha,o),hora:'09:00',sinHora:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null,secuencial:true,grupo:base,orden:o,derivado:true}); });
+        out.push({id,titulo:t,detalle:det,etiqueta:'Mayor',vence:_pkgDia(h.fecha,1),hora:'09:00',sinHora:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null,secuencial:true,grupo:base,orden:o,derivado:true}); });
     });
     return out;
   }catch(e){ return []; }
@@ -10495,6 +10502,13 @@ window._pdfDescargar=async function(html,nombre,ancho){
     try{ if(d.fonts&&d.fonts.ready) await Promise.race([d.fonts.ready,new Promise(r=>setTimeout(r,4000))]); }catch(_){}
     const t0=Date.now(); while([...d.images].some(i=>!i.complete)&&Date.now()-t0<6000) await new Promise(r=>setTimeout(r,200));
     d.documentElement.style.background='#0A1022'; d.body.style.margin='0';
+    // html2canvas ignora object-fit y deforma las fotos: cada <img> con cover/contain pasa a ser un fondo con el mismo recorte.
+    try{
+      const W1=fr.contentWindow;
+      [...d.images].forEach(im=>{ const cs=W1.getComputedStyle(im), of=cs.objectFit; if(!of||of==='fill') return; const r=im.getBoundingClientRect(); if(!r.width||!r.height) return;
+        const sp=d.createElement('span'); sp.style.cssText=`display:inline-block;flex-shrink:0;width:${r.width}px;height:${r.height}px;border-radius:${cs.borderRadius};background:${cs.backgroundColor} url("${im.currentSrc||im.src}") ${cs.objectPosition} / ${of==='contain'?'contain':'cover'} no-repeat;border:${cs.borderTopWidth} ${cs.borderTopStyle} ${cs.borderTopColor};box-sizing:border-box`;
+        if(im.className) sp.className=im.className.replace(/\bav\b/,'').trim(); im.replaceWith(sp); });
+    }catch(_){}
     // html2canvas no entiende los colores modernos (color-mix → «color(srgb …)»): se pasan a rgba() antes de dibujar.
     try{
       const cv=document.createElement('canvas'); cv.width=cv.height=1; const cx=cv.getContext('2d',{willReadFrequently:true});
@@ -10510,17 +10524,19 @@ window._pdfDescargar=async function(html,nombre,ancho){
     const PH=Math.round(ancho*1.4142), MG=26, H=PH-2*MG;
     W0=fr.contentWindow; const y0=d.body.getBoundingClientRect().top+W0.pageYOffset, top=el=>el.getBoundingClientRect().bottom+W0.pageYOffset-y0;
     const heading=el=>el.matches('h2,.hs,.sx-eye,.eye,.pdf-e');
-    const uni=[...d.querySelectorAll('body>*,.pdf-wrap>*,.tp,.pt,.k,.jm-card,.fs-two,.ff2,.sh-card')].filter(e=>!heading(e)).map(top);
-    const fin=[...d.querySelectorAll('.q,tr,.sh-row,.ff2-m,.fs-tile,.fs-panel')].map(top).concat(uni);
+    const uni=[...d.querySelectorAll('body>*,.pdf-wrap>*,.tp,.pt,.k,.jm-card,.fs-two,.ff2,.sh-card,.rw,.big,.mc')].filter(e=>!heading(e)).map(top);
+    const fin=[...d.querySelectorAll('.q,tr,.sh-row,.ff2-m,.fs-tile,.fs-panel,.rk')].map(top).concat(uni);
     const mx=a=>a.reduce((m,v)=>v>m?v:m,0);
     const cortes=[0]; let ini=0;
     while(ini<alto-1){ const lim=ini+H; if(lim>=alto){ cortes.push(alto); break; }
+      const forz=[...d.querySelectorAll('.cover')].map(top).filter(v=>v>ini+4&&v<=lim+2); if(forz.length){ const f=Math.min(...forz); cortes.push(f); ini=f; continue; }
       let c=mx(uni.filter(v=>v<=lim&&v>ini+H*0.55)); if(!c) c=mx(fin.filter(v=>v<=lim&&v>ini+H*0.3)); if(!c) c=lim; cortes.push(c); ini=c; }
     const {jsPDF}=window.jspdf, pdf=new jsPDF({unit:'px',format:[ancho,PH],orientation:'p',hotfixes:['px_scaling'],compress:true});
     for(let i=0;i<cortes.length-1;i++){ const a=cortes[i], b=cortes[i+1], hh=b-a; if(hh<4) continue;
       if(i>0) pdf.addPage([ancho,PH],'p'); pdf.setFillColor(10,16,34); pdf.rect(0,0,ancho,PH,'F');
       const t=document.createElement('canvas'); t.width=canvas.width; t.height=Math.max(1,Math.round(hh*2)); t.getContext('2d').drawImage(canvas,0,Math.round(a*2),canvas.width,t.height,0,0,canvas.width,t.height);
       pdf.addImage(t.toDataURL('image/jpeg',0.92),'JPEG',0,MG,ancho,t.height/2,undefined,'FAST'); }
+    if(window.__pdfNoSave){ window.__pdfBlob=pdf.output('blob'); try{ toast('PDF descargado: '+nombre); }catch(_){} return; }
     pdf.save(nombre); try{ toast('PDF descargado: '+nombre); }catch(_){}
   }catch(e){ try{ toast('⚠ No pude generar el PDF: '+(e&&e.message||e)); }catch(_){} }
   finally{ if(fr) fr.remove(); }
@@ -10530,94 +10546,79 @@ window._pdfDescargar=async function(html,nombre,ancho){
 // Se baja directo como PDF (una hoja larga, ancho de celular para que se lea grande).
 window._prensaExportarPDF=function(){
   try{
-    const EV=(typeof FIFANOV26!=='undefined')?FIFANOV26:{}, per=EV.periodoFifa||{desde:EV.desde,hasta:EV.hasta}, ev=getEvStatus(), da=getDayActs(), aero=Object.keys(stor.get('auf4_fifanov_aero',{})).filter(n=>stor.get('auf4_fifanov_aero',{})[n]);
+    const EV=(typeof FIFANOV26!=='undefined')?FIFANOV26:{}, per=EV.periodoFifa||{desde:EV.desde,hasta:EV.hasta}, ev=getEvStatus(), da=getDayActs(), aeroO=stor.get('auf4_fifanov_aero',{}), aero=Object.keys(aeroO).filter(n=>aeroO[n]);
     const esc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const TIPOS=[
-      {k:'conf', re:/conferencia/i,            lbl:'Conferencias de prensa',  sing:'conferencia', plu:'conferencias', ic:'🎤', col:'#38BDF8'},
-      {k:'ape',  re:/apertura/i,               lbl:'Aperturas a la prensa',   sing:'apertura', plu:'aperturas', ic:'🏃', col:'#22D3EE', plantel:true},
-      {k:'tv',   re:/\bnotas?\b|auftv/i, lbl:'Notas para AUFtv', sing:'nota para AUFtv', plu:'notas para AUFtv', ic:'📺', col:'#F472B6'},
-      {k:'zm',   re:/zona mixta/i,             lbl:'Zonas mixtas',            sing:'zona mixta', plu:'zonas mixtas', ic:'🎥', col:'#FCD34D'},
-      {k:'flash',re:/flash/i,                  lbl:'Flash interviews',        sing:'flash interview', plu:'flash interviews', ic:'⚡', col:'#FB923C'},
-      {k:'arr',  re:/arrival/i,                lbl:'Llegadas al estadio',     sing:'llegada al estadio', plu:'llegadas al estadio', ic:'🚌', col:'#86EFAC'},
-      {k:'auto', re:/prensa desde el auto/i,   lbl:'Atención al retirarse',   sing:'atención al retirarse', plu:'atenciones al retirarse', ic:'🚗', col:'#A3E635'},
-    ];
-    const NO=/shooting|felices fiestas|navidad|pieza de|firma de|autógraf|autograf|camiseta|rodaje|marketing/i;
-    const evs=[]; // {fecha,tipo,txt,pers[]}
+    const PRENSA=/conferencia|apertura|zona mixta|flash|\bnotas?\b|auftv|arrival|prensa desde el auto/i, NO=/shooting|felices fiestas|navidad|pieza de|firma de|autógraf|autograf|camiseta|rodaje|marketing/i;
+    const DT='Diego Forlán';
+    const esJug=n=>typeof JUGADORES!=='undefined'&&!!JUGADORES[n]&&n!==DT;
+    // Actividades tal como están cargadas en el calendario (cronograma), en orden; las marcadas NO realizadas no cuentan.
+    const acts=[]; 
     Object.keys(da).filter(d=>d>=per.desde&&d<=per.hasta&&d<=TODAY).sort().forEach(d=>{ (da[d]||[]).forEach((a,i)=>{
-      const txt=String(a.txt||''); if(!txt||NO.test(txt)) return; if(ev[evKey(d,i)]==='no') return;
-      const t=TIPOS.find(x=>x.re.test(txt)); if(!t) return;
-      evs.push({fecha:d,t,txt,pers:(a.personas||[]).filter(n=>n&&n!==FNOV_QUIEN_TBD)});
+      const txt=String(a.txt||'').trim(); if(!txt||NO.test(txt)||!PRENSA.test(txt)||ev[evKey(d,i)]==='no') return;
+      acts.push({fecha:d,i,min:(typeof parseEvTime==='function'?parseEvTime(a.h):0),txt,pers:(a.personas||[]).filter(n=>n&&n!==FNOV_QUIEN_TBD),plantel:/apertura/i.test(txt)});
     }); });
-    // una conferencia = un evento por día y título (aunque hablen varios)
-    const conf=new Map(); const eventos=[];
-    evs.forEach(e=>{ if(e.t.k==='conf'){ const k=e.fecha+'|'+e.txt; if(!conf.has(k)){ conf.set(k,{...e,pers:[...e.pers]}); eventos.push(conf.get(k)); } else conf.get(k).pers.push(...e.pers.filter(n=>!conf.get(k).pers.includes(n))); } else eventos.push(e); });
-    if(aero.length) eventos.unshift({fecha:per.desde,t:{k:'aero',lbl:'Llegada al aeropuerto',sing:'llegada al aeropuerto',plu:'llegadas al aeropuerto',ic:'✈',col:'#FDBA74'},txt:'Llegada al aeropuerto',pers:aero,aero:true});
-    const esJug=n=>typeof JUGADORES!=='undefined'&&!!JUGADORES[n];
-    const atn=e=>e.t.plantel?0:e.pers.length;
-    const totE=eventos.length, totA=eventos.reduce((n,e)=>n+atn(e),0);
-    const quienes=new Map(); eventos.forEach(e=>{ if(e.t.plantel) return; e.pers.forEach(n=>quienes.set(n,(quienes.get(n)||0)+1)); });
-    const jugs=[...quienes].filter(([n])=>esJug(n)), staff=[...quienes].filter(([n])=>!esJug(n));
-    const porTipo=[...TIPOS,{k:'aero',lbl:'Llegada al aeropuerto',sing:'llegada al aeropuerto',plu:'llegadas al aeropuerto',ic:'✈',col:'#FDBA74'}].map(t=>{ const es=eventos.filter(e=>e.t.k===t.k); return {t,n:es.length,a:es.reduce((x,e)=>x+atn(e),0)}; }).filter(x=>x.n);
-    const maxN=Math.max(1,...porTipo.map(x=>x.n));
-    const partidos=(EV.partidosData||[]), ult=partidos.length?partidos[0].fecha:'';
-    const bloques=partidos.map((pd,i)=>{ const desde=i===0?'0000':partidos[i-1].fecha, hasta=pd.fecha; const es=eventos.filter(e=>(i===0?e.fecha<=hasta:e.fecha>desde&&e.fecha<=hasta)||(i===partidos.length-1&&e.fecha>hasta)); return {pd,es}; });
+    acts.sort((x,y)=>x.fecha.localeCompare(y.fecha)||((x.min>=0&&y.min>=0&&x.min!==y.min)?x.min-y.min:0)||(x.txt===y.txt?((y.pers.includes(DT)?1:0)-(x.pers.includes(DT)?1:0)):0)||x.i-y.i);
+    const lista=[]; if(aero.length) lista.push({fecha:per.desde,txt:'Atención a prensa al llegar al aeropuerto',pers:aero,aero:true});
+    acts.forEach(a=>lista.push(a));
+    const y=(arr)=>arr.length>1?arr.slice(0,-1).join(', ')+' y '+arr[arr.length-1]:(arr[0]||'');
+    const titulo=a=>{ if(a.aero) return a.txt; const t=a.txt; const n=y(a.pers);
+      let m=t.match(/^Conferencia\s+(MD-?\d+)(.*)$/i); if(m) return `Conferencia de prensa de ${n||'jugadores a definir'} en el ${m[1].toUpperCase()}${m[2]}`;
+      if(/^Conferencia/i.test(t)) return `Conferencia de prensa de ${n||'jugadores a definir'} ${t.replace(/^Conferencia\s*/i,'')}`;
+      return t; };
+    const quienes=new Map(); lista.forEach(a=>{ if(a.plantel) return; a.pers.forEach(n=>quienes.set(n,(quienes.get(n)||0)+1)); });
+    const totAt=[...quienes.values()].reduce((n,v)=>n+v,0);
+    const convocados=(EV.finales||[]).filter(Boolean).filter(n=>n!==DT), hablaron=convocados.filter(n=>quienes.has(n)), extra=[...quienes.keys()].filter(n=>esJug(n)&&!convocados.includes(n));
+    const hablaronN=hablaron.length+extra.length, totalJ=convocados.length+extra.length, noHablaron=convocados.filter(n=>!quienes.has(n));
     const abs=u=>{ try{ return u?new URL(u,location.href).href:''; }catch(_){ return ''; } };
-    const esc2=(n,sz)=>String(_escudoSeleccion(n,sz)).replace(/src="\.\//g,'src="'+location.origin+'/').replace(/ onerror="[^"]*"/g,'');
     const ini=n=>String(n).split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
-    const fotoDe=n=>{ try{ if(n==='Diego Forlán'&&typeof getDTFoto==='function') return abs(getDTFoto('forlan',_AUF_FOTO+'diego-forlan.jpg')||''); return abs((window._getPhotoByName&&window._getPhotoByName(n))||''); }catch(_){ return ''; } };
+    const fotoDe=n=>{ try{ if(n===DT&&typeof getDTFoto==='function') return abs(getDTFoto('forlan',_AUF_FOTO+'diego-forlan.jpg')||''); return abs((window._getPhotoByName&&window._getPhotoByName(n))||''); }catch(_){ return ''; } };
     const av=(n,sz)=>{ const src=fotoDe(n); return src?`<img class="av" style="width:${sz}px;height:${sz}px" src="${esc(src)}" alt="" onerror="this.outerHTML='<span class=&quot;av ph&quot; style=&quot;width:${sz}px;height:${sz}px&quot;>${esc(ini(n))}</span>'">`:`<span class="av ph" style="width:${sz}px;height:${sz}px">${esc(ini(n))}</span>`; };
-    const corto=n=>{ const w=String(n).split(/\s+/); return w.length>2?w.slice(-2).join(' '):w.slice(-1)[0]; };
-    const plural=(n,s,p)=>n+' '+(n===1?s:p);
-    const rivales=partidos.map(x=>(x.rivalBandera||'')+' '+x.rival).join('  ·  ');
+    const esc2=(n,sz)=>String(_escudoSeleccion(n,sz)).replace(/src="\.\//g,'src="'+location.origin+'/').replace(/ onerror="[^"]*"/g,'');
+    const partidos=(EV.partidosData||[]);
     const MS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'], f2=f=>{ const d=new Date(f+'T12:00:00'); return d.getDate()+' de '+MS[d.getMonth()]; };
-    // Solo lo concreto, en dos grupos por partido (Felipe, 18/11/2026): «Eventos con la prensa» (conferencias, aperturas, zonas mixtas, llegada al aeropuerto) y «Atenciones a medios» (notas AUFtv, flash interviews, llegadas al estadio, atención al retirarse).
-    const COLECT=new Set(['conf','ape','zm','aero']);
-    const nombres=pers=>pers.length?pers.map(esc).join(', '):'';
-    const fila=(titulo,pers,col,badge)=>`<div class="rw" style="--c:${col}"><div class="rt">${esc(titulo)}</div>${pers&&pers.length?`<div class="rp">${nombres(pers)}</div>`:''}<div class="rb">${badge}</div></div>`;
-    const grupoHtml=(es,col0)=>{ const out=[]; const porTipoG=new Map();
-      es.forEach(e=>{ if(COLECT.has(e.t.k)){ const badge=e.t.plantel?'':`<b>${e.pers.length}</b><small>${e.pers.length===1?'atención':'atenciones'}</small>`; out.push({o:e.fecha,h:fila(e.aero?'Llegada al aeropuerto':e.txt,e.t.plantel?['Plantel completo, abierto a la prensa']:e.pers,e.t.col,badge)}); } else { const g=porTipoG.get(e.t.k)||{t:e.t,pers:[],n:0,f:e.fecha}; g.pers.push(...e.pers); g.n++; porTipoG.set(e.t.k,g); } });
-      const colh=out.sort((a,b)=>a.o.localeCompare(b.o)).map(x=>x.h).join('');
-      const ind=[...porTipoG.values()].map(g=>fila(g.n>1?g.t.lbl+' ('+g.n+')':g.t.lbl.replace(/s$/,'').replace('Notas','Nota').replace('Llegadas','Llegada').replace('Flash interviews','Flash interview'),g.pers,g.t.col,`<b>${g.pers.length}</b><small>${g.pers.length===1?'atención':'atenciones'}</small>`)).join('');
-      return {colh,ind}; };
-    const bloqueHtml=b=>{ const ps=b.es, a=ps.reduce((n,e)=>n+atn(e),0), G=grupoHtml(ps), nCol=ps.filter(e=>COLECT.has(e.t.k)).length, nInd=ps.length-nCol;
-      return `<div class="pt"><div class="pth"><div class="vs">${esc2('Uruguay',46)}<span>vs</span>${esc2(b.pd.rival,46)}</div><div><div class="ptt">${esc(b.pd.rival)}</div><div class="pts">${esc(f2(b.pd.fecha))}</div></div></div>
-        <div class="ptk"><div><b>${ps.length}</b><span>eventos</span></div><div><b>${a}</b><span>atenciones</span></div></div>
-        ${G.colh?`<div class="gh">Eventos con la prensa · ${nCol}</div>${G.colh}`:''}${G.ind?`<div class="gh">Atenciones a medios · ${nInd}</div>${G.ind}`:''}</div>`; };
-    const dtN=quienes.has('Diego Forlán')?[['Diego Forlán',quienes.get('Diego Forlán')]]:[];
-    const otros=[...jugs,...staff].filter(([n])=>n!=='Diego Forlán').sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
-    const quien=(n,c)=>`<div class="q">${av(n,60)}<b>${esc(corto(n))}</b><span>${c}</span></div>`;
+    const COL=a=>/conferencia/i.test(a.txt)?'#38BDF8':/apertura/i.test(a.txt)?'#22D3EE':/zona mixta/i.test(a.txt)?'#FCD34D':/auftv|nota/i.test(a.txt)?'#F472B6':a.aero?'#FDBA74':/flash/i.test(a.txt)?'#FB923C':'#86EFAC';
+    const fila=a=>`<div class="rw" style="--c:${COL(a)}"><div class="rt">${esc(titulo(a))}</div>${a.plantel?'<div class="rp">Plantel completo, abierto a la prensa</div>':(a.pers.length&&!(/^Conferencia/i.test(a.txt)&&!a.aero)?`<div class="rp"><b>${a.pers.length===1?'Habló':'Hablaron'}:</b> ${a.pers.map(esc).join(', ')}</div>`:'')}</div>`;
+    const rank=[...quienes].sort((a,b)=>(a[0]===DT?-1:b[0]===DT?1:0)||b[1]-a[1]||a[0].localeCompare(b[0],'es'));
+    const mx=Math.max(1,...rank.map(r=>r[1]));
     const html=`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Prensa · ${esc(EV.label||'Fecha FIFA')}</title>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"><style>
       *{box-sizing:border-box}html,body{background:#0A1022;margin:0}body{font-family:'Inter',-apple-system,Arial,sans-serif;color:#EFF3F8;width:588px;padding:10px 24px 10px;line-height:1.3}
-      .top{display:flex;align-items:center;gap:16px;margin-bottom:20px}.top img{width:72px;height:72px;border-radius:18px;object-fit:cover}
+      .top{display:flex;align-items:center;gap:16px;margin-bottom:18px}.top img{width:72px;height:72px;border-radius:18px;object-fit:cover}
       .e{font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#8AD8FF}
       h1{font-family:'Space Grotesk','Inter',sans-serif;font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.05;margin:4px 0 0}
       .sub{font-size:17px;color:rgba(239,243,248,.7);margin-top:6px}
-      .ks{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:26px}
-      .k{padding:20px 20px 18px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
-      .k b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:72px;font-weight:700;letter-spacing:-.04em;line-height:1}
-      .k span{display:block;margin-top:8px;font-size:17px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(239,243,248,.7)}
-      .pt{padding:20px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);margin-bottom:16px}
-      .pth{display:flex;align-items:center;gap:14px}.vs{display:flex;align-items:center;gap:8px;flex-shrink:0}.vs span{font-size:14px;font-weight:700;color:rgba(239,243,248,.5);text-transform:uppercase}
-      .ptt{font-family:'Space Grotesk','Inter',sans-serif;font-size:27px;font-weight:700}.pts{font-size:16px;color:rgba(239,243,248,.65)}
-      .ptk{display:flex;gap:26px;margin:14px 0 4px;padding:12px 4px 0;border-top:1px solid rgba(255,255,255,.1)}.ptk div{display:flex;align-items:baseline;gap:8px}
-      .ptk b{font-family:'Space Grotesk','Inter',sans-serif;font-size:36px;line-height:1}.ptk span{font-size:16px;color:rgba(239,243,248,.7)}
-      .gh{margin:18px 0 8px;font-size:15px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8AD8FF}
-      .rw{position:relative;margin-bottom:9px;padding:12px 96px 12px 16px;min-height:60px;border-radius:14px;background:rgba(255,255,255,.05);border-left:6px solid var(--c)}
-      .rt{font-size:19px;font-weight:700;color:#F4F7FB}.rp{margin-top:4px;font-size:15px;color:rgba(239,243,248,.75);line-height:1.4}
-      .rb{position:absolute;right:14px;top:50%;transform:translateY(-50%);text-align:center;line-height:1.1}.rb b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:32px;color:#F4F7FB}.rb small{display:block;font-size:13px;color:rgba(239,243,248,.6)}
-      h2{font-family:'Space Grotesk','Inter',sans-serif;font-size:27px;font-weight:700;margin:26px 0 12px}
-      .qs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.q{display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 4px 10px;border-radius:16px;background:rgba(255,255,255,.04)}
-      .q b{margin-top:7px;font-size:14px;font-weight:700;color:#F4F7FB;line-height:1.15}.q span{font-size:13px;color:rgba(239,243,248,.6)}
-      .qd{grid-column:1/-1;flex-direction:row;gap:16px;text-align:left;padding:14px 18px;background:#38BDF812;border:1px solid #38BDF855}.qd .tx{display:flex;flex-direction:column}.qd b{margin:0;font-size:24px}.qd span{font-size:16px;color:#8AD8FF}
-      .av{border-radius:50%;object-fit:cover;object-position:top;background:#1B2744;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#8AD8FF;font-size:18px;flex-shrink:0}
+      .mt{display:grid;gap:10px;margin:0 0 20px}.mc{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}.mc span{font-size:13px;font-weight:700;color:rgba(239,243,248,.5);text-transform:uppercase}.mc div{margin-left:8px;display:flex;flex-direction:column}.mc b{font-size:18px;color:#F4F7FB}.mc i{font-style:normal;font-size:14px;color:rgba(239,243,248,.6)}
+      h2{font-family:'Space Grotesk','Inter',sans-serif;font-size:28px;font-weight:700;letter-spacing:-.02em;margin:26px 0 12px}
+      .rw{margin-bottom:10px;padding:14px 18px;border-radius:14px;background:rgba(255,255,255,.05);border-left:6px solid var(--c)}
+      .rt{font-size:20px;font-weight:700;color:#F4F7FB;line-height:1.25}.rp{margin-top:6px;font-size:16px;color:rgba(239,243,248,.78);line-height:1.45}.rp b{color:#8AD8FF}
+      .big{padding:22px 22px 20px;border-radius:24px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);margin-bottom:14px}
+      .big .n{font-family:'Space Grotesk','Inter',sans-serif;font-size:84px;font-weight:700;letter-spacing:-.05em;line-height:1}.big .n small{font-size:42px;font-weight:600;color:rgba(239,243,248,.55);letter-spacing:-.02em}
+      .big .l{margin-top:8px;font-size:21px;font-weight:700;color:#F4F7FB}.big .s{margin-top:8px;font-size:16px;color:rgba(239,243,248,.7);line-height:1.45}
+      .rk{display:flex;align-items:center;gap:12px;padding:8px 4px;border-top:1px solid rgba(255,255,255,.08)}.rk:first-of-type{border-top:0}
+      .rk .nm{flex:1;min-width:0;font-size:18px;font-weight:600;color:#F4F7FB}.rk .bar{width:120px;height:10px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}.rk .bar i{display:block;height:100%;background:#38BDF8;border-radius:inherit}
+      .rk .c{width:50px;text-align:right;font-family:'Space Grotesk','Inter',sans-serif;font-size:30px;font-weight:700}.rk .c small{display:block;font-size:12px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(239,243,248,.55)}
+      .av{border-radius:50%;object-fit:cover;object-position:top;background:#1B2744;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#8AD8FF;font-size:16px;flex-shrink:0}
       .ft{margin-top:20px;text-align:right;font-size:14px;color:rgba(239,243,248,.45)}
+      .cover{min-height:${Math.round(588*1.4142)-52-14}px;display:flex;flex-direction:column;justify-content:space-between;padding:6px 0 4px;margin-bottom:0}
+      .cv-top{display:flex;align-items:center;gap:18px}.cv-top img{width:96px;height:96px;border-radius:24px;object-fit:cover}.cv-top .e{font-size:15px}
+      .cv-mid h1{font-size:68px;line-height:1;letter-spacing:-.04em}.cv-mid .sub{font-size:23px;line-height:1.35;margin-top:14px}.cv-mid .mt{margin-top:30px}
+      .cv-mid .mc{padding:16px 20px;border-radius:22px}.cv-mid .mc b{font-size:24px}.cv-mid .mc i{font-size:17px}
+      .cv-k{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.kk{padding:18px 14px 14px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
+      .kk b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:56px;font-weight:700;letter-spacing:-.04em;line-height:1}.kk b small{font-size:28px;color:rgba(239,243,248,.5)}
+      .kk span{display:block;margin-top:8px;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(239,243,248,.65)}
+      .cv-f{font-size:14px;color:rgba(239,243,248,.45)}
     </style></head><body>
-      <div class="top"><img src="${esc(abs('/auf-icon-180.jpg'))}" alt=""><div><div class="e">Selección Uruguaya</div><h1>Atención a la prensa</h1><div class="sub">${esc(EV.label||'Fecha FIFA')} · ${esc(f2(per.desde))} al ${esc(f2(per.hasta))}</div></div></div>
-      <div class="ks"><div class="k"><b style="color:#38BDF8">${totE}</b><span>eventos de prensa</span></div><div class="k"><b style="color:#FCD34D">${totA}</b><span>atenciones</span></div></div>
-      ${bloques.map(bloqueHtml).join('')}
-      <h2>Quiénes hablaron</h2>
-      <div class="qs">${dtN.map(([n,c])=>`<div class="q qd">${av(n,84)}<div class="tx"><b>${esc(n)}</b><span>Director técnico · ${c} ${c===1?'atención':'atenciones'}</span></div></div>`).join('')}${otros.map(([n,c])=>quien(n,c)).join('')}</div>
+      <div class="cover"><div class="cv-top"><img src="${esc(abs('/auf-icon-180.jpg'))}" alt=""><div class="e">Selección Uruguaya · Mayor</div></div>
+        <div class="cv-mid"><h1>Atención a la prensa</h1><div class="sub">${esc(EV.label||'Fecha FIFA')}<br>${esc(f2(per.desde))} al ${esc(f2(per.hasta))}</div>
+          <div class="mt">${partidos.map(pd=>`<div class="mc">${esc2('Uruguay',44)}<span>vs</span>${esc2(pd.rival,44)}<div><b>${esc(pd.rival)}</b><i>${esc(f2(pd.fecha))}</i></div></div>`).join('')}</div></div>
+        <div class="cv-k"><div class="kk"><b style="color:#38BDF8">${lista.length}</b><span>actividades</span></div><div class="kk"><b style="color:#FCD34D">${totAt}</b><span>atenciones</span></div><div class="kk"><b style="color:#86EFAC">${hablaronN}<small>/${totalJ}</small></b><span>jugadores hablaron</span></div></div>
+        <div class="cv-f">Datos al ${new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
+      <h2>Actividades</h2>
+      ${lista.map(fila).join('')}
+      <h2>El recuento</h2>
+      <div class="big"><div class="n" style="color:#86EFAC">${hablaronN}<small> de ${totalJ}</small></div><div class="l">jugadores hablaron con la prensa</div>${noHablaron.length?`<div class="s">No hablaron: ${noHablaron.map(esc).join(', ')}</div>`:''}</div>
+      <div class="big"><div class="n" style="color:#FCD34D">${totAt}</div><div class="l">atenciones a la prensa</div><div class="s">${lista.length} actividades con la prensa en la Fecha FIFA</div></div>
+      <div class="big"><div class="l" style="margin:0 0 10px">Cuántas veces habló cada uno</div>${rank.map(([n,c])=>`<div class="rk">${av(n,44)}<div class="nm">${esc(n)}${n===DT?' <span style="font-size:13px;color:#8AD8FF;font-weight:600">· DT</span>':''}</div><div class="bar"><i style="width:${Math.round(100*c/mx)}%"></i></div><div class="c">${c}</div></div>`).join('')}</div>
       <div class="ft">Datos al ${new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>
     </body></html>`;
     toast('Generando el PDF…'); _pdfDescargar(html,'prensa-fecha-fifa-nov-2026.pdf',588);
@@ -25874,7 +25875,7 @@ function buildForlanStatsHtml(){
 window._forlanExportarPDF=function(){
   try{
     const rec=_forlanMayorRecord(); if(!rec.pj){ toast('Todavía no hay partidos cargados'); return; }
-    const cuerpo=buildForlanStatsHtml(), hoy=new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const DD=_forlanStatsData(), abs0=u=>{ try{ return u?new URL(u,location.href).href:''; }catch(_){ return ''; } }, fotoDT=(typeof getDTFoto==='function')?abs0(getDTFoto('forlan',_AUF_FOTO+'diego-forlan.jpg')||''):'', esc2=(n,sz)=>String(_escudoSeleccion(n,sz)).replace(/src="\.\//g,'src="'+location.origin+'/').replace(/ onerror="[^"]*"/g,''), cuerpo=buildForlanStatsHtml(), hoy=new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'});
     const css=[...document.querySelectorAll('style,link[rel=stylesheet]')].map(e=>e.outerHTML).join('\n');
     const cs=getComputedStyle(document.body), V=['--text','--muted','--hint','--border','--surface','--surface2','--white','--card','--bg','--fg','--accent'].map(v=>{ const x=cs.getPropertyValue(v).trim(); return x?v+':'+x:''; }).filter(Boolean).join(';');
     const abs=u=>{ try{ return new URL(u,location.href).href; }catch(_){ return u; } };
@@ -25885,11 +25886,27 @@ window._forlanExportarPDF=function(){
       .pdf-e{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#8AD8FF}
       .pdf-top h1{font-family:'Space Grotesk','Inter',sans-serif;font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:3px 0 0;color:#F4F7FB}
       .pdf-s{font-size:13px;color:rgba(239,243,248,.65);margin-top:5px}.pdf-ft{margin-top:14px;text-align:right;font-size:10.5px;color:rgba(239,243,248,.45)}
+      .pdf-body .fsx-btn+.fs-grid{display:none}
+      .cover{min-height:${Math.round(680*1.4142)-52-14}px;display:flex;flex-direction:column;justify-content:space-between;padding:6px 0 4px}
+      .cv-top{display:flex;align-items:center;gap:18px}.cv-top img.lg{width:88px;height:88px;border-radius:22px;object-fit:cover}.cv-top .pdf-e{font-size:15px}
+      .cv-mid{display:flex;flex-direction:column;align-items:center;text-align:center}.cv-ph{width:210px;height:210px;border-radius:50%;border:4px solid #38BDF8;overflow:hidden;background:#1B2744}.cv-ph img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+      .cv-mid h1{font-family:'Space Grotesk','Inter',sans-serif;font-size:74px;line-height:1;letter-spacing:-.04em;margin:26px 0 0;color:#F4F7FB}.cv-s{font-size:26px;margin-top:12px;color:#F4F7FB;font-weight:600}.cv-s2{font-size:19px;margin-top:6px;color:rgba(239,243,248,.65)}
+      .cv-rec{display:flex;gap:12px;margin-top:22px}.cv-rec span{padding:9px 16px;border-radius:999px;font-size:18px;font-weight:600;border:1px solid}.cv-rec b{font-size:24px;margin-right:4px}.cv-rec .g{color:#86EFAC;border-color:#86EFAC66}.cv-rec .e{color:#FCD34D;border-color:#FCD34D66}.cv-rec .p{color:#FCA5A5;border-color:#FCA5A566}
+      .cv-k{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}.kk{padding:20px 16px 16px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
+      .kk b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:64px;font-weight:700;letter-spacing:-.04em;line-height:1;color:#F4F7FB}.kk span{display:block;margin-top:8px;font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(239,243,248,.65)}
+      .cv-rv{display:flex;justify-content:space-between;gap:8px}.rvc{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;padding:12px 4px;border-radius:16px;background:rgba(255,255,255,.04)}.rvc b{font-family:'Space Grotesk','Inter',sans-serif;font-size:24px}
+      .cv-f{font-size:14px;color:rgba(239,243,248,.45)}
       .fsx-btn{display:none!important}.fs-panel,.ff2,.jm-card,.sh-card,.sx-k,.fs-tile,.sh-row,tr{break-inside:avoid}.sx-eye,.eye{break-after:avoid}
       *{cursor:default!important}button{pointer-events:none}
     </style></head><body class="${document.body.className}"><div class="pdf-wrap">
-      <div class="pdf-top"><img class="lg" src="${abs('/auf-icon-180.jpg')}" alt=""><div><div class="pdf-e">Selección Uruguaya · Mayor</div><h1>Diego Forlán · estadísticas</h1><div class="pdf-s">${rec.pj} ${rec.pj===1?'partido':'partidos'} · ${rec.g} ganados, ${rec.e} empatados, ${rec.p} perdidos · Fechas FIFA de set-oct y noviembre 2026</div></div></div>
-      ${cuerpo}<div class="pdf-ft">Datos al ${hoy}</div></div></body></html>`;
+      <div class="cover"><div class="cv-top"><img class="lg" src="${abs('/auf-icon-180.jpg')}" alt=""><div class="pdf-e">Selección Uruguaya · Mayor</div></div>
+        <div class="cv-mid"><div class="cv-ph">${fotoDT?`<img src="${fotoDT}" alt="">`:''}</div><h1>Diego Forlán</h1><div class="cv-s">Estadísticas al frente de la Selección Mayor</div><div class="cv-s2">Fechas FIFA de set-oct y noviembre 2026 · ${rec.pj} ${rec.pj===1?'partido':'partidos'}</div>
+          <div class="cv-rec"><span class="g"><b>${rec.g}</b> ganados</span><span class="e"><b>${rec.e}</b> empatados</span><span class="p"><b>${rec.p}</b> perdidos</span></div></div>
+        <div class="cv-k"><div class="kk"><b style="color:#4ADE80">${rec.gf}</b><span>goles a favor</span></div><div class="kk"><b style="color:#F87171">${rec.gc}</b><span>en contra</span></div><div class="kk"><b>${rec.gf-rec.gc>0?'+':''}${rec.gf-rec.gc}</b><span>diferencia</span></div></div>
+        <div class="cv-rv">${DD.matches.map(m=>{ const c=m.gl>m.gr?'#86EFAC':m.gl===m.gr?'#FCD34D':'#FCA5A5'; return `<div class="rvc">${esc2(m.rival,40)}<b style="color:${c}">${m.gl}–${m.gr}</b></div>`; }).join('')}</div>
+        <div class="cv-f">Datos al ${hoy}</div></div>
+      <div class="pdf-body">
+      ${cuerpo}<div class="pdf-ft">Datos al ${hoy}</div></div></div></body></html>`;
     toast('Generando el PDF…'); _pdfDescargar(html,'forlan-estadisticas-seleccion-mayor.pdf',680);
   }catch(e){ try{ toast('No pude armar el PDF: '+e.message); }catch(_){} }
 };
