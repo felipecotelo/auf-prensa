@@ -10172,21 +10172,29 @@ function _recMd1Derivados(){
   const out=[];
   try{
     const manual=stor.get('auf4_rec_manual',{});
-    let list=[]; try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_sub15_2026')||'[]'); }catch(_){ list=[]; }
     const DIA=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-    (Array.isArray(list)?list:[]).forEach(m=>{
-      if(m.compId!=='mundial-sub15-2026'||!m.rival||!m.fecha) return;
-      const D=String(m.fecha).slice(0,10); if(D<'2026-10-29'||D<_recSumarDias(TODAY,0)) return; // lo anterior se cargó a mano
-      if(m.gLocal!=null&&m.gRival!=null) return;
-      const dt=new Date(D+'T12:00:00'), cuando=`${DIA[dt.getDay()]} ${D.slice(8,10)}/${D.slice(5,7)}`;
-      const hm=String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/^\s*(\d{1,2}):(\d{2})/);
-      const det=`El partido es ${hm?hm[1]+':'+hm[2]+'h':'a confirmar'} por el Mundial${m.fase?' · '+_ebDet(m.fase):''}`;
-      [['pedir','Pedir',_recSumarDias(D,-2),'10:00'],['pub','Publicar',_recSumarDias(D,-1),'18:00']].forEach(([k,v,vence,hora])=>{
-        const id=`md1-${k}|${m.id}`, mn=manual[id]||{};
-        out.push({id,titulo:`${v} diseño MD-1 para el ${cuando} vs. ${m.rival}`,detalle:det,vence,hora,etiqueta:'Sub-15',hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+    // Un MD-1 por partido oficial de cada Mundial juvenil conectado a FIFA: «Mandar a diseñar» 2 días antes (10:00) y «Publicar» el día antes (18:00).
+    // Sub-15: Copa Mundial Sub-15 (ya en marcha, títulos de siempre). Sub-17: Mundial de Qatar (Felipe, 18/11/2026: «mandar a diseñar el MD-1 de la sub-17 vs. X» y «publicar MD-1 de la sub-17 vs. X»).
+    const FUENTES=[
+      {ls:'auf4_amist_juv_sub15_2026',comp:'mundial-sub15-2026',cat:'Sub-15',desde:'2026-10-29',pedir:(c,r)=>`Pedir diseño MD-1 para el ${c} vs. ${r}`,pub:(c,r)=>`Publicar diseño MD-1 para el ${c} vs. ${r}`},
+      {ls:'auf4_amist_juv_sub17_2025-2026',comp:'wc17-2026',cat:'Sub-17',desde:'2026-11-01',pedir:(c,r)=>`Mandar a diseñar el MD-1 de la sub-17 vs. ${r}`,pub:(c,r)=>`Publicar MD-1 de la sub-17 vs. ${r}`},
+    ];
+    FUENTES.forEach(F=>{
+      let list=[]; try{ list=JSON.parse(localStorage.getItem(F.ls)||'[]'); }catch(_){ list=[]; }
+      (Array.isArray(list)?list:[]).forEach(m=>{
+        if(m.compId!==F.comp||!m.rival||!m.fecha) return;
+        const D=String(m.fecha).slice(0,10); if(D<F.desde||D<_recSumarDias(TODAY,0)) return; // lo anterior se cargó a mano
+        if(m.gLocal!=null&&m.gRival!=null) return;
+        const dt=new Date(D+'T12:00:00'), cuando=`${DIA[dt.getDay()]} ${D.slice(8,10)}/${D.slice(5,7)}`;
+        const hm=String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/^\s*(\d{1,2}):(\d{2})/);
+        const det=`El partido es ${hm?hm[1]+':'+hm[2]+'h':'a confirmar'} por el Mundial${m.fase?' · '+_ebDet(m.fase):''}`;
+        [['pedir',F.pedir,_recSumarDias(D,-2),'10:00'],['pub',F.pub,_recSumarDias(D,-1),'18:00']].forEach(([k,f,vence,hora])=>{
+          const id=`md1-${k}|${m.id}`, mn=manual[id]||{};
+          out.push({id,titulo:f(cuando,m.rival),detalle:det,vence,hora,etiqueta:F.cat,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+        });
+        { const idt=`md1-tw|${m.id}`, mt=manual[idt]||{}, w=_recMasMin(_recSumarDias(D,-1),'18:00',30);
+          out.push({id:idt,titulo:`Enviar por Whatsapp el link del tuit del MD-1 vs. ${m.rival}`,detalle:`Partido del ${cuando}${hm?' · '+hm[1]+':'+hm[2]+'h':''}`,vence:w.vence,hora:w.hora,etiqueta:F.cat,hecho:!!mt.hecho,hechoEn:mt.hecho?(mt.hechoEn||new Date().toISOString()):null}); }
       });
-      { const idt=`md1-tw|${m.id}`, mt=manual[idt]||{}, w=_recMasMin(_recSumarDias(D,-1),'18:00',30);
-        out.push({id:idt,titulo:`Enviar por Whatsapp el link del tuit del MD-1 vs. ${m.rival}`,detalle:`Partido del ${cuando}${hm?' · '+hm[1]+':'+hm[2]+'h':''}`,vence:w.vence,hora:w.hora,etiqueta:'Sub-15',hecho:!!mt.hecho,hechoEn:mt.hecho?(mt.hechoEn||new Date().toISOString()):null}); }
     });
   }catch(e){ console.warn('recordatorios MD-1:',e); }
   return out;
