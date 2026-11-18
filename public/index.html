@@ -10450,25 +10450,35 @@ function _hitosDeLaGira(){
   }catch(_){}
   return out;
 }
+// Desestimar una sugerencia de hito («no es tan trascendente»): se guarda y no vuelve a aparecer (Felipe, 18/11/2026). Los pasos de un mismo hito se desestiman juntos.
+window._hitoDesestimar=function(id){
+  try{
+    const p=String(id).split('|'), key=(p[1]==='aviso')?String(id):p.slice(0,-1).join('|');
+    const d=stor.get('auf4_hitos_desest',{})||{}; d[key]=new Date().toISOString(); stor.set('auf4_hitos_desest',d);
+    try{ toast('Desestimado: no te lo vuelvo a sugerir'); }catch(_){}
+    try{ _recDockRender(); }catch(_){}
+    try{ if(typeof renderInicio==='function'&&document.getElementById('inicio')?.classList.contains('active')) renderInicio(); }catch(_){}
+  }catch(_){}
+};
 function _recHitosDerivados(){
   try{
-    const man=stor.get('auf4_rec_manual',{}), out=[], lim=_pkgDia(TODAY,-2);
+    const man=stor.get('auf4_rec_manual',{}), out=[], lim=_pkgDia(TODAY,-2), des=stor.get('auf4_hitos_desest',{})||{};
     _hitosDeLaGira().filter(h=>h.fecha>=lim).forEach(h=>{
       if(['hist','primer','doblete','racha'].includes(h.k)){ // avisos sueltos: se ven enseguida y se tildan solos
-        const id=`hito|aviso|${h.k}|${_nomKey(h.nom)}|${h.n||0}`, mn=man[id]||{};
+        const id=`hito|aviso|${h.k}|${_nomKey(h.nom)}|${h.n||0}`, mn=man[id]||{}; if(des[id]) return;
         const _lst=a=>a.length>3?a.slice(0,3).join(', ')+' y '+(a.length-3)+' más':a.length>1?a.slice(0,-1).join(', ')+' y '+a[a.length-1]:a[0];
         const tit=h.k==='hist'?`Con su gol, ${h.nom} ${[h.alc.length?'alcanzó a '+_lst(h.alc):'',h.pas.length?'pasó a '+_lst(h.pas):''].filter(Boolean).join(' y ')}`:h.k==='primer'?`Primer gol de ${h.nom} con la Selección`:h.k==='doblete'?`${h.nom} hizo ${h.n===2?'un doblete':h.n===3?'un triplete':h.n+' goles'}`:`${h.nom} marcó en ${h.n} partidos seguidos`;
         const det=`vs. ${h.rival}`+(h.k==='hist'?` · ${h.n} goles con la Selección · ahora es el N.º ${h.rank} de la historia`:' · ¿corresponde diseño o nota?');
-        out.push({id,titulo:tit,detalle:det,etiqueta:'Mayor',vence:h.fecha,hora:'23:00',sinHora:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+        out.push({id,titulo:tit,detalle:det,etiqueta:'Mayor',vence:h.fecha,hora:'23:00',sinHora:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null,derivado:true});
         return;
       }
-      const nk=_nomKey(h.nom), base=`hito|${h.k}|${nk}${h.n?'|'+h.n:''}`;
+      const nk=_nomKey(h.nom), base=`hito|${h.k}|${nk}${h.n?'|'+h.n:''}`; if(des[base]) return;
       const que=h.k==='debut'?`el debut de ${h.nom}`:h.k==='goles'?`los ${h.n} goles de ${h.nom}`:`los ${h.n} partidos de ${h.nom}`;
       const det=`vs. ${h.rival}`+(h.k==='debut'?' · debutó':h.k==='goles'?` · llegó a ${h.n} goles`:` · llegó a ${h.n} partidos`);
       const pasos=[['dis',`Mandar a hacer diseño por ${que}`,1],['pub',h.k==='debut'?`Publicar el diseño del debut de ${h.nom}`:`Publicar el diseño de ${que}`,2]];
       if(h.k==='pj') pasos.push(['cam',`Mandar a hacer la camiseta por ${que}`,3]);
       pasos.forEach(([c,t,o])=>{ const id=base+'|'+c, mn=man[id]||{};
-        out.push({id,titulo:t,detalle:det,etiqueta:'Mayor',vence:_pkgDia(h.fecha,o),hora:'09:00',sinHora:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null,secuencial:true,grupo:base,orden:o}); });
+        out.push({id,titulo:t,detalle:det,etiqueta:'Mayor',vence:_pkgDia(h.fecha,o),hora:'09:00',sinHora:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null,secuencial:true,grupo:base,orden:o,derivado:true}); });
     });
     return out;
   }catch(e){ return []; }
@@ -10525,6 +10535,7 @@ function _recNoAplicaBtn(r,hecho){
   if(/^escr\|/.test(String(r.id))&&!hecho) return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoHay(this.dataset.id)" title="No lo voy a hacer: se saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">cancelar</button>`;
   if(/^cubl\|/.test(String(r.id))&&!hecho) return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoHay(this.dataset.id)" title="No se cubrió: se da por resuelto y no salen las publicaciones" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no se cubrió</button>`;
   if(/^gol[123]\|/.test(String(r.id))&&!hecho) return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoFilmaron(this.dataset.id)" title="El partido no se filmó: se dan por resueltos los tres avisos de los goles" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no se filmaron</button>`;
+  if(/^hito\|/.test(String(r.id))&&!hecho) return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="event.stopPropagation();window._hitoDesestimar(this.dataset.id)" title="No es tan trascendente: lo saco y no lo vuelvo a sugerir" style="border:1px solid #94A3B8;background:none;color:#64748B;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px;white-space:nowrap">Desestimar</button>`;
   if(!r.derivado||hecho) return '';
   return `<button data-id="${String(r.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="window._recNoAplica(this.dataset.id)" title="No aplica saludo: lo saca de recordatorios" style="border:none;background:none;color:var(--hint);cursor:pointer;font-size:9.5px;font-weight:700;text-decoration:underline;padding:0 2px">no aplica</button>`;
 }
