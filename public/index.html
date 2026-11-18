@@ -40347,12 +40347,17 @@ async function _loadPhotosFromSupabase(){
     if(!_idbPhotos) _idbPhotos={};
     let patchedEst=false;
     // Parchear caches con URLs públicas para fotos no presentes en IDB
+    // La nube manda (Felipe, 18/11/2026: había cargado las 21 fotos y se seguían viendo las viejas): antes la copia local ganaba siempre y, además, la URL es la misma tras cada
+    // subida y el navegador la guarda 1 h. Ahora cada URL lleva la fecha de la última modificación (?v=…) y reemplaza a la copia local, salvo que la local sea una foto
+    // todavía sin subir (data:), que se respeta para no perderla.
+    const _pend=v=>typeof v==='string'&&v.startsWith('data:');
     data.forEach(f=>{
       const rawKey=decodeURIComponent(f.name);
-      const url=_sbPhotoUrl(f.name);
+      const _v=Date.parse(f.updated_at||f.created_at||'');
+      const url=_sbPhotoUrl(f.name)+(_v?'?v='+_v:'');
       if(rawKey.startsWith('juv:')){
         const nom=rawKey.slice(4);
-        if(!window._juvPhotoCache?.[nom]){
+        if(!window._juvPhotoCache?.[nom]||!_pend(window._juvPhotoCache[nom])){
           window._juvPhotoCache=window._juvPhotoCache||{};
           window._juvPhotoCache[nom]=url;
           const n=nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
@@ -40360,18 +40365,18 @@ async function _loadPhotosFromSupabase(){
           window._juvPhotoCacheNorm[n]=url;
         }
         // Guardar en IDB para carga rápida en próxima visita
-        if(!_idbPhotos[rawKey]){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
+        if(!_pend(_idbPhotos[rawKey])&&_idbPhotos[rawKey]!==url){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
       } else if(rawKey.startsWith('est:')){
         const estKey=rawKey.slice(4);
-        if(!(window._estPhotoCache?.[estKey])){
+        if(!(window._estPhotoCache?.[estKey])||!_pend(window._estPhotoCache[estKey])){
           window._estPhotoCache=window._estPhotoCache||{};
+          if(window._estPhotoCache[estKey]!==url) patchedEst=true;
           window._estPhotoCache[estKey]=url;
-          patchedEst=true;
         }
-        if(!_idbPhotos[rawKey]){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
+        if(!_pend(_idbPhotos[rawKey])&&_idbPhotos[rawKey]!==url){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
       } else {
         // Mayor (clave numérica o 'dt:...')
-        if(!_idbPhotos[rawKey]){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
+        if(!_pend(_idbPhotos[rawKey])&&_idbPhotos[rawKey]!==url){ _idbPhotos[rawKey]=url; savePhotoIDB(rawKey,url); }
       }
     });
     window._ctFillPhotos&&window._ctFillPhotos();
