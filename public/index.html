@@ -9802,13 +9802,14 @@ function _recPartidosDerivados(){
           const _hm=(String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/(\d{1,2}):(\d{2})/));
           let _vF=D, _hF='22:00';
           if(_hm){ let mins=parseInt(_hm[1],10)*60+parseInt(_hm[2],10)+(m.compId==='mundial-sub15-2026'?60:120); if(mins>=1440){ mins-=1440; _vF=_recSumarDias(D,1); } _hF=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'); }
-          out.push({id,titulo:'Cargar resultado final e informe '+lbl+' a la app',detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar · resultado, titulares, capitán, DT, ingresos y goles',vence:_vF,hora:_hF,etiqueta:metaCat(cat),
+          out.push({id,titulo:'Cargar resultado final '+(m.compId==='wc17-2026'?'':'e informe ')+lbl+' a la app',detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar · resultado, titulares, capitán, DT, ingresos y goles',vence:_vF,hora:_hF,etiqueta:metaCat(cat),
             hecho:completa||!!mn.hecho,hechoEn:(!completa&&mn.hecho)?mn.hechoEn:null});
           const idp='pub|'+uid, mp=manual[idp]||{};
+          if(m.compId!=='wc17-2026') // Mundial Sub-17: no hay informe post-partido (Felipe, 18/11/2026)
           out.push({id:idp,titulo:'Publicar informe de partido '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar el partido, con el resultado y la ficha cargados',vence:_vF,hora:_hF,etiqueta:metaCat(cat),
             hecho:!!mp.hecho,hechoEn:mp.hecho?mp.hechoEn:null});
           const idw='tw|'+uid, mw=manual[idw]||{}, w2=_recMasMin(_vF,_hF,30);
-          if(D>='2026-10-29') // el aviso de enviar el tuit rige desde el 29/10/2026 (lo anterior ya se resolvió)
+          if(D>='2026-10-29' && m.compId!=='wc17-2026') // el aviso de enviar el tuit rige desde el 29/10/2026 (lo anterior ya se resolvió); el Mundial Sub-17 no tiene informe
           out.push({id:idw,titulo:'Enviar por Whatsapp el link del tuit del informe '+lbl,detalle:_recResTxt(m),vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),
             hecho:!!mw.hecho,hechoEn:mw.hecho?mw.hechoEn:null});
           // Amistosos juveniles que NO van por AUFtv (Felipe, 30/10/2026): pedir el video de los goles → mandar a hacer el clip para redes → publicarlo.
@@ -38560,18 +38561,18 @@ function _mun15DisGet(){ const o=stor.get(_MUN15_DIS_KEY,{}); return (o&&o[windo
 function _mun15DisSet(d){ const o=stor.get(_MUN15_DIS_KEY,{})||{}; o[window._mundCur]=d; stor.set(_MUN15_DIS_KEY,o); }
 window._mun15DisToggle=function(key,stage,nomEnc){
   const nom=decodeURIComponent(nomEnc), d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''});
-  const max=stage==='md1'?2:1; let a=e[stage]||[];
+  const max=stage==='md1'?2:stage==='ali'?11:1; let a=e[stage]||[];
   if(a.includes(nom)) a=a.filter(x=>x!==nom); else { a=[...a,nom]; if(a.length>max) a=a.slice(a.length-max); }
-  e[stage]=a; if(a.length) e[stage==='md1'?'noMd1':'noInf']=false; _mun15DisSet(d); window.renderJuveniles?.();
+  e[stage]=a; if(a.length) e[stage==='md1'?'noMd1':stage==='ali'?'noAli':'noInf']=false; _mun15DisSet(d); window.renderJuveniles?.();
 };
 // "No hubo": no se hizo esa pieza (por el resultado o por otro motivo). Vacía la selección y no cuenta en el uso.
 window._mun15DisNo=function(key,stage){
-  const d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''}); const f=stage==='md1'?'noMd1':'noInf';
+  const d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''}); const f=stage==='md1'?'noMd1':stage==='ali'?'noAli':'noInf';
   e[f]=!e[f]; if(e[f]){ e[stage]=[]; window._mun15DisExp.delete(key+'_'+stage); } _mun15DisSet(d); window.renderJuveniles?.();
 };
 window._mun15DisExpand=function(key){ if(window._mun15DisExp.has(key)) window._mun15DisExp.delete(key); else window._mun15DisExp.add(key); window.renderJuveniles?.(); };
 window._mun15DisLink=function(key,stage,inp){
-  const d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''}); e[stage==='md1'?'l1':'l2']=inp.value.trim(); _mun15DisSet(d);
+  const d=_mun15DisGet(); const e=d[key]||(d[key]={md1:[],inf:[],l1:'',l2:''}); e[stage==='md1'?'l1':stage==='ali'?'l3':'l2']=inp.value.trim(); _mun15DisSet(d);
 };
 // El MD-1 es uno por día de partidos (si hay dos partidos el mismo día, la pieza del MD-1 es una sola); el informe de victoria es uno por partido.
 // Resumen del torneo cerrado: puesto final, números, camino partido a partido y goleadores (todo sale de los partidos cargados)
@@ -38602,7 +38603,7 @@ window._mun15DisenoHtml=function(){
   const cid=window._mundCur, cfg=_mundCfg(), comp=COMP_DATA[cid]; const pool=(comp&&comp.convocados)||[];
   let ms=[]; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(!k||!k.startsWith('auf4_amist_juv_')) continue; const l=JSON.parse(localStorage.getItem(k)||'[]'); if(Array.isArray(l)) l.forEach(m=>{ if(m&&m.compId===cid) ms.push(m); }); } }catch(_){}
   ms.sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
-  const d=_mun15DisGet();
+  const d=_mun15DisGet(), esS17=cfg.cat==='sub17';
   const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const dm=f=>{ const x=String(f||'').slice(0,10).split('-'); return x.length===3?[parseInt(x[2],10),MES[parseInt(x[1],10)-1]]:['','']; };
   const sh=n=>{ const q=String(n).trim().split(/\s+/); return q.length>1?q[0][0]+'. '+q.slice(1).join(' '):n; };
@@ -38632,7 +38633,9 @@ window._mun15DisenoHtml=function(){
     const rivales=g.ms.map(m=>m.rival).join(' y ');
     const resumen=g.ms.map(m=>(m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='')?`${m.gLocal}–${m.gRival}`:'').filter(Boolean).join(' · ');
     const nums=g.ms.map(m=>m._n);
-    const informes=g.ms.map(m=>{
+    // Sub-17 (Felipe, 18/11/2026): no hay informe post-partido; el segundo bloque es para la ALINEACIÓN: qué jugadores van en el diseño de la alineación de cada partido.
+    const informes=esS17?g.ms.map(m=>{ const e=d[m.id]||{ali:[],l3:''};
+      return block(String(m.id),'ali',`Alineación vs. ${m.rival}`,11,e.ali||[],e.l3,'<div class="dz-note">Los 11 que van en la alineación</div>',!!e.noAli); }).join(''):g.ms.map(m=>{
       const fin=m.gLocal!=null&&m.gRival!=null&&m.gLocal!=='', win=fin&&m.gLocal>m.gRival, e=d[m.id]||{inf:[],l2:''};
       const nota=!fin?'Se habilita con el resultado':win?'Victoria: va informe':'Informe solo si se gana';
       return block(String(m.id),'inf',`Informe vs. ${m.rival}`,1,e.inf||[],e.l2,`<div class="dz-note${win?' ok':''}">${nota}</div>`,!!e.noInf); }).join('');
@@ -38642,7 +38645,7 @@ window._mun15DisenoHtml=function(){
   const lista=orden.map(p=>{ const u=uso[p.nom]||{md1:[],inf:[]}, n=u.md1.length+u.inf.length;
     return `<div class="dz-pl${n?'':' libre'}"><span class="dz-n">${p.num??''}</span><span class="dz-nm">${p.nom}<small>${_clubCorto(p.club||'')}</small></span><span class="dz-us">${n?[...u.md1.map(r=>`<i>MD-1 ${r}</i>`),...u.inf.map(r=>`<i class="inf">Inf ${r}</i>`)].join(''):'<em>Sin usar</em>'}</span></div>`; }).join('');
   if(!ms.length) return `<div class="gt-card"><div class="gt-eb">Diseño · ${cfg.titulo}</div><div class="gt-msg">Todavía no hay partidos cargados del Mundial.</div></div>`;
-  return `<div class="dz-wrap"><div class="dz-main"><div class="gt-eb" style="margin-bottom:10px">Diseño · 2 jugadores para el MD-1 de cada día y 1 para el informe de cada victoria</div>${cards}</div>
+  return `<div class="dz-wrap"><div class="dz-main"><div class="gt-eb" style="margin-bottom:10px">Diseño · ${esS17?'2 jugadores para el MD-1 de cada día y los 11 de la alineación de cada partido':'2 jugadores para el MD-1 de cada día y 1 para el informe de cada victoria'}</div>${cards}</div>
     <aside class="dz-side"><div class="gt-eb" style="margin-bottom:10px">Uso por jugador<em>|</em><u>primero los menos usados</u></div>${lista}</aside></div>`;
 };
 // Ir a una categoría / ciclo / competencia desde un enlace (ej. de un ciclo al torneo que preparó).
@@ -39515,7 +39518,9 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
   // "Amistosos") se ven los de preparación; con filterCompId (pestaña "Fixture" de
   // una competencia oficial) se ven solo los partidos de ESA competencia.
   const esOficial = !!filterCompId;
+  // Torneos oficiales: SIEMPRE del primer partido al último (Felipe, 18/11/2026); los amistosos mantienen el orden de carga.
   const list = _getAmistosos(cat, year).filter(m=>filterCompId ? m.compId===filterCompId : !m.oficial);
+  if(filterCompId) list.sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||''))||String(a.hora||'').localeCompare(String(b.hora||'')));
   const catLabel = cat==='fifamayor' ? 'Selección Mayor' : _juvCat.replace('sub','Sub-');
   // poolCompId: solo para la pestaña "Amistosos prep." de una competencia puntual
   // (ODESUR, etc.) — esos amistosos en general NO tienen m.compId cargado (si lo
