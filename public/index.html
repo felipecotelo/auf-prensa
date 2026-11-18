@@ -4857,7 +4857,7 @@ const PART_OPTIONS = [
   {val:'titular', label:'Titular',                  cls:'part-tit',   desc:'Jugó desde el inicio'},
   {val:'entró',   label:'Entró',                    cls:'part-ent',   desc:'Ingresó como suplente en un cambio'},
   {val:'no entró',label:'No entró',                 cls:'part-no-ent',desc:'Fue suplente pero no ingresó'},
-  {val:'no part', label:'No estuvo',                cls:'part-no-part',desc:'No participó: no estuvo ni en el banco'},
+  {val:'no part', label:'No participó',             cls:'part-no-part',desc:'No participó: no estuvo ni en el banco (o estaba liberado)'},
   {val:'baja',    label:'Baja (lesión)',            cls:'part-baja',  desc:'Se cayó de la convocatoria por lesión antes de este partido'},
 ];
 
@@ -10408,6 +10408,15 @@ window._pkgHecho=function(rival,id,resp){
 //  · goles redondos (5, 10, 15…) → 1) mandar a hacer diseño, 2) publicar;
 //  · partidos redondos de 50 en adelante (50, 75, 100…) → 1) diseño, 2) publicar, 3) mandar a hacer la camiseta.
 // Los pasos salen de a uno (se ve el que toca). Solo avisa de los partidos de los últimos 2 días; los números redondos se pueden ajustar en _hitosRedondos.
+// «No participó» = no estuvo ni en el banco: figura en `fueraLista` de ese partido, o estaba liberado (bajaGira) / lesionado en la gira y el partido es posterior al primero (Felipe, 18/11/2026).
+function _fnovNoParticipo(nom,rival){
+  try{
+    const ps=(FIFANOV26.partidosData||[]).slice().sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha))), pd=ps.find(x=>x.rival===rival); if(!pd) return false;
+    if((pd.fueraLista||[]).includes(nom)) return true;
+    const j=Object.values(FIFANOV26.reservados||{}).flat().find(x=>x&&x.nom===nom);
+    return !!(j&&(j.bajaGira||j.lesionEnGira)&&ps[0]&&String(pd.fecha)>String(ps[0].fecha));
+  }catch(_){ return false; }
+}
 function _hitosRedondos(tipo,n){ return tipo==='goles'?(n>=5&&n%5===0):(n>=50&&n%10===0); } // partidos: 50, 60, 70… (Felipe, 18/11/2026)
 function _hitosDeLaGira(){
   const out=[];
@@ -10456,7 +10465,7 @@ function _recHitosDerivados(){
       const nk=_nomKey(h.nom), base=`hito|${h.k}|${nk}${h.n?'|'+h.n:''}`;
       const que=h.k==='debut'?`el debut de ${h.nom}`:h.k==='goles'?`los ${h.n} goles de ${h.nom}`:`los ${h.n} partidos de ${h.nom}`;
       const det=`vs. ${h.rival}`+(h.k==='debut'?' · debutó':h.k==='goles'?` · llegó a ${h.n} goles`:` · llegó a ${h.n} partidos`);
-      const pasos=[['dis',`Mandar a hacer diseño por ${que}`,1],['pub',`Publicar el diseño de ${que}`,2]];
+      const pasos=[['dis',`Mandar a hacer diseño por ${que}`,1],['pub',h.k==='debut'?`Publicar el diseño del debut de ${h.nom}`:`Publicar el diseño de ${que}`,2]];
       if(h.k==='pj') pasos.push(['cam',`Mandar a hacer la camiseta por ${que}`,3]);
       pasos.forEach(([c,t,o])=>{ const id=base+'|'+c, mn=man[id]||{};
         out.push({id,titulo:t,detalle:det,etiqueta:'Mayor',vence:_pkgDia(h.fecha,o),hora:'09:00',sinHora:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null,secuencial:true,grupo:base,orden:o}); });
@@ -17487,7 +17496,7 @@ window._fifaNovConfirmStats=function(cat,year,matchId){
   // marca a mano después si corresponde).
   const partStore=stor.get('auf4_fifanov_part',{});
   (FIFANOV26.finales||[]).forEach(nom=>{
-    const val=starters.includes(nom)?'titular':subNoms.includes(nom)?'entró':'no entró';
+    const val=starters.includes(nom)?'titular':subNoms.includes(nom)?'entró':(_fnovNoParticipo(nom,m.rival)?'no part':'no entró');
     if(!partStore[nom]) partStore[nom]={};
     partStore[nom][m.rival]=val;
   });
@@ -18704,7 +18713,7 @@ function renderFifaNov26(tabId){
       // de camiseta de esta gira y no vale la pena migrar la clave ahora.
       const _FNOV_RIVAL_ABBR={'República Dominicana':'R. Dominicana'}; // abreviaturas de rivales: se agregan cuando se conozcan
       const fifaMatchList=(FIFANOV26.partidosData||[]).map(mp=>({id:mp.rival, label:`${mp.rivalBandera||''} vs. ${_FNOV_RIVAL_ABBR[mp.rival]||mp.rival}`}));
-      const getFifaNovPartVal=(nom,matchId)=>{ const p=stor.get('auf4_fifanov_part',{}); return (p[nom]&&p[nom][matchId])||''; };
+      const getFifaNovPartVal=(nom,matchId)=>{ const p=stor.get('auf4_fifanov_part',{}); const v=(p[nom]&&p[nom][matchId])||''; return (v==='no entró'||v==='')&&_fnovNoParticipo(nom,matchId)?'no part':v; };
       // Número de camiseta de esta gira (planilla del cuerpo técnico, no dorsal
       // de club) — cargado a mano en FIFANOV26.reservados[pos][].num.
       const _fifaNovNumMap={};
