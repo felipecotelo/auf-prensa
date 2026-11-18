@@ -1979,6 +1979,8 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .pz-pro .pz-pl-t b{font-size:9px;font-family:'Space Grotesk','Inter',sans-serif;letter-spacing:0}
 .pz-pro .pz-pl-t-tit{background:rgba(56,189,248,.14);color:#7DD3FC}
 .pz-pro .pz-pl-t-sub{background:rgba(134,239,172,.16);color:#86EFAC}
+.pz-pl-t-out,.pz-pro .pz-pl-t-out{background:rgba(248,113,113,.16);color:#F87171}
+.pz-pl-por{max-width:92px;font-size:10.5px;padding:2px 4px;border-radius:6px;border:1px solid rgba(248,113,113,.4);background:rgba(248,113,113,.08);color:#FCA5A5;outline:none;cursor:pointer}
 .pz-pro .pz-pl-t-gol{background:rgba(56,189,248,.14);color:#7DD3FC}
 .pz-pro .pz-pl-t-les{background:rgba(252,165,165,.14);color:#FCA5A5}
 .pz-pro .pz-pl-t-c{background:rgba(255,255,255,.07)}
@@ -10406,7 +10408,7 @@ window._pkgHecho=function(rival,id,resp){
 //  · goles redondos (5, 10, 15…) → 1) mandar a hacer diseño, 2) publicar;
 //  · partidos redondos de 50 en adelante (50, 75, 100…) → 1) diseño, 2) publicar, 3) mandar a hacer la camiseta.
 // Los pasos salen de a uno (se ve el que toca). Solo avisa de los partidos de los últimos 2 días; los números redondos se pueden ajustar en _hitosRedondos.
-function _hitosRedondos(tipo,n){ return tipo==='goles'?(n>=5&&n%5===0):(n>=50&&n%25===0); }
+function _hitosRedondos(tipo,n){ return tipo==='goles'?(n>=5&&n%5===0):(n>=50&&n%10===0); } // partidos: 50, 60, 70… (Felipe, 18/11/2026)
 function _hitosDeLaGira(){
   const out=[];
   try{
@@ -10422,6 +10424,18 @@ function _hitosDeLaGira(){
         if(antes.pj===0&&desp.pj>=1) out.push({k:'debut',nom,fecha:F,rival:p.rival});
         for(let n=antes.g+1;n<=desp.g;n++) if(_hitosRedondos('goles',n)) out.push({k:'goles',n,nom,fecha:F,rival:p.rival});
         for(let n=antes.pj+1;n<=desp.pj;n++) if(_hitosRedondos('pj',n)) out.push({k:'pj',n,nom,fecha:F,rival:p.rival});
+        // Goles: más activo (Felipe, 18/11/2026). Avisa cuando con un gol alcanza o pasa a un histórico de la Selección (de 10 goles en adelante), el primer gol, el doblete o más y la racha.
+        const gm=x.g||0;
+        if(gm>0){
+          const hist=Object.entries(typeof JUGADORES!=='undefined'?JUGADORES:{}).map(([n,d])=>({n,c:(d&&d.total&&d.total.g)||0})).filter(h=>h.c>=10&&h.n!==nom); // máximos goleadores de la historia, de los totales cargados en JUGADORES
+          for(let n=antes.g+1;n<=desp.g;n++){
+            const alc=hist.filter(h=>h.c===n).map(h=>h.n), pas=hist.filter(h=>h.c===n-1).map(h=>h.n);
+            if(alc.length||pas.length) out.push({k:'hist',n,nom,alc,pas,rank:1+hist.filter(y=>y.c>n).length,fecha:F,rival:p.rival}); // un solo aviso por gol, con todos los que alcanzó o pasó
+          }
+          if(antes.g===0) out.push({k:'primer',nom,fecha:F,rival:p.rival});
+          if(gm>=2) out.push({k:'doblete',n:gm,nom,fecha:F,rival:p.rival});
+          a.racha=(a.racha||0)+1; if(a.racha>=2) out.push({k:'racha',n:a.racha,nom,fecha:F,rival:p.rival});
+        } else a.racha=0;
       });
     });
   }catch(_){}
@@ -10431,6 +10445,14 @@ function _recHitosDerivados(){
   try{
     const man=stor.get('auf4_rec_manual',{}), out=[], lim=_pkgDia(TODAY,-2);
     _hitosDeLaGira().filter(h=>h.fecha>=lim).forEach(h=>{
+      if(['hist','primer','doblete','racha'].includes(h.k)){ // avisos sueltos: se ven enseguida y se tildan solos
+        const id=`hito|aviso|${h.k}|${_nomKey(h.nom)}|${h.n||0}`, mn=man[id]||{};
+        const _lst=a=>a.length>3?a.slice(0,3).join(', ')+' y '+(a.length-3)+' más':a.length>1?a.slice(0,-1).join(', ')+' y '+a[a.length-1]:a[0];
+        const tit=h.k==='hist'?`Con su gol, ${h.nom} ${[h.alc.length?'alcanzó a '+_lst(h.alc):'',h.pas.length?'pasó a '+_lst(h.pas):''].filter(Boolean).join(' y ')}`:h.k==='primer'?`Primer gol de ${h.nom} con la Selección`:h.k==='doblete'?`${h.nom} hizo ${h.n===2?'un doblete':h.n===3?'un triplete':h.n+' goles'}`:`${h.nom} marcó en ${h.n} partidos seguidos`;
+        const det=`vs. ${h.rival}`+(h.k==='hist'?` · ${h.n} goles con la Selección · ahora es el N.º ${h.rank} de la historia`:' · ¿corresponde diseño o nota?');
+        out.push({id,titulo:tit,detalle:det,etiqueta:'Mayor',vence:h.fecha,hora:'23:00',sinHora:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+        return;
+      }
       const nk=_nomKey(h.nom), base=`hito|${h.k}|${nk}${h.n?'|'+h.n:''}`;
       const que=h.k==='debut'?`el debut de ${h.nom}`:h.k==='goles'?`los ${h.n} goles de ${h.nom}`:`los ${h.n} partidos de ${h.nom}`;
       const det=`vs. ${h.rival}`+(h.k==='debut'?' · debutó':h.k==='goles'?` · llegó a ${h.n} goles`:` · llegó a ${h.n} partidos`);
@@ -38657,6 +38679,10 @@ window._toggleJuvSub = function(cat, year, matchId, leg, nom){
     else m['subs'+sfx].push({nom, min:null});
   });
 };
+window._setJuvSubPor = function(cat, year, matchId, leg, nom, val){
+  const sfx = leg===2?'2':'';
+  _amistPatch(cat, year, matchId, m=>{ const s=(m['subs'+sfx]||[]).find(x=>x.nom===nom); if(s){ if(val) s.por=val; else delete s.por; } });
+};
 window._setJuvSubMin = function(cat, year, matchId, leg, nom, val){
   const sfx = leg===2?'2':'';
   const min = val.trim()||null;
@@ -38761,7 +38787,7 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
             `<span style="font-size:8px;color:rgba(255,255,255,.55);font-weight:700">${slot.pos}</span>`}
         </div>
         ${nom?`<div class="p-slot-num${slotNum?'':' pz-nu'}" id="pnum-${m.id}${sfx}-${nom.replace(/[^a-z0-9]/gi,'-')}">${slotNum||'#'}</div>`:''}
-        ${nom?_pzBadges({cap:isCap,goles:goles[nom]||0,card:cardMap[nom]||null,cardTitle:cardMap[nom]==='r'?'Tarjeta roja':cardMap[nom]==='da'?'Doble amarilla':'Tarjeta amarilla',les:lesionSet.has(nom),lesTitle:'Se lesionó en este partido'}):''}
+        ${nom?_pzBadges({cap:isCap,goles:goles[nom]||0,card:cardMap[nom]||null,cardTitle:cardMap[nom]==='r'?'Tarjeta roja':cardMap[nom]==='da'?'Doble amarilla':'Tarjeta amarilla',les:lesionSet.has(nom),lesTitle:'Se lesionó en este partido',out:subs.some(s=>s.por===nom),outTitle:(()=>{ const x=subs.find(s=>s.por===nom); return x?('Salió'+(x.min?' en el min '+x.min:'')+' · entró '+x.nom):'Salió'; })()}):''}
         ${nom?`<button onclick="event.stopPropagation();_removeJuvP('${cat}','${year}',${m.id},${leg},'${slot.id}')"
           style="position:absolute;top:-4px;left:-4px;width:16px;height:16px;border-radius:50%;background:#dc2626;border:1.5px solid #fff;color:#fff;font-size:9px;font-weight:900;cursor:pointer;z-index:10;display:none;align-items:center;justify-content:center;line-height:1" class="p-slot-remove">×</button>`:''}
       </div>
@@ -38863,12 +38889,14 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
                 ${isBajaBench?`<span class="pz-pl-t pz-pl-t-baja">${fueraSetBench.has(nom)?'Fuera':'Baja'}</span>`:''}
                 ${!isBajaBench&&isTit?`<span class="pz-pl-t pz-pl-t-tit">Tit</span>`:''}
                 ${!isBajaBench&&isSub?`<span class="pz-pl-t pz-pl-t-sub" title="Ingresó"><i class="ti ti-arrow-up"></i></span>`:''}
+                ${(()=>{ const o=subs.find(x=>x.por===nom); return o?`<span class="pz-pl-t pz-pl-t-out" title="Salió${o.min?' en el min '+o.min:''} · entró ${o.nom.replace(/"/g,'&quot;')}"><i class="ti ti-arrow-down"></i>${o.min?`<b>${o.min}'</b>`:''}</span>`:''; })()}
                 ${goles[nom]>0?`<span class="pz-pl-t pz-pl-t-gol" title="Gol"><i class="ti ti-ball-football"></i>${goles[nom]>1?`<b>${goles[nom]}</b>`:''}</span>`:''}
                 ${cm?`<span class="pz-pl-t pz-pl-t-c" title="Tarjeta"><i class="ti ti-square-filled" style="color:${cm==='a'?'#FCD34D':cm==='da'?'#FCD34D':'#F87171'}"></i>${cm==='da'?'<i class="ti ti-square-filled" style="color:#F87171;margin-left:-4px"></i>':''}</span>`:''}
                 ${lesionSet.has(nom)?`<span class="pz-pl-t pz-pl-t-les" title="Se lesionó en este partido"><i class="ti ti-bandage"></i></span>`:''}
                 ${isSub?`<input type="text" class="pz-pl-min" inputmode="numeric" maxlength="3" value="${sub.min||''}" placeholder="min"
                   onclick="event.stopPropagation();this.select()"
-                  onchange="event.stopPropagation();_setJuvSubMin('${cat}','${year}',${m.id},${leg},'${nomEscQ}',this.value)">`:''}
+                  onchange="event.stopPropagation();_setJuvSubMin('${cat}','${year}',${m.id},${leg},'${nomEscQ}',this.value)">
+                <select class="pz-pl-por" title="¿Por quién entró?" onclick="event.stopPropagation()" onchange="event.stopPropagation();_setJuvSubPor('${cat}','${year}',${m.id},${leg},'${nomEscQ}',this.value)"><option value="">por…</option>${[...starterNoms,...subs.filter(x=>x.nom!==nom).map(x=>x.nom)].map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${sub.por===n?' selected':''}>${n.trim().split(/\s+/).slice(-1)[0]===n?n:n.trim().split(/\s+/).reduce((a,w,i,arr)=>i===0?w[0]+'.':a+' '+w,'')}</option>`).join('')}</select>`:''}
               </div>
             </div>
           </div>`;
@@ -39424,7 +39452,8 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <div class="pz-ev-n">${nameHtml}${subHtml?`<small>${subHtml}</small>`:''}</div>
             <button type="button" class="pz-ev-x" title="Quitar" onclick="${removeCall}"><i class="ti ti-x"></i></button>
           </div>`;
-      const _ap = n=>String(n).split(' ').pop();
+      // Apellido para los chips de la Pizarra: respeta las partículas («De La Cruz», «De Arrascaeta»), no solo la última palabra.
+      const _ap = n=>{ const t=String(n).trim().split(/\s+/); if(t.length<2) return t[0]||''; const pt=/^(de|del|la|las|los|da|do|das|dos|di|van|von)$/i; let i=t.length-1; while(i>0&&pt.test(t[i-1])) i--; return t.slice(i).join(' '); };
       const incHtml = allEntries.length ? allEntries.map(e=>{
         if(e.type==='goal'){
           const removeCall = e.gmIdx!=null
@@ -39449,7 +39478,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         }
         if(e.type==='sub'){
           const idx=subs.findIndex(s=>s.nom===e.nom);
-          return _evRow('sub',e,'<i class="ti ti-arrow-up"></i>',`<b>${_ap(e.nom)}</b>`,'',
+          return _evRow('sub',e,'<i class="ti ti-arrow-up" style="color:#86EFAC"></i>',`<b>${_ap(e.nom)}</b>`,(subs[idx]&&subs[idx].por)?`<i class="ti ti-arrow-down" style="color:#F87171"></i> por ${_ap(subs[idx].por)}`:'',
             `_removeJuvSub('${cat}','${year}',${m.id},${leg},${idx})`);
         }
         return '';
