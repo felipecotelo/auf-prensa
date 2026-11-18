@@ -10245,7 +10245,7 @@ function _recLinkFotoSuma(arr){
 function _recTodos(){ if(window._recCacheTodos) return window._recCacheTodos; return _recTodosRaw(); }
 // Una sola corrida de _recTodos() para todo un repintado (panel + lista): antes se armaba 3-4 veces por tildado.
 function _recConCache(fn){ const _o=!window._recCacheTodos; if(_o) window._recCacheTodos=_recTodosRaw(); try{ return fn(); } finally{ if(_o) window._recCacheTodos=null; } }
-function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados(), ..._recPaqueteDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
+function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados(), ..._recPaqueteDerivados(), ..._recPaqueteSeguimientoDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -10365,8 +10365,43 @@ window._pkgNo=function(rival,id){
   try{ toast('Anotado: vs. '+rival+' no hay '+(it?it.pregunta:'esa actividad')); }catch(_){}
   try{ _recDockRender(); }catch(_){}
 };
+// Seguimiento: al día siguiente de cada actividad que el ayudamemoria cargó («Sí»), la app pregunta «¿Se hizo …?». Sí → queda hecha en el Calendario; No → queda como NO realizada
+// (se ve tachada, no se borra). Si la actividad ya no existe (la sacaron a mano), no pregunta (Felipe, 18/11/2026).
+function _pkgActividad(it,rival,pd){
+  try{
+    const fe=_pkgDia(String(pd.fecha).slice(0,10),it.dia);
+    const a=getFifaNovAt().find(x=>x.fecha===fe&&((!it.soloRe&&x.tipo===it.tipo)||it.re.test(String(x.titulo||'')+' '+String(x.txt||''))));
+    if(!a) return null;
+    const lk=a.batchId?_fnovFindLinkedActByBatch(a.batchId):_fnovFindLinkedAct(a.id);
+    return {a,fecha:fe,lk};
+  }catch(_){ return null; }
+}
+function _recPaqueteSeguimientoDerivados(){
+  try{
+    const dec=_pkgDec(), out=[], lim=_pkgDia(TODAY,-8);
+    ((FIFANOV26&&FIFANOV26.partidosData)||[]).forEach(p=>{
+      if(!p.rival||!p.fecha) return;
+      _PKG_ITEMS.forEach(it=>{
+        const d=dec[p.rival+'|'+it.id]; if(!d||d.estado!=='si'||dec[p.rival+'|'+it.id+'|hecho']) return;
+        const fe=_pkgDia(String(p.fecha).slice(0,10),it.dia); if(fe>=TODAY||fe<lim) return;
+        if(!_pkgActividad(it,p.rival,p)) return;
+        out.push({id:'pkgh|'+p.rival+'|'+it.id,titulo:`¿Se hizo ${it.pregunta} vs. ${p.rival}?`,detalle:'Si no se hizo, la dejo marcada como no realizada (no la borro)',etiqueta:'Mayor',vence:_pkgDia(fe,1),hora:'09:00',sinHora:true,hecho:false,pkgRival:p.rival,pkgId:it.id,pkgHecho:true});
+      });
+    });
+    return out;
+  }catch(_){ return []; }
+}
+window._pkgHecho=function(rival,id,resp){
+  try{
+    const it=_PKG_ITEMS.find(x=>x.id===id), pd=_pkgPartido(rival); const act=it&&pd?_pkgActividad(it,rival,pd):null;
+    if(act&&act.lk){ const ev=getEvStatus(), k=evKey(act.lk.date,act.lk.idx); ev[k]=(resp==='si')?'done':'no'; setEvStatus_store(ev); }
+    const dec=_pkgDec(); dec[rival+'|'+id+'|hecho']={estado:resp,ts:new Date().toISOString()}; stor.set(_PKG_KEY,dec);
+    toast(resp==='si'?`Anotado: se hizo ${it.pregunta} vs. ${rival}`:`Anotado: NO se hizo ${it.pregunta} vs. ${rival} (queda marcada como no realizada)`);
+    try{ _recDockRender(); }catch(_){}
+  }catch(e){ try{ toast('No pude anotarlo: '+e.message); }catch(_){} }
+};
 function _recNoAplicaBtn(r,hecho){
-  if(r.pkgRival&&!hecho){ const rv=String(r.pkgRival).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); const b=(t,fn,c)=>`<button data-r="${rv}" data-i="${r.pkgId}" onclick="event.stopPropagation();${fn}(this.dataset.r,this.dataset.i)" style="border:1px solid ${c};background:none;color:${c};cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 12px;white-space:nowrap">${t}</button>`; return `<span style="display:inline-flex;gap:5px">${b('Sí','_pkgSi','#0EA5E9')}${b('No','_pkgNo','#64748B')}</span>`; }
+  if(r.pkgRival&&!hecho){ const rv=String(r.pkgRival).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); const b=(t,fn,c)=>`<button data-r="${rv}" data-i="${r.pkgId}" onclick="event.stopPropagation();${fn}(this.dataset.r,this.dataset.i)" style="border:1px solid ${c};background:none;color:${c};cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 12px;white-space:nowrap">${t}</button>`; if(r.pkgHecho){ const bh=(t,rs,c)=>`<button data-r="${rv}" data-i="${r.pkgId}" onclick="event.stopPropagation();_pkgHecho(this.dataset.r,this.dataset.i,'${rs}')" style="border:1px solid ${c};background:none;color:${c};cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 12px;white-space:nowrap">${t}</button>`; return `<span style="display:inline-flex;gap:5px">${bh('Sí, se hizo','si','#16A34A')}${bh('No se hizo','no','#DC2626')}</span>`; } return `<span style="display:inline-flex;gap:5px">${b('Sí','_pkgSi','#0EA5E9')}${b('No','_pkgNo','#64748B')}</span>`; }
   if(r.idaFecha&&!hecho){ const b=(t,m,pg)=>`<button onclick="event.stopPropagation();_idaResp('${r.idaFecha}','${m}','${pg}')" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap">${t}</button>`; return `<span style="display:inline-flex;gap:4px;flex-wrap:wrap">${b('Mi auto','propio','')}${b('Otro auto · AUF','otro','AUF')}${b('Otro auto','otro','')}</span>`; }
   if(r.fnacCat&&!hecho) return `<button data-n="${String(r.fnacCat)}" onclick="_fnacModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">cargar</button>`;
   if(r.clubRaw&&!hecho) return `<button data-n="${String(r.clubRaw).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" onclick="_clubResolverModal(this.dataset.n)" style="border:1px solid #0EA5E9;background:none;color:#0369A1;cursor:pointer;font-size:10px;font-weight:700;border-radius:999px;padding:2px 10px">resolver</button>`;
