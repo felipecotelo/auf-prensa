@@ -25777,6 +25777,7 @@ function buildForlanStatsHtml(){
   const jug=Object.entries(D.players).sort((a,b)=>b[1].pj-a[1].pj||b[1].tit-a[1].tit||b[1].g-a[1].g||a[0].localeCompare(b[0],'es'));
   const scorers=Object.entries(D.scorers).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
   return `
+    <div class="fsx-btn" style="display:flex;justify-content:flex-end;margin:0 0 10px"><button type="button" class="pz-chip" onclick="_forlanExportarPDF()" title="Hoja lista para mandarle a Forlán (Guardar como PDF)"><i class="ti ti-file-type-pdf"></i><span>Exportar PDF</span></button></div>
     <div class="fs-grid" style="grid-template-columns:repeat(3,1fr)">
       <div class="fs-tile"><span class="v" style="color:#4ADE80">${rec.gf}</span><span class="t">goles a favor · ${(rec.gf/rec.pj).toFixed(1)} por partido</span></div>
       <div class="fs-tile"><span class="v" style="color:#F87171">${rec.gc}</span><span class="t">en contra · ${(rec.gc/rec.pj).toFixed(1)} por partido</span></div>
@@ -25822,6 +25823,31 @@ function buildForlanStatsHtml(){
     ${Object.keys(D.forms).length?`${eye('Esquemas utilizados')}<div class="sx-trio" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">${Object.entries(D.forms).sort((a,b)=>b[1].pj-a[1].pj).map(([f,o])=>`<div class="sx-k" style="--kc:#8AD8FF"><div class="n">${f}</div><div class="l">${o.pj} ${o.pj===1?'partido':'partidos'}</div><div class="s">${o.g}G · ${o.e}E · ${o.p}P</div></div>`).join('')}</div>`:''}
     ${D.ta||D.tr?`${eye('Disciplina')}<div class="sx-duo">${cell('Amarillas',D.ta,'#FACC15')}${cell('Rojas',D.tr,'#F87171')}</div>`:''}`;
 }
+// PDF de las estadísticas de Forlán para mandárselo (Felipe, 18/11/2026): la misma pestaña «Estadísticas» con el diseño de la app, en una hoja A4 con fondo azul noche. Se abre la ventana de impresión → «Guardar como PDF».
+window._forlanExportarPDF=function(){
+  try{
+    const rec=_forlanMayorRecord(); if(!rec.pj){ toast('Todavía no hay partidos cargados'); return; }
+    const cuerpo=buildForlanStatsHtml(), hoy=new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const css=[...document.querySelectorAll('style,link[rel=stylesheet]')].map(e=>e.outerHTML).join('\n');
+    const cs=getComputedStyle(document.body), V=['--text','--muted','--hint','--border','--surface','--surface2','--white','--card','--bg','--fg','--accent'].map(v=>{ const x=cs.getPropertyValue(v).trim(); return x?v+':'+x:''; }).filter(Boolean).join(';');
+    const abs=u=>{ try{ return new URL(u,location.href).href; }catch(_){ return u; } };
+    const html=`<!doctype html><html lang="es" class="${document.documentElement.className}"><head><meta charset="utf-8"><title>Forlán · estadísticas de la Selección Mayor</title><base href="${location.origin}/">${css}<style>
+      @page{size:A4;margin:10mm 8mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      :root,body{${V}}html,body{background:#0A1022!important;color:#EFF3F8;margin:0;padding:0;font-family:'Inter',-apple-system,Arial,sans-serif}
+      .pdf-wrap{padding:0 4px}.pdf-top{display:flex;align-items:center;gap:16px;margin:0 0 18px}.pdf-top img.lg{width:58px;height:58px;border-radius:14px;object-fit:cover}
+      .pdf-e{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#8AD8FF}
+      .pdf-top h1{font-family:'Space Grotesk','Inter',sans-serif;font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:3px 0 0;color:#F4F7FB}
+      .pdf-s{font-size:13px;color:rgba(239,243,248,.65);margin-top:5px}.pdf-ft{margin-top:14px;text-align:right;font-size:10.5px;color:rgba(239,243,248,.45)}
+      .fsx-btn{display:none!important}.fs-panel,.ff2,.jm-card,.sh-card,.sx-k,.fs-tile,.sh-row,tr{break-inside:avoid}.sx-eye,.eye{break-after:avoid}
+      *{cursor:default!important}button{pointer-events:none}
+    </style></head><body class="${document.body.className}"><div class="pdf-wrap">
+      <div class="pdf-top"><img class="lg" src="${abs('/auf-icon-180.jpg')}" alt=""><div><div class="pdf-e">Selección Uruguaya · Mayor</div><h1>Diego Forlán · estadísticas</h1><div class="pdf-s">${rec.pj} ${rec.pj===1?'partido':'partidos'} · ${rec.g} ganados, ${rec.e} empatados, ${rec.p} perdidos · Fechas FIFA de set-oct y noviembre 2026</div></div></div>
+      ${cuerpo}<div class="pdf-ft">Datos al ${hoy}</div></div></body></html>`;
+    const w=window.open('','_blank'); if(!w){ toast('El navegador bloqueó la ventana: permitila para exportar el PDF'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    const t0=Date.now(), esp=()=>{ try{ const im=[...w.document.images]; if(im.every(i=>i.complete)||Date.now()-t0>5000){ setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} },800); } else setTimeout(esp,250); }catch(_){ try{ w.print(); }catch(__){} } }; setTimeout(esp,700);
+  }catch(e){ try{ toast('No pude armar el PDF: '+e.message); }catch(_){} }
+};
 function buildForlanConfsHtml(){
   const edits=stor.get('auf4_forlanconf',{});
   const hoy=TODAY;
