@@ -10485,7 +10485,7 @@ function _recHitosDerivados(){
 }
 // Descarga directa de un PDF (Felipe, 18/11/2026: «directo a descargas», sin diálogo de impresión): se dibuja el HTML en un marco oculto, se saca una imagen de alta resolución y se guarda en una sola hoja larga (A4 de ancho, sin cortes en el medio).
 window._pdfDescargar=async function(html,nombre,ancho){
-  ancho=ancho||794; let fr=null;
+  ancho=ancho||794; let fr=null, W0=null;
   try{
     if(!window.html2canvas) await new Promise((ok,ko)=>{ const sc=document.createElement('script'); sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'; sc.onload=ok; sc.onerror=()=>ko(new Error('no se pudo cargar el generador de imágenes (¿sin conexión?)')); document.head.appendChild(sc); });
     await _redesLoadJsPdf();
@@ -10506,102 +10506,117 @@ window._pdfDescargar=async function(html,nombre,ancho){
     const alto=Math.ceil(Math.max(d.body.scrollHeight,d.documentElement.scrollHeight)); fr.style.height=alto+'px';
     await new Promise(r=>setTimeout(r,200));
     const canvas=await html2canvas(d.body,{scale:2,backgroundColor:'#0A1022',useCORS:true,logging:false,width:ancho,height:alto,windowWidth:ancho,windowHeight:alto});
-    const {jsPDF}=window.jspdf, pdf=new jsPDF({unit:'px',format:[ancho,alto],orientation:'p',hotfixes:['px_scaling'],compress:true});
-    pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,ancho,alto,undefined,'FAST');
+    // PDF «normal» (Felipe, 18/11/2026): páginas A4 de verdad. Los cortes caen entre bloques (tarjetas, filas), nunca por el medio de uno, y no queda un título solo al final de una página.
+    const PH=Math.round(ancho*1.4142), MG=26, H=PH-2*MG;
+    W0=fr.contentWindow; const y0=d.body.getBoundingClientRect().top+W0.pageYOffset, top=el=>el.getBoundingClientRect().bottom+W0.pageYOffset-y0;
+    const heading=el=>el.matches('h2,.hs,.sx-eye,.eye,.pdf-e');
+    const uni=[...d.querySelectorAll('body>*,.pdf-wrap>*,.tp,.pt,.k,.jm-card,.fs-two,.ff2,.sh-card')].filter(e=>!heading(e)).map(top);
+    const fin=[...d.querySelectorAll('.q,tr,.sh-row,.ff2-m,.fs-tile,.fs-panel')].map(top).concat(uni);
+    const mx=a=>a.reduce((m,v)=>v>m?v:m,0);
+    const cortes=[0]; let ini=0;
+    while(ini<alto-1){ const lim=ini+H; if(lim>=alto){ cortes.push(alto); break; }
+      let c=mx(uni.filter(v=>v<=lim&&v>ini+H*0.55)); if(!c) c=mx(fin.filter(v=>v<=lim&&v>ini+H*0.3)); if(!c) c=lim; cortes.push(c); ini=c; }
+    const {jsPDF}=window.jspdf, pdf=new jsPDF({unit:'px',format:[ancho,PH],orientation:'p',hotfixes:['px_scaling'],compress:true});
+    for(let i=0;i<cortes.length-1;i++){ const a=cortes[i], b=cortes[i+1], hh=b-a; if(hh<4) continue;
+      if(i>0) pdf.addPage([ancho,PH],'p'); pdf.setFillColor(10,16,34); pdf.rect(0,0,ancho,PH,'F');
+      const t=document.createElement('canvas'); t.width=canvas.width; t.height=Math.max(1,Math.round(hh*2)); t.getContext('2d').drawImage(canvas,0,Math.round(a*2),canvas.width,t.height,0,0,canvas.width,t.height);
+      pdf.addImage(t.toDataURL('image/jpeg',0.92),'JPEG',0,MG,ancho,t.height/2,undefined,'FAST'); }
     pdf.save(nombre); try{ toast('PDF descargado: '+nombre); }catch(_){}
   }catch(e){ try{ toast('⚠ No pude generar el PDF: '+(e&&e.message||e)); }catch(_){} }
   finally{ if(fr) fr.remove(); }
 };
-// ── PDF simple de todo lo de PRENSA de la Fecha FIFA (Felipe, 18/11/2026): desde la atención en el aeropuerto hasta la última actividad de prensa. No incluye marketing (shootings, piezas de Navidad, firmas, camisetas). ──
-// Se abre una hoja lista para imprimir y se pide «Guardar como PDF». Sale de «Atenciones cargadas»; las que se marcaron como NO realizadas no figuran.
+// ── PDF de PRENSA de la Fecha FIFA (Felipe, 18/11/2026): muestra el VOLUMEN de atención a la prensa (no el cronograma) y distingue los eventos de las atenciones.
+// Sale del cronograma (auf4_dayacts) con lo que se hizo: se cuentan las actividades de prensa del período FIFA que no se marcaron como NO realizadas y que ya pasaron; no incluye marketing (shootings, piezas de Navidad, firmas).
+// Se baja directo como PDF (una hoja larga, ancho de celular para que se lea grande).
 window._prensaExportarPDF=function(){
   try{
-    const EV=(typeof FIFANOV26!=='undefined')?FIFANOV26:{}, lista=getFifaNovAt(), aero=stor.get('auf4_fifanov_aero',{}), ev=getEvStatus();
-    const NO=/shooting|felices fiestas|navidad|pieza de|firma de|autógraf|autograf|camiseta|rodaje|marketing/i;
-    const tipoLabel=id=>(FIFANOV_DISP_TIPOS.find(t=>t.id===id)||{}).label||id;
+    const EV=(typeof FIFANOV26!=='undefined')?FIFANOV26:{}, per=EV.periodoFifa||{desde:EV.desde,hasta:EV.hasta}, ev=getEvStatus(), da=getDayActs(), aero=Object.keys(stor.get('auf4_fifanov_aero',{})).filter(n=>stor.get('auf4_fifanov_aero',{})[n]);
     const esc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const grupos=new Map();
-    lista.filter(a=>a&&a.fecha&&!['shoot-of','shoot-esp','rodaje','marketing'].includes(a.tipo)&&!NO.test(String(a.titulo||'')+' '+String(a.txt||''))).forEach(a=>{
-      const k=a.batchId?'b'+a.batchId:'i'+a.id; if(!grupos.has(k)) grupos.set(k,[]); grupos.get(k).push(a);
-    });
-    const filas=[];
-    grupos.forEach(g=>{
-      const a0=g[0];
-      let lk=null; try{ lk=a0.batchId?_fnovFindLinkedActByBatch(a0.batchId):_fnovFindLinkedAct(a0.id); }catch(_){}
-      if(lk&&ev[evKey(lk.date,lk.idx)]==='no') return; // no se hizo
-      const pers=[...new Set(g.map(x=>x.quien).filter(Boolean))];
-      const quien=a0.tipo==='apertura'?'Plantel completo (abierto a la prensa)':(pers.length&&!(pers.length===1&&pers[0]===FNOV_QUIEN_TBD)?pers.filter(n=>n!==FNOV_QUIEN_TBD).join(', ')||'Jugadores a definir':'Jugadores a definir');
-      const hora=String(a0.hora||'').trim();
-      filas.push({fecha:a0.fecha,hora:hora&&hora!=='TBD'?(/^\d{1,2}(:\d{2})?$/.test(hora)?hora+'h':hora):'',orden:parseEvTime(hora),act:a0.titulo||a0.txt||tipoLabel(a0.tipo),quien,tipo:a0.tipo,pers:a0.tipo==='apertura'?[]:pers.filter(n=>n!==FNOV_QUIEN_TBD),todos:a0.tipo==='apertura'});
-    });
-    filas.sort((x,y)=>x.fecha.localeCompare(y.fecha)||x.orden-y.orden);
-    const DS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'], MS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-    const diaTxt=f=>{ const d=new Date(f+'T12:00:00'); const t=DS[d.getDay()]+' '+d.getDate()+' de '+MS[d.getMonth()]; return t.charAt(0).toUpperCase()+t.slice(1); };
-    const porDia=new Map(); filas.forEach(f=>{ if(!porDia.has(f.fecha)) porDia.set(f.fecha,[]); porDia.get(f.fecha).push(f); });
-    const aeroNoms=Object.keys(aero).filter(n=>aero[n]);
-    // Diseño tipo «El plantel en datos» (Felipe, 18/11/2026): fondo azul noche, tarjetas redondeadas, número grande por día, hora destacada y jugadores con foto.
-    const COL={md1:'#38BDF8',md:'#38BDF8',hotel:'#86EFAC',auftv:'#F472B6',zm:'#FCD34D','coach-arrival':'#FB923C','player-arrival':'#FB923C','flash-interview':'#FB923C',zoom:'#67E8F9',apertura:'#22D3EE','prensa-local':'#94A3B8',otro:'#94A3B8'};
-    const ICO={md1:'🎤',md:'🎙',hotel:'🏨',auftv:'📺',zm:'🎥','coach-arrival':'🚐','player-arrival':'🚌','flash-interview':'⚡',zoom:'💻',apertura:'🏃','prensa-local':'📰',otro:'📋'};
+    const TIPOS=[
+      {k:'conf', re:/conferencia/i,            lbl:'Conferencias de prensa',  sing:'conferencia', plu:'conferencias', ic:'🎤', col:'#38BDF8'},
+      {k:'ape',  re:/apertura/i,               lbl:'Aperturas a la prensa',   sing:'apertura', plu:'aperturas', ic:'🏃', col:'#22D3EE', plantel:true},
+      {k:'zm',   re:/zona mixta/i,             lbl:'Zonas mixtas',            sing:'zona mixta', plu:'zonas mixtas', ic:'🎥', col:'#FCD34D'},
+      {k:'flash',re:/flash/i,                  lbl:'Flash interviews',        sing:'flash interview', plu:'flash interviews', ic:'⚡', col:'#FB923C'},
+      {k:'tv',   re:/\bnotas?\b.*auftv|auftv|notas?\b/i, lbl:'Notas para AUFtv', sing:'nota para AUFtv', plu:'notas para AUFtv', ic:'📺', col:'#F472B6'},
+      {k:'arr',  re:/arrival/i,                lbl:'Llegadas al estadio',     sing:'llegada al estadio', plu:'llegadas al estadio', ic:'🚌', col:'#86EFAC'},
+      {k:'auto', re:/prensa desde el auto/i,   lbl:'Atención al retirarse',   sing:'atención al retirarse', plu:'atenciones al retirarse', ic:'🚗', col:'#A3E635'},
+    ];
+    const NO=/shooting|felices fiestas|navidad|pieza de|firma de|autógraf|autograf|camiseta|rodaje|marketing/i;
+    const evs=[]; // {fecha,tipo,txt,pers[]}
+    Object.keys(da).filter(d=>d>=per.desde&&d<=per.hasta&&d<=TODAY).sort().forEach(d=>{ (da[d]||[]).forEach((a,i)=>{
+      const txt=String(a.txt||''); if(!txt||NO.test(txt)) return; if(ev[evKey(d,i)]==='no') return;
+      const t=TIPOS.find(x=>x.re.test(txt)); if(!t) return;
+      evs.push({fecha:d,t,txt,pers:(a.personas||[]).filter(n=>n&&n!==FNOV_QUIEN_TBD)});
+    }); });
+    // una conferencia = un evento por día y título (aunque hablen varios)
+    const conf=new Map(); const eventos=[];
+    evs.forEach(e=>{ if(e.t.k==='conf'){ const k=e.fecha+'|'+e.txt; if(!conf.has(k)){ conf.set(k,{...e,pers:[...e.pers]}); eventos.push(conf.get(k)); } else conf.get(k).pers.push(...e.pers.filter(n=>!conf.get(k).pers.includes(n))); } else eventos.push(e); });
+    if(aero.length) eventos.unshift({fecha:per.desde,t:{k:'aero',lbl:'Llegada al aeropuerto',sing:'llegada al aeropuerto',plu:'llegadas al aeropuerto',ic:'✈',col:'#FDBA74'},txt:'Llegada al aeropuerto',pers:aero,aero:true});
+    const esJug=n=>typeof JUGADORES!=='undefined'&&!!JUGADORES[n];
+    const atn=e=>e.t.plantel?0:e.pers.length;
+    const totE=eventos.length, totA=eventos.reduce((n,e)=>n+atn(e),0);
+    const quienes=new Map(); eventos.forEach(e=>{ if(e.t.plantel) return; e.pers.forEach(n=>quienes.set(n,(quienes.get(n)||0)+1)); });
+    const jugs=[...quienes].filter(([n])=>esJug(n)), staff=[...quienes].filter(([n])=>!esJug(n));
+    const porTipo=[...TIPOS,{k:'aero',lbl:'Llegada al aeropuerto',sing:'llegada al aeropuerto',plu:'llegadas al aeropuerto',ic:'✈',col:'#FDBA74'}].map(t=>{ const es=eventos.filter(e=>e.t.k===t.k); return {t,n:es.length,a:es.reduce((x,e)=>x+atn(e),0)}; }).filter(x=>x.n);
+    const maxN=Math.max(1,...porTipo.map(x=>x.n));
+    const partidos=(EV.partidosData||[]), ult=partidos.length?partidos[0].fecha:'';
+    const bloques=partidos.map((pd,i)=>{ const desde=i===0?'0000':partidos[i-1].fecha, hasta=pd.fecha; const es=eventos.filter(e=>(i===0?e.fecha<=hasta:e.fecha>desde&&e.fecha<=hasta)||(i===partidos.length-1&&e.fecha>hasta)); return {pd,es}; });
     const abs=u=>{ try{ return u?new URL(u,location.href).href:''; }catch(_){ return ''; } };
     const ini=n=>String(n).split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
-    const av=(n,sz)=>{ let src=''; try{ src=abs((window._getPhotoByName&&window._getPhotoByName(n))||''); }catch(_){}
-      return src?`<img class="av" style="width:${sz}px;height:${sz}px" src="${esc(src)}" alt="" onerror="this.outerHTML='<span class=&quot;av ph&quot; style=&quot;width:${sz}px;height:${sz}px&quot;>${esc(ini(n))}</span>'">`:`<span class="av ph" style="width:${sz}px;height:${sz}px">${esc(ini(n))}</span>`; };
-    const chip=n=>`<span class="ch">${av(n,22)}<b>${esc(n)}</b></span>`;
-    const partidos=(EV.partidosData||[]), partDe=f=>partidos.find(x=>x.fecha===f);
-    const dia=f=>{ const d=new Date(f+'T12:00:00'); return {n:d.getDate(),sem:DS[d.getDay()],mes:MS[d.getMonth()]}; };
-    const todosNoms=new Set(aeroNoms); filas.forEach(f=>f.pers.forEach(n=>todosNoms.add(n)));
-    const cnt=(ids,re)=>filas.filter(f=>ids.includes(f.tipo)||(re&&re.test(f.act))).length;
-    const kpi=(ic,col,l,v,sub)=>`<div class="k"><span class="ki" style="background:${col}22;color:${col}">${ic}</span><label>${l}</label><b>${v}</b><span class="ks">${sub||''}</span></div>`;
-    const total=filas.length+(aeroNoms.length?1:0);
-    const desde=filas.length?filas[0].fecha:'', hasta=filas.length?filas[filas.length-1].fecha:'';
-    const rivales=partidos.map(x=>(x.rivalBandera||'')+' '+x.rival).join(' y ');
-    const kpis=`<div class="ks4">`
-      +kpi('📋','#38BDF8','Actividades',String(total),'de prensa en la Fecha FIFA')
-      +kpi('🎤','#FCD34D','Conferencias',String(cnt(['md1','md'],/conferencia/i)),'MD-1 y día de partido')
-      +kpi('📺','#F472B6','Notas AUFtv',String(cnt(['auftv'],/auftv/i)),'post-partido y especiales')
-      +kpi('⚽','#86EFAC','Jugadores',String(todosNoms.size),'pasan por prensa')
-      +`</div>`;
-    const secAero=aeroNoms.length?`<section class="dia"><div class="dh"><div class="dn" style="background:#FB923C22;color:#FB923C">✈</div><div><div class="dt">Llegada al aeropuerto</div><div class="dd">Atención a la prensa · ${aeroNoms.length} jugadores</div></div></div><div class="chs">${aeroNoms.map(chip).join('')}</div></section>`:'';
-    const secDias=[...porDia].map(([f,rs])=>{ const d=dia(f), pd=partDe(f);
-      const badge=pd?`<span class="bd">${esc(pd.rivalBandera||'')} Día de partido · vs. ${esc(pd.rival)}${pd.hora?' · '+esc(pd.horaLocal||pd.hora)+'h':''}</span>`:'';
-      return `<section class="dia"><div class="dh"><div class="dn">${d.n}</div><div><div class="dt">${esc(d.sem.charAt(0).toUpperCase()+d.sem.slice(1))} <span>de ${esc(d.mes)}</span></div><div class="dd">${rs.length} ${rs.length===1?'actividad':'actividades'}</div></div>${badge}</div>
-        ${rs.map(r=>{ const c=COL[r.tipo]||'#94A3B8'; return `<div class="ac" style="--c:${c}"><div class="hr">${esc(r.hora||'A definir')}</div><div class="ab"><div class="at"><span class="ai">${ICO[r.tipo]||'📋'}</span>${esc(r.act)}</div>${r.todos?`<div class="chs"><span class="ch all"><b>Plantel completo · abierto a la prensa</b></span></div>`:(r.pers.length?`<div class="chs">${r.pers.map(chip).join('')}</div>`:`<div class="aq">Jugadores a definir</div>`)}</div></div>`; }).join('')}</section>`; }).join('');
+    const fotoDe=n=>{ try{ if(n==='Diego Forlán'&&typeof getDTFoto==='function') return abs(getDTFoto('forlan',_AUF_FOTO+'diego-forlan.jpg')||''); return abs((window._getPhotoByName&&window._getPhotoByName(n))||''); }catch(_){ return ''; } };
+    const av=(n,sz)=>{ const src=fotoDe(n); return src?`<img class="av" style="width:${sz}px;height:${sz}px" src="${esc(src)}" alt="" onerror="this.outerHTML='<span class=&quot;av ph&quot; style=&quot;width:${sz}px;height:${sz}px&quot;>${esc(ini(n))}</span>'">`:`<span class="av ph" style="width:${sz}px;height:${sz}px">${esc(ini(n))}</span>`; };
+    const corto=n=>{ const w=String(n).split(/\s+/); return w.length>2?w.slice(-2).join(' '):w.slice(-1)[0]; };
+    const plural=(n,s,p)=>n+' '+(n===1?s:p);
+    const rivales=partidos.map(x=>(x.rivalBandera||'')+' '+x.rival).join('  ·  ');
+    const MS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'], f2=f=>{ const d=new Date(f+'T12:00:00'); return d.getDate()+' de '+MS[d.getMonth()]; };
+    const kpi=(n,l,col)=>`<div class="k"><b style="color:${col}">${n}</b><span>${l}</span></div>`;
+    const filaTipo=x=>`<div class="tp"><div class="th"><span class="ti2" style="background:${x.t.col}22">${x.t.ic}</span><div class="tl">${esc(x.t.lbl)}</div><div class="tn" style="color:${x.t.col}">${x.n}</div></div><div class="bar"><i style="width:${Math.round(100*x.n/maxN)}%;background:${x.t.col}"></i></div>${x.a?`<div class="ts">${plural(x.a,'atención','atenciones')}</div>`:`<div class="ts">Plantel completo, abierto a la prensa</div>`}</div>`;
+    const bloqueHtml=b=>{ const ps=b.es, a=ps.reduce((n,e)=>n+atn(e),0); const por=TIPOS.concat([{k:'aero',sing:'llegada al aeropuerto',plu:'llegadas al aeropuerto',lbl:'Llegada al aeropuerto',ic:'✈',col:'#FDBA74'}]).map(t=>({t,n:ps.filter(e=>e.t.k===t.k).length})).filter(x=>x.n);
+      return `<div class="pt"><div class="pth"><span class="fl">${esc(b.pd.rivalBandera||'')}</span><div><div class="ptt">vs. ${esc(b.pd.rival)}</div><div class="pts">${esc(f2(b.pd.fecha))}</div></div></div><div class="ptk"><div><b>${ps.length}</b><span>eventos</span></div><div><b>${a}</b><span>atenciones</span></div></div><div class="chs">${por.map(x=>`<span class="cp" style="border-color:${x.t.col}66;color:${x.t.col}">${x.n} ${esc(x.n===1?x.t.sing:x.t.plu)}</span>`).join('')}</div></div>`; };
+    const quien=(n,c,dt)=>`<div class="q">${av(n,dt?84:64)}<b>${esc(corto(n))}</b><span>${dt?'Director técnico':plural(c,'atención','atenciones')}</span></div>`;
+    const dtN=quienes.has('Diego Forlán')?[['Diego Forlán',quienes.get('Diego Forlán')]]:[];
+    const otros=[...jugs,...staff.filter(([n])=>n!=='Diego Forlán')].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
     const html=`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Prensa · ${esc(EV.label||'Fecha FIFA')}</title>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"><style>
-      @page{size:A4;margin:11mm 9mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      html,body{background:#0A1022}body{font-family:'Inter',-apple-system,Arial,sans-serif;color:#EFF3F8;margin:0;font-size:12px;line-height:1.35}
-      .top{display:flex;align-items:center;gap:16px;margin-bottom:16px}.top img{width:58px;height:58px;border-radius:14px;object-fit:cover}
-      .e{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#8AD8FF}
-      h1{font-family:'Space Grotesk','Inter',sans-serif;font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:3px 0 0}
-      .sub{font-size:13px;color:rgba(239,243,248,.65);margin-top:5px}
-      .ks4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-      .k{padding:13px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
-      .ki{display:inline-flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;font-size:14px;margin-bottom:8px}
-      .k label{display:block;font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.55)}
-      .k b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-top:3px}
-      .ks{display:block;font-size:10.5px;color:rgba(239,243,248,.55);margin-top:2px}
-      .dia{margin-bottom:12px;padding:14px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);break-inside:avoid-page}
-      .dh{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-      .dn{width:46px;height:46px;border-radius:14px;background:#38BDF822;color:#38BDF8;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk','Inter',sans-serif;font-size:24px;font-weight:700;flex-shrink:0}
-      .dt{font-family:'Space Grotesk','Inter',sans-serif;font-size:19px;font-weight:700;letter-spacing:-.02em}.dt span{font-weight:500;color:rgba(239,243,248,.6)}
-      .dd{font-size:11px;color:rgba(239,243,248,.55)}
-      .bd{margin-left:auto;padding:5px 12px;border-radius:999px;background:#FCD34D22;color:#FCD34D;border:1px solid #FCD34D55;font-size:11px;font-weight:700;white-space:nowrap}
-      .ac{display:flex;gap:12px;padding:9px 0 9px 12px;margin-left:2px;border-left:3px solid var(--c);border-top:1px solid rgba(255,255,255,.07);break-inside:avoid}
-      .ac:first-of-type{border-top:0}
-      .hr{width:62px;flex-shrink:0;font-family:'Space Grotesk','Inter',sans-serif;font-size:15px;font-weight:700;color:var(--c);padding-top:1px}
-      .ab{flex:1;min-width:0}.at{font-size:13.5px;font-weight:700;color:#F4F7FB}.ai{margin-right:6px}
-      .aq{margin-top:4px;font-size:11px;color:rgba(239,243,248,.45);font-style:italic}
-      .chs{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
-      .ch{display:inline-flex;align-items:center;gap:6px;padding:2px 10px 2px 2px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);font-size:11px;color:#F4F7FB}
-      .ch.all{padding:4px 12px;background:#22D3EE22;border-color:#22D3EE55;color:#67E8F9}
-      .av{border-radius:50%;object-fit:cover;object-position:top;background:#1B2744;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#8AD8FF}
-      .ft{margin-top:6px;text-align:right;font-size:10.5px;color:rgba(239,243,248,.45)}
+      *{box-sizing:border-box}html,body{background:#0A1022;margin:0}body{font-family:'Inter',-apple-system,Arial,sans-serif;color:#EFF3F8;width:588px;padding:10px 24px 10px;line-height:1.3}
+      .top{display:flex;align-items:center;gap:16px;margin-bottom:22px}.top img{width:72px;height:72px;border-radius:18px;object-fit:cover}
+      .e{font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#8AD8FF}
+      h1{font-family:'Space Grotesk','Inter',sans-serif;font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.05;margin:4px 0 0}
+      .sub{font-size:17px;color:rgba(239,243,248,.7);margin-top:6px}
+      .ks{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:26px}
+      .k{padding:18px 18px 16px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
+      .k b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:60px;font-weight:700;letter-spacing:-.04em;line-height:1}
+      .k span{display:block;margin-top:8px;font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(239,243,248,.6)}
+      h2{font-family:'Space Grotesk','Inter',sans-serif;font-size:26px;font-weight:700;letter-spacing:-.02em;margin:30px 0 4px}
+      .hs{font-size:15px;color:rgba(239,243,248,.6);margin:0 0 14px}
+      .tp{padding:16px 18px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);margin-bottom:10px}
+      .th{display:flex;align-items:center;gap:12px}.ti2{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+      .tl{flex:1;font-size:20px;font-weight:700;color:#F4F7FB}.tn{font-family:'Space Grotesk','Inter',sans-serif;font-size:44px;font-weight:700;line-height:1}
+      .bar{height:10px;border-radius:999px;background:rgba(255,255,255,.1);margin:12px 0 8px;overflow:hidden}.bar i{display:block;height:100%;border-radius:inherit}
+      .ts{font-size:16px;color:rgba(239,243,248,.7)}
+      .pt{padding:18px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);margin-bottom:12px}
+      .pth{display:flex;align-items:center;gap:14px}.fl{font-size:38px}.ptt{font-family:'Space Grotesk','Inter',sans-serif;font-size:25px;font-weight:700}.pts{font-size:15px;color:rgba(239,243,248,.6)}
+      .ptk{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 10px}.ptk div{background:rgba(255,255,255,.05);border-radius:14px;padding:10px 14px}
+      .ptk b{font-family:'Space Grotesk','Inter',sans-serif;font-size:38px;line-height:1;margin-right:8px}.ptk span{font-size:15px;color:rgba(239,243,248,.65)}
+      .chs{display:flex;flex-wrap:wrap;gap:8px}.cp{padding:6px 13px;border-radius:999px;border:1px solid;font-size:15px;font-weight:700}
+      .qs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.q{display:flex;flex-direction:column;align-items:center;text-align:center;padding:14px 6px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03)}
+      .q b{margin-top:9px;font-size:16px;font-weight:700;color:#F4F7FB;line-height:1.15}.q span{margin-top:3px;font-size:14px;color:rgba(239,243,248,.6)}
+      .qd{grid-column:1/-1;flex-direction:row;gap:18px;text-align:left;padding:16px 20px;border-color:#38BDF855;background:#38BDF812}.qd .tx{display:flex;flex-direction:column}.qd b{margin:0;font-size:25px}.qd span{font-size:16px;color:#8AD8FF}
+      .av{border-radius:50%;object-fit:cover;object-position:top;background:#1B2744;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#8AD8FF;font-size:20px;flex-shrink:0}
+      .ft{margin-top:22px;text-align:right;font-size:14px;color:rgba(239,243,248,.45)}
     </style></head><body>
-      <div class="top"><img src="${esc(abs('/auf-icon-180.jpg'))}" alt=""><div><div class="e">Selección Uruguaya · Prensa</div><h1>${esc(EV.label||'Fecha FIFA')} · atención a la prensa</h1><div class="sub">${desde?`Del ${esc(diaTxt(desde).toLowerCase())} al ${esc(diaTxt(hasta).toLowerCase())}`:'Sin actividades cargadas'}${rivales?' · '+esc(rivales):''}</div></div></div>
-      ${kpis}${secAero}${secDias}
-      <div class="ft">Generado el ${new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'})} · actividades que no se realizaron no figuran</div>
+      <div class="top"><img src="${esc(abs('/auf-icon-180.jpg'))}" alt=""><div><div class="e">Selección Uruguaya</div><h1>Atención a la prensa</h1><div class="sub">${esc(EV.label||'Fecha FIFA')} · ${esc(f2(per.desde))} al ${esc(f2(per.hasta))}</div></div></div>
+      <div class="sub" style="margin:-8px 0 20px">${rivales}</div>
+      <div class="ks">${kpi(totE,'eventos de prensa','#38BDF8')}${kpi(totA,'atenciones','#FCD34D')}${kpi(jugs.length,'jugadores atendidos','#86EFAC')}${kpi(eventos.filter(e=>e.t.k==='tv'||e.t.k==='flash'||e.t.k==='zm').length,'entrevistas y notas','#F472B6')}</div>
+      <h2>Los eventos</h2><div class="hs">Cada instancia abierta a la prensa</div>
+      ${porTipo.map(filaTipo).join('')}
+      <h2>Por partido</h2><div class="hs">Eventos y atenciones antes y después de cada partido</div>
+      ${bloques.map(bloqueHtml).join('')}
+      <h2>Quiénes hablaron</h2><div class="hs">Atenciones por persona</div>
+      <div class="qs">${dtN.map(([n,c])=>`<div class="q qd">${av(n,84)}<div class="tx"><b>${esc(n)}</b><span>Director técnico · ${plural(c,'atención','atenciones')}</span></div></div>`).join('')}${otros.map(([n,c])=>quien(n,c,false)).join('')}</div>
+      <div class="ft">Datos al ${new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>
     </body></html>`;
-    toast('Generando el PDF…'); _pdfDescargar(html,'prensa-fecha-fifa-nov-2026.pdf');
+    toast('Generando el PDF…'); _pdfDescargar(html,'prensa-fecha-fifa-nov-2026.pdf',588);
   }catch(e){ try{ toast('No pude armar el PDF: '+e.message); }catch(_){} }
 };
 function _recNoAplicaBtn(r,hecho){
@@ -25871,7 +25886,7 @@ window._forlanExportarPDF=function(){
     </style></head><body class="${document.body.className}"><div class="pdf-wrap">
       <div class="pdf-top"><img class="lg" src="${abs('/auf-icon-180.jpg')}" alt=""><div><div class="pdf-e">Selección Uruguaya · Mayor</div><h1>Diego Forlán · estadísticas</h1><div class="pdf-s">${rec.pj} ${rec.pj===1?'partido':'partidos'} · ${rec.g} ganados, ${rec.e} empatados, ${rec.p} perdidos · Fechas FIFA de set-oct y noviembre 2026</div></div></div>
       ${cuerpo}<div class="pdf-ft">Datos al ${hoy}</div></div></body></html>`;
-    toast('Generando el PDF…'); _pdfDescargar(html,'forlan-estadisticas-seleccion-mayor.pdf');
+    toast('Generando el PDF…'); _pdfDescargar(html,'forlan-estadisticas-seleccion-mayor.pdf',680);
   }catch(e){ try{ toast('No pude armar el PDF: '+e.message); }catch(_){} }
 };
 function buildForlanConfsHtml(){
