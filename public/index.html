@@ -10803,6 +10803,19 @@ function _flagIso(em){
 }
 function _resReservados(){
   const out=[];
+  // Pasada la Fecha FIFA de noviembre y hasta que llegue la lista nueva de jugadores a seguir: se usan TODOS los reservados que eligió Forlán, los de la Fecha FIFA de Asia (set–oct) y los de noviembre (Felipe, 18/11/2026).
+  try{
+    const hasta=(typeof FIFANOV26!=='undefined'&&FIFANOV26.periodoFifa&&FIFANOV26.periodoFifa.hasta)||'';
+    if(hasta&&TODAY>hasta){
+      const vistos=new Map();
+      [typeof FIFANOV26!=='undefined'?FIFANOV26:null, typeof FIFASEP26!=='undefined'?FIFASEP26:null].filter(Boolean).forEach(EV=>{
+        Object.values(EV.reservados||{}).forEach(arr=>(arr||[]).forEach(j=>{ if(!j||!j.nom||!j.club||vistos.has(j.nom)) return; vistos.set(j.nom,j); }));
+      });
+      const ovr=(typeof getJugClub==='function'?getJugClub():{});
+      vistos.forEach(j=>{ const ov=ovr[j.nom]; out.push({nom:j.nom,club:(ov!==undefined&&ov)?ov:j.club,cc:_flagIso(j.clubPais),lib:false}); });
+      if(out.length) return out;
+    }
+  }catch(_){}
   const EV=(typeof FIFANOV26!=='undefined'&&(FIFANOV26.reservados||FIFANOV26.finales))?FIFANOV26:(typeof FIFASEP26!=='undefined'?FIFASEP26:null);
   if(!EV) return out;
   const fin=Array.isArray(EV.finales)&&EV.finales.length?new Set(EV.finales):null;
