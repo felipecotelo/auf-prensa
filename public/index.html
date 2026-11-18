@@ -10316,6 +10316,8 @@ const _PKG_ITEMS=[
   {id:'flash', tipo:'flash-interview', nombre:'Flash interview post-partido',    pregunta:'flash interview post-partido',     t:r=>`Flash interview post-partido vs. ${r}`,    dia:0,  dt:false, re:/flash interview/i},
   {id:'conf',  tipo:'md',              nombre:'Conferencia del DT post-partido', pregunta:'conferencia del DT post-partido',  t:r=>`Conferencia del DT post-partido vs. ${r}`, dia:0,  dt:true,  re:/conferencia.*post|post.*conferencia/i},
   {id:'zm',    tipo:'zm',              nombre:'Zona mixta post-partido',         pregunta:'zona mixta post-partido',          t:r=>`Zona mixta post-partido vs. ${r}`,         dia:0,  dt:false, re:/zona mixta/i},
+  // «Nota para AUFtv» también se carga en otros momentos del día: acá solo cuenta como ya cargada si el título dice que es post-partido (Felipe, 18/11/2026).
+  {id:'auftv', tipo:'auftv',           nombre:'Notas post-partido para AUFtv',   pregunta:'notas post-partido para AUFtv',    t:r=>`Notas post-partido para AUFtv vs. ${r}`,    dia:0,  dt:false, re:/post.?partido.*auftv|auftv.*post.?partido/i, soloRe:true},
 ];
 function _pkgDec(){ try{ return stor.get(_PKG_KEY,{})||{}; }catch(_){ return {}; } }
 function _pkgPartido(rival){ try{ return ((FIFANOV26&&FIFANOV26.partidosData)||[]).find(x=>x.rival===rival)||null; }catch(_){ return null; } }
@@ -10324,7 +10326,7 @@ function _pkgDia(f,n){ const d=new Date(String(f).slice(0,10)+'T12:00:00'); d.se
 function _pkgYa(it,rival,pd){
   try{
     const fe=_pkgDia(String(pd.fecha).slice(0,10),it.dia);
-    if(getFifaNovAt().some(a=>a.fecha===fe&&(a.tipo===it.tipo||it.re.test(String(a.titulo||'')+' '+String(a.txt||''))))) return true;
+    if(getFifaNovAt().some(a=>a.fecha===fe&&((!it.soloRe&&a.tipo===it.tipo)||it.re.test(String(a.titulo||'')+' '+String(a.txt||''))))) return true;
     const acts=getDayActs()[fe]||[], off=((FIFANOV26_CAL_DAYS.find(d=>d.date===fe)||{}).eventos||[]).length;
     return acts.some((e,i)=>e&&it.re.test(String(getEvTxt(fe,off+i,e.txt)||'')));
   }catch(_){ return false; }
