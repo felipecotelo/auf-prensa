@@ -10535,9 +10535,9 @@ window._prensaExportarPDF=function(){
     const TIPOS=[
       {k:'conf', re:/conferencia/i,            lbl:'Conferencias de prensa',  sing:'conferencia', plu:'conferencias', ic:'🎤', col:'#38BDF8'},
       {k:'ape',  re:/apertura/i,               lbl:'Aperturas a la prensa',   sing:'apertura', plu:'aperturas', ic:'🏃', col:'#22D3EE', plantel:true},
+      {k:'tv',   re:/\bnotas?\b|auftv/i, lbl:'Notas para AUFtv', sing:'nota para AUFtv', plu:'notas para AUFtv', ic:'📺', col:'#F472B6'},
       {k:'zm',   re:/zona mixta/i,             lbl:'Zonas mixtas',            sing:'zona mixta', plu:'zonas mixtas', ic:'🎥', col:'#FCD34D'},
       {k:'flash',re:/flash/i,                  lbl:'Flash interviews',        sing:'flash interview', plu:'flash interviews', ic:'⚡', col:'#FB923C'},
-      {k:'tv',   re:/\bnotas?\b.*auftv|auftv|notas?\b/i, lbl:'Notas para AUFtv', sing:'nota para AUFtv', plu:'notas para AUFtv', ic:'📺', col:'#F472B6'},
       {k:'arr',  re:/arrival/i,                lbl:'Llegadas al estadio',     sing:'llegada al estadio', plu:'llegadas al estadio', ic:'🚌', col:'#86EFAC'},
       {k:'auto', re:/prensa desde el auto/i,   lbl:'Atención al retirarse',   sing:'atención al retirarse', plu:'atenciones al retirarse', ic:'🚗', col:'#A3E635'},
     ];
@@ -10562,6 +10562,7 @@ window._prensaExportarPDF=function(){
     const partidos=(EV.partidosData||[]), ult=partidos.length?partidos[0].fecha:'';
     const bloques=partidos.map((pd,i)=>{ const desde=i===0?'0000':partidos[i-1].fecha, hasta=pd.fecha; const es=eventos.filter(e=>(i===0?e.fecha<=hasta:e.fecha>desde&&e.fecha<=hasta)||(i===partidos.length-1&&e.fecha>hasta)); return {pd,es}; });
     const abs=u=>{ try{ return u?new URL(u,location.href).href:''; }catch(_){ return ''; } };
+    const esc2=(n,sz)=>String(_escudoSeleccion(n,sz)).replace(/src="\.\//g,'src="'+location.origin+'/').replace(/ onerror="[^"]*"/g,'');
     const ini=n=>String(n).split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
     const fotoDe=n=>{ try{ if(n==='Diego Forlán'&&typeof getDTFoto==='function') return abs(getDTFoto('forlan',_AUF_FOTO+'diego-forlan.jpg')||''); return abs((window._getPhotoByName&&window._getPhotoByName(n))||''); }catch(_){ return ''; } };
     const av=(n,sz)=>{ const src=fotoDe(n); return src?`<img class="av" style="width:${sz}px;height:${sz}px" src="${esc(src)}" alt="" onerror="this.outerHTML='<span class=&quot;av ph&quot; style=&quot;width:${sz}px;height:${sz}px&quot;>${esc(ini(n))}</span>'">`:`<span class="av ph" style="width:${sz}px;height:${sz}px">${esc(ini(n))}</span>`; };
@@ -10569,51 +10570,54 @@ window._prensaExportarPDF=function(){
     const plural=(n,s,p)=>n+' '+(n===1?s:p);
     const rivales=partidos.map(x=>(x.rivalBandera||'')+' '+x.rival).join('  ·  ');
     const MS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'], f2=f=>{ const d=new Date(f+'T12:00:00'); return d.getDate()+' de '+MS[d.getMonth()]; };
-    const kpi=(n,l,col)=>`<div class="k"><b style="color:${col}">${n}</b><span>${l}</span></div>`;
-    const filaTipo=x=>`<div class="tp"><div class="th"><span class="ti2" style="background:${x.t.col}22">${x.t.ic}</span><div class="tl">${esc(x.t.lbl)}</div><div class="tn" style="color:${x.t.col}">${x.n}</div></div><div class="bar"><i style="width:${Math.round(100*x.n/maxN)}%;background:${x.t.col}"></i></div>${x.a?`<div class="ts">${plural(x.a,'atención','atenciones')}</div>`:`<div class="ts">Plantel completo, abierto a la prensa</div>`}</div>`;
-    const bloqueHtml=b=>{ const ps=b.es, a=ps.reduce((n,e)=>n+atn(e),0); const por=TIPOS.concat([{k:'aero',sing:'llegada al aeropuerto',plu:'llegadas al aeropuerto',lbl:'Llegada al aeropuerto',ic:'✈',col:'#FDBA74'}]).map(t=>({t,n:ps.filter(e=>e.t.k===t.k).length})).filter(x=>x.n);
-      return `<div class="pt"><div class="pth"><span class="fl">${esc(b.pd.rivalBandera||'')}</span><div><div class="ptt">vs. ${esc(b.pd.rival)}</div><div class="pts">${esc(f2(b.pd.fecha))}</div></div></div><div class="ptk"><div><b>${ps.length}</b><span>eventos</span></div><div><b>${a}</b><span>atenciones</span></div></div><div class="chs">${por.map(x=>`<span class="cp" style="border-color:${x.t.col}66;color:${x.t.col}">${x.n} ${esc(x.n===1?x.t.sing:x.t.plu)}</span>`).join('')}</div></div>`; };
-    const quien=(n,c,dt)=>`<div class="q">${av(n,dt?84:64)}<b>${esc(corto(n))}</b><span>${dt?'Director técnico':plural(c,'atención','atenciones')}</span></div>`;
+    // Solo lo concreto, en dos grupos por partido (Felipe, 18/11/2026): «Eventos con la prensa» (conferencias, aperturas, zonas mixtas, llegada al aeropuerto) y «Atenciones a medios» (notas AUFtv, flash interviews, llegadas al estadio, atención al retirarse).
+    const COLECT=new Set(['conf','ape','zm','aero']);
+    const nombres=pers=>pers.length?pers.map(esc).join(', '):'';
+    const fila=(titulo,pers,col,badge)=>`<div class="rw" style="--c:${col}"><div class="rt">${esc(titulo)}</div>${pers&&pers.length?`<div class="rp">${nombres(pers)}</div>`:''}<div class="rb">${badge}</div></div>`;
+    const grupoHtml=(es,col0)=>{ const out=[]; const porTipoG=new Map();
+      es.forEach(e=>{ if(COLECT.has(e.t.k)){ const badge=e.t.plantel?'':`<b>${e.pers.length}</b><small>${e.pers.length===1?'atención':'atenciones'}</small>`; out.push({o:e.fecha,h:fila(e.aero?'Llegada al aeropuerto':e.txt,e.t.plantel?['Plantel completo, abierto a la prensa']:e.pers,e.t.col,badge)}); } else { const g=porTipoG.get(e.t.k)||{t:e.t,pers:[],n:0,f:e.fecha}; g.pers.push(...e.pers); g.n++; porTipoG.set(e.t.k,g); } });
+      const colh=out.sort((a,b)=>a.o.localeCompare(b.o)).map(x=>x.h).join('');
+      const ind=[...porTipoG.values()].map(g=>fila(g.n>1?g.t.lbl+' ('+g.n+')':g.t.lbl.replace(/s$/,'').replace('Notas','Nota').replace('Llegadas','Llegada').replace('Flash interviews','Flash interview'),g.pers,g.t.col,`<b>${g.pers.length}</b><small>${g.pers.length===1?'atención':'atenciones'}</small>`)).join('');
+      return {colh,ind}; };
+    const bloqueHtml=b=>{ const ps=b.es, a=ps.reduce((n,e)=>n+atn(e),0), G=grupoHtml(ps), nCol=ps.filter(e=>COLECT.has(e.t.k)).length, nInd=ps.length-nCol;
+      return `<div class="pt"><div class="pth"><div class="vs">${esc2('Uruguay',46)}<span>vs</span>${esc2(b.pd.rival,46)}</div><div><div class="ptt">${esc(b.pd.rival)}</div><div class="pts">${esc(f2(b.pd.fecha))}</div></div></div>
+        <div class="ptk"><div><b>${ps.length}</b><span>eventos</span></div><div><b>${a}</b><span>atenciones</span></div></div>
+        ${G.colh?`<div class="gh">Eventos con la prensa · ${nCol}</div>${G.colh}`:''}${G.ind?`<div class="gh">Atenciones a medios · ${nInd}</div>${G.ind}`:''}</div>`; };
     const dtN=quienes.has('Diego Forlán')?[['Diego Forlán',quienes.get('Diego Forlán')]]:[];
-    const otros=[...jugs,...staff.filter(([n])=>n!=='Diego Forlán')].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
+    const otros=[...jugs,...staff].filter(([n])=>n!=='Diego Forlán').sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
+    const quien=(n,c)=>`<div class="q">${av(n,60)}<b>${esc(corto(n))}</b><span>${c}</span></div>`;
     const html=`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Prensa · ${esc(EV.label||'Fecha FIFA')}</title>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"><style>
       *{box-sizing:border-box}html,body{background:#0A1022;margin:0}body{font-family:'Inter',-apple-system,Arial,sans-serif;color:#EFF3F8;width:588px;padding:10px 24px 10px;line-height:1.3}
-      .top{display:flex;align-items:center;gap:16px;margin-bottom:22px}.top img{width:72px;height:72px;border-radius:18px;object-fit:cover}
+      .top{display:flex;align-items:center;gap:16px;margin-bottom:20px}.top img{width:72px;height:72px;border-radius:18px;object-fit:cover}
       .e{font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#8AD8FF}
       h1{font-family:'Space Grotesk','Inter',sans-serif;font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1.05;margin:4px 0 0}
       .sub{font-size:17px;color:rgba(239,243,248,.7);margin-top:6px}
       .ks{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:26px}
-      .k{padding:18px 18px 16px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
-      .k b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:60px;font-weight:700;letter-spacing:-.04em;line-height:1}
-      .k span{display:block;margin-top:8px;font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(239,243,248,.6)}
-      h2{font-family:'Space Grotesk','Inter',sans-serif;font-size:26px;font-weight:700;letter-spacing:-.02em;margin:30px 0 4px}
-      .hs{font-size:15px;color:rgba(239,243,248,.6);margin:0 0 14px}
-      .tp{padding:16px 18px;border-radius:20px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);margin-bottom:10px}
-      .th{display:flex;align-items:center;gap:12px}.ti2{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
-      .tl{flex:1;font-size:20px;font-weight:700;color:#F4F7FB}.tn{font-family:'Space Grotesk','Inter',sans-serif;font-size:44px;font-weight:700;line-height:1}
-      .bar{height:10px;border-radius:999px;background:rgba(255,255,255,.1);margin:12px 0 8px;overflow:hidden}.bar i{display:block;height:100%;border-radius:inherit}
-      .ts{font-size:16px;color:rgba(239,243,248,.7)}
-      .pt{padding:18px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);margin-bottom:12px}
-      .pth{display:flex;align-items:center;gap:14px}.fl{font-size:38px}.ptt{font-family:'Space Grotesk','Inter',sans-serif;font-size:25px;font-weight:700}.pts{font-size:15px;color:rgba(239,243,248,.6)}
-      .ptk{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 10px}.ptk div{background:rgba(255,255,255,.05);border-radius:14px;padding:10px 14px}
-      .ptk b{font-family:'Space Grotesk','Inter',sans-serif;font-size:38px;line-height:1;margin-right:8px}.ptk span{font-size:15px;color:rgba(239,243,248,.65)}
-      .chs{display:flex;flex-wrap:wrap;gap:8px}.cp{padding:6px 13px;border-radius:999px;border:1px solid;font-size:15px;font-weight:700}
-      .qs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.q{display:flex;flex-direction:column;align-items:center;text-align:center;padding:14px 6px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03)}
-      .q b{margin-top:9px;font-size:16px;font-weight:700;color:#F4F7FB;line-height:1.15}.q span{margin-top:3px;font-size:14px;color:rgba(239,243,248,.6)}
-      .qd{grid-column:1/-1;flex-direction:row;gap:18px;text-align:left;padding:16px 20px;border-color:#38BDF855;background:#38BDF812}.qd .tx{display:flex;flex-direction:column}.qd b{margin:0;font-size:25px}.qd span{font-size:16px;color:#8AD8FF}
-      .av{border-radius:50%;object-fit:cover;object-position:top;background:#1B2744;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#8AD8FF;font-size:20px;flex-shrink:0}
-      .ft{margin-top:22px;text-align:right;font-size:14px;color:rgba(239,243,248,.45)}
+      .k{padding:20px 20px 18px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022)}
+      .k b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:72px;font-weight:700;letter-spacing:-.04em;line-height:1}
+      .k span{display:block;margin-top:8px;font-size:17px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(239,243,248,.7)}
+      .pt{padding:20px;border-radius:22px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#10182C,#0A1022);margin-bottom:16px}
+      .pth{display:flex;align-items:center;gap:14px}.vs{display:flex;align-items:center;gap:8px;flex-shrink:0}.vs span{font-size:14px;font-weight:700;color:rgba(239,243,248,.5);text-transform:uppercase}
+      .ptt{font-family:'Space Grotesk','Inter',sans-serif;font-size:27px;font-weight:700}.pts{font-size:16px;color:rgba(239,243,248,.65)}
+      .ptk{display:flex;gap:26px;margin:14px 0 4px;padding:12px 4px 0;border-top:1px solid rgba(255,255,255,.1)}.ptk div{display:flex;align-items:baseline;gap:8px}
+      .ptk b{font-family:'Space Grotesk','Inter',sans-serif;font-size:36px;line-height:1}.ptk span{font-size:16px;color:rgba(239,243,248,.7)}
+      .gh{margin:18px 0 8px;font-size:15px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8AD8FF}
+      .rw{position:relative;margin-bottom:9px;padding:12px 96px 12px 16px;min-height:60px;border-radius:14px;background:rgba(255,255,255,.05);border-left:6px solid var(--c)}
+      .rt{font-size:19px;font-weight:700;color:#F4F7FB}.rp{margin-top:4px;font-size:15px;color:rgba(239,243,248,.75);line-height:1.4}
+      .rb{position:absolute;right:14px;top:50%;transform:translateY(-50%);text-align:center;line-height:1.1}.rb b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:32px;color:#F4F7FB}.rb small{display:block;font-size:13px;color:rgba(239,243,248,.6)}
+      h2{font-family:'Space Grotesk','Inter',sans-serif;font-size:27px;font-weight:700;margin:26px 0 12px}
+      .qs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.q{display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 4px 10px;border-radius:16px;background:rgba(255,255,255,.04)}
+      .q b{margin-top:7px;font-size:14px;font-weight:700;color:#F4F7FB;line-height:1.15}.q span{font-size:13px;color:rgba(239,243,248,.6)}
+      .qd{grid-column:1/-1;flex-direction:row;gap:16px;text-align:left;padding:14px 18px;background:#38BDF812;border:1px solid #38BDF855}.qd .tx{display:flex;flex-direction:column}.qd b{margin:0;font-size:24px}.qd span{font-size:16px;color:#8AD8FF}
+      .av{border-radius:50%;object-fit:cover;object-position:top;background:#1B2744;display:inline-flex;align-items:center;justify-content:center;font-weight:700;color:#8AD8FF;font-size:18px;flex-shrink:0}
+      .ft{margin-top:20px;text-align:right;font-size:14px;color:rgba(239,243,248,.45)}
     </style></head><body>
       <div class="top"><img src="${esc(abs('/auf-icon-180.jpg'))}" alt=""><div><div class="e">Selección Uruguaya</div><h1>Atención a la prensa</h1><div class="sub">${esc(EV.label||'Fecha FIFA')} · ${esc(f2(per.desde))} al ${esc(f2(per.hasta))}</div></div></div>
-      <div class="sub" style="margin:-8px 0 20px">${rivales}</div>
-      <div class="ks">${kpi(totE,'eventos de prensa','#38BDF8')}${kpi(totA,'atenciones','#FCD34D')}${kpi(jugs.length,'jugadores atendidos','#86EFAC')}${kpi(eventos.filter(e=>e.t.k==='tv'||e.t.k==='flash'||e.t.k==='zm').length,'entrevistas y notas','#F472B6')}</div>
-      <h2>Los eventos</h2><div class="hs">Cada instancia abierta a la prensa</div>
-      ${porTipo.map(filaTipo).join('')}
-      <h2>Por partido</h2><div class="hs">Eventos y atenciones antes y después de cada partido</div>
+      <div class="ks"><div class="k"><b style="color:#38BDF8">${totE}</b><span>eventos de prensa</span></div><div class="k"><b style="color:#FCD34D">${totA}</b><span>atenciones</span></div></div>
       ${bloques.map(bloqueHtml).join('')}
-      <h2>Quiénes hablaron</h2><div class="hs">Atenciones por persona</div>
-      <div class="qs">${dtN.map(([n,c])=>`<div class="q qd">${av(n,84)}<div class="tx"><b>${esc(n)}</b><span>Director técnico · ${plural(c,'atención','atenciones')}</span></div></div>`).join('')}${otros.map(([n,c])=>quien(n,c,false)).join('')}</div>
+      <h2>Quiénes hablaron</h2>
+      <div class="qs">${dtN.map(([n,c])=>`<div class="q qd">${av(n,84)}<div class="tx"><b>${esc(n)}</b><span>Director técnico · ${c} ${c===1?'atención':'atenciones'}</span></div></div>`).join('')}${otros.map(([n,c])=>quien(n,c)).join('')}</div>
       <div class="ft">Datos al ${new Date().toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>
     </body></html>`;
     toast('Generando el PDF…'); _pdfDescargar(html,'prensa-fecha-fifa-nov-2026.pdf',588);
