@@ -1847,7 +1847,9 @@ table.gt tr.uy td:first-child{border-radius:12px 0 0 12px}
 table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .gt-sub{margin:14px 0 8px;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.5)}
 .gt-ms{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px}
-.gt-fs{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}.gt-f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.gt-fs{display:flex;flex-direction:column;gap:12px}.gt-f{min-width:0}.gt .eq .gt-lv{display:inline-block;width:7px;height:7px;border-radius:50%;background:#F87171;margin-left:8px;animation:gtlv 1.4s infinite}@keyframes gtlv{50%{opacity:.25}}
+.gt-ch .gt-st{flex:0 0 16px;width:16px;display:flex;align-items:center;justify-content:center;color:#4ADE80;font-size:16px}
+.gt-fm{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:6px;margin-top:6px}
 .gt-fh{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:0 4px 4px;border-bottom:1px solid rgba(255,255,255,.08)}
 .gt-fh b{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8AD8FF}.gt-fh span{font-size:10.5px;color:rgba(239,243,248,.5);text-transform:uppercase;letter-spacing:.06em}
 .gt-ch{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);font-size:11.5px;color:rgba(239,243,248,.75);position:relative}
@@ -38333,7 +38335,9 @@ function _mun15Tabla(ms){
   ms.forEach(m=>{
     if(!m.Home||!m.Away) return;
     const h=get(_MUN15_ES[m.Home.ShortClubName]||m.Home.ShortClubName), a=get(_MUN15_ES[m.Away.ShortClubName]||m.Away.ShortClubName);
-    if(m.MatchStatus!==0||m.HomeTeamScore==null||m.AwayTeamScore==null) return;
+    const _vivo=m.MatchStatus!==0&&m.MatchStatus!==1&&m.HomeTeamScore!=null&&m.AwayTeamScore!=null; // en juego: cuenta el resultado parcial
+    if((m.MatchStatus!==0&&!_vivo)||m.HomeTeamScore==null||m.AwayTeamScore==null) return;
+    if(_vivo){ h.vivo=true; a.vivo=true; }
     const gh=m.HomeTeamScore, ga=m.AwayTeamScore;
     h.pj++;a.pj++;h.gf+=gh;h.gc+=ga;a.gf+=ga;a.gc+=gh;
     if(gh>ga){h.g++;a.p++;} else if(gh<ga){a.g++;h.p++;} else {h.e++;a.e++;}
@@ -38347,13 +38351,13 @@ function _mun15Html(d){
   const rows=_mun15Tabla(d.ms);
   const fmtT=iso=>{ try{ return new Date(iso).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',timeZone:'America/Montevideo',hour12:false}); }catch(_){ return ''; } };
   const fmtD=iso=>{ try{ return new Date(iso).toLocaleDateString('es-UY',{day:'numeric',month:'short',timeZone:'America/Montevideo'}); }catch(_){ return ''; } };
-  const tb=rows.map((t,i)=>`<tr class="${t.n==='Uruguay'?'uy':''}"><td class="pos">${i+1}</td><td class="eq"><span>${_escudoSeleccion(t.n,22)}</span>${t.n}</td><td>${t.pj}</td><td>${t.g}</td><td>${t.e}</td><td>${t.p}</td><td>${t.gf}</td><td>${t.gc}</td><td>${t.dg>0?'+':''}${t.dg}</td><td class="pt">${t.pts}</td></tr>`).join('');
+  const tb=rows.map((t,i)=>`<tr class="${t.n==='Uruguay'?'uy':''}"><td class="pos">${i+1}</td><td class="eq"><span>${_escudoSeleccion(t.n,22)}</span>${t.n}${t.vivo?'<i class="gt-lv" title="Jugando ahora: la tabla cuenta el resultado parcial"></i>':''}</td><td>${t.pj}</td><td>${t.g}</td><td>${t.e}</td><td>${t.p}</td><td>${t.gf}</td><td>${t.gc}</td><td>${t.dg>0?'+':''}${t.dg}</td><td class="pt">${t.pts}</td></tr>`).join('');
   const ms=[...d.ms].sort((a,b)=>String(a.Date).localeCompare(String(b.Date)));
   const nm=m=>_MUN15_ES[m.ShortClubName]||m.ShortClubName;
   const chips=_gtFechas(ms.map(m=>{
     const fin=m.MatchStatus===0&&m.HomeTeamScore!=null, live=m.MatchStatus!==0&&m.MatchStatus!==1&&m.HomeTeamScore!=null;
     const uy=nm(m.Home)==='Uruguay'||nm(m.Away)==='Uruguay';
-    return {h:nm(m.Home),a:nm(m.Away),d:m.Date,html:`<div class="gt-ch${uy?' uy':''}"><span class="gt-t">${nm(m.Home)}</span><b>${fin||live?m.HomeTeamScore+' – '+m.AwayTeamScore:fmtT(m.Date)+'h'}</b><span class="gt-t r">${nm(m.Away)}</span>${live?'<i class="gt-live">En vivo</i>':''}</div>`};
+    return {h:nm(m.Home),a:nm(m.Away),d:m.Date,html:`<div class="gt-ch${uy?' uy':''}"><span class="gt-st">${fin?'<i class="ti ti-circle-check"></i>':''}</span><span class="gt-t">${nm(m.Home)}</span><b>${fin||live?m.HomeTeamScore+' – '+m.AwayTeamScore:fmtT(m.Date)+'h'}</b><span class="gt-t r">${nm(m.Away)}</span>${live?'<i class="gt-live">En vivo</i>':''}</div>`};
   }));
   const hora=d.ts?new Date(d.ts).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
   return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">${_mundCfg().label}<em>|</em><u>${_mundCfg().fase}</u></span><span class="gt-upd">FIFA · actualizado ${hora}h</span></div>
@@ -38366,7 +38370,7 @@ function _mun15Html(d){
 function _gtFechas(items){
   const last={}, grupos=[]; const dia=iso=>{ try{ return new Date(iso).toLocaleDateString('es-UY',{day:'numeric',month:'short',timeZone:'America/Montevideo'}).replace('.',''); }catch(_){ return ''; } };
   items.forEach(it=>{ const r=1+Math.max(last[it.h]||0,last[it.a]||0); last[it.h]=last[it.a]=r; (grupos[r]=grupos[r]||{ms:[],dias:[]}).ms.push(it); const d=dia(it.d); if(d&&!grupos[r].dias.includes(d)) grupos[r].dias.push(d); });
-  return `<div class="gt-fs">${grupos.map((g,r)=>g?`<div class="gt-f"><div class="gt-fh"><b>Fecha ${r}</b><span>${g.dias.join(' · ')}</span></div>${g.ms.map(x=>x.html).join('')}</div>`:'').join('')}</div>`;
+  return `<div class="gt-fs">${grupos.map((g,r)=>g?`<div class="gt-f"><div class="gt-fh"><b>Fecha ${r}</b><span>${g.dias.join(' · ')}</span></div><div class="gt-fm">${g.ms.map(x=>x.html).join('')}</div></div>`:'').join('')}</div>`;
 }
 // ── Partidos de Uruguay leídos de FIFA: se crean solos en la app (con su Pizarra y su Diseño) y la tabla sigue al grupo actual de Uruguay ──
 // Solo CREA partidos que faltan (y completa hora/lugar si están vacíos); nunca pisa lo que cargaste a mano. Si la hora de FIFA difiere de la cargada, deja el aviso `fifaDif`.
@@ -38464,7 +38468,7 @@ function _sud20Html(d){
     const rows=d.tabla.filter(t=>t.grupo===g).sort((a,b)=>a.pos-b.pos).map((t,i)=>`<tr class="${t.equipo==='Uruguay'?'uy':''}"><td class="pos">${i+1}</td><td class="eq"><span>${_escudoSeleccion(t.equipo,22)}</span>${t.equipo}</td><td>${t.pj}</td><td>${t.g}</td><td>${t.e}</td><td>${t.p}</td><td>${t.gf}</td><td>${t.gc}</td><td>${t.gf-t.gc}</td><td><b>${t.pts}</b></td></tr>`).join('');
     const ms=d.partidos.filter(m=>/Grupo|Group/i.test(m.grupo||'')?new RegExp(g+'$').test(m.grupo):d.tabla.some(t=>t.grupo===g&&t.equipo===m.home));
     const chips=ms.length?_gtFechas([...ms].sort((a,b)=>String(a.utc).localeCompare(String(b.utc))).map(m=>{ const uy=m.home==='Uruguay'||m.away==='Uruguay'; const fin=m.estado==='fin'||m.estado==='vivo';
-      return {h:m.home,a:m.away,d:m.utc,html:`<div class="gt-ch${uy?' uy':''}"><span class="gt-t">${m.home}</span><b>${fin?m.gh+' – '+m.ga:fmtT(m.utc)+'h'}</b><span class="gt-t r">${m.away}</span>${m.estado==='vivo'?'<i class="gt-live">en juego</i>':''}</div>`}; })):'';
+      return {h:m.home,a:m.away,d:m.utc,html:`<div class="gt-ch${uy?' uy':''}"><span class="gt-st">${m.estado==='fin'?'<i class="ti ti-circle-check"></i>':''}</span><span class="gt-t">${m.home}</span><b>${fin?m.gh+' – '+m.ga:fmtT(m.utc)+'h'}</b><span class="gt-t r">${m.away}</span>${m.estado==='vivo'?'<i class="gt-live">en juego</i>':''}</div>`}; })):'';
     return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">Grupo ${g}<em>|</em><u>Clasifican los cuatro primeros</u></span><span class="gt-upd">CONMEBOL · actualizado ${hora}h</span></div>
       <table class="gt"><thead><tr><th></th><th class="l">Selección</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>
       ${chips?`<div class="gt-sub">Partidos del grupo</div>${chips}`:`<div class="gt-nota">El fixture todavía no se publicó: aparece solo cuando CONMEBOL lo confirme.</div>`}</div>`;
@@ -40146,7 +40150,8 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         _rightJ=`<span class="jm-sc"><b style="color:${_c}">${penDecides?`<small>(${m.penGLocal})</small> `:''}${gl}–${gr}${penDecides?` <small>(${m.penGRival})</small>`:''}</b><em style="color:${_c};border-color:${_c}66">${_vJ(penDecides?m.penGLocal:gl,penDecides?m.penGRival:gr)}</em></span>`;
       } else {
         const _h=(String(m.hora||'').match(/(\d{1,2}:\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/(\d{1,2}:\d{2})/)||[])[1];
-        _rightJ=_h?`<span class="jm-sc"><b>${_h}h</b><em>Por jugar</em></span>`:`<span class="jm-sc"><b style="color:rgba(239,243,248,.4)">–</b><em>Hora por confirmar</em></span>`;
+        const _lvJ=m.fifaId?(window._mundLive||{})[String(m.fifaId)]:null;
+        _rightJ=_lvJ?`<span class="jm-sc"><b style="color:${_lvJ.fin?'#F4F7FB':'#8AD8FF'}">${_lvJ.gl}–${_lvJ.gr}</b><em style="color:${_lvJ.fin?'#86EFAC':'#FCA5A5'};border-color:${_lvJ.fin?'#86EFAC':'#FCA5A5'}66">${_lvJ.fin?'Final · FIFA':'En vivo '+(_lvJ.min||'')}</em></span>`:_h?`<span class="jm-sc"><b>${_h}h</b><em>Por jugar</em></span>`:`<span class="jm-sc"><b style="color:rgba(239,243,248,.4)">–</b><em>Hora por confirmar</em></span>`;
       }
       if(m.suspendido&&!hasRes) _rightJ=`<span class="jm-sc"><b style="color:#F59E0B">–</b><em style="color:#F59E0B;border-color:#F59E0B66">Suspendido</em></span>`;
       // Mismo criterio en todas las tarjetas: día de la semana · hora (Uruguay) · estadio.
@@ -40387,11 +40392,15 @@ window._showUpdateBanner=_showUpdateBanner;
           const nv={gl:sc(U),gr:sc(R),min:j.MatchTime?String(j.MatchTime).replace(/[^0-9+']/g,''):'',fin,rival:m.rival,cat:cfg.cat,comp:cid,dif:[]};
           if(typeof _amistPatch==='function'){ const r0=autoPizarra(cfg,cid,m,U,nv,null,j,R); (r0.avisos||[]).concat((r0.chk||[]).filter(c=>c.ok===false).map(c=>c.k+': '+c.t)).forEach(x=>{ if(!nv.dif.includes(x)) nv.dif.push(x); }); }
           setTimeout(()=>window._mundLivePaint&&window._mundLivePaint(String(m.fifaId),nv),0);
+          // Posiciones: se aplica el marcador en vivo a los datos del grupo y se redibuja la tabla (y al terminar se vuelve a pedir a FIFA)
+          try{ const D=(window._mundData||{})[cid]; const ent=D&&(D.ms||[]).find(x=>String(x.IdMatch)===String(m.fifaId));
+            if(ent){ ent.HomeTeamScore=j.HomeTeam.Score; ent.AwayTeamScore=j.AwayTeam.Score; ent.MatchStatus=fin?0:3; const el=document.getElementById('mun15-grupo'); if(el&&window._mundCur===cid) _mun15Set(el,cid); if(fin&&window._mun15Refresh) window._mun15Refresh(); } }catch(_){}
           const ant=window._mundLive[String(m.fifaId)]; if(!ant||ant.gl!==nv.gl||ant.gr!==nv.gr||ant.fin!==nv.fin||ant.min!==nv.min||(ant.dif||[]).join('|')!==nv.dif.join('|')){ window._mundLive[String(m.fifaId)]=nv; cambio=true; }
           if(fin&&typeof window._mundSyncFifa==='function') window._mundSyncFifa(cid,true);
         }
       }
-      if(cambio){ if(document.getElementById('inicio')?.classList.contains('active')){ if(typeof _futDockRender==='function') _futDockRender(); try{ if(typeof renderInicio==='function') renderInicio(); }catch(_){} } try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} }
+      if(cambio){ try{ if(document.getElementById('sec-juveniles')?.classList.contains('active')&&!window._amistDetailOpen&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||'')&&window.renderJuveniles) window.renderJuveniles(); }catch(_){}
+        if(document.getElementById('inicio')?.classList.contains('active')){ if(typeof _futDockRender==='function') _futDockRender(); try{ if(typeof renderInicio==='function') renderInicio(); }catch(_){} } try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} }
     }catch(_){}
   }
   setInterval(tick,40000); setTimeout(tick,9000);
