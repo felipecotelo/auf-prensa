@@ -1991,6 +1991,12 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .pz-pro .pz-pl-t-c{background:rgba(255,255,255,.07)}
 .pz-pro .pz-pl-min{margin-left:auto;flex:0 0 34px;width:34px!important;height:18px!important;box-sizing:border-box;padding:0!important;text-align:center;font-family:'Space Grotesk','Inter',sans-serif;font-size:10.5px!important;font-weight:700!important;color:#86EFAC!important;background:rgba(134,239,172,.1)!important;border:1px solid rgba(134,239,172,.35)!important;border-radius:999px!important;outline:none}
 .pz-pro .pz-pl-min::placeholder{color:rgba(134,239,172,.5);font-weight:600}
+/* Banco (Felipe, 19/11/2026): agregar cosas SIN cambiar el alto de la ficha y sin tanto espacio: etiquetas en una sola línea, ingreso = flecha + minuto en un chip */
+.pz-pro .pz-pl-tg{flex-wrap:nowrap;height:18px;min-height:18px;overflow:visible}
+.pz-pro .pz-pl-t{flex:0 1 auto;min-width:0}
+.pz-pro .pz-pl-t-subm{gap:3px;padding:0 7px 0 5px}
+.pz-pro .pz-pl-t-subm .pz-pl-min{margin:0;flex:0 0 22px;width:22px!important;height:14px!important;background:transparent!important;border:0!important;border-radius:0!important;color:inherit!important;font-size:10px!important;text-align:left;letter-spacing:0}
+.pz-pro .pz-pl-t-subm .pz-pl-min::placeholder{color:rgba(134,239,172,.55)}
 .pz-pro .pz-pl-min:focus{border-color:#86EFAC!important;background:rgba(134,239,172,.18)!important}
 @media(min-width:861px){.pz-pro .piz-3col{grid-template-columns:224px 1fr 220px}}
 @media(max-width:860px){.pz-pro .piz-3col{grid-template-columns:minmax(0,1fr)!important;gap:14px}.pz-pro .piz-col-left,.pz-pro .piz-col-right{display:flex!important}.pz-pro .pz-back{flex-wrap:wrap;gap:10px;padding:14px 16px}.pz-pro .pz-back-t b{font-size:20px}}
@@ -39174,15 +39180,12 @@ function _buildJuvMatchPitch(m, leg, color, convocados, convPosMap, tarjetas, co
               <div class="pz-pl-tg">
                 ${isBajaBench?`<span class="pz-pl-t pz-pl-t-baja">${fueraSetBench.has(nom)?'Fuera':'Baja'}</span>`:''}
                 ${!isBajaBench&&isTit?`<span class="pz-pl-t pz-pl-t-tit">Tit</span>`:''}
-                ${!isBajaBench&&isSub?`<span class="pz-pl-t pz-pl-t-sub" title="Ingresó${sub&&sub.por?' · salió '+String(sub.por).replace(/"/g,'&quot;'):''}"><i class="ti ti-arrow-up"></i></span>`:''}
-                ${(()=>{ const o=subs.find(x=>x.por===nom); return o?`<span class="pz-pl-t pz-pl-t-out" title="Salió${o.min?' en el min '+o.min:''} · entró ${o.nom.replace(/"/g,'&quot;')}"><i class="ti ti-arrow-down"></i>${o.min?`<b>${o.min}'</b>`:''}</span>`:''; })()}
+                ${!isBajaBench&&isSub?`<span class="pz-pl-t pz-pl-t-sub pz-pl-t-subm" title="Ingresó${sub&&sub.por?' · salió '+String(sub.por).replace(/"/g,'&quot;'):''}"><i class="ti ti-arrow-up"></i><input type="text" class="pz-pl-min" inputmode="numeric" maxlength="3" value="${sub.min||''}" placeholder="min" title="${sub.por?'Salió '+String(sub.por).replace(/"/g,'&quot;'):'Pasá el cursor para elegir quién salió'}"                   onclick="event.stopPropagation();this.select()"                   onchange="event.stopPropagation();_setJuvSubMin('${cat}','${year}',${m.id},${leg},'${nomEscQ}',this.value)"></span>`:''}
+                ${(()=>{ const o=subs.find(x=>x.por===nom); return o?`<span class="pz-pl-t pz-pl-t-out" title="Salió${o.min?' en el min '+o.min:''} · entró ${o.nom.replace(/"/g,'&quot;')}"><i class="ti ti-arrow-down"></i>${o.min?`<b>${o.min}</b>`:''}</span>`:''; })()}
                 ${goles[nom]>0?`<span class="pz-pl-t pz-pl-t-gol" title="Gol"><i class="ti ti-ball-football"></i>${goles[nom]>1?`<b>${goles[nom]}</b>`:''}</span>`:''}
                 ${cm?`<span class="pz-pl-t pz-pl-t-c" title="Tarjeta"><i class="ti ti-square-filled" style="color:${cm==='a'?'#FCD34D':cm==='da'?'#FCD34D':'#F87171'}"></i>${cm==='da'?'<i class="ti ti-square-filled" style="color:#F87171;margin-left:-4px"></i>':''}</span>`:''}
                 ${lesionSet.has(nom)?`<span class="pz-pl-t pz-pl-t-les" title="Se lesionó en este partido"><i class="ti ti-bandage"></i></span>`:''}
-                ${isSub?`<input type="text" class="pz-pl-min" inputmode="numeric" maxlength="3" value="${sub.min||''}" placeholder="min" title="${sub.por?'Salió '+String(sub.por).replace(/"/g,'&quot;'):'Pasá el cursor para elegir quién salió'}"
-                  onclick="event.stopPropagation();this.select()"
-                  onchange="event.stopPropagation();_setJuvSubMin('${cat}','${year}',${m.id},${leg},'${nomEscQ}',this.value)">
-                <select class="pz-pl-por" title="¿Por quién entró?" onclick="event.stopPropagation()" onchange="event.stopPropagation();_setJuvSubPor('${cat}','${year}',${m.id},${leg},'${nomEscQ}',this.value)"><option value="">por…</option>${[...starterNoms,...subs.filter(x=>x.nom!==nom).map(x=>x.nom)].map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${sub.por===n?' selected':''}>${n.trim().split(/\s+/).slice(-1)[0]===n?n:n.trim().split(/\s+/).reduce((a,w,i,arr)=>i===0?w[0]+'.':a+' '+w,'')}</option>`).join('')}</select>`:''}
+                ${isSub?`<select class="pz-pl-por" title="¿Por quién entró?" onclick="event.stopPropagation()" onchange="event.stopPropagation();_setJuvSubPor('${cat}','${year}',${m.id},${leg},'${nomEscQ}',this.value)"><option value="">por…</option>${[...starterNoms,...subs.filter(x=>x.nom!==nom).map(x=>x.nom)].map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${sub.por===n?' selected':''}>${n.trim().split(/\s+/).slice(-1)[0]===n?n:n.trim().split(/\s+/).reduce((a,w,i,arr)=>i===0?w[0]+'.':a+' '+w,'')}</option>`).join('')}</select>`:''}
               </div>
             </div>
           </div>`;
