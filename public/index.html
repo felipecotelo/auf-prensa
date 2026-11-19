@@ -1847,6 +1847,9 @@ table.gt tr.uy td:first-child{border-radius:12px 0 0 12px}
 table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .gt-sub{margin:14px 0 8px;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(239,243,248,.5)}
 .gt-ms{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px}
+.gt-fs{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}.gt-f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.gt-fh{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:0 4px 4px;border-bottom:1px solid rgba(255,255,255,.08)}
+.gt-fh b{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#8AD8FF}.gt-fh span{font-size:10.5px;color:rgba(239,243,248,.5);text-transform:uppercase;letter-spacing:.06em}
 .gt-ch{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);font-size:11.5px;color:rgba(239,243,248,.75);position:relative}
 .gt-ch.uy{border-color:rgba(56,189,248,.35);background:rgba(0,157,216,.08)}
 .gt-ch .gt-d{flex:0 0 auto;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:rgba(239,243,248,.4);min-width:38px}
@@ -38347,18 +38350,24 @@ function _mun15Html(d){
   const tb=rows.map((t,i)=>`<tr class="${t.n==='Uruguay'?'uy':''}"><td class="pos">${i+1}</td><td class="eq"><span>${_escudoSeleccion(t.n,22)}</span>${t.n}</td><td>${t.pj}</td><td>${t.g}</td><td>${t.e}</td><td>${t.p}</td><td>${t.gf}</td><td>${t.gc}</td><td>${t.dg>0?'+':''}${t.dg}</td><td class="pt">${t.pts}</td></tr>`).join('');
   const ms=[...d.ms].sort((a,b)=>String(a.Date).localeCompare(String(b.Date)));
   const nm=m=>_MUN15_ES[m.ShortClubName]||m.ShortClubName;
-  const chips=ms.map(m=>{
+  const chips=_gtFechas(ms.map(m=>{
     const fin=m.MatchStatus===0&&m.HomeTeamScore!=null, live=m.MatchStatus!==0&&m.MatchStatus!==1&&m.HomeTeamScore!=null;
     const uy=nm(m.Home)==='Uruguay'||nm(m.Away)==='Uruguay';
-    return `<div class="gt-ch${uy?' uy':''}"><span class="gt-d">${fmtD(m.Date)}</span><span class="gt-t">${nm(m.Home)}</span><b>${fin||live?m.HomeTeamScore+' – '+m.AwayTeamScore:fmtT(m.Date)+'h'}</b><span class="gt-t r">${nm(m.Away)}</span>${live?'<i class="gt-live">En vivo</i>':''}</div>`;
-  }).join('');
+    return {h:nm(m.Home),a:nm(m.Away),d:m.Date,html:`<div class="gt-ch${uy?' uy':''}"><span class="gt-t">${nm(m.Home)}</span><b>${fin||live?m.HomeTeamScore+' – '+m.AwayTeamScore:fmtT(m.Date)+'h'}</b><span class="gt-t r">${nm(m.Away)}</span>${live?'<i class="gt-live">En vivo</i>':''}</div>`};
+  }));
   const hora=d.ts?new Date(d.ts).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
   return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">${_mundCfg().label}<em>|</em><u>${_mundCfg().fase}</u></span><span class="gt-upd">FIFA · actualizado ${hora}h</span></div>
     <table class="gt"><thead><tr><th></th><th class="l">Selección</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead><tbody>${tb}</tbody></table>
-    <div class="gt-sub">Partidos del grupo</div><div class="gt-ms">${chips}</div>
+    <div class="gt-sub">Partidos del grupo</div>${chips}
     <div class="gt-nota">Orden por puntos, diferencia de gol y goles a favor. Los desempates oficiales los define FIFA.</div></div>`;
 }
 
+// Partidos del grupo ordenados por FECHA (Felipe, 19/11/2026: «fecha 1, fecha 2, etc.»): cada partido cae en la ronda 1 + la más alta que ya jugó cualquiera de sus dos equipos; una columna por fecha.
+function _gtFechas(items){
+  const last={}, grupos=[]; const dia=iso=>{ try{ return new Date(iso).toLocaleDateString('es-UY',{day:'numeric',month:'short',timeZone:'America/Montevideo'}).replace('.',''); }catch(_){ return ''; } };
+  items.forEach(it=>{ const r=1+Math.max(last[it.h]||0,last[it.a]||0); last[it.h]=last[it.a]=r; (grupos[r]=grupos[r]||{ms:[],dias:[]}).ms.push(it); const d=dia(it.d); if(d&&!grupos[r].dias.includes(d)) grupos[r].dias.push(d); });
+  return `<div class="gt-fs">${grupos.map((g,r)=>g?`<div class="gt-f"><div class="gt-fh"><b>Fecha ${r}</b><span>${g.dias.join(' · ')}</span></div>${g.ms.map(x=>x.html).join('')}</div>`:'').join('')}</div>`;
+}
 // ── Partidos de Uruguay leídos de FIFA: se crean solos en la app (con su Pizarra y su Diseño) y la tabla sigue al grupo actual de Uruguay ──
 // Solo CREA partidos que faltan (y completa hora/lugar si están vacíos); nunca pisa lo que cargaste a mano. Si la hora de FIFA difiere de la cargada, deja el aviso `fifaDif`.
 window._mundDyn=window._mundDyn||{};
@@ -38454,11 +38463,11 @@ function _sud20Html(d){
   const tablas=grupos.map(g=>{
     const rows=d.tabla.filter(t=>t.grupo===g).sort((a,b)=>a.pos-b.pos).map((t,i)=>`<tr class="${t.equipo==='Uruguay'?'uy':''}"><td class="pos">${i+1}</td><td class="eq"><span>${_escudoSeleccion(t.equipo,22)}</span>${t.equipo}</td><td>${t.pj}</td><td>${t.g}</td><td>${t.e}</td><td>${t.p}</td><td>${t.gf}</td><td>${t.gc}</td><td>${t.gf-t.gc}</td><td><b>${t.pts}</b></td></tr>`).join('');
     const ms=d.partidos.filter(m=>/Grupo|Group/i.test(m.grupo||'')?new RegExp(g+'$').test(m.grupo):d.tabla.some(t=>t.grupo===g&&t.equipo===m.home));
-    const chips=ms.map(m=>{ const uy=m.home==='Uruguay'||m.away==='Uruguay'; const fin=m.estado==='fin'||m.estado==='vivo';
-      return `<div class="gt-ch${uy?' uy':''}"><span class="gt-d">${fmtD(m.utc)}</span><span class="gt-t">${m.home}</span><b>${fin?m.gh+' – '+m.ga:fmtT(m.utc)+'h'}</b><span class="gt-t r">${m.away}</span>${m.estado==='vivo'?'<i class="gt-live">en juego</i>':''}</div>`; }).join('');
+    const chips=ms.length?_gtFechas([...ms].sort((a,b)=>String(a.utc).localeCompare(String(b.utc))).map(m=>{ const uy=m.home==='Uruguay'||m.away==='Uruguay'; const fin=m.estado==='fin'||m.estado==='vivo';
+      return {h:m.home,a:m.away,d:m.utc,html:`<div class="gt-ch${uy?' uy':''}"><span class="gt-t">${m.home}</span><b>${fin?m.gh+' – '+m.ga:fmtT(m.utc)+'h'}</b><span class="gt-t r">${m.away}</span>${m.estado==='vivo'?'<i class="gt-live">en juego</i>':''}</div>`}; })):'';
     return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">Grupo ${g}<em>|</em><u>Clasifican los cuatro primeros</u></span><span class="gt-upd">CONMEBOL · actualizado ${hora}h</span></div>
       <table class="gt"><thead><tr><th></th><th class="l">Selección</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>
-      ${chips?`<div class="gt-sub">Partidos del grupo</div><div class="gt-ms">${chips}</div>`:`<div class="gt-nota">El fixture todavía no se publicó: aparece solo cuando CONMEBOL lo confirme.</div>`}</div>`;
+      ${chips?`<div class="gt-sub">Partidos del grupo</div>${chips}`:`<div class="gt-nota">El fixture todavía no se publicó: aparece solo cuando CONMEBOL lo confirme.</div>`}</div>`;
   }).join('');
   const fase=d.partidos.filter(m=>!/Grupo|Group/i.test(m.grupo||'')&&/semi|final|clasific|preclas|cuartos|playoff/i.test(m.fase+' '+m.ronda));
   const kos=fase.length?`<div class="gt-card"><div class="gt-top"><span class="gt-eb">Fase final</span></div><div class="gt-ms">${fase.map(m=>{ const fin=m.estado==='fin'||m.estado==='vivo'; return `<div class="gt-ch${m.home==='Uruguay'||m.away==='Uruguay'?' uy':''}"><span class="gt-d">${fmtD(m.utc)}</span><span class="gt-t">${m.home}</span><b>${fin?m.gh+' – '+m.ga:fmtT(m.utc)+'h'}</b><span class="gt-t r">${m.away}</span></div>`; }).join('')}</div></div>`:'';
