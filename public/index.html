@@ -39799,8 +39799,6 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <div class="piz-card-meta">
               ${fechaFmt?`<b>${fechaFmt}</b>`:''}${leg!==2&&_amistHorasTxt(m)?` · ${_amistHorasTxt(m)}`:(horaSrc?` · ${horaSrc}`:'')}${lugarSrc&&!(leg!==2&&_amistHorasTxt(m)&&lugarSrc===m.paisSede)?`<br>${lugarSrc}`:''}
             </div>
-            ${m.fifaInfo?window._fifaInfoHtml(m.fifaInfo):''}
-            ${m.fifaChk?window._fifaChkHtml(m.fifaChk):''}
             ${m.compId==='mundial-sub15-2026'||m.tv==='none'||m.yt?_tvHtml(m.compId,m):''}
             <div style="display:flex;gap:6px;align-items:center;margin-top:10px">
               <input id="amist-res-gl${sfx}-${m.id}-orig" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
@@ -39905,7 +39903,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
           <div class="pz-mini-top">${hasResult?'<span class="pz-sb-st fin">Final</span>':(()=>{const e=_fifaNovEstado(_novP2);return `<span class="pz-sb-st" style="color:${e[1]};border-color:${e[1]}66">${e[0]}</span>`;})()}${_veredicto?`<span class="pz-sb-ver" style="color:${_veredicto[1]};border-color:${_veredicto[1]}66">${_veredicto[0]}</span>`:''}</div>
           ${_uruHome?_rowM(true)+_rowM(false):_rowM(false)+_rowM(true)}
           <div class="pz-mini-foot">${_EVx?`<b>${_fechaLarga.replace(/^(\S+), /,'$1 ')}${_horaTxt?` · ${_horaTxt}`:''}</b><span>${_novP2.sede||''}</span>`:''}${filterCompId==='fifanov26'?_fifaNovConfirmBtnHtml(cat,year,m):filterCompId==='fifasep26'?_fifaSepConfirmBtnHtml(cat,year,m,true):`<button class="pz-chip ${m.confirmado?'ok':hasResult?'pri':''}" onclick="_amistToggleConfirmado('${cat}','${year}',${m.id})" title="${m.confirmado?'Confirmado — cuenta para las estadísticas (tocá para deshacer)':'Confirmar partido para que cuente en las estadísticas'}"><i class="ti ti-${m.confirmado?'check':'circle-check'}"></i>${m.confirmado?'Confirmado':'Confirmar partido'}</button>`}</div>
-        </div>${filterCompId==='fifanov26'?_fnovCorrobHtml(m):''}`;
+        </div>${filterCompId==='fifanov26'?_fnovCorrobHtml(m):''}${(m.compId&&typeof window._fifaPanelHtml==='function')?window._fifaPanelHtml(m):''}`;
       const _mundL=list.filter(x=>x.compId==='mundial-sub15-2026').sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
       const _ebNom=(typeof _COMP_NOM!=='undefined'&&_COMP_NOM[m.compId])||m.torneo||'';
       const _ebDet=m.compId==='mundial-sub15-2026'?'Partido '+(_mundL.findIndex(x=>x.id===m.id)+1)+' de la fase de grupos':(m.compId?String(m.fase||''):'');
@@ -39917,7 +39915,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
           <div class="pz-back-t">
             <i class="pz-bk-eb">${catLabel}${_ebNom?' · '+_ebNom:''}${_ebDet?`<em>|</em><u>${_ebDet}</u>`:''}</i>
             <b>Uruguay vs. ${m.rival}</b>
-            <div class="pz-bk-info"><span><i class="ti ti-calendar"></i>${_fechaLarga}</span>${_horaTxt?`<span><i class="ti ti-clock"></i>${_horaTxt}</span>`:''}${_novP2.sede?`<span><i class="ti ti-map-pin"></i>${_novP2.sede}</span>`:''}</div>
+            <div class="pz-bk-info"><span><i class="ti ti-calendar"></i>${_fechaLarga}</span>${_horaTxt?`<span><i class="ti ti-clock"></i>${_horaTxt}</span>`:''}${_novP2.sede?`<span><i class="ti ti-map-pin"></i>${_novP2.sede}</span>`:''}${(m.fifaInfo&&m.fifaInfo.estadio)?`<span><i class="ti ti-building-stadium"></i>${m.fifaInfo.estadio}${m.fifaInfo.ciudad?' · '+m.fifaInfo.ciudad:''}</span>`:''}${(m.fifaInfo&&m.fifaInfo.arbitro)?`<span><i class="ti ti-whistle"></i>Árbitro ${m.fifaInfo.arbitro}</span>`:''}</div>
           </div>
         </div>`}
         ${legTabs}
@@ -40265,7 +40263,8 @@ window._showUpdateBanner=_showUpdateBanner;
             push('Titulares',!falta.length&&!sobra.length,(!falta.length&&!sobra.length)?'Los 11 titulares coinciden':'En FIFA figura(n) como titular(es): '+(falta.join(', ')||'los mismos')+(sobra.length?' · y no figura(n) '+sobra.join(', '):'')); }
           const cap=offS.find(p=>p.Captain), capN=cap?(toAppP(cap)||nomF(cap)):'';
           if(capN){ if(L.captain) push('Capitán',_nt(L.captain).join(' ')===_nt(capN).join(' '),_nt(L.captain).join(' ')===_nt(capN).join(' ')?'El capitán coincide: '+capN:'En FIFA figura que el capitán fue '+capN+' (cargado: '+L.captain+')'); else push('Capitán',null,'Falta cargar el capitán · en FIFA figura '+capN); }
-          const dN=offS.filter(p=>p.Position===1).length, fN=offS.filter(p=>p.Position===3).length;
+          // La formación sale del esquema que publica FIFA («4-1-2-3»: 4 defensas y 3 delanteros → 4-3-3); la posición de cada jugador no sirve (FIFA pone laterales como volantes).
+          const tN=String(U.Tactics||'').split('-').map(Number).filter(x=>!isNaN(x)), dN=tN.length>=3?tN[0]:offS.filter(p=>p.Position===1).length, fN=tN.length>=3?tN[tN.length-1]:offS.filter(p=>p.Position===3).length;
           const F=(dN===4&&fN===3)?'4-3-3':(dN===4&&fN===2)?'4-4-2':(dN===4&&fN===1)?'4-2-3-1':(dN===3&&fN===2)?'3-5-2':(dN===3&&fN===3)?'3-4-3':null;
           if(F&&L.formation) push('Formación',L.formation===F,L.formation===F?'La formación coincide ('+(U.Tactics||F)+')':'En FIFA la formación es '+(U.Tactics||F)+' (cargado: '+L.formation+')');
         }
@@ -40353,7 +40352,12 @@ window._showUpdateBanner=_showUpdateBanner;
     if(!bad.length&&good.length) h+=`<div style="color:#86efac;font-weight:800"><i class="ti ti-circle-check"></i> Coincide con la fuente oficial FIFA${live}</div><div style="opacity:.8">${good.map(i=>'✓ '+e(i.k)).join(' · ')}</div>`;
     if(bad.length) h+=`<div style="color:#fcd34d;font-weight:800"><i class="ti ti-alert-triangle"></i> Hay diferencias con la fuente oficial FIFA${live}</div>`+bad.map(i=>`<div>• <b>${e(i.k)}:</b> ${e(i.t)}</div>`).join('')+(good.length?`<div style="opacity:.8">✓ Coinciden: ${good.map(i=>e(i.k)).join(' · ')}</div>`:'');
     if(pend.length) h+=pend.map(i=>`<div style="opacity:.85">• ${e(i.k)}: ${e(i.t)}</div>`).join('');
-    return `<div class="piz-card-meta" style="margin-top:6px;font-size:.8em;line-height:1.6">${h}</div>`;
+    return `<div style="margin-top:6px;font-size:12px;line-height:1.65;color:rgba(239,243,248,.85)">${h}</div>`;
+  };
+  window._fifaPanelHtml=function(m){
+    if(!m||(!m.fifaChk&&!m.fifaInfo)) return '';
+    const chk=m.fifaChk?window._fifaChkHtml(m.fifaChk):'', inf=m.fifaInfo?window._fifaInfoHtml(m.fifaInfo):'';
+    return `<div class="cr-box" title="Datos de la web oficial de FIFA (se actualizan solos durante el partido)"><div class="cr-t">Fuente oficial FIFA</div>${chk}${inf}</div>`;
   };
   window._fifaInfoHtml=function(i){
     const e=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;'), f=[];
@@ -40361,7 +40365,7 @@ window._showUpdateBanner=_showUpdateBanner;
     if(i.arbitro) f.push(`<i class="ti ti-whistle"></i> Árbitro <b>${e(i.arbitro)}</b>${(i.asistentes||[]).length?' · asistentes '+i.asistentes.map(e).join(' y '):''}${i.cuarto?' · cuarto '+e(i.cuarto):''}${i.reserva?' · reserva '+e(i.reserva):''}${(i.otros||[]).map(o=>' · '+e(o.rol)+' '+e(o.nom)).join('')}`);
     const x=[i.asistencia?'asistencia '+Number(i.asistencia).toLocaleString('es-UY'):'',i.clima,i.posesion!=null?'posesión '+i.posesion+'%':''].filter(Boolean); if(x.length) f.push(`<i class="ti ti-info-circle"></i> ${x.map(e).join(' · ')}`);
     const y=[i.formUru?'Uruguay '+i.formUru:'',i.formRival?'rival '+i.formRival:'',i.dtRival?'DT rival '+i.dtRival:''].filter(Boolean); if(y.length) f.push(`<i class="ti ti-layout-grid"></i> ${y.map(e).join(' · ')}`);
-    return f.length?`<div class="piz-card-meta" style="margin-top:6px;font-size:.8em;line-height:1.6;opacity:.9">${f.join('<br>')}</div>`:'';
+    return f.length?`<div style="margin-top:8px;font-size:12px;line-height:1.65;color:rgba(239,243,248,.85)">${f.join('<br>')}</div>`:'';
   };
 })();
 // Carga de imágenes: si una pantalla espera fotos/escudos, se muestra todo (pestañas, títulos) y solo la zona de fichas que espera imágenes se tapa con «Cargando»
