@@ -1519,6 +1519,10 @@ body #nav-l1-juv .nav-l1-btn i{font-size:17px!important;opacity:.9!important}
 .jg-thumb{position:absolute;z-index:0;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:999px;background:linear-gradient(180deg,#8AD8FF,#38BDF8);box-shadow:0 4px 14px rgba(56,189,248,.35);transition:transform .25s cubic-bezier(.4,0,.2,1)}
 .jg-seg.g .jg-thumb{transform:translateX(100%)}
 .jg-actb{display:inline-flex;align-items:center;height:34px;padding:0 16px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);color:rgba(239,243,248,.7);font:600 12.5px 'Inter',sans-serif;cursor:pointer;margin-left:0}
+.dd-vida{margin:12px 2px 0;font-size:12.5px;color:rgba(239,243,248,.6)}
+.dd-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 16px;margin-bottom:6px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:13.5px}.dd-row span{color:rgba(239,243,248,.7)}.dd-row b{color:#F4F7FB;text-align:right}
+.dd-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}.dd-kpis div{text-align:center;padding:14px 6px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}.dd-kpis b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:28px;color:#F4F7FB}.dd-kpis span{font-size:10px;letter-spacing:.12em;color:rgba(239,243,248,.5)}
+.dd-src{font-size:11px;color:rgba(239,243,248,.4);margin:6px 4px 0}
 .jg-hero{margin:4px 0 16px;padding:20px 18px 22px;border-radius:24px;border:1px solid rgba(255,255,255,.14);background:radial-gradient(520px 200px at 50% -20%,var(--hc,rgba(56,189,248,.14)),transparent 72%),linear-gradient(180deg,#10182C,#0A1022)}
 .jg-hh{text-align:center;margin-bottom:16px}.jg-hh i{display:block;font-style:normal;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--hl,#8AD8FF);margin-bottom:5px}.jg-hh b{font-family:'Space Grotesk','Inter',sans-serif;font-size:19px;color:#F4F7FB;font-weight:700;line-height:1.25}
 .jg-pod{display:grid;grid-template-columns:1fr 1.18fr 1fr;gap:10px;align-items:end}
@@ -21725,7 +21729,7 @@ function _dtDetailHead(dt){
         <input type="file" accept="image/*" style="display:none" onchange="dtPhotoFileChosen('${dt.id}',this)">
       </div>
       <div style="flex:1;min-width:0">
-        <div class="dt-eye">${dt.activo?'Director técnico actual':'Director técnico'}</div>
+        <div class="dt-eye">${dt.activo?'Director técnico actual':((dt.ficha&&(dt.ficha.roles||[]).length>1)?'Jugador y director técnico':'Director técnico')}</div>
         <div class="dt-nm" style="font-size:28px">${dt.full}${dt.interino?'<em class="sh-tg">Interino</em>':''}</div>
         <div class="dt-sub">${flagImg(dt.nacISO,14)}<span>${dt.nac}${bornTxt}</span></div>
         ${per?`<div class="dt-per">Selección Mayor · <b>${per}</b></div>`:''}
@@ -21756,7 +21760,7 @@ function renderTecnicos(){
       interino:dt.rol.includes('interino'),
       logro:dt.logro||'',
       foto:dt.foto||null,
-      pj:dt.pj||null,
+      pj:dt.pj||null, ficha:dt.ficha||null,
       activo:false, hist:true,
     }));
   const fullDTCatalog=[...DT_CATALOG,..._histEntries];
@@ -21775,7 +21779,7 @@ function renderTecnicos(){
         </div>
         <div class="dt-id">
           ${big?`<div class="dt-eye">Director técnico actual</div>`:''}
-          <div class="dt-nm">${dt.full}${dt.interino?'<em class="sh-tg">Interino</em>':''}</div>
+          <div class="dt-nm">${dt.full}${dt.interino?'<em class="sh-tg">Interino</em>':''}${(dt.ficha&&(dt.ficha.roles||[]).length>1)?'<em class="sh-tg gold">Jugador y DT</em>':''}</div>
           <div class="dt-sub">${flagImg(dt.nacISO,13)}<span>${dt.nac}${dt.born&&dt.born!=='—'?` · n. ${dt.born}`:''}</span></div>
           <div class="dt-per">${periodLine}${dt.pj?` · <b>${dt.pj}</b> PJ`:''}${dt.logro?` · ${dt.logro}`:''}</div>
         </div>
@@ -21940,6 +21944,31 @@ function renderTecnicos(){
   const curDT=fullDTCatalog.find(d=>d.id===_tecDT)||BIELSA_BIO;
 
   // ── Ficha simplificada para DTs históricos ──────────────────────────────
+  if(curDT.hist&&curDT.ficha){
+    const F=curDT.ficha, e=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const vista=window._tecDual||'dt';
+    const jugH=F.jug?`
+      <div class="rd-eyebar">Trayectoria como jugador</div>
+      <div class="dd-row"><span>Posición</span><b>${e(F.jug.pos)}</b></div>
+      ${(F.jug.clubes||[]).map(c=>`<div class="dd-row"><span>${e(c.club)} · ${e(c.per)}</span><b>${c.pj} PJ · ${c.g} goles</b></div>`).join('')}
+      <div class="dd-row"><span>Con la Celeste</span><b>${e(F.jug.sel)}</b></div>
+      <div class="dd-src">Fuente: ${e(F.jug.fuente)}</div>`:'<div class="sx-note"><div class="b">Sin datos como jugador.</div></div>';
+    const D=F.dt||{}, S=D.sel;
+    const dtH=`
+      ${S?`<div class="rd-eyebar">Selección Mayor</div>
+      <div class="dd-kpis"><div><b>${S.pj}</b><span>PJ</span></div><div><b style="color:#4ADE80">${S.g}</b><span>G</span></div><div><b style="color:#FCD34D">${S.e}</b><span>E</span></div><div><b style="color:#F87171">${S.p}</b><span>P</span></div></div>
+      <div class="dd-src">${e(S.per)}</div>`:''}
+      ${(D.titulos||[]).length?`<div class="rd-eyebar">Torneos al frente de la Celeste</div>${D.titulos.map(t=>`<div class="dd-row"><span>${e(t[0])}</span><b>${e(t[1])}</b></div>`).join('')}`:''}
+      ${(D.clubes||[]).length?`<div class="rd-eyebar">Clubes</div>${D.clubes.map(c=>`<div class="dd-row"><span>${e(c[0])}</span><b>${e(c[1])}</b></div>`).join('')}`:''}
+      ${D.nota?`<div class="sx-note" style="margin-top:14px"><div class="t">Dato a definir</div><div class="b">${e(D.nota)}</div></div>`:''}
+      <div class="dd-src">Fuente: ${e(D.fuente||'')}</div>`;
+    con.innerHTML=`
+      ${_dtDetailHead(curDT)}
+      <div class="dd-vida">${e(F.nac)}${F.fall?' — † '+e(F.fall):''}</div>
+      <div class="jg-ctl" style="justify-content:flex-start;margin-top:16px"><div class="jg-seg${vista==='jug'?' g':''}" id="ddSeg"><i class="jg-thumb"></i><button class="${vista==='dt'?'on':''}" onclick="window._tecDual='dt';renderTecnicos()">Como DT</button><button class="${vista==='jug'?'on':''}" onclick="window._tecDual='jug';renderTecnicos()">Como jugador</button></div></div>
+      ${vista==='jug'?jugH:dtH}`;
+    return;
+  }
   if(curDT.hist){
     const initials=curDT.full.split(' ').filter(w=>w).slice(0,2).map(w=>w[0]).join('').toUpperCase();
     con.innerHTML=`
@@ -47714,7 +47743,19 @@ const DT_MAYOR_HIST = [
   {iso:'uy', name:'Ernesto Meliante',         rol:'Director técnico · 1924',                     logro:'Copa América 1924'},
   {iso:'uy', name:'Luis Grecco',              rol:'Director técnico · 1927'},
   {iso:'it', name:'Primo Gianotti',           rol:'Director técnico · 1928',                     logro:'JJ.OO. 1928 (oro)'},
-  {iso:'uy', name:'Alberto Suppici',          rol:'Director técnico · 1929-1933, 1936-1939',     logro:'Copa del Mundo 1930',  foto:_AUF_FOTO+'dt_alberto_suppici_.jpg',                          pj:26},
+  {iso:'uy', name:'Alberto Suppici',          rol:'Director técnico · 1929-1933, 1936-1939',     logro:'Copa del Mundo 1930',  foto:_AUF_FOTO+'dt_alberto_suppici_.jpg',                          pj:26, born:'20 nov 1898',
+    ficha:{
+      nac:'Montevideo, 20 de noviembre de 1898', fall:'Montevideo, 21 de junio de 1981 (88 años)',
+      roles:['Jugador','DT'],
+      jug:{pos:'Half izquierdo (mediocampista)', clubes:[{club:'Nacional',per:'1915–1923',pj:143,g:6}], sel:'Sin partidos con la selección mayor según Wikipedia.', fuente:'Wikipedia'},
+      dt:{
+        sel:{pj:26, g:12, e:1, p:13, per:'Nov 1929 – feb 1939 (AUF)', fuente:'AUF'},
+        titulos:[['Copa Mundial 1930','Primer técnico campeón del mundo'],['Copa América 1929','3.º puesto'],['Copa América 1937','Dirigió'],['Copa América 1939','Dirigió']],
+        clubes:[['Defensor','1934 y 1935–1936'],['Central Español','1935'],['Peñarol','1945 · campeón uruguayo y Torneo de Honor 1945'],['Plaza Colonia','Fundador del club']],
+        nota:'Las etapas al frente de la selección difieren según la fuente: AUF 1929–1933 y 1936–1939; Wikipedia 1928–1932 y 1933–1941. Pendiente de definir cuál usar.',
+        fuente:'AUF y Wikipedia'
+      }
+    }},
   {iso:'uy', name:'Raúl Blanco',              rol:'Director técnico · 1935',                     logro:'Copa América 1935'},
   {iso:'uy', name:'Pedro Cea',                rol:'Director técnico · 1940-1942, 1945',          logro:'Copa América 1942',    born:'1 sep 1900',  foto:_AUF_FOTO+'pedr_cea_2.jpg'},
   {iso:'uy', name:'Héctor Castro',            rol:'Director técnico · 1943-1944, 1959',                                          born:'29 nov 1904', foto:_AUF_FOTO+'hector_castro.jpg'},
