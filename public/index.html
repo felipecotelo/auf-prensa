@@ -39799,6 +39799,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
             <div class="piz-card-meta">
               ${fechaFmt?`<b>${fechaFmt}</b>`:''}${leg!==2&&_amistHorasTxt(m)?` · ${_amistHorasTxt(m)}`:(horaSrc?` · ${horaSrc}`:'')}${lugarSrc&&!(leg!==2&&_amistHorasTxt(m)&&lugarSrc===m.paisSede)?`<br>${lugarSrc}`:''}
             </div>
+            ${m.fifaInfo?window._fifaInfoHtml(m.fifaInfo):''}
             ${m.compId==='mundial-sub15-2026'||m.tv==='none'||m.yt?_tvHtml(m.compId,m):''}
             <div style="display:flex;gap:6px;align-items:center;margin-top:10px">
               <input id="amist-res-gl${sfx}-${m.id}-orig" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2"
@@ -40223,6 +40224,48 @@ window._showUpdateBanner=_showUpdateBanner;
 (function(){
   window._mundLive=window._mundLive||{};
   const _nt=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  // PASO FINAL (Felipe, 19/11/2026): el equipo lo carga él (lo tiene antes que nadie); cuando FIFA publica lo oficial, la app chequea y COMPLETA la Pizarra con goles (minuto y asistencia),
+  // tarjetas, ingresos/cambios con minuto y resultado final. Solo SUMA lo que falta: nunca pisa ni borra lo cargado a mano; no toca la alineación, el capitán ni el DT.
+  // Devuelve avisos (jugadores que no pudo ubicar, goles que no cierran con el marcador).
+  function autoPizarra(cfg,cid,m,U,nv,patch,j,R){
+    const avisos=[];
+    try{
+      const pool=((window.COMP_DATA||{})[cid]||{}).convocados||[]; const names=pool.map(p=>p.nom);
+      const toApp=fn=>{ const T=_nt(fn); if(!T.length) return null; const h=names.filter(n=>{ const A=_nt(n); return T.every(t=>A.includes(t)); }); return h.length?h.sort((a,b)=>_nt(a).length-_nt(b).length)[0]:null; };
+      const byId={}; (U.Players||[]).forEach(p=>{ byId[String(p.IdPlayer)]=p; });
+      const nomF=p=>p?((p.PlayerName||[{}])[0]||{}).Description||'':'';
+      const nomApp=id=>{ const p=byId[String(id)]; const a=p?toApp(nomF(p)):null; if(p&&!a){ const av='No pude ubicar a '+nomF(p)+' de FIFA en la lista'; if(!avisos.includes(av)) avisos.push(av); } return a; };
+      const mn=x=>{ const t=String(x==null?'':x).replace(/['\s]/g,''); return t||null; };
+      const goals=(U.Goals||[]).map(g=>({nom:byId[String(g.IdPlayer)]?nomApp(g.IdPlayer):'__EC__',min:mn(g.Minute),ast:g.IdAssistPlayer?nomApp(g.IdAssistPlayer):null})).filter(g=>g.nom);
+      const cards=(U.Bookings||[]).map(b=>({nom:nomApp(b.IdPlayer),min:mn(b.Minute)||'',col:b.Card===1?'a':b.Card===3?'da':'r'})).filter(c=>c.nom);
+      const subs=(U.Substitutions||[]).map(x=>({nom:nomApp(x.IdPlayerOn),por:nomApp(x.IdPlayerOff),min:mn(x.Minute)})).filter(x=>x.nom);
+      // Info oficial del partido (Felipe, 19/11/2026: «cuanto más info, mejor»): estadio, árbitros, asistencia, clima, posesión, formaciones y DT rival
+      const nf=a=>((a||[{}])[0]||{}).Description||'', tc=t=>String(t||'').split(' ').map(w=>(w.length>1&&w===w.toUpperCase())?w[0]+w.slice(1).toLowerCase():w).join(' ');
+      let info=null;
+      if(j){ const of=j.Officials||[], ofn=t=>of.filter(o=>o.OfficialType===t).map(o=>tc(nf(o.Name||o.NameShort))+(o.IdCountry?' ('+o.IdCountry+')':''));
+        const otros=of.filter(o=>![1,2,3,4,6].includes(o.OfficialType)).map(o=>({rol:nf(o.TypeLocalized),nom:tc(nf(o.Name||o.NameShort))+(o.IdCountry?' ('+o.IdCountry+')':'')}));
+        const dtR=((R&&R.Coaches)||[]).find(c=>c.Role===0)||((R&&R.Coaches)||[])[0], w=j.Weather||{};
+        info={estadio:nf((j.Stadium||{}).Name),ciudad:nf((j.Stadium||{}).CityName),nPartido:j.MatchNumber||null,arbitro:ofn(1)[0]||'',asistentes:[...ofn(2),...ofn(3)],cuarto:ofn(4)[0]||'',reserva:ofn(6)[0]||'',otros,
+          asistencia:j.Attendance||null,clima:[w.Temperature!=null?w.Temperature+'°':'',w.Humidity!=null?w.Humidity+'% hum.':'',w.WindSpeed!=null?'viento '+w.WindSpeed:'',nf(w.TypeLocalized)].filter(Boolean).join(' · '),
+          posesion:(j.BallPossession&&(j.BallPossession.OverallHome!=null||j.BallPossession.OverallAway!=null))?(j.HomeTeam.IdCountry==='URU'?j.BallPossession.OverallHome:j.BallPossession.OverallAway):null,
+          formUru:U.Tactics||'',formRival:(R&&R.Tactics)||'',dtRival:dtR?tc(nf(dtR.Name)):''}; }
+      const apply=mm=>{
+        const gl=mm.goles||(mm.goles={}), gm=mm.golMins||(mm.golMins=[]), usadoG={};
+        goals.forEach(g=>{ usadoG[g.nom]=(usadoG[g.nom]||0)+1; if((gl[g.nom]||0)<usadoG[g.nom]){ gl[g.nom]=(gl[g.nom]||0)+1; gm.push(g.ast?{nom:g.nom,min:g.min,ast:g.ast}:{nom:g.nom,min:g.min}); } });
+        const tj=mm.tarjetas||(mm.tarjetas=[]), usadoT={};
+        cards.forEach(c=>{ const k=c.nom+'|'+c.col; usadoT[k]=(usadoT[k]||0)+1; if(tj.filter(x=>x.nom===c.nom&&x.col===c.col).length<usadoT[k]) tj.push({nom:c.nom,min:c.min,col:c.col}); });
+        const sb=mm.subs||(mm.subs=[]);
+        subs.forEach(x=>{ if(!sb.some(y=>y.nom===x.nom)) sb.push(x.por?{nom:x.nom,min:x.min,por:x.por}:{nom:x.nom,min:x.min}); });
+        // resultado final: solo si el partido todavía no tiene marcador cargado
+        if(nv.fin&&mm.gLocal==null&&mm.gRival==null){ mm.gLocal=nv.gl; mm.gRival=nv.gr; }
+        mm.fifaAuto=true; if(info) mm.fifaInfo=info;
+      };
+      let cp=null; try{ cp=JSON.parse(JSON.stringify(m)); }catch(_){}
+      if(cp){ apply(cp); if(JSON.stringify(cp)!==JSON.stringify(m)) (patch||_amistPatch)(cfg.cat,cfg.year,m.id,apply); } else (patch||_amistPatch)(cfg.cat,cfg.year,m.id,apply);
+      if(U.Score!=null&&goals.length!==+U.Score) avisos.push('Goles de Uruguay: FIFA marca '+U.Score+' y solo pude ubicar '+goals.length);
+    }catch(e){ avisos.push('No pude completar la Pizarra con FIFA: '+(e&&e.message||e)); }
+    return avisos;
+  }
   async function tick(){
     try{
       if(document.hidden) return;
@@ -40252,6 +40295,7 @@ window._showUpdateBanner=_showUpdateBanner;
               if(falta.length||sobra.length) nv.dif.push('Titulares: FIFA tiene '+(falta.length?falta.join(', '):'los mismos')+(sobra.length?' y no a '+sobra.join(', '):''));
             }
           }catch(_){}
+          if(typeof _amistPatch==='function'){ const av=autoPizarra(cfg,cid,m,U,nv,null,j,R); av.forEach(x=>{ if(!nv.dif.includes(x)) nv.dif.push(x); }); }
           if(fin&&m.gLocal!=null&&m.gRival!=null&&(+m.gLocal!==nv.gl||+m.gRival!==nv.gr)) nv.dif.push('Marcador: FIFA '+nv.gl+'–'+nv.gr+', cargado '+m.gLocal+'–'+m.gRival);
           const ant=window._mundLive[String(m.fifaId)]; if(!ant||ant.gl!==nv.gl||ant.gr!==nv.gr||ant.fin!==nv.fin||ant.min!==nv.min||(ant.dif||[]).join('|')!==nv.dif.join('|')){ window._mundLive[String(m.fifaId)]=nv; cambio=true; }
           if(fin&&typeof window._mundSyncFifa==='function') window._mundSyncFifa(cid,true);
@@ -40262,6 +40306,15 @@ window._showUpdateBanner=_showUpdateBanner;
   }
   setInterval(tick,40000); setTimeout(tick,9000);
   window._mundLiveTick=tick;
+  window._mundAutoPizarra=autoPizarra;
+  window._fifaInfoHtml=function(i){
+    const e=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;'), f=[];
+    if(i.estadio) f.push(`<i class="ti ti-building-stadium"></i> <b>${e(i.estadio)}</b>${i.ciudad?' · '+e(i.ciudad):''}${i.nPartido?' · partido N.º '+e(i.nPartido):''}`);
+    if(i.arbitro) f.push(`<i class="ti ti-whistle"></i> Árbitro <b>${e(i.arbitro)}</b>${(i.asistentes||[]).length?' · asistentes '+i.asistentes.map(e).join(' y '):''}${i.cuarto?' · cuarto '+e(i.cuarto):''}${i.reserva?' · reserva '+e(i.reserva):''}${(i.otros||[]).map(o=>' · '+e(o.rol)+' '+e(o.nom)).join('')}`);
+    const x=[i.asistencia?'asistencia '+Number(i.asistencia).toLocaleString('es-UY'):'',i.clima,i.posesion!=null?'posesión '+i.posesion+'%':''].filter(Boolean); if(x.length) f.push(`<i class="ti ti-info-circle"></i> ${x.map(e).join(' · ')}`);
+    const y=[i.formUru?'Uruguay '+i.formUru:'',i.formRival?'rival '+i.formRival:'',i.dtRival?'DT rival '+i.dtRival:''].filter(Boolean); if(y.length) f.push(`<i class="ti ti-layout-grid"></i> ${y.map(e).join(' · ')}`);
+    return f.length?`<div class="piz-card-meta" style="margin-top:6px;font-size:.8em;line-height:1.6;opacity:.9">${f.join('<br>')}</div>`:'';
+  };
 })();
 // Carga de imágenes: si una pantalla espera fotos/escudos, se muestra todo (pestañas, títulos) y solo la zona de fichas que espera imágenes se tapa con «Cargando»
 // hasta que llegan (máx. 3 s; si una imagen falla o tarda, no se espera más).
