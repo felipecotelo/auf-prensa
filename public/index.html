@@ -2039,7 +2039,8 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .fb-chip.ok{color:#86EFAC;border-color:#86EFAC44}.fb-chip.bad{color:#FCD34D;border-color:#FCD34D66;background:#FCD34D14}
 .fb-df{font-size:11.5px;line-height:1.4;color:rgba(239,243,248,.75);margin:2px 0}.fb-df.bad{color:#FDE68A}
 .fb-ls{margin-top:6px;border-top:1px solid rgba(255,255,255,.08);padding-top:6px}
-.fb-l{display:flex;gap:7px;font-size:11.5px;line-height:1.45;color:rgba(239,243,248,.8);margin:3px 0}.fb-l i{color:rgba(239,243,248,.45);font-size:13px;margin-top:1px;flex-shrink:0}.fb-l b{color:#F4F7FB}.fb-l em{font-style:normal;opacity:.6}
+.fb-l{display:flex;gap:7px;font-size:11.5px;line-height:1.45;color:rgba(239,243,248,.8);margin:3px 0}.fb-l i{color:rgba(239,243,248,.45);font-size:13px;margin-top:1px;flex-shrink:0}.fb-sub{color:rgba(239,243,248,.6);font-size:11px}
+.fb-l b{color:#F4F7FB}.fb-l em{font-style:normal;opacity:.6}
 .cr-t{font-size:9.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.5);margin-bottom:8px}
 .cr-p{display:flex;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
 .cr-p:first-of-type{border-top:none}
@@ -40288,6 +40289,7 @@ window._showUpdateBanner=_showUpdateBanner;
         Object.entries(porJug).forEach(([n,mins])=>{ const ap=gmApp.filter(x=>x.nom===n);
           if((mm.goles||{})[n]>mins.length){ gOk=false; dif.push(n+' tiene '+mm.goles[n]+' gol(es) cargados y FIFA marca '+mins.length); }
           const libres=mins.slice(); ap.forEach(x=>{ const k=libres.findIndex(v=>pn(v)!=null&&pn(v)===pn(x.min)); if(k>=0) libres.splice(k,1); else if(x.min&&pn(x.min)!=null){ const k2=libres.findIndex(v=>pn(v)!=null); if(k2>=0){ gOk=false; dif.push('gol de '+n+': en FIFA figura al '+libres[k2]+"' (cargado al "+x.min+"')"); libres.splice(k2,1); } } }); });
+        if((mm.goles||{}).__EC__&&!porJug.__EC__&&(goals.length||nv.gl!=null)){ gOk=false; dif.push('Hay un gol en contra del rival cargado y FIFA no lo registra'); }
         Object.keys(mm.goles||{}).forEach(n=>{ if(n!=='__EC__'&&!porJug[n]&&goals.length){ gOk=false; dif.push(n+' figura con gol cargado y en FIFA no marca'); } });
         if(goals.length||Object.keys(mm.goles||{}).length) push('Goles',gOk,gOk?'Los goles coinciden con FIFA ('+goals.length+')':dif.join(' · '));
         // tarjetas
@@ -40303,18 +40305,28 @@ window._showUpdateBanner=_showUpdateBanner;
         return {ok:chk.length>0&&chk.every(c=>c.ok!==false)&&chk.some(c=>c.ok===true),final:!!nv.fin,min:nv.min||'',items:chk};
       };
       const apply=mm=>{
-        const gl=mm.goles||(mm.goles={}), gm=mm.golMins||(mm.golMins=[]), usadoG={};
-        goals.forEach(g=>{ usadoG[g.nom]=(usadoG[g.nom]||0)+1; if((gl[g.nom]||0)<usadoG[g.nom]){ gl[g.nom]=(gl[g.nom]||0)+1; gm.push(g.ast?{nom:g.nom,min:g.min,ast:g.ast}:{nom:g.nom,min:g.min}); } });
-        const tj=mm.tarjetas||(mm.tarjetas=[]), usadoT={};
-        cards.forEach(c=>{ const k=c.nom+'|'+c.col; usadoT[k]=(usadoT[k]||0)+1; if(tj.filter(x=>x.nom===c.nom&&x.col===c.col).length<usadoT[k]) tj.push({nom:c.nom,min:c.min,col:c.col}); });
-        const sb=mm.subs||(mm.subs=[]);
-        subs.forEach(x=>{ if(!sb.some(y=>y.nom===x.nom)) sb.push(x.por?{nom:x.nom,min:x.min,por:x.por}:{nom:x.nom,min:x.min}); });
+        // Lo cargado automáticamente lleva `fifa:true` y SIGUE a FIFA (si FIFA corrige un goleador o un minuto, se corrige); lo cargado a mano nunca se toca.
+        // Migración: en partidos completados por la versión anterior todo lo que hay es automático.
+        if(mm.fifaAuto&&!mm.fifaV2) ['golMins','tarjetas','subs'].forEach(k=>(mm[k]||[]).forEach(x=>{ x.fifa=true; }));
+        mm.fifaV2=true;
+        const sg=x=>[x.nom,String(x.min||''),x.ast||'',x.col||'',x.por||''].join('|');
+        const sync=(arr,want,onDel,onAdd)=>{ const cur=arr.filter(x=>x.fifa); if(cur.map(sg).sort().join('#')===want.map(sg).sort().join('#')) return;
+          for(let q=arr.length-1;q>=0;q--) if(arr[q].fifa){ if(onDel) onDel(arr[q]); arr.splice(q,1); }
+          want.forEach(d=>{ arr.push(Object.assign({},d,{fifa:true})); if(onAdd) onAdd(d); }); };
+        // goles
+        const gl=mm.goles||(mm.goles={}), gm=mm.golMins||(mm.golMins=[]);
+        const man=gm.filter(x=>!x.fifa).map(x=>({x,used:false})), wantG=[];
+        goals.forEach(g=>{ const k=man.find(o=>!o.used&&o.x.nom===g.nom&&(!o.x.min||pn(o.x.min)===pn(g.min))); if(k){ k.used=true; if(!k.x.min&&g.min) k.x.min=g.min; } else wantG.push(g.ast?{nom:g.nom,min:g.min,ast:g.ast}:{nom:g.nom,min:g.min}); });
+        sync(gm,wantG,x=>{ gl[x.nom]=(gl[x.nom]||1)-1; if(gl[x.nom]<=0) delete gl[x.nom]; },d=>{ gl[d.nom]=(gl[d.nom]||0)+1; });
+        // tarjetas
+        const tj=mm.tarjetas||(mm.tarjetas=[]), manT=tj.filter(x=>!x.fifa).map(x=>({x,used:false})), wantT=[];
+        cards.forEach(c=>{ const k=manT.find(o=>!o.used&&o.x.nom===c.nom&&o.x.col===c.col); if(k) k.used=true; else wantT.push({nom:c.nom,min:c.min,col:c.col}); });
+        sync(tj,wantT);
+        // ingresos / cambios
+        const sb=mm.subs||(mm.subs=[]), manS=new Set(sb.filter(x=>!x.fifa).map(x=>x.nom));
+        sync(sb,subs.filter(x=>!manS.has(x.nom)).map(x=>x.por?{nom:x.nom,min:x.min,por:x.por}:{nom:x.nom,min:x.min}));
         // resultado final: solo si el partido todavía no tiene marcador cargado
         if(nv.fin&&mm.gLocal==null&&mm.gRival==null){ mm.gLocal=nv.gl; mm.gRival=nv.gr; }
-        // minutos que quedaron en blanco: se completan con el de FIFA (nunca se cambia uno ya cargado)
-        const libresMin={}; goals.forEach(g=>{ (libresMin[g.nom]=libresMin[g.nom]||[]).push(g.min); });
-        gm.forEach(x=>{ const a=libresMin[x.nom]||[]; const k=a.findIndex(v=>pn(v)!=null&&pn(v)===pn(x.min)); if(k>=0) a.splice(k,1); });
-        gm.forEach(x=>{ if(!x.min){ const a=libresMin[x.nom]||[]; const k=a.findIndex(v=>v); if(k>=0){ x.min=a[k]; a.splice(k,1); } } });
         mm.fifaAuto=true; if(info) mm.fifaInfo=info; mm.fifaChk=check(mm);
       };
       let cp=null; try{ cp=JSON.parse(JSON.stringify(m)); }catch(_){}
@@ -40379,7 +40391,7 @@ window._showUpdateBanner=_showUpdateBanner;
     if(i){
       if(i.estadio) L.push(`<div class="fb-l"><i class="ti ti-building-stadium"></i><span><b>${e(i.estadio)}</b>${i.ciudad?' · '+e(i.ciudad):''}${i.nPartido?' · partido N.º '+e(i.nPartido):''}</span></div>`);
       if(i.arbitro){ const ex=[(i.asistentes||[]).length?'asist. '+i.asistentes.map(sh).join(', '):'',i.cuarto?'4.º '+sh(i.cuarto):'',i.reserva?'reserva '+sh(i.reserva):'',...(i.otros||[]).map(o=>e(o.rol||'Oficial')+' '+sh(o.nom))].filter(Boolean);
-        L.push(`<div class="fb-l"><i class="ti ti-whistle"></i><span><b>${sh(i.arbitro)}</b> <em>(${e((i.arbitro.match(/\(([A-Z]{3})\)/)||[])[1]||'')})</em>${ex.length?' · '+ex.join(' · '):''}</span></div>`); }
+        L.push(`<div class="fb-l"><i class="ti ti-flag"></i><span><b>${sh(i.arbitro)}</b> <em>(${e((i.arbitro.match(/\(([A-Z]{3})\)/)||[])[1]||'')})</em> · árbitro${ex.length?'<br><span class="fb-sub">'+ex.join(' · ')+'</span>':''}</span></div>`); }
       const x2=[i.asistencia?'asistencia '+e(Number(i.asistencia).toLocaleString('es-UY')):'',i.clima?e(i.clima):'',i.posesion!=null?'posesión '+e(i.posesion)+'%':''].filter(Boolean);
       if(x2.length) L.push(`<div class="fb-l"><i class="ti ti-info-circle"></i><span>${x2.join(' · ')}</span></div>`);
       const y=[i.formUru?'Uruguay '+e(i.formUru):'',i.formRival?'rival '+e(i.formRival):'',i.dtRival?'DT rival '+e(i.dtRival):''].filter(Boolean);
