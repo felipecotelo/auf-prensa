@@ -9790,7 +9790,7 @@ function _recPartidosDerivados(){
           });
           return;
         }
-        if(D>=TODAY && D<=_recSumarDias(TODAY,10)){
+        if(D>=TODAY && D<=_recSumarDias(TODAY,10) && !(cat!=='fifamayor' && (m.compId||m.oficial) && !m.auftv)){ // los oficiales de Juveniles llevan la cadena de 5 pasos de la alineación (_recMd1Derivados)
           const id='alin|'+uid, mn=manual[id]||{};
           out.push({id,titulo:'Conseguir la alineación de '+lbl+' y cargarla en la app',detalle:'Partido '+D.split('-').reverse().join('/')+hora+' · se la pedimos al CT',vence:_recSumarDias(D,-1),hora:'10:00',etiqueta:metaCat(cat),
             hecho:nStart>=nMax||!!mn.hecho,hechoEn:(nStart<nMax&&mn.hecho)?mn.hechoEn:null});
@@ -10199,14 +10199,21 @@ function _recMd1Derivados(){
           const id=`${pre}|${m.id}`, mn=manual[id]||{};
           out.push({id,titulo,detalle,vence,hora,etiqueta:cat,secuencial:true,grupo,orden,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
         });
-        // El equipo (Felipe, 19/11/2026): 1:30h antes del partido «Publicar el equipo vs. X» y, cuando se da por hecho (con su OK), «Enviar a prensa el tuit con la formación vs. X». Necesita la hora del partido (hora de Uruguay).
-        if(hm){
-          const T=new Date(D+'T'+String(parseInt(hm[1],10)).padStart(2,'0')+':'+hm[2]+':00'), tp=new Date(T.getTime()-90*60000), tt=new Date(tp.getTime()+10*60000);
-          const fmt=d=>({vence:d.toLocaleDateString('en-CA'),hora:String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')});
-          const gA='ali|'+cat+'|'+m.id, dA='Partido del '+cuando+' · '+hm[1]+':'+hm[2]+'h';
-          [['ali-pub',`Publicar el equipo de la ${catMin} vs. ${m.rival}`,fmt(tp),1],['ali-tw',`Enviar a prensa el tuit con la formación vs. ${m.rival}`,fmt(tt),2]].forEach(([pre,titulo,f,orden])=>{
-            const id=`${pre}|${m.id}`, mn=manual[id]||{};
-            out.push({id,titulo,detalle:dA,vence:f.vence,hora:f.hora,etiqueta:cat,secuencial:true,grupo:gA,orden,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+        // La alineación (Felipe, 19/11/2026): cadena de 5 pasos, cada uno se habilita al dar por hecho el anterior (los partidos que van por AUFtv tienen su propio circuito):
+        //  1) Conseguir alineación (día antes)  2) Elegir jugador para el diseño de alineación  3) Mandar a diseñar y cargar en la app la alineación  4) Publicar alineación (1:30h antes del partido)  5) Enviar a prensa el tuit con la formación
+        if(!m.auftv){
+          const gA='ali|'+cat+'|'+m.id, dA='Partido del '+cuando+(hm?' · '+hm[1]+':'+hm[2]+'h':''), dPrev=_recSumarDias(D,-1);
+          const nStart=Object.values((m.lineup||{}).starters||{}).filter(Boolean).length, nMax=11;
+          let selDis=false, linkDis=false; try{ const e=((stor.get('auf4_juv_diseno',{})||{})[m.compId]||{})[String(m.id)]||{}; selDis=(e.ali||[]).length>0; linkDis=!!String(e.l3||'').trim(); }catch(_){}
+          const pasos=[['alin','Conseguir alineación vs. '+m.rival,dPrev,'10:00',1,nStart>=nMax],
+                       ['ali-sel','Elegir jugador para el diseño de alineación vs. '+m.rival,dPrev,'10:30',2,selDis],
+                       ['ali-dis','Mandar a diseñar y cargar en la app la alineación vs. '+m.rival,dPrev,'11:00',3,linkDis&&nStart>=nMax]];
+          if(hm){ const T=new Date(D+'T'+String(parseInt(hm[1],10)).padStart(2,'0')+':'+hm[2]+':00'), tp=new Date(T.getTime()-90*60000), tt=new Date(tp.getTime()+10*60000);
+            const fmt=d=>({vence:d.toLocaleDateString('en-CA'),hora:String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')});
+            pasos.push(['ali-pub','Publicar alineación vs. '+m.rival,fmt(tp).vence,fmt(tp).hora,4,false],['ali-tw','Enviar a prensa el tuit con la formación vs. '+m.rival,fmt(tt).vence,fmt(tt).hora,5,false]); }
+          pasos.forEach(([pre,titulo,vence,hora,orden,auto])=>{
+            const id=`${pre}|${m.id}`, mn=manual[id]||{}, hecho=!!mn.hecho||!!auto;
+            out.push({id,titulo,detalle:dA,vence,hora,etiqueta:cat,secuencial:true,grupo:gA,orden,derivado:true,hecho,hechoEn:hecho?(mn.hechoEn||new Date().toISOString()):null});
           });
         }
       });
@@ -11206,7 +11213,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|ali-pub|ali-tw|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc|mdm|hito)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|ali-sel|ali-dis|ali-pub|ali-tw|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc|mdm|hito)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
