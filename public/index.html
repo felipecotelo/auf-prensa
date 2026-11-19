@@ -40302,7 +40302,7 @@ window._showUpdateBanner=_showUpdateBanner;
         if(subs.length||(mm.subs||[]).length) push('Cambios',!sDif.length,!sDif.length?'Los cambios coinciden con FIFA ('+subs.length+')':sDif.join(' · '));
         // resultado
         if(nv.fin&&mm.gLocal!=null&&mm.gRival!=null) push('Resultado',+mm.gLocal===nv.gl&&+mm.gRival===nv.gr,(+mm.gLocal===nv.gl&&+mm.gRival===nv.gr)?'El resultado coincide: '+nv.gl+'–'+nv.gr:'En FIFA el resultado es '+nv.gl+'–'+nv.gr+' (cargado: '+mm.gLocal+'–'+mm.gRival+')');
-        return {ok:chk.length>0&&chk.every(c=>c.ok!==false)&&chk.some(c=>c.ok===true),final:!!nv.fin,min:nv.min||'',items:chk};
+        return {ok:chk.length>0&&chk.every(c=>c.ok!==false)&&chk.some(c=>c.ok===true),final:!!nv.fin,min:nv.min||(mm.fifaChk&&mm.fifaChk.min)||'',items:chk};
       };
       const apply=mm=>{
         // Lo cargado automáticamente lleva `fifa:true` y SIGUE a FIFA (si FIFA corrige un goleador o un minuto, se corrige); lo cargado a mano nunca se toca.
@@ -40382,7 +40382,7 @@ window._showUpdateBanner=_showUpdateBanner;
     let head='', chips='', difs='';
     if(c&&(c.items||[]).length){
       const bad=c.items.filter(x=>x.ok===false), good=c.items.filter(x=>x.ok===true);
-      const live=c.final?'':`<small>min ${e(c.min||'?')}</small>`;
+      const live=c.final?'<small>partido terminado</small>':(c.min?`<small>al minuto ${e(c.min)}</small>`:'');
       head=bad.length?`<span class="fb-st bad"><i class="ti ti-alert-triangle"></i>Hay diferencias con FIFA${live}</span>`:(good.length?`<span class="fb-st ok"><i class="ti ti-circle-check"></i>Coincide con la fuente oficial FIFA${live}</span>`:'');
       chips=c.items.map(x=>`<span class="fb-chip ${x.ok===true?'ok':x.ok===false?'bad':'pe'}" title="${e(x.t)}"><i class="ti ti-${x.ok===true?'check':x.ok===false?'alert-triangle':'dots'}"></i>${e(x.k)}</span>`).join('');
       difs=c.items.filter(x=>x.ok!==true).map(x=>`<div class="fb-df ${x.ok===false?'bad':''}"><b>${e(x.k)}:</b> ${e(x.t)}</div>`).join('');
@@ -40448,6 +40448,8 @@ function _aufGuardarVista(){
   sessionStorage.setItem('auf_resume',JSON.stringify(v));
 }
 window._aufGuardarVista=_aufGuardarVista;
+// Cualquier recarga (F5, Cmd+R, «Actualizar») deja la vista guardada: antes solo lo hacía el botón «Actualizar» y con F5 volvía a «Convocados» (Felipe, 19/11/2026).
+['pagehide','beforeunload'].forEach(ev=>window.addEventListener(ev,()=>{ try{ _aufGuardarVista(); }catch(_){} }));
 (function(){
   let tocado=false; ['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>{ tocado=true; },{once:true,capture:true}));
   function aplicar(){
