@@ -1530,6 +1530,12 @@ body #nav-l1-juv .nav-l1-btn i,body #nav-l1 .nav-l1-btn i{font-size:17px!importa
 .dd-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}.dd-kpis div{text-align:center;padding:14px 6px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}.dd-kpis b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:28px;color:#F4F7FB}.dd-kpis span{font-size:10px;letter-spacing:.12em;color:rgba(239,243,248,.5)}
 .dd-src{font-size:11px;color:rgba(239,243,248,.4);margin:6px 4px 0}
 body #nav-l1 .nav-t-pill{height:34px!important;padding:0 16px!important;font-size:12.5px!important}
+/* Eventos de la Mayor: tira deslizable (se arrastra/desliza de costado); etiqueta y botones fijos para que no se pisen */
+#nav-l1 .nav-ev-scroll{display:flex;align-items:center;gap:8px;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;padding:2px 0}
+#nav-l1 .nav-ev-scroll::-webkit-scrollbar{display:none}
+#nav-l1 .nav-ev-scroll .nav-t-pill{flex:0 0 auto;white-space:nowrap;scroll-snap-align:center}
+#nav-l1 .nav-l1-label,#nav-l1 .nav-l0-sep,#nav-l1 .nav-l1-btn{flex:0 0 auto}
+@media(max-width:600px){#nav-l1 .nav-ev-scroll{flex:0 0 auto;overflow:visible;scroll-snap-type:none}}
 .jg-hero{margin:4px 0 16px;padding:20px 18px 22px;border-radius:24px;border:1px solid rgba(255,255,255,.14);background:radial-gradient(520px 200px at 50% -20%,var(--hc,rgba(56,189,248,.14)),transparent 72%),linear-gradient(180deg,#10182C,#0A1022)}
 .jg-hh{text-align:center;margin-bottom:16px}.jg-hh i{display:block;font-style:normal;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--hl,#8AD8FF);margin-bottom:5px}.jg-hh b{font-family:'Space Grotesk','Inter',sans-serif;font-size:19px;color:#F4F7FB;font-weight:700;line-height:1.25}
 .jg-pod{display:grid;grid-template-columns:1fr 1.18fr 1fr;gap:10px;align-items:end}
@@ -4314,17 +4320,24 @@ button[id^="pw-agfmt-"].on{background:var(--cel)!important;color:#fff!important;
   <!-- L1: menú de Selección Mayor -->
   <div class="nav-l1" id="nav-l1" style="display:none">
     <span class="nav-l1-label">Eventos</span>
+    <div class="nav-ev-scroll" id="nav-ev-scroll">
     <button class="nav-t-pill" data-kind="elim" data-end="2025-09-09" title="Próximamente">Eliminatorias 2023–2026</button>
     <button class="nav-t-pill active" data-kind="mundial" data-end="2026-07-19" data-tournament="cm2026" onclick="showTournament('cm2026')">Copa Mundial 2026</button>
     <button class="nav-t-pill" data-kind="fifa" data-end="2026-10-06" data-tournament="fifasep26" onclick="showTournament('fifasep26')">Fecha FIFA sep–oct 2026</button>
      <button class="nav-t-pill" data-kind="fifa" data-end="2026-11-17" data-tournament="fifanov26" onclick="showTournament('fifanov26')">Fecha FIFA nov 2026</button>
      <button class="nav-t-pill" data-kind="fifa" data-end="2027-03-30" data-tournament="fifamar27" onclick="showTournament('fifamar27')">Fecha FIFA mar 2027</button>
+    </div>
     <div class="nav-l0-sep"></div>
     <button class="nav-l1-btn" data-tab="jugadores" onclick="showTab('jugadores')"><i class="ti ti-users"></i>Jugadores</button>
     <button class="nav-l1-btn" data-tab="tecnicos" onclick="showTab('tecnicos')"><i class="ti ti-clipboard-list"></i>Técnicos</button>
     <button class="nav-l1-btn" data-tab="estadisticas" onclick="showTab('estadisticas')"><i class="ti ti-chart-bar"></i>Stats</button>
     <button class="nav-l1-btn" data-tab="calendariomayor" onclick="showTab('calendariomayor')"><i class="ti ti-calendar-event"></i>Calendario</button>
   </div>
+<script>
+// Eventos de la Mayor: deja a la vista la pastilla activa (o la fecha FIFA vigente) dentro de la tira deslizable.
+(function(){ function foco(){ try{ var sc=document.getElementById('nav-ev-scroll'); if(!sc||!sc.clientWidth) return; var t=sc.querySelector('.nav-t-pill.active')||sc.querySelector('.nav-t-pill[data-tournament="fifanov26"]'); if(t) sc.scrollLeft=Math.max(0,t.offsetLeft-(sc.clientWidth-t.offsetWidth)/2); }catch(e){} }
+window._navEvFoco=foco; setTimeout(foco,300); try{ new MutationObserver(function(){ setTimeout(foco,30); }).observe(document.getElementById('nav-l1'),{attributes:true,attributeFilter:['style']}); }catch(e){} window.addEventListener('resize',foco); document.addEventListener('click',function(e){ if(e.target.closest&&e.target.closest('#nav-ev-scroll .nav-t-pill')) setTimeout(foco,60); }); })();
+</script>
 <script>
 // Marca como «pasado» (gris, borde punteado) los eventos de la barra de la Mayor cuya fecha final ya quedó atrás.
 (function(){ function paint(){ try{ var hoy=new Date(); var iso=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0'); document.querySelectorAll('#nav-l1 .nav-t-pill[data-end]').forEach(function(b){ b.setAttribute('data-past', b.getAttribute('data-end')<iso?'1':'0'); }); }catch(_){} } paint(); document.addEventListener('DOMContentLoaded',paint); setInterval(paint,3600000); })();
