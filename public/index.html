@@ -10169,6 +10169,19 @@ function _recResTxt(m){
 }
 var _REC_TW_DEST='grupo de prensa, canal de difusión y grupos de noticias de los CT (de la Mayor a la sub-15)';
 function _recMasMin(vence,hora,min){ const d=new Date(vence+'T'+(hora||'12:00')+':00'); d.setMinutes(d.getMinutes()+min); return {vence:d.toLocaleDateString('en-CA'),hora:String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}; }
+// Diferencias entre lo cargado y la web oficial de FIFA (titulares, marcador): «Revisar diferencias del partido vs. X». Se cierra solo cuando coinciden.
+function _recFifaChkDerivados(){
+  const out=[];
+  try{
+    const manual=stor.get('auf4_rec_manual',{});
+    Object.entries(window._mundLive||{}).forEach(([fid,v])=>{
+      if(!v||!(v.dif||[]).length) return;
+      const id='fifachk|'+fid, mn=manual[id]||{};
+      out.push({id,titulo:'Revisar diferencias del partido vs. '+v.rival,detalle:v.dif[0]+(v.dif.length>1?' · y '+(v.dif.length-1)+' más':''),vence:TODAY,hora:'00:00',sinHora:true,etiqueta:(typeof JUV_CAT_META!=='undefined'&&JUV_CAT_META[v.cat]?.label)||v.cat,derivado:true,importante:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+    });
+  }catch(_){}
+  return out;
+}
 function _recMd1Derivados(){
   const out=[];
   try{
@@ -10277,7 +10290,7 @@ function _recLinkFotoSuma(arr){
 function _recTodos(){ if(window._recCacheTodos) return window._recCacheTodos; return _recTodosRaw(); }
 // Una sola corrida de _recTodos() para todo un repintado (panel + lista): antes se armaba 3-4 veces por tildado.
 function _recConCache(fn){ const _o=!window._recCacheTodos; if(_o) window._recCacheTodos=_recTodosRaw(); try{ return fn(); } finally{ if(_o) window._recCacheTodos=null; } }
-function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados(), ..._recPaqueteDerivados(), ..._recPaqueteSeguimientoDerivados(), ..._recHitosDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
+function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recFifaChkDerivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados(), ..._recPaqueteDerivados(), ..._recPaqueteSeguimientoDerivados(), ..._recHitosDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
@@ -11213,7 +11226,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|ali-sel|ali-dis|ali-pub|ali-tw|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc|mdm|hito)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|ali-sel|ali-dis|ali-pub|ali-tw|fifachk|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc|mdm|hito)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
@@ -38264,8 +38277,8 @@ function _defaultJuvCompTab(id){
 // Los resultados salen de api.fifa.com (la misma que usa fifa.com; permite CORS). Se calcula la tabla con los partidos terminados del grupo.
 // Torneos de selecciones juveniles con tabla y Diseño. Para sumar uno: season/stage/group salen de la API de FIFA (calendar/matches) y la competencia debe tener `convocados`.
 const _MUND_CFG={
-  'mundial-sub15-2026':{season:'293575',stage:'294099',group:'294123',label:'Grupo X',fase:'Fase de clasificación · 5 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-15',team:'1958663',cat:'sub15',year:'2026',offset:4,tz:'AZ',sede:'Complejo de Competición Hovsan, Bakú',cierre:{puesto:10,de:32,cuando:'24–30 oct 2026',donde:'Bakú, Azerbaiyán',cat:'Categoría A',dt:'Gustavo Bueno',nota:'Perdió la final por el 9.º puesto con México (1-3). El puesto sale de la numeración de partidos de FIFA.'}},
-  'wc17-2026':{season:'292937',stage:'292938',group:'292942',label:'Grupo D',fase:'Primera fase · 3 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-17',team:'1882395',cat:'sub17',year:'2025-2026',offset:3,pais:'Qatar'},
+  'mundial-sub15-2026':{season:'293575',stage:'294099',group:'294123',label:'Grupo X',fase:'Fase de clasificación · 5 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-15',comp:109,team:'1958663',cat:'sub15',year:'2026',offset:4,tz:'AZ',sede:'Complejo de Competición Hovsan, Bakú',cierre:{puesto:10,de:32,cuando:'24–30 oct 2026',donde:'Bakú, Azerbaiyán',cat:'Categoría A',dt:'Gustavo Bueno',nota:'Perdió la final por el 9.º puesto con México (1-3). El puesto sale de la numeración de partidos de FIFA.'}},
+  'wc17-2026':{season:'292937',stage:'292938',group:'292942',label:'Grupo D',fase:'Primera fase · 3 partidos por equipo',faseTxt:'de la fase de grupos',titulo:'Mundial Sub-17',comp:102,team:'1882395',cat:'sub17',year:'2025-2026',offset:3,pais:'Qatar'},
 };
 window._mundCur=window._mundCur||'mundial-sub15-2026';
 function _mundCfg(){ const c=_MUND_CFG[window._mundCur]||_MUND_CFG['mundial-sub15-2026']; const dyn=(window._mundDyn||{})[window._mundCur]; return dyn?{...c,stage:dyn.stage,group:dyn.group,label:dyn.label}:c; }
@@ -38343,6 +38356,7 @@ async function _mundSyncFifa(cid,force){
     let ex=list.find(x=>x.compId===cid&&String(x.fifaId||'')===String(m.IdMatch))||list.find(x=>x.compId===cid&&String(x.fecha).slice(0,10)===fecha&&mismo(x.rival,rival));
     if(ex){
       if(!ex.fifaId){ ex.fifaId=m.IdMatch; cambio=true; }
+      if(m.IdCompetition&&(ex.fifaComp!==m.IdCompetition||ex.fifaStage!==m.IdStage)){ ex.fifaComp=m.IdCompetition; ex.fifaStage=m.IdStage; cambio=true; }
       if(fase&&!ex.fase){ ex.fase=fase; cambio=true; }
       if(ex.gLocal==null&&ex.fifaId&&rival!=='A definir'&&!mismo(ex.rival,rival)){ ex.rival=rival; cambio=true; } // sin jugar y FIFA ya publicó el rival oficial: manda FIFA
       // Resultado final de FIFA: solo si el partido todavía no tiene marcador cargado (nunca pisa lo cargado a mano). No toca `confirmado`: las estadísticas siguen siendo manuales.
@@ -38359,7 +38373,7 @@ async function _mundSyncFifa(cid,force){
       const dif=(exUY&&exUY!==hUY)?hUY:'';
       if((ex.fifaDif||'')!==dif){ if(dif) ex.fifaDif=dif; else delete ex.fifaDif; cambio=true; }
     } else {
-      const n={id:Number(m.IdMatch)||Date.now(),fifaId:m.IdMatch,rival,fecha,hora:horaTxt,lugar,compId:cid,oficial:true,fase,
+      const n={id:Number(m.IdMatch)||Date.now(),fifaId:m.IdMatch,fifaComp:m.IdCompetition,fifaStage:m.IdStage,rival,fecha,hora:horaTxt,lugar,compId:cid,oficial:true,fase,
         gLocal:null,gRival:null,titulares:[],subs:[],goles:{},dtPartido:'',gLocal2:null,gRival2:null,titulares2:[],subs2:[],goles2:{},dt2:''};
       if(cfg.pais){ n.horaLocal=loc; n.paisSede=cfg.pais; }
       list.push(n); cambio=true; nuevos++;
@@ -40203,32 +40217,51 @@ function _showUpdateBanner(){
   document.body.appendChild(b);
 }
 window._showUpdateBanner=_showUpdateBanner;
-// Marcador en vivo del Mundial Sub-15 (FIFA): mientras hay un partido de Uruguay en juego, se consulta cada 40 s y se refresca «Partidos de hoy».
+// Marcador en vivo de los Mundiales juveniles (FIFA): mientras hay un partido de Uruguay en juego, se consulta cada 40 s y se refresca «Partidos de hoy».
+// Además CHEQUEA lo cargado contra FIFA (Felipe, 19/11/2026: «la clave es que puedas usar esas webs oficiales para chequear todo»): titulares (los 11 que cargó vs. los oficiales)
+// y marcador final. Las diferencias quedan en window._mundLive[id].dif y salen como recordatorio «Revisar diferencias…» (_recFifaChkDerivados). Nunca pisa lo cargado a mano.
 (function(){
   window._mundLive=window._mundLive||{};
+  const _nt=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().split(/[^a-z]+/).filter(Boolean);
   async function tick(){
     try{
       if(document.hidden) return;
-      let list=[]; try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_sub15_2026')||'[]'); }catch(_){}
       const ahora=new Date(), nowMin=ahora.getHours()*60+ahora.getMinutes();
-      const hoy=(Array.isArray(list)?list:[]).filter(m=>m.compId==='mundial-sub15-2026'&&m.fifaId&&String(m.fecha).slice(0,10)===TODAY&&m.gLocal==null);
       let cambio=false;
-      for(const m of hoy){
-        const hm=String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/^\s*(\d{1,2}):(\d{2})/); if(!hm) continue;
-        const ini=parseInt(hm[1],10)*60+parseInt(hm[2],10); if(nowMin<ini-2||nowMin>ini+90) continue;
-        const st=(window._mundKoStage&&window._mundKoStage['mundial-sub15-2026'])||'294212';
-        const r=await fetch(`https://api.fifa.com/api/v3/live/football/109/293575/${st}/${m.fifaId}?language=es`,{cache:'no-store'}); if(!r.ok) continue;
-        const j=await r.json(); if(!j||!j.HomeTeam) continue;
-        const uH=j.HomeTeam.IdCountry==='URU', sc=(x)=>(x&&x.Score!=null?+x.Score:0);
-        const fin=!!j.Winner||j.MatchStatus===0;
-        const nv={gl:uH?sc(j.HomeTeam):sc(j.AwayTeam),gr:uH?sc(j.AwayTeam):sc(j.HomeTeam),min:j.MatchTime?String(j.MatchTime).replace(/[^0-9+']/g,''):'',fin};
-        const ant=window._mundLive[String(m.fifaId)]; if(!ant||ant.gl!==nv.gl||ant.gr!==nv.gr||ant.fin!==nv.fin||ant.min!==nv.min){ window._mundLive[String(m.fifaId)]=nv; cambio=true; }
-        if(fin&&typeof window._mundSyncFifa==='function') window._mundSyncFifa('mundial-sub15-2026',true);
+      for(const cid of Object.keys(_MUND_CFG)){
+        const cfg=_MUND_CFG[cid]; if(!cfg||!cfg.comp) continue;
+        let list=[]; try{ list=JSON.parse(localStorage.getItem('auf4_amist_juv_'+cfg.cat+'_'+cfg.year)||'[]'); }catch(_){}
+        const dur=cid==='mundial-sub15-2026'?75:130;
+        const hoy=(Array.isArray(list)?list:[]).filter(m=>m.compId===cid&&m.fifaId&&String(m.fecha).slice(0,10)===TODAY);
+        for(const m of hoy){
+          const hm=String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/^\s*(\d{1,2}):(\d{2})/); if(!hm) continue;
+          const ini=parseInt(hm[1],10)*60+parseInt(hm[2],10); if(nowMin<ini-2||nowMin>ini+dur+40) continue;
+          const st=m.fifaStage||(cid==='mundial-sub15-2026'&&window._mundKoStage&&window._mundKoStage[cid])||cfg.stage;
+          const r=await fetch(`https://api.fifa.com/api/v3/live/football/${m.fifaComp||cfg.comp}/${cfg.season}/${st}/${m.fifaId}?language=es`,{cache:'no-store'}); if(!r.ok) continue;
+          const j=await r.json(); if(!j||!j.HomeTeam) continue;
+          const uH=j.HomeTeam.IdCountry==='URU', U=uH?j.HomeTeam:j.AwayTeam, R=uH?j.AwayTeam:j.HomeTeam, sc=(x)=>(x&&x.Score!=null?+x.Score:0);
+          const fin=!!j.Winner||j.MatchStatus===0;
+          const nv={gl:sc(U),gr:sc(R),min:j.MatchTime?String(j.MatchTime).replace(/[^0-9+']/g,''):'',fin,rival:m.rival,cat:cfg.cat,comp:cid,dif:[]};
+          // chequeo de titulares: solo si ya cargó los 11 (nunca se pisa nada)
+          try{
+            const app=Object.values((m.lineup||{}).starters||{}).filter(Boolean);
+            const off=(U.Players||[]).filter(p=>p.Status===1).map(p=>((p.PlayerName||[{}])[0]||{}).Description||'').filter(Boolean);
+            if(app.length>=11&&off.length>=11){
+              const en=(n,arr)=>{ const T=_nt(n); return arr.some(a=>{ const A=_nt(a); return T.length&&T.every(t=>A.includes(t)); }); };
+              const falta=off.filter(n=>!en(n,app)), sobra=app.filter(n=>!off.some(o=>{ const T=_nt(o), A=_nt(n); return T.length&&T.every(t=>A.includes(t)); }));
+              if(falta.length||sobra.length) nv.dif.push('Titulares: FIFA tiene '+(falta.length?falta.join(', '):'los mismos')+(sobra.length?' y no a '+sobra.join(', '):''));
+            }
+          }catch(_){}
+          if(fin&&m.gLocal!=null&&m.gRival!=null&&(+m.gLocal!==nv.gl||+m.gRival!==nv.gr)) nv.dif.push('Marcador: FIFA '+nv.gl+'–'+nv.gr+', cargado '+m.gLocal+'–'+m.gRival);
+          const ant=window._mundLive[String(m.fifaId)]; if(!ant||ant.gl!==nv.gl||ant.gr!==nv.gr||ant.fin!==nv.fin||ant.min!==nv.min||(ant.dif||[]).join('|')!==nv.dif.join('|')){ window._mundLive[String(m.fifaId)]=nv; cambio=true; }
+          if(fin&&typeof window._mundSyncFifa==='function') window._mundSyncFifa(cid,true);
+        }
       }
-      if(cambio&&document.getElementById('inicio')?.classList.contains('active')&&typeof _futDockRender==='function') _futDockRender();
+      if(cambio){ if(document.getElementById('inicio')?.classList.contains('active')){ if(typeof _futDockRender==='function') _futDockRender(); try{ if(typeof renderInicio==='function') renderInicio(); }catch(_){} } try{ if(typeof _recDockRender==='function') _recDockRender(); }catch(_){} }
     }catch(_){}
   }
   setInterval(tick,40000); setTimeout(tick,9000);
+  window._mundLiveTick=tick;
 })();
 // Carga de imágenes: si una pantalla espera fotos/escudos, se muestra todo (pestañas, títulos) y solo la zona de fichas que espera imágenes se tapa con «Cargando»
 // hasta que llegan (máx. 3 s; si una imagen falla o tarda, no se espera más).
