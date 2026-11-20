@@ -41575,10 +41575,10 @@ window._mun15DisenoHtml=function(){
   const dias=[], _legacy=new Set(); ms.forEach((m,i)=>{ const f=String(m.fecha).slice(0,10); let k=f; if(!_esGrp(m)){ if(d['d_'+f]&&!_legacy.has(f)) _legacy.add(f); else k=f+'_'+m.id; } let g=dias.find(x=>x.k===k); if(!g){ g={f,k,ms:[]}; dias.push(g); } g.ms.push({...m,_n:i+1}); });
   const md1Of=g=>{ const e=d['d_'+g.k]; if(e) return e; const prev=g.ms.map(m=>d[m.id]).find(x=>x&&(x.md1||[]).length); return prev||{md1:[],inf:[],l1:'',l2:''}; };
   // uso por jugador
-  const uso={}; pool.forEach(p=>uso[p.nom]={md1:[],inf:[]});
-  const U=n=>uso[n]||(uso[n]={md1:[],inf:[]});
-  dias.forEach(g=>{ md1Of(g).md1.forEach(n=>U(n).md1.push(g.ms.map(m=>ab(m.rival)).join('+'))); g.ms.forEach(m=>((d[m.id]||{}).inf||[]).forEach(n=>U(n).inf.push(ab(m.rival)))); });
-  const usoCount=n=>uso[n]?uso[n].md1.length+uso[n].inf.length:0;
+  const uso={}; pool.forEach(p=>uso[p.nom]={md1:[],inf:[],ali:[]});
+  const U=n=>uso[n]||(uso[n]={md1:[],inf:[],ali:[]});
+  dias.forEach(g=>{ md1Of(g).md1.forEach(n=>U(n).md1.push(g.ms.map(m=>ab(m.rival)).join('+'))); g.ms.forEach(m=>{ ((d[m.id]||{}).inf||[]).forEach(n=>U(n).inf.push(ab(m.rival))); ((d[m.id]||{}).ali||[]).forEach(n=>U(n).ali.push(ab(m.rival))); }); });
+  const usoCount=n=>uso[n]?uso[n].md1.length+uso[n].inf.length+uso[n].ali.length:0;
   const chip=(key,stage,p,sel)=>{ const u=usoCount(p.nom); return `<button type="button" class="dz-ch${sel?' on':''}" onclick="_mun15DisToggle('${key}','${stage}','${encodeURIComponent(p.nom)}')" title="${p.nom} · ${_clubCorto(p.club||'')}"><b>${p.num??''}</b>${sh(p.nom)}${u?`<i>×${u}</i>`:''}</button>`; };
   const block=(key,stage,label,max,sel,lnk,extra,no)=>{
     const ek=key+'_'+stage, open=window._mun15DisExp.has(ek);
@@ -41604,8 +41604,8 @@ window._mun15DisenoHtml=function(){
     return `<div class="dz-card"><div class="dz-top"><span class="pz-d"><b>${f[0]}</b><span>${f[1].toUpperCase()}</span></span><div class="dz-tt"><b>Uruguay vs. ${rivales}</b><span>Partido${nums.length>1?'s':''} ${nums.join(' y ')} ${(g.ms[0].fase&&!/clasific|primera fase|grupo/i.test(g.ms[0].fase))?'· '+g.ms[0].fase:cfg.faseTxt}</span></div>${resumen?`<span class="dz-res">${resumen}</span>`:''}</div>
       <div class="dz-bks">${block(key1,'md1',`MD-1 vs. ${rivales}`,2,e1.md1||[],e1.l1,'',!!e1.noMd1)}${informes}</div></div>`; }).join('');
   const orden=[...pool].sort((a,b)=>usoCount(a.nom)-usoCount(b.nom)||(a.num||0)-(b.num||0));
-  const lista=orden.map(p=>{ const u=uso[p.nom]||{md1:[],inf:[]}, n=u.md1.length+u.inf.length;
-    return `<div class="dz-pl${n?'':' libre'}"><span class="dz-n">${p.num??''}</span><span class="dz-nm">${p.nom}<small>${_clubCorto(p.club||'')}</small></span><span class="dz-us">${n?[...u.md1.map(r=>`<i>MD-1 ${r}</i>`),...u.inf.map(r=>`<i class="inf">Inf ${r}</i>`)].join(''):'<em>Sin usar</em>'}</span></div>`; }).join('');
+  const lista=orden.map(p=>{ const u=uso[p.nom]||{md1:[],inf:[],ali:[]}, n=u.md1.length+u.inf.length+u.ali.length;
+    return `<div class="dz-pl${n?'':' libre'}"><span class="dz-n">${p.num??''}</span><span class="dz-nm">${p.nom}<small>${_clubCorto(p.club||'')}</small></span><span class="dz-us">${n?[...u.md1.map(r=>`<i>MD-1 ${r}</i>`),...u.inf.map(r=>`<i class="inf">Inf ${r}</i>`),...u.ali.map(r=>`<i class="inf">Ali ${r}</i>`)].join(''):'<em>Sin usar</em>'}</span></div>`; }).join('');
   if(!ms.length) return `<div class="gt-card"><div class="gt-eb">Diseño · ${cfg.titulo}</div><div class="gt-msg">Todavía no hay partidos cargados del Mundial.</div></div>`;
   return `<div class="dz-wrap"><div class="dz-main"><div class="gt-eb" style="margin-bottom:10px">Diseño · ${esS17?'2 jugadores para el MD-1 de cada día y los 11 de la alineación de cada partido':'2 jugadores para el MD-1 de cada día y 1 para el informe de cada victoria'}</div>${cards}</div>
     <aside class="dz-side"><div class="gt-eb" style="margin-bottom:10px">Uso por jugador<em>|</em><u>primero los menos usados</u></div>${lista}</aside></div>`;
