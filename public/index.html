@@ -747,6 +747,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .rv-top em{font-style:normal;font-size:11px;color:rgba(239,243,248,.55);margin-left:auto}
 .rv-live{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 10px;border-radius:999px;border:1px solid rgba(134,239,172,.5);color:#86EFAC;font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
 .rv-live i{width:7px;height:7px;border-radius:50%;background:#86EFAC;animation:crp 1.4s ease-in-out infinite}
+.rv-live.off{border-color:rgba(255,255,255,.25);color:rgba(239,243,248,.65)}.rv-live.off i{background:rgba(239,243,248,.45);animation:none}
 .rv-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .rv-c{padding:12px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03)}
 .rv-lg{display:inline-flex;flex-shrink:0}
@@ -46292,12 +46293,15 @@ function _redesVivoHtml(){
   try{
     const EV=(typeof FIFANOV26!=='undefined')?FIFANOV26:null; if(!EV) return '';
     const desde=(EV.periodoFifa&&EV.periodoFifa.desde)||'2026-11-09', hasta=(EV.periodoFifa&&EV.periodoFifa.hasta)||'2026-11-17';
-    const lim=new Date(hasta+'T12:00:00'); lim.setDate(lim.getDate()+3);
+    // La Fecha FIFA se cierra SIEMPRE el día +1 de la fecha reglamentaria (Felipe, 20/11/2026): hay contenido ese día y entra en el informe.
+    const _cie=new Date(hasta+'T12:00:00'); _cie.setDate(_cie.getDate()+1); const cierre=_cie.toLocaleDateString('en-CA');
+    const lim=new Date(cierre+'T12:00:00'); lim.setDate(lim.getDate()+3);
     if(TODAY<desde||TODAY>lim.toLocaleDateString('en-CA')) return '';
+    const cerrada=TODAY>cierre, nDias=Math.round((new Date(cierre+'T12:00:00')-new Date(desde+'T12:00:00'))/86400000)+1;
     const todas=_redesSnaps(), mias=todas.filter(x=>x.rango_desde===desde&&x.tipo!=='semana');
     const cur=mias[mias.length-1]||null, first=mias[0]||null;
     const prevF=todas.filter(x=>x.rango_hasta<desde&&(x.dias||0)>=10&&x.fecha_snapshot!=='2026-07-06'&&x.tipo!=='semana').pop()||null;
-    const diaN=Math.min(9,Math.round((new Date(TODAY+'T12:00:00')-new Date(desde+'T12:00:00'))/86400000)+1);
+    const diaN=Math.min(nDias,Math.round((new Date(TODAY+'T12:00:00')-new Date(desde+'T12:00:00'))/86400000)+1);
     const dias=cur?Math.max(1,cur.dias||1):null;
     const fmtD=iso=>iso?iso.slice(8,10)+'/'+iso.slice(5,7):'';
     const ts=cur&&(cur.medido_ts||cur.ts)?new Date(cur.medido_ts||cur.ts).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):(cur?fmtD(cur.rango_hasta):'');
@@ -46316,7 +46320,7 @@ function _redesVivoHtml(){
         <div class="rv-s">${seg!=null?_redesFmt(seg)+' seg.':'—'}${ganados!=null?` <b style="color:${ganados>=0?'#86EFAC':'#FCA5A5'}">${ganados>=0?'+':''}${_redesFmt(ganados)}</b>`:''}${nd!=null?` · ${nd>=0?'+':''}${_redesFmt(Math.round(nd))}/día${difN!=null?' '+_redesDeltaBadge(difN):''}`:''}</div></div>`;
     }).join('');
     const sinDatos=!cur?`<div class="rv-n"><i class="ti ti-sparkles"></i><span>Todavía no hay una medición de esta Fecha FIFA. La tarea automática mide varias veces por día desde el ${fmtD(desde)}; la primera queda como punto de partida y todo se compara contra ${prevF?(prevF.corto||prevF.label):'la Fecha FIFA anterior'}.</span></div>`:'';
-    return `<div class="rv-box"><div class="rv-top"><span class="rv-live"><i></i>En vivo</span><b>${EV.label||'Fecha FIFA nov 2026'}</b><em>Día ${diaN} de 9 · ${fmtD(desde)} → ${fmtD(hasta)}${ts?' · actualizado '+ts:''}</em></div>
+    return `<div class="rv-box"><div class="rv-top"><span class="rv-live${cerrada?' off':''}"><i></i>${cerrada?'Cerrada':'En vivo'}</span><b>${EV.label||'Fecha FIFA nov 2026'}</b><em>${cerrada?nDias+' días':'Día '+diaN+' de '+nDias} · ${fmtD(desde)} → ${fmtD(cierre)}${ts?(cerrada?' · última medición ':' · actualizado ')+ts:''}</em></div>
       ${sinDatos}<div class="rv-g">${cards}</div>
       <div class="rv-n yt"><i class="ti ti-alert-triangle"></i><span><b>YouTube cambió cómo cuenta desde el 16/11:</b> las vistas públicas y los espectadores de los vivos ahora incluyen a quienes miran juntos en la tele (co-viewers). Lo que mida YouTube desde esa fecha no es comparable con lo anterior (Vistear, 17/11/2026).</span></div></div>`;
   }catch(_){ return ''; }
