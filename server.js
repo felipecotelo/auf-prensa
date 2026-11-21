@@ -908,13 +908,19 @@ const COPA_AUF_OCTAVOS = [
   { h: ['Gladiador', 97807],        a: ['Liverpool', 8358],       t: '2026-11-05T18:00:00-03:00' },
   { h: ['Libertad', 76747],         a: ['Peñarol / City Torque', null], t: '2026-11-05T21:00:00-03:00' },
 ];
+// Copa AUF 2026 – Semifinales: fijaciones oficiales (posteo de @CopaAUFUruguay, 20/11/2026). 365scores todavía no las trae; se suman hasta que aparezcan y no se duplican.
+const COPA_AUF_SEMIS = [
+  { h: ['City Torque', 12675], a: ['Nacional', 7478], t: '2026-11-26T21:30:00-03:00', lugar: 'Estadio Silvestre Octavio Landoni' },
+  { h: ['Danubio', 8611],                 a: ['Juventud', 10192], t: '2026-11-30T20:30:00-03:00', lugar: 'Parque Viera' },
+];
 function _sumarOctavosCopa(proximos) {
   const ahora = Date.now() - 3 * 3600 * 1000;
   const norm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const yaEsta = o => proximos.some(m => norm(m.home).includes(norm(o.h[0]).split(' ')[0]) && Math.abs(new Date(m.utcTime) - new Date(o.t)) < 36e5);
-  const extra = COPA_AUF_OCTAVOS.filter(o => new Date(o.t).getTime() > ahora && !yaEsta(o)).map(o => ({
-    home: o.h[0], homeId: o.h[1], away: o.a[0], awayId: o.a[1], utcTime: o.t, round: null, fase: 'Octavos de final',
+  const _mk = (lista, fase) => lista.filter(o => new Date(o.t).getTime() > ahora && !yaEsta(o)).map(o => ({
+    home: o.h[0], homeId: o.h[1], away: o.a[0], awayId: o.a[1], utcTime: o.t, round: null, fase, ...(o.lugar ? { estadio: o.lugar } : {}),
   }));
+  const extra = [..._mk(COPA_AUF_OCTAVOS, 'Octavos de final'), ..._mk(COPA_AUF_SEMIS, 'Semifinales')];
   return [...proximos, ...extra].sort((x, y) => new Date(x.utcTime) - new Date(y.utcTime));
 }
 
