@@ -9990,15 +9990,15 @@ function _recPartidosDerivados(){
           const _hm=(String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/(\d{1,2}):(\d{2})/));
           let _vF=D, _hF='22:00';
           if(_hm){ let mins=parseInt(_hm[1],10)*60+parseInt(_hm[2],10)+(m.compId==='mundial-sub15-2026'?60:120); if(mins>=1440){ mins-=1440; _vF=_recSumarDias(D,1); } _hF=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'); }
-          out.push({id,titulo:'Cargar resultado final '+(m.compId==='wc17-2026'?'':'e informe ')+lbl+' a la app',detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar · resultado, titulares, capitán, DT, ingresos y goles',vence:_vF,hora:_hF,etiqueta:metaCat(cat),
+          out.push({id,titulo:'Cargar resultado final '+(m.compId==='wc17-2026'?'':'e informe ')+lbl+' a la app',detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar · resultado, titulares, capitán, DT, ingresos y goles',vence:_vF,hora:_hF,etiqueta:metaCat(cat),alVencer:true,
             hecho:completa||!!mn.hecho,hechoEn:(!completa&&mn.hecho)?mn.hechoEn:null});
           const idp='pub|'+uid, mp=manual[idp]||{};
           if(m.compId!=='wc17-2026') // Mundial Sub-17: no hay informe post-partido (Felipe, 18/11/2026)
-          out.push({id:idp,titulo:'Publicar informe de partido '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar el partido, con el resultado y la ficha cargados',vence:_vF,hora:_hF,etiqueta:metaCat(cat),
+          out.push({id:idp,titulo:'Publicar informe de partido '+lbl,detalle:'Partido '+D.split('-').reverse().join('/')+' · al terminar el partido, con el resultado y la ficha cargados',vence:_vF,hora:_hF,etiqueta:metaCat(cat),alVencer:true,
             hecho:!!mp.hecho,hechoEn:mp.hecho?mp.hechoEn:null});
           const idw='tw|'+uid, mw=manual[idw]||{}, w2=_recMasMin(_vF,_hF,30);
           if(D>='2026-10-29' && m.compId!=='wc17-2026') // el aviso de enviar el tuit rige desde el 29/10/2026 (lo anterior ya se resolvió); el Mundial Sub-17 no tiene informe
-          out.push({id:idw,titulo:'Enviar por Whatsapp el link del tuit del informe '+lbl,detalle:_recResTxt(m),vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),
+          out.push({id:idw,titulo:'Enviar por Whatsapp el link del tuit del informe '+lbl,detalle:_recResTxt(m),vence:w2.vence,hora:w2.hora,etiqueta:metaCat(cat),alVencer:true,
             hecho:!!mw.hecho,hechoEn:mw.hecho?mw.hechoEn:null});
           // Amistosos juveniles que NO van por AUFtv (Felipe, 30/10/2026): pedir el video de los goles → mandar a hacer el clip para redes → publicarlo.
           // No salen si ya se sabe que Uruguay no hizo goles (0 a favor).
@@ -10482,7 +10482,9 @@ function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._pres
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
-  return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim).sort(_recCmp);
+  // Los de post-partido (`alVencer`: resultado, informe, tuit) aparecen recién cuando llega la hora del final del partido, no desde la mañana (Felipe, 22/11/2026).
+  const ya=new Date();
+  return _recTodos().filter(r=>!r.hecho && _recDue(r)<=lim && !(r.alVencer && _recDue(r)>ya)).sort(_recCmp);
 }
 // Los marcados como hechos quedan a la vista con su tick durante 15 minutos (se pueden destildar); pasado ese tiempo salen de la lista (Felipe, 09/11/2026: con 4 horas se amontonaban).
 const _REC_HECHO_MIN=15;
