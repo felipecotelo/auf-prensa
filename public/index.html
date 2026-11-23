@@ -1936,6 +1936,8 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ly-ps,.ly-pl{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.ly-pl{margin-top:8px}
 .ly-p{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,.14);color:#F4F7FB;background:rgba(255,255,255,.05)}
 .ly-p.ley{border-color:rgba(163,230,53,.55);background:rgba(163,230,53,.1)}.ly-p.inv{border-color:rgba(148,163,184,.45);color:rgba(239,243,248,.85)}.ly-p.dt{border-color:rgba(250,204,21,.5);background:rgba(250,204,21,.08)}
+.ly-p.riv{border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.07)}
+.ly-lb{flex-basis:100%;margin-top:6px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(248,113,113,.75);font-weight:700}
 .ly-p em{font-style:normal;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.65}.ly-p b{font-size:11px;color:#8AD8FF}.ly-p button{border:none;background:none;color:rgba(239,243,248,.6);cursor:pointer;font-size:14px;padding:0 0 0 2px}
 .ly-none{font-size:12px;color:rgba(239,243,248,.45)}
 .ly-tt .ly-n{margin-top:4px;font-size:11.5px;color:rgba(239,243,248,.45);line-height:1.4}.ly-nav{max-width:900px;margin:0 auto 14px;padding:0 16px}
@@ -51046,14 +51048,15 @@ function _estBackLista(){ _estView='list'; _estCurKey=null; _renderEstLista(); }
 // (leyendas de la lista de la app + invitados que completan el plantel + DT). Sin pizarra, cambios ni estadísticas de juego. Clave sincronizada: auf4_leyendas_cel ──
 const K_LEY_CEL='auf4_leyendas_cel';
 const LEY_CEL_SEED=[
-  {id:'lc-20260109-afa',fecha:'2026-01-09',hora:'',rival:'Leyendas AFA',modalidad:'Fútbol playa',lugar:'Playa Mansa (Parada 9), Punta del Este',nota:'Evento «Leyendas 2026» (8 y 9/1): conferencia el jueves 8 y partido el viernes 9. Transmitió AUF TV y DirecTV.',gL:5,gR:2,leyendas:[],invitados:[],dts:[]},
+  {id:'lc-20260109-afa',fecha:'2026-01-09',hora:'',rival:'Leyendas AFA',modalidad:'Fútbol playa',lugar:'Playa Mansa (Parada 9), Punta del Este',nota:'Evento «Leyendas 2026» (8 y 9/1): conferencia el jueves 8 y partido el viernes 9. Transmitió AUF TV y DirecTV.',gL:5,gR:2,leyendas:['Diego Forlán','Rubén Paz','Diego Lugano','Diego Godín',"Diego 'Ruso' Pérez",'Cristian Rodríguez'],invitados:['Juan Guillermo Castillo','Mauricio Victorino','Andrés Scotti','Darío Rodríguez','Jorge Fucile'],dts:['Gerardo Pelusso','Gregorio Pérez','Pablo Forlán'],rivalJug:['Ezequiel Lavezzi','Sergio Goycochea','Ariel Ortega','Maximiliano Rodríguez','Rolando Schiavi']},
   {id:'lc-20260517-paraguay',fecha:'2026-05-17',hora:'',rival:'Leyendas Paraguay',modalidad:'Fútbol 11',lugar:'Durazno',nota:'',gL:null,gR:null,leyendas:[],invitados:[],dts:[]},
   {id:'lc-20261126-conmebol',fecha:'2026-11-26',hora:'',rival:'Leyendas CONMEBOL',modalidad:'Fútbol 11',lugar:'',nota:'',gL:null,gR:null,leyendas:[],invitados:[],dts:[]}];
 function _lcGet(){ try{ if(localStorage.getItem(K_LEY_CEL)===null){ const v=LEY_CEL_SEED.map(x=>JSON.parse(JSON.stringify(x))); stor.set(K_LEY_CEL,v); return v; } }catch(_){}
   const v=stor.get(K_LEY_CEL,[]); return Array.isArray(v)?v:[]; }
 function _lcSave(v,borrado){ stor.set(K_LEY_CEL,v,borrado?{allowShrink:true}:undefined); }
 function _lcNorm(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim(); }
-function _lcLeyendaDe(nom){ const n=_lcNorm(nom); if(!n) return null; for(const l of LEYENDAS_SET){ if(_lcNorm(l)===n) return l; } return null; }
+function _lcLeyendaDe(nom){ const n=_lcNorm(nom); if(!n) return null; for(const l of LEYENDAS_SET){ if(_lcNorm(l)===n) return l; }
+  const T=n.split(' '); if(T.length<2) return null; const c=[...LEYENDAS_SET].filter(l=>{ const L=_lcNorm(l).split(' '); return T.every(t=>L.includes(t)); }); return c.length===1?c[0]:null; }
 window._lcAbierto=window._lcAbierto||null;
 window._lcTab=window._lcTab||'partidos'; window._lcSetTab=function(id){ window._lcTab=id; window.renderLeyendasCel(); };
 window._lcAdd=function(){ const v=_lcGet(); const id='lc-'+Date.now(); v.push({id,fecha:TODAY,hora:'',rival:'',lugar:'',gL:null,gR:null,leyendas:[],invitados:[],dts:[]}); _lcSave(v); window._lcAbierto=id; window.renderLeyendasCel(); };
@@ -51067,6 +51070,8 @@ window._lcJugo=function(id,inp){ const nom=String((inp&&inp.value)||'').trim(); 
   const ley=_lcLeyendaDe(nom), key=_lcNorm(nom);
   if(ley){ if(!m.leyendas.includes(ley)) m.leyendas.push(ley); } else if(!(m.invitados||[]).some(x=>_lcNorm(x)===key)) (m.invitados=m.invitados||[]).push(nom.replace(/\s+/g,' '));
   _lcSave(v); window.renderLeyendasCel(); };
+window._lcRival=function(id,inp){ const nom=String((inp&&inp.value)||'').trim(); if(!nom) return; const v=_lcGet(), m=v.find(x=>x.id===id); if(!m) return;
+  if(!(m.rivalJug=m.rivalJug||[]).some(x=>_lcNorm(x)===_lcNorm(nom))) m.rivalJug.push(nom.replace(/\s+/g,' ')); _lcSave(v); window.renderLeyendasCel(); };
 window._lcDT=function(id,inp){ const nom=String((inp&&inp.value)||'').trim(); if(!nom) return; const v=_lcGet(), m=v.find(x=>x.id===id); if(!m) return;
   if(!(m.dts=m.dts||[]).some(x=>_lcNorm(x)===_lcNorm(nom))) m.dts.push(nom.replace(/\s+/g,' ')); _lcSave(v); window.renderLeyendasCel(); };
 window._lcQuitar=function(id,tipo,idx){ const v=_lcGet(), m=v.find(x=>x.id===id); if(!m||!Array.isArray(m[tipo])) return; m[tipo].splice(idx,1); _lcSave(v,true); window.renderLeyendasCel(); };
@@ -51100,6 +51105,7 @@ window.renderLeyendasCel=function(){
         <label>Goles rival<input type="number" min="0" value="${m.gR==null?'':m.gR}" onchange="_lcCampo('${m.id}','gR',this.value)"></label>
         <label class="ly-w">Quién jugó <small>(si es leyenda de la lista se marca como leyenda; si no, entra como invitado)</small><input type="text" list="ly-dl" placeholder="Escribí un nombre y Enter" onkeydown="if(event.key==='Enter'){_lcJugo('${m.id}',this);}" onchange="_lcJugo('${m.id}',this)"></label>
         <label class="ly-w">Director técnico<input type="text" placeholder="Nombre y Enter" onkeydown="if(event.key==='Enter'){_lcDT('${m.id}',this);}" onchange="_lcDT('${m.id}',this)"></label>
+        <label class="ly-w">Jugadores de ${esc(m.rival||'el rival')}<input type="text" placeholder="Nombre y Enter" onkeydown="if(event.key==='Enter'){_lcRival('${m.id}',this);}" onchange="_lcRival('${m.id}',this)"></label>
         <div class="ly-w"><button class="ly-del" onclick="_lcDel('${m.id}')"><i class="ti ti-trash"></i>Borrar partido</button></div>
       </div>`:'';
     return `<div class="ly-c${abierto?' open':''}" onclick="_lcToggle('${m.id}')">
@@ -51107,7 +51113,7 @@ window.renderLeyendasCel=function(){
         <div class="ly-tt"><b>Leyendas Celestes vs. ${esc(m.rival||'rival a definir')}</b><span>${[esc(m.modalidad||''),m.hora?esc(m.hora)+'h':'',esc(m.lugar||'')].filter(Boolean).join(' · ')||(futuro?'Próximo':'')}</span>${m.nota?`<span class="ly-n">${esc(m.nota)}</span>`:''}</div>
         <span class="ly-r" style="color:${col}">${res||(futuro?'Por jugar':'Sin resultado')}</span>
         <i class="ti ti-chevron-${abierto?'up':'down'} ly-ch"></i></div>
-      ${(total||(m.dts||[]).length||abierto)?`<div class="ly-ps">${tag(m,'leyendas',m.leyendas,'ley','')}${tag(m,'invitados',m.invitados,'inv','Invitado')}${tag(m,'dts',m.dts,'dt','DT')}${!total&&!(m.dts||[]).length?'<span class="ly-none">Todavía sin jugadores cargados</span>':''}</div>`:''}
+      ${(total||(m.dts||[]).length||(m.rivalJug||[]).length||abierto)?`<div class="ly-ps">${tag(m,'leyendas',m.leyendas,'ley','')}${tag(m,'invitados',m.invitados,'inv','Invitado')}${tag(m,'dts',m.dts,'dt','DT')}${(m.rivalJug||[]).length?`<span class="ly-lb">${esc(m.rival||'Rival')}</span>`:''}${tag(m,'rivalJug',m.rivalJug,'riv','')}${!total&&!(m.dts||[]).length&&!(m.rivalJug||[]).length?'<span class="ly-none">Todavía sin jugadores cargados</span>':''}</div>`:''}
       ${form}</div>`; }).join('');
   const partHtml=part.length?`<div class="ly-box"><div class="ly-t">Quiénes participaron</div><div class="ly-pl">${part.map(x=>`<span class="ly-p ${x.t}">${esc(x.n)}${x.t==='inv'?'<em>Invitado</em>':x.t==='dt'?'<em>DT</em>':''}<b>${x.c}</b></span>`).join('')}</div></div>`:'';
   const _tabs=[{id:'partidos',label:'Partidos',icon:'ti-ball-football'}];
