@@ -51114,6 +51114,10 @@ function _lcEscRival(rival,sz){ const n=_lcNorm(rival);
   if(/paraguay|\bapf\b|\bafp\b/.test(n)) return _escudoSeleccion('Paraguay',sz);
   return _escudoSeleccion(String(rival||'').replace(/^Leyendas\s+/i,''),sz); }
 const _lcVs=(rival,sz)=>`<span class="ly-es">${_escudoSeleccion('Uruguay',sz)}<i>vs</i>${_lcEscRival(rival,sz)}</span>`;
+const _LC_DSEM=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'], _LC_MESN=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function _lcEstado(m,hoy){ const jug=m.gL!=null&&m.gR!=null; if(jug){ const c=m.gL>m.gR?'#86EFAC':m.gL<m.gR?'#FCA5A5':'#FCD34D'; return {t:m.gL>m.gR?'Victoria':m.gL<m.gR?'Derrota':'Empate',c,jug:true}; }
+  return String(m.fecha)>=hoy?{t:'Por jugar',c:'#38BDF8',jug:false}:{t:'Sin resultado',c:'#94A3B8',jug:false}; }
+function _lcDiaTxt(m){ const d=new Date(String(m.fecha)+'T12:00:00'); return isNaN(d)?'':_LC_DSEM[d.getDay()]; }
 window.renderLeyendasCel=function(){
   const el=document.getElementById('leyendas-body'); if(!el) return;
   const esc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
@@ -51153,9 +51157,12 @@ window.renderLeyendasCel=function(){
         <div class="ly-w"><button class="ly-del" onclick="_lcDel('${m.id}')"><i class="ti ti-trash"></i>Borrar partido</button></div>
       </div>`:'';
     body=`<div class="ly-back" onclick="_lcVolver()"><i class="ti ti-arrow-left"></i>Partidos</div>
-      <div class="ly-dh"><div class="ly-top"><span class="ly-d"><b>${esc(f.dia)}</b><span>${esc(f.mes)}</span></span>
-        <div class="ly-tt">${_lcVs(m.rival,30)}<b style="font-size:19px">Leyendas Celestes vs. ${esc(m.rival||'rival a definir')}</b><span>${meta(m)||(futuro(m)?'Próximo':'')}</span>${m.nota?`<span class="ly-n">${esc(m.nota)}</span>`:''}</div>
-        <span class="ly-r" style="color:${resCol(m)};font-size:26px">${jugado(m)?m.gL+'–'+m.gR:(futuro(m)?'Por jugar':'Sin resultado')}</span></div></div>
+      ${(()=>{ const st=_lcEstado(m,TODAY), eq=(n,uy,esc2)=>`<div class="fx-eq${uy?' uy':''}"><span class="fx-esc">${esc2}</span><b>${n}</b><i></i></div>`;
+        const centro=st.jug?`<div class="fx-mid"><b style="color:${st.c}">${m.gL} - ${m.gR}</b><i>Final</i></div>`:`<div class="fx-mid"><b>${m.hora?esc(m.hora)+'h':'—'}</b><i>${m.hora?'Hora de Uruguay':'Hora por confirmar'}</i></div>`;
+        return `<div class="fx-card" style="--fxc:${st.c}"><div class="fx-top"><span class="fx-eb">Leyendas Celestes · ${esc(_lcDiaTxt(m))} ${parseInt(f.dia,10)||''} ${esc(f.mes.toLowerCase())}</span><span class="fx-st" style="color:${st.c};border-color:${st.c}66">${st.t}</span></div>
+        <div class="fx-body">${eq('Leyendas Celestes',true,_escudoSeleccion('Uruguay',40))+centro+eq(esc(String(m.rival||'Rival a definir')),false,_lcEscRival(m.rival,40))}</div>
+        <div class="fx-foot"><span><i class="ti ti-building-stadium"></i>${esc(m.lugar||'Lugar por confirmar')}</span>${m.modalidad?`<em class="pz-tag v">${esc(m.modalidad)}</em>`:''}</div></div>`; })()}
+      ${m.nota?`<div class="ly-sec"><div class="ly-t">Sobre el evento</div><div class="ly-dat">${esc(m.nota)}</div></div>`:''}
       ${sec('Leyendas Celestes',lista(m,'leyendas','ley','',editando)+lista(m,'invitados','inv','Invitado',editando),'Todavía sin plantel cargado.')}
       ${sec('Cuerpo técnico',lista(m,'dts','dt','DT',editando),'Todavía sin DT cargado.')}
       ${(m.rivalJug||[]).length?sec(esc(m.rival||'Rival'),lista(m,'rivalJug','riv','',editando),''):''}
@@ -51163,10 +51170,13 @@ window.renderLeyendasCel=function(){
       ${form}`;
   } else if(tab==='partidos'){
     // ── Pestaña Partidos: solo los eventos, resumidos; al tocar uno se entra al detalle ──
-    const cards=todos.map(x=>{ const f=fecha(x);
-      return `<div class="ly-c" onclick="_lcAbrir('${x.id}')"><div class="ly-top"><span class="ly-d"><b>${esc(f.dia)}</b><span>${esc(f.mes)}</span></span>
-        <div class="ly-tt">${_lcVs(x.rival,24)}<b>Leyendas Celestes vs. ${esc(x.rival||'rival a definir')}</b><span>${meta(x)||(futuro(x)?'Próximo':'')}</span></div>
-        <span class="ly-r" style="color:${resCol(x)}">${jugado(x)?x.gL+'–'+x.gR:(futuro(x)?'Por jugar':'Sin resultado')}</span><i class="ti ti-chevron-right ly-ch"></i></div></div>`; }).join('');
+    const cards=todos.map(x=>{ const f=fecha(x), st=_lcEstado(x,TODAY), sub=[_lcDiaTxt(x),x.hora?esc(x.hora)+'h':'',esc(x.lugar||'')].filter(Boolean).join(' · ');
+      return `<div class="jm-card${st.jug?' jm-res':''}" style="--cat:${st.c}" onclick="_lcAbrir('${x.id}')" title="Ver el partido">
+        <span class="pz-d"><b>${parseInt(f.dia,10)||''}</b><span>${esc(f.mes)}</span></span>
+        <span class="jm-esc jm-esc2">${_escudoSeleccion('Uruguay',26)}${_lcEscRival(x.rival,26)}</span>
+        <span class="jm-mt"><b>Leyendas Celestes vs. <em>${esc(x.rival||'rival a definir')}</em></b><span>${sub}</span></span>
+        <span class="jm-sc">${st.jug?`<b style="color:${st.c}">${x.gL}–${x.gR}</b>`:''}<em style="color:${st.c};border-color:${st.c}66">${st.t}</em></span>
+        <i class="ti ti-chevron-right jm-ch"></i></div>`; }).join('');
     body=`<div class="ly-list">${cards||'<div class="ly-none" style="padding:30px;text-align:center">Todavía no hay partidos. Tocá «Partido» para sumar el primero.</div>'}</div>`;
   } else {
     // ── Pestaña Resumen: números y estadísticas de los jugadores nuestros que participaron ──
