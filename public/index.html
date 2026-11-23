@@ -9816,6 +9816,9 @@ window._tareaRecGuardar=function(idx){
   const fecha=document.getElementById('tarea-rec-f-'+idx)?.value; if(!fecha) return;
   const hora=document.getElementById('tarea-rec-h-'+idx)?.value||'';
   const l=_recGet(); let r=t.recId?l.find(x=>x.id===t.recId):null;
+  if(!r){ // si ya hay un recordatorio de esta misma tarea que quedó suelto (sin tarea que lo referencie), se reusa: antes se creaba uno nuevo y quedaba duplicado
+    const usados=new Set(list.map(x=>x&&x.recId).filter(Boolean));
+    r=l.find(x=>x.tareaRef&&!x.hecho&&x.titulo===t.txt&&!usados.has(x.id))||null; if(r) t.recId=r.id; }
   if(!r){ r={id:'tarea-'+Date.now(),tareaRef:true,etiqueta:'Tarea',hecho:false}; l.push(r); t.recId=r.id; }
   Object.assign(r,{titulo:t.txt,detalle:'De tu lista de tareas',etiqueta:_tkEtiqueta(t),vence:fecha,hora:hora||'09:00',hecho:false}); delete r.hechoEn;
   if(hora){ delete r.sinHora; } else { r.sinHora=true; }
@@ -10555,7 +10558,13 @@ function _recLinkFotoSuma(arr){
 function _recTodos(){ if(window._recCacheTodos) return window._recCacheTodos; return _recTodosRaw(); }
 // Una sola corrida de _recTodos() para todo un repintado (panel + lista): antes se armaba 3-4 veces por tildado.
 function _recConCache(fn){ const _o=!window._recCacheTodos; if(_o) window._recCacheTodos=_recTodosRaw(); try{ return fn(); } finally{ if(_o) window._recCacheTodos=null; } }
-function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recGet(), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recFifaChkDerivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados(), ..._recPaqueteDerivados(), ..._recPaqueteSeguimientoDerivados(), ..._recHitosDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
+// Recordatorios de tarea repetidos (mismo título y fecha, sin tildar): se muestra uno solo, el que está enlazado a la tarea. No toca los datos del servidor.
+function _recSinDupTarea(l){ try{
+  const usados=new Set((_tareasLog()||[]).map(x=>x&&x.recId).filter(Boolean)), vistos={};
+  const orden=[...l].sort((a,b)=>(usados.has(b.id)?1:0)-(usados.has(a.id)?1:0)); const fuera=new Set();
+  orden.forEach(r=>{ if(!r||!r.tareaRef||r.hecho) return; const k=(r.titulo||'')+'|'+(r.vence||''); if(vistos[k]) fuera.add(r.id); else vistos[k]=1; });
+  return fuera.size?l.filter(r=>!fuera.has(r.id)):l; }catch(_){ return l; } }
+function _recTodosRaw(){ const _outer=!window._presMemo; if(_outer) window._presMemo={}; try{ return _recSecuenciales(_recLinkFotoSuma([..._recSinDupTarea(_recGet()), ..._recCumplesDerivados(), ..._recPartidosDerivados(), ..._recSemanalesDerivados(), ..._recClubesDerivados(), ..._recFechasDerivados(), ..._recNombresDerivados(), ..._recExtraDerivados(), ..._recAtencionesDerivados(), ..._recAuftvDerivados(), ..._recMayorMdDerivados(), ..._recMd1Derivados(), ..._recFifaChkDerivados(), ..._recGolesResDerivados(), ..._recConvJuevesDerivados(), ..._recLlegadasDerivados(), ..._recCoberturaLlegadaDerivados(), ..._recFotosJuvDerivados(), ..._recFilasPresentacionDerivados(), ..._recIdasDerivados(), ..._recPaqueteDerivados(), ..._recPaqueteSeguimientoDerivados(), ..._recHitosDerivados()])); } finally{ if(_outer) window._presMemo=null; } }
 function _recPendientes(){
   // Solo lo que vence hasta el fin de HOY (más los vencidos/atrasados): no se adelanta nada de mañana.
   const lim=new Date(); lim.setHours(23,59,59,999);
