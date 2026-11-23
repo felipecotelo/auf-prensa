@@ -41583,13 +41583,16 @@ window._mundResumenVivoLoad=async function(cid){
     const gname=m=>((m.GroupName||[{}])[0]||{}).Description||'', stage=m=>((m.StageName||[{}])[0]||{}).Description||'';
     const hecho=m=>m.MatchStatus===0&&m.HomeTeamScore!=null&&m.AwayTeamScore!=null;
     const fase1=all.filter(m=>stage(m)==='Primera fase'&&m.Home&&m.Away);
-    const grupos={};
-    fase1.forEach(m=>{ const g=gname(m); const G=grupos[g]=grupos[g]||{}; [[m.Home,m.Away,m.HomeTeamScore,m.AwayTeamScore],[m.Away,m.Home,m.AwayTeamScore,m.HomeTeamScore]].forEach(([a,b,x,y])=>{
+    const grupos={}, gms={};
+    fase1.forEach(m=>{ const g=gname(m); const G=grupos[g]=grupos[g]||{}; if(hecho(m)) (gms[g]=gms[g]||[]).push({h:m.Home.IdTeam,a:m.Away.IdTeam,x:m.HomeTeamScore,y:m.AwayTeamScore}); [[m.Home,m.Away,m.HomeTeamScore,m.AwayTeamScore],[m.Away,m.Home,m.AwayTeamScore,m.HomeTeamScore]].forEach(([a,b,x,y])=>{
         const t=G[a.IdTeam]=G[a.IdTeam]||{id:a.IdTeam,n:nm(a),pj:0,w:0,d:0,l:0,gf:0,gc:0,pts:0,rem:[]};
         if(hecho(m)){ t.pj++; t.gf+=x; t.gc+=y; if(x>y){ t.w++; t.pts+=3; } else if(x===y){ t.d++; t.pts+=1; } else t.l++; } else t.rem.push(b.IdTeam); }); });
-    const ord=G=>Object.values(G).sort((a,b)=>b.pts-a.pts||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf||a.n.localeCompare(b.n,'es'));
+    // Desempate dentro del grupo según el art. 13.1 del reglamento FIFA: con igualdad de puntos manda lo jugado ENTRE los equipos igualados (puntos, diferencia y goles de esos partidos) y recién después diferencia de gol y goles a favor de todo el grupo.
+    const ord=(G,g)=>{ const arr=Object.values(G), ms=gms[g]||[];
+      const mini=t=>{ const ids=new Set(arr.filter(o=>o.pts===t.pts).map(o=>o.id)); let pt=0,gf=0,gc=0; if(ids.size>1) ms.filter(m=>ids.has(m.h)&&ids.has(m.a)&&(m.h===t.id||m.a===t.id)).forEach(m=>{ const my=m.h===t.id?m.x:m.y, ot=m.h===t.id?m.y:m.x; gf+=my; gc+=ot; pt+=my>ot?3:my===ot?1:0; }); return {pt,dg:gf-gc,gf}; };
+      return arr.sort((a,b)=>{ if(b.pts!==a.pts) return b.pts-a.pts; const A=mini(a),B=mini(b); return B.pt-A.pt||B.dg-A.dg||B.gf-A.gf||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf||a.n.localeCompare(b.n,'es'); }); };
     const gU=Object.keys(grupos).find(g=>grupos[g][cfg.team]); if(!gU) throw new Error('Uruguay no figura');
-    const tabla=ord(grupos[gU]), U=grupos[gU][cfg.team], pos=tabla.findIndex(t=>t.id===cfg.team)+1;
+    const tabla=ord(grupos[gU],gU), U=grupos[gU][cfg.team], pos=tabla.findIndex(t=>t.id===cfg.team)+1;
     const otros=tabla.filter(t=>t.id!==cfg.team);
     const alcanzan=otros.filter(o=>o.pts+3*o.rem.length>=U.pts).length; // rivales que todavía pueden igualar o pasar a Uruguay
     const ptsTxt=n=>n+' punto'+(n===1?'':'s');
@@ -41615,7 +41618,7 @@ window._mundResumenVivoLoad=async function(cid){
         <div class="mr-esc"><div class="g"><b>Gana</b><span>${txt('G')}</span></div><div class="e"><b>Empata</b><span>${txt('E')}</span></div><div class="p"><b>Pierde</b><span>${txt('P')}</span></div></div></div>`;
     }
     // Mejores terceros hoy
-    const terceros=Object.values(grupos).map(G=>ord(G)[2]).filter(Boolean).filter(t=>t.pj>0).sort((a,b)=>b.pts-a.pts||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf);
+    const terceros=Object.entries(grupos).map(([g,G])=>ord(G,g)[2]).filter(Boolean).filter(t=>t.pj>0).sort((a,b)=>b.pts-a.pts||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf);
     const tercTxt='';
     // Camino: fechas de cada fase desde FIFA
     const fases=['Dieciseisavos de final','Octavos de final','Cuartos de final','Semifinal','Partido por el bronce','Final'];
@@ -41635,7 +41638,7 @@ window._mundResumenVivoLoad=async function(cid){
         <div class="mr-col">${esc3}
           <div class="mr-card"><div class="mr-t">Partidos de Uruguay</div>${filas}</div>
           <div class="mr-card"><div class="mr-t">El camino</div><div class="mr-fs">${camino}</div>
-            <div class="mr-foot">Rivales posibles: FIFA publica los cruces de dieciseisavos cuando terminan los grupos (dependen de los mejores terceros); se completan acá solos.</div></div>
+            <div class="mr-foot"><b>Cómo se arman los cruces</b> (reglamento FIFA, art. 12.5 y 13): los 12 ganadores de grupo se ordenan por puntos, diferencia de gol y goles a favor, igual que los 12 segundos y los 8 mejores terceros. El mejor ganador juega contra el 8.º tercero, el 2.º contra el 7.º… y el 8.º contra el 1.º; los ganadores 9.º al 12.º juegan contra los segundos 12.º al 9.º; y los segundos 1.º al 8.º se cruzan entre sí (1.º–8.º, 2.º–7.º…). No se enfrentan equipos del mismo grupo. Por eso el rival se sabe recién cuando terminan todos los grupos.</div></div>
         </div>
       </div>`;
   }catch(e){ el.innerHTML=`<div class="mr-load">No pude leer el resumen de FIFA ahora (${esc(e&&e.message||e)}).</div>`; }
