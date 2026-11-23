@@ -6011,7 +6011,7 @@ const MAYOR_NAC_DEFAULT = {
   'Isabelino Grandín':'1897-07-08','Roberto Chery':'1896-02-16',
   'Ignacio María González':'1982-05-14','Álvaro Fernández':'1985-05-13',
   'Gustavo Munúa':'1978-01-27','Carlos Díaz':'1979-02-04','Fabián Coelho':'1977-01-20',
-  'Rodrigo López':'1978-01-21','Fabián Canobbio':'1980-03-08','Martín Ligüera':'1980-11-09',
+  'Rodrigo López':'1978-01-21','Fabián Canobbio':'1980-03-08','Bruno Silva':'1980-03-29','Martín Ligüera':'1980-11-09',
   'Martín Silva':'1983-03-25','Sebastián Viera':'1983-03-07','Guillermo Rodríguez':'1984-03-21','Carlos Grossmüller':'1983-05-04','Álvaro Pereira':'1985-11-28','Jorge Rodríguez':'1985-01-13',
   // Leyendas sin fecha previa
   'Pedro Rocha':'1942-12-03','Schubert Gambetta':'1920-04-14',
@@ -26747,6 +26747,7 @@ const JUGADORES={
   'Sebastián Coates':    {auf:'sebastian-coates',   pos:'DEF',club:'Nacional',              pais:'🇺🇾',foto:'./fotos/sebastian-coates.jpg',wc26:false,tmId:102427,total:{pj:51,min:3607,g:2}, comp:{ca:{pj:7},wc:{pj:4},el:{pj:15},am:{pj:23}},fechaNac:'1990-10-07'},
   'Egidio Arévalo Ríos': {auf:'egidio-arevalo-rios', pos:'MED',club:'Retirado',             pais:'🇺🇾',foto:null,wc26:false,retirado:true,tmId:30723,total:{pj:90,min:7306,g:0},comp:{ca:{pj:18},wc:{pj:10},el:{pj:27},am:{pj:35}},fechaNac:'1982-01-01'},
   'Álvaro Pereira':      {auf:'alvaro-pereira',      pos:'MED',club:'Retirado',             pais:'🇺🇾',foto:null,wc26:false,retirado:true,tmId:null,  total:{pj:83,min:5697,g:7}, comp:{ca:{pj:9},wc:{pj:8},el:{pj:31},am:{pj:32}},fechaNac:'1985-11-28'},
+  'Bruno Silva':         {auf:'bruno-silva',         pos:'DEF',club:'Retirado',             pais:'🇺🇾',foto:null,wc26:false,retirado:true,tmId:33260,total:{pj:17,min:1165,g:0}, comp:{ca:{pj:0},wc:{pj:0},el:{pj:7},am:{pj:10}},fechaNac:'1980-03-29'},
   'Leandro Ezquerra':    {auf:'leandro-ezquerra',    pos:'MED',club:'Retirado',             pais:'🇺🇾',foto:null,wc26:false,retirado:true,tmId:null,  total:{pj:1, min:7,    g:0}, comp:{ca:{pj:0},wc:{pj:0},el:{pj:0}, am:{pj:1}}, fechaNac:'1986-06-05'},
   'Martín Cáceres':      {auf:'martin-caceres',     pos:'DEF',club:'CA Juventud',          pais:'🇺🇾',foto:'./fotos/martin-caceres.jpg', wc26:false,tmId:54935,total:{pj:116,min:9524,g:4},comp:{ca:{pj:12},wc:{pj:12},el:{pj:41},am:{pj:47}},fechaNac:'1987-04-07'},
   'Sebastián Sosa':      {auf:'carlos-sebastian-sosa-silva', pos:'POR',club:'CA Juventud',        pais:'🇺🇾',foto:'./fotos/sebastian-sosa.jpg',    wc26:false,tmId:76592,total:{pj:1,min:15,g:0},   comp:{ca:{pj:0},wc:{pj:0},el:{pj:0},am:{pj:1}},fechaNac:'1986-08-19'},
@@ -40964,6 +40965,7 @@ function _gnavCollectResults(q, mode){
   }
   return {jugadores, ct};
 }
+window._gnavCollectResults=_gnavCollectResults; // visible desde Leyendas Celestes (_lcFichaDe)
 
 function _gnavPhotoFor(r){
   try{
@@ -51091,11 +51093,11 @@ window._lcEdit=function(){ window._lcEditar=window._lcEditar?null:window._lcMatc
 // Ficha de quien jugó: se busca como lo hace el buscador de arriba (jugadores de la Mayor, técnicos, estructura, juveniles); si no tiene ficha, el nombre no es un enlace.
 const _lcFichaMemo={};
 function _lcFichaDe(nom){
-  if(nom in _lcFichaMemo) return _lcFichaMemo[nom];
+  if(_lcFichaMemo[nom]) return _lcFichaMemo[nom];
   let res=null;
   try{
-    const n=_lcNorm(nom), tok=n.split(' ').filter(Boolean); if(!tok.length||typeof _gnavCollectResults!=='function'||typeof _gnavNorm!=='function') return (_lcFichaMemo[nom]=null);
-    const q=_gnavNorm(tok[tok.length-1]); const r=_gnavCollectResults(q)||{};
+    const n=_lcNorm(nom), tok=n.split(' ').filter(Boolean); if(!tok.length||typeof window._gnavCollectResults!=='function'||typeof _gnavNorm!=='function') return null;
+    const q=_gnavNorm(tok[tok.length-1]); const r=window._gnavCollectResults(q)||{};
     const cand=[...(r.jugadores||[]).map(x=>({k:'j',x})),...(r.ct||[]).map(x=>({k:'c',x}))];
     const eq=cand.filter(c=>_lcNorm(c.x.nom)===n);
     const sub=cand.filter(c=>{ const A=_lcNorm(c.x.nom).split(' ').filter(Boolean); return tok.length>=2&&A.length>=2&&(A.every(t=>tok.includes(t))||tok.every(t=>A.includes(t))); });
@@ -51103,7 +51105,8 @@ function _lcFichaDe(nom){
     const c=eq.length?(eq.find(c=>c.k==='j')||eq[0]):pick(sub);
     if(c){ res=(c.k==='j')?()=>window._gnavGo(c.x.section,encodeURIComponent(c.x.nom)):()=>window._gnavCTGo(c.x.section,encodeURIComponent(c.x.nom),encodeURIComponent((c.x.extra&&c.x.extra.key)||'')); }
   }catch(_){ res=null; }
-  return (_lcFichaMemo[nom]=res);
+  if(res) _lcFichaMemo[nom]=res;
+  return res;
 }
 window._lcFicha=function(nomEnc){ const f=_lcFichaDe(decodeURIComponent(nomEnc)); if(f) f(); };
 window._lcDel=function(id){ if(!confirm('¿Borrar este partido de las Leyendas Celestes?')) return; _lcSave(_lcGet().filter(x=>x.id!==id),true); window._lcAbierto=null; window.renderLeyendasCel(); };
