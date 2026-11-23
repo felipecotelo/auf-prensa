@@ -51145,6 +51145,13 @@ const _LC_DSEM=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sáb
 function _lcEstado(m,hoy){ const jug=m.gL!=null&&m.gR!=null; if(jug){ const c=m.gL>m.gR?'#86EFAC':m.gL<m.gR?'#FCA5A5':'#FCD34D'; return {t:m.gL>m.gR?'Victoria':m.gL<m.gR?'Derrota':'Empate',c,jug:true}; }
   return String(m.fecha)>=hoy?{t:'Por jugar',c:'#38BDF8',jug:false}:{t:'Sin resultado',c:'#94A3B8',jug:false}; }
 function _lcDiaTxt(m){ const d=new Date(String(m.fecha)+'T12:00:00'); return isNaN(d)?'':_LC_DSEM[d.getDay()]; }
+window._lcFotoDe=function(n){ try{ const f=(window._getPhotoByName&&window._getPhotoByName(n))||((typeof JUGADORES!=='undefined'&&JUGADORES[n]&&JUGADORES[n].foto)||''); if(f) return f;
+      // DT con ficha en Técnicos/Estructura: misma foto que la búsqueda
+      if(window._gnavCollectResults&&window._gnavPhotoFor){ const nn=_lcNorm(n), tk=nn.split(' ').filter(Boolean); const r=window._gnavCollectResults(_gnavNorm(tk[tk.length-1]))||{}; const c=(r.ct||[]).find(x=>_lcNorm(x.nom)===nn); if(c) return window._gnavPhotoFor(c)||''; }
+      return ''; }catch(_){ return ''; } };
+// Las fotos de Estructura/Mayor llegan del servidor después de dibujar: completa los avatares que quedaron con iniciales.
+window._lcFillFotos=function(){ try{ const el=document.getElementById('sec-leyendas'); if(!el) return; el.querySelectorAll('.sh-av[data-lcn]').forEach(a=>{ if(a.querySelector('img')) return; const f=window._lcFotoDe(a.getAttribute('data-lcn')); if(!f) return; const im=document.createElement('img'); im.decoding='async'; im.src=f; im.onerror=()=>im.remove(); a.appendChild(im); }); }catch(_){} };
+window._lcFillSoon=function(){ [500,1500,3500,7000,12000].forEach(ms=>setTimeout(window._lcFillFotos,ms)); };
 window.renderLeyendasCel=function(){
   const el=document.getElementById('leyendas-body'); if(!el) return;
   const esc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
@@ -51225,11 +51232,8 @@ window.renderLeyendasCel=function(){
     const dts=Object.values(DT).sort((a,b)=>b.c-a.c||a.n.localeCompare(b.n,'es'));
     const gol=Object.entries(GOL).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
     const nLey=lista2.filter(x=>x.t==='ley').length, nInv=lista2.filter(x=>x.t==='inv').length;
-    const foto=n=>{ try{ const f=(window._getPhotoByName&&window._getPhotoByName(n))||((typeof JUGADORES!=='undefined'&&JUGADORES[n]&&JUGADORES[n].foto)||''); if(f) return f;
-      // DT con ficha en Técnicos/Estructura: misma foto que la búsqueda
-      if(window._gnavCollectResults&&window._gnavPhotoFor){ const nn=_lcNorm(n), tk=nn.split(' ').filter(Boolean); const r=window._gnavCollectResults(_gnavNorm(tk[tk.length-1]))||{}; const c=(r.ct||[]).find(x=>_lcNorm(x.nom)===nn); if(c) return window._gnavPhotoFor(c)||''; }
-      return ''; }catch(_){ return ''; } };
-    const av=(n,col)=>{ const ini=String(n).replace(/["']/g,'').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join(''), f=foto(n); return `<span class="sh-av" style="--pc:${col}"><span>${esc(ini)}</span>${f?`<img src="${esc(f)}" decoding="async" onerror="this.remove()">`:''}</span>`; };
+    const foto=n=>window._lcFotoDe(n);
+    const av=(n,col)=>{ const ini=String(n).replace(/["']/g,'').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join(''), f=foto(n); return `<span class="sh-av" data-lcn="${esc(n)}" style="--pc:${col}"><span>${esc(ini)}</span>${f?`<img src="${esc(f)}" decoding="async" onerror="this.remove()">`:''}</span>`; };
     const nom=(n,tag)=>{ const f=_lcFichaDe(n); return `<span class="sh-nm">${f?`<button onclick="_lcFicha('${encodeURIComponent(n)}')" title="Ver la ficha de ${esc(n)}">${esc(n)}</button>`:`<button style="cursor:default">${esc(n)}</button>`}${tag?`<em class="sh-tg">${tag}</em>`:''}</span>`; };
     const medal=i=>i===0?'m1':i===1?'m2':i===2?'m3':'';
     const rec=o=>`<span class="ly-rec"><em style="color:#4ADE80">${o.g}G</em> <em style="color:#FCD34D">${o.e}E</em> <em style="color:#F87171">${o.p}P</em></span>`;
@@ -51249,6 +51253,7 @@ window.renderLeyendasCel=function(){
       ${golesCard}${jugCard}${dtCard}`;
   }
   el.innerHTML=`${hero}${tabsHtml}<div class="ly-wrap"><datalist id="ly-dl">${dl}</datalist>${body}</div>`;
+  window._lcFillSoon();
 };
 window._goToEstFicha=function(key){ showSection('sec-estructura'); setTimeout(()=>_estOpenFicha(key),80); };
 
