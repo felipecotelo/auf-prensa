@@ -41667,6 +41667,10 @@ window._mundResumenVivoLoad=async function(cid){
       else if(pos===3){ estado='Terminó 3.º: depende de los mejores terceros'; tono='pe'; sub='Pasan los 8 mejores terceros de los 12 grupos.'; }
       else { estado='Eliminado'; tono='no'; sub='Terminó 4.º en el grupo.'; }
     } else if(alcanzan<=1){ estado='Clasificado a dieciseisavos'; tono='ok'; sub='Tiene asegurado el 1.º o el 2.º puesto del grupo.'; }
+    else if(alcanzan===2&&(()=>{ // ¿Le alcanza aunque quede 3.º? Cuenta en cuántos OTROS grupos el 3.º todavía puede llegar a los puntos de Uruguay (con 8 cupos de mejores terceros, si son 7 o menos, Uruguay pasa seguro)
+        let c=0; Object.keys(grupos).forEach(g=>{ if(g===gU) return; const P={}; Object.values(grupos[g]).forEach(t=>{ P[t.id]=t.pts; }); const R=fase1.filter(m=>gname(m)===g&&!hecho(m)); let best=0;
+          const rec=i=>{ if(i===R.length){ best=Math.max(best,Object.values(P).sort((a,b)=>b-a)[2]||0); return; } const h=R[i].Home.IdTeam, a=R[i].Away.IdTeam; P[h]+=3; rec(i+1); P[h]-=3; P[h]+=1; P[a]+=1; rec(i+1); P[h]-=1; P[a]-=1; P[a]+=3; rec(i+1); P[a]-=3; };
+          rec(0); if(best>=U.pts) c++; }); return c<=7; })()){ estado='Clasificado a dieciseisavos'; tono='ok'; sub='Aunque terminara 3.º, sus puntos ya le alcanzan para pasar como uno de los 8 mejores terceros.'; }
     else if(alcanzan===2){ estado='Casi clasificado'; tono='pe'; sub='Tiene asegurado al menos el 3.º puesto del grupo; pasan los 2 primeros y los 8 mejores terceros de los 12 grupos.'; }
     else { estado='Todavía no depende solo de Uruguay'; tono='pe'; sub='Pasan los 2 primeros de cada grupo y los 8 mejores terceros.'; }
     // Qué pasa según el próximo partido (solo si queda uno)
@@ -41675,7 +41679,7 @@ window._mundResumenVivoLoad=async function(cid){
       const rivId=U.rem[0], riv=grupos[gU][rivId];
       const peor=res=>{ const sumU=U.pts+(res==='G'?3:res==='E'?1:0), sumRiv=riv.pts+(res==='G'?0:res==='E'?1:3);
         const c=tabla.filter(t=>t.id!==cfg.team).filter(t=>(t.id===rivId?sumRiv+3*(t.rem.length-1):t.pts+3*t.rem.length)>=sumU).length; return 1+c; };
-      const txt=res=>{ const w=peor(res); return w===1?'asegura el 1.º del grupo':w===2?'asegura al menos el 2.º':w===3?'queda 3.º como mínimo (depende de los mejores terceros)':'puede quedar 4.º'; };
+      const txt=res=>{ const w=peor(res); return w===1?'asegura el 1.º del grupo':w===2?'asegura al menos el 2.º':w===3?(estado==='Clasificado a dieciseisavos'?'queda 3.º como mínimo y pasa igual como uno de los mejores terceros':'queda 3.º como mínimo (depende de los mejores terceros)'):'puede quedar 4.º'; };
       const pm=all.find(m=>stage(m)==='Primera fase'&&m.Home&&m.Away&&!hecho(m)&&(m.Home.IdTeam===cfg.team||m.Away.IdTeam===cfg.team));
       const fecha=pm?new Date(pm.Date).toLocaleString('es-UY',{weekday:'long',day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Montevideo'}):'';
       esc3=`<div class="mr-card"><div class="mr-t">Lo que viene · vs. ${esc(riv.n)}${fecha?` <em>${esc(fecha)}h</em>`:''}</div>
