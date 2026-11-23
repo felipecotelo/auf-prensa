@@ -10466,9 +10466,11 @@ function _recMd1Derivados(){
         const comp=(typeof _COMP_NOM!=='undefined'&&_COMP_NOM[m.compId])||'';
         const det=`El partido es ${hm?hm[1]+':'+hm[2]+'h':'a confirmar'}${comp?' · '+comp:''}${m.fase?' · '+_ebDet(m.fase):''}`;
         const grupo='md1|'+cat+'|'+m.id, w=_recMasMin(_recSumarDias(D,-1),'18:00',30);
-        [['md1-pedir',`Mandar a diseñar el MD-1 de la ${catMin} vs. ${m.rival}`,_recSumarDias(D,-2),'10:00',1,det],
-         ['md1-pub',`Publicar MD-1 de la ${catMin} vs. ${m.rival}`,_recSumarDias(D,-1),'18:00',2,det],
-         ['md1-tw',`Enviar por Whatsapp el link del tuit del MD-1 vs. ${m.rival}`,w.vence,w.hora,3,`Partido del ${cuando}${hm?' · '+hm[1]+':'+hm[2]+'h':''}`]
+        // El título dice qué partido es (Felipe, 24/11/2026): «…vs. Francia del miércoles»; si falta más de una semana, con la fecha.
+        const _dsem=Math.round((dt-new Date(TODAY+'T12:00:00'))/86400000), delDia=' del '+DIA[dt.getDay()]+(_dsem>6?' '+D.slice(8,10)+'/'+D.slice(5,7):'');
+        [['md1-pedir',`Mandar a diseñar MD-1 de la ${catMin} vs. ${m.rival}${delDia}`,_recSumarDias(D,-2),'10:00',1,det],
+         ['md1-pub',`Publicar MD-1 de la ${catMin} vs. ${m.rival}${delDia}`,_recSumarDias(D,-1),'18:00',2,det],
+         ['md1-tw',`Enviar por Whatsapp el link del tuit del MD-1 vs. ${m.rival}${delDia}`,w.vence,w.hora,3,`Partido del ${cuando}${hm?' · '+hm[1]+':'+hm[2]+'h':''}`]
         ].forEach(([pre,titulo,vence,hora,orden,detalle])=>{
           const id=`${pre}|${m.id}`, mn=manual[id]||{};
           out.push({id,titulo,detalle,vence,hora,etiqueta:cat,secuencial:true,grupo,orden,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
