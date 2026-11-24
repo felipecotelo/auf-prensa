@@ -1003,6 +1003,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 /* Juveniles: lista de partidos como tarjetas estilo Suárez */
 .jm-card{border-left:3px solid var(--cat,rgba(255,255,255,.12))!important;display:flex;align-items:center;gap:14px;padding:13px 18px;margin-bottom:10px;border-radius:22px;border:1px solid rgba(255,255,255,.12);background:radial-gradient(260px 100px at 100% 0,rgba(0,157,216,.12),transparent 70%),linear-gradient(180deg,#10182C,#0A1022);cursor:pointer;transition:border-color .15s}
 .jm-card:hover{border-color:rgba(56,189,248,.5)}.jm-card.jm-res{border-color:color-mix(in srgb,var(--cat) 45%,transparent)}.jm-card.jm-res:hover{border-color:var(--cat)}
+.jm-card.jm-pk-n{margin-bottom:0;border-bottom-width:0;border-bottom-left-radius:6px;border-bottom-right-radius:6px}.jm-card.jm-pk-p{border-top:1px solid rgba(255,255,255,.16);border-top-left-radius:6px;border-top-right-radius:6px}.jm-card.jm-pk-p.jm-pk-n{border-top-left-radius:6px;border-top-right-radius:6px}
 .jm-card .pz-d{min-width:40px}
 .jm-card .pz-d b{font-size:24px}
 .jm-esc{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);flex-shrink:0}
@@ -43174,7 +43175,11 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
       <div style="font-weight:700;margin-bottom:3px">Sin partidos${esOficial?' oficiales':' amistosos'} registrados</div>
       <div style="font-size:.78em">Creá un partido con el botón de arriba</div>
-    </div>` : (()=>{ const seenTorneos=new Set(); let _prevTorneo=null; window.__mFasePrev=null; return list.map(m=>{
+    </div>` : (()=>{ const seenTorneos=new Set(); let _prevTorneo=null; window.__mFasePrev=null;
+    // Doble amistoso (partido y revancha: mismo rival, días seguidos, sin competencia): quedan en el mismo «pack», separados por una línea
+    const _pk=(a,b)=>!!(a&&b&&a.rival===b.rival&&!a.compId&&!b.compId&&a.fecha&&b.fecha&&Math.abs((new Date(String(a.fecha).slice(0,10)+'T12:00:00')-new Date(String(b.fecha).slice(0,10)+'T12:00:00'))/86400000)<=3);
+    return list.map((m,_i)=>{
+      const _pkP=_pk(list[_i-1],m), _pkN=_pk(m,list[_i+1]), _pkCls=(_pkP||_pkN)?(' jm-pk'+(_pkP?' jm-pk-p':'')+(_pkN?' jm-pk-n':'')):'';
       // Título de grupo — se muestra una sola vez, arriba del primer partido de
       // ese torneo (ej. "Torneo Pioneros de Albion" dentro de los amistosos de
       // preparación de esta competencia).
@@ -43252,7 +43257,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       const _subJ=[_wd,_hSub?_hSub+'h':'',m.lugar||''].filter(Boolean).join(' · ');
       const _fdif=m.fifaDif?` <span class="jm-fd" title="La hora cargada difiere de la que publica FIFA">FIFA indica ${m.fifaDif}h</span>`:'';
       return `${torneoHdr}
-        <div class="jm-card${m.suspendido?' susp':''}${(hasRes&&!m.esIdaYVuelta)?' jm-res':''}" style="--cat:${(hasRes&&!m.esIdaYVuelta)?_rcL(penDecides?m.penGLocal:gl,penDecides?m.penGRival:gr):_catCol(cat)}" onclick="_amistOpenDetail(${m.id})">
+        <div class="jm-card${_pkCls}${m.suspendido?' susp':''}${(hasRes&&!m.esIdaYVuelta)?' jm-res':''}" style="--cat:${(hasRes&&!m.esIdaYVuelta)?_rcL(penDecides?m.penGLocal:gl,penDecides?m.penGRival:gr):_catCol(cat)}" onclick="_amistOpenDetail(${m.id})">
           <span class="pz-d"><b>${_dayJ}</b><span>${_mesJ}</span></span>
           <span class="jm-esc">${_escudoSeleccion(m.rival,30)}</span>
           <span class="jm-mt"><b>Uruguay vs. <em>${m.rival}</em>${ivBadge}${auftvBadge}</b><span>${_subJ||'&nbsp;'}${_fdif}</span></span>
