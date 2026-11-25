@@ -1977,6 +1977,7 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ca-est{margin-left:auto;font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:999px;border:1px solid}.ca-est.ok{color:#86EFAC;border-color:rgba(134,239,172,.55);background:rgba(134,239,172,.08)}.ca-est.pe{color:#FCD34D;border-color:rgba(252,211,77,.5);background:rgba(252,211,77,.08)}
 .ca-cal{color:#8AD8FF;font-size:17px;margin-left:8px}.ca-dot.ca-ok{border-style:solid;background:#FACC15}.ca-dot{width:8px;height:8px;border-radius:50%;border:1.5px dashed rgba(252,211,77,.7);margin:0 10px 0 4px;flex:none}.ca-pen{margin-left:auto;font-size:11.5px;color:rgba(239,243,248,.5);text-align:right}
 .ca-fuente{font-size:11px;color:rgba(239,243,248,.45);padding:2px 6px 8px}
+.mr-live{display:inline-block;padding:2px 8px;border-radius:999px;background:#EF4444;color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;animation:mrp 1.4s ease-in-out infinite}@keyframes mrp{50%{opacity:.55}}.mr-vivo{margin:0 0 12px;padding:10px 16px;border-radius:14px;border:1px solid rgba(239,68,68,.5);background:rgba(239,68,68,.1);font-size:13px;color:#FECACA}.mr-upd{margin-top:10px;font-size:10.5px;color:rgba(239,243,248,.4);text-align:right}
 .ly-hero2{padding:24px 24px 20px;border-radius:26px;border:1px solid rgba(52,211,153,.4);background:radial-gradient(560px 200px at 50% -30%,rgba(52,211,153,.16),transparent 70%),linear-gradient(180deg,#10182C,#0A1022);margin-bottom:14px}
 .ly-eye{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(239,243,248,.55);margin-bottom:8px}.ly-big{font-family:'Space Grotesk','Inter',sans-serif;font-size:32px;font-weight:700;letter-spacing:-.02em;color:#6EE7B7;line-height:1.1}.ly-sub2{margin-top:8px;font-size:13.5px;color:rgba(239,243,248,.65)}
 .ly-next{display:flex;align-items:center;gap:12px;margin-top:18px;padding:12px 16px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);cursor:pointer}.ly-next:hover{border-color:rgba(138,216,255,.5)}
@@ -41683,11 +41684,13 @@ window._mundResumenVivoLoad=async function(cid){
     const nm=t=>{ const n=((t&&t.TeamName)||[{}])[0].Description||''; return n==='Arabia Saudí'?'Arabia Saudita':n; };
     const gname=m=>((m.GroupName||[{}])[0]||{}).Description||'', stage=m=>((m.StageName||[{}])[0]||{}).Description||'';
     const hecho=m=>m.MatchStatus===0&&m.HomeTeamScore!=null&&m.AwayTeamScore!=null;
+    const vivo=m=>m.MatchStatus===3&&m.HomeTeamScore!=null&&m.AwayTeamScore!=null; // en juego: cuenta como resultado provisional
+    const cuenta=m=>hecho(m)||vivo(m);
     const fase1=all.filter(m=>stage(m)==='Primera fase'&&m.Home&&m.Away);
     const grupos={}, gms={};
-    fase1.forEach(m=>{ const g=gname(m); const G=grupos[g]=grupos[g]||{}; if(hecho(m)) (gms[g]=gms[g]||[]).push({h:m.Home.IdTeam,a:m.Away.IdTeam,x:m.HomeTeamScore,y:m.AwayTeamScore}); [[m.Home,m.Away,m.HomeTeamScore,m.AwayTeamScore],[m.Away,m.Home,m.AwayTeamScore,m.HomeTeamScore]].forEach(([a,b,x,y])=>{
+    fase1.forEach(m=>{ const g=gname(m); const G=grupos[g]=grupos[g]||{}; if(cuenta(m)) (gms[g]=gms[g]||[]).push({h:m.Home.IdTeam,a:m.Away.IdTeam,x:m.HomeTeamScore,y:m.AwayTeamScore}); [[m.Home,m.Away,m.HomeTeamScore,m.AwayTeamScore],[m.Away,m.Home,m.AwayTeamScore,m.HomeTeamScore]].forEach(([a,b,x,y])=>{
         const t=G[a.IdTeam]=G[a.IdTeam]||{id:a.IdTeam,n:nm(a),pj:0,w:0,d:0,l:0,gf:0,gc:0,pts:0,rem:[]};
-        if(hecho(m)){ t.pj++; t.gf+=x; t.gc+=y; if(x>y){ t.w++; t.pts+=3; } else if(x===y){ t.d++; t.pts+=1; } else t.l++; } else t.rem.push(b.IdTeam); }); });
+        if(cuenta(m)){ t.pj++; t.gf+=x; t.gc+=y; if(x>y){ t.w++; t.pts+=3; } else if(x===y){ t.d++; t.pts+=1; } else t.l++; } else t.rem.push(b.IdTeam); }); });
     // Desempate dentro del grupo según el art. 13.1 del reglamento FIFA: con igualdad de puntos manda lo jugado ENTRE los equipos igualados (puntos, diferencia y goles de esos partidos) y recién después diferencia de gol y goles a favor de todo el grupo.
     const ord=(G,g)=>{ const arr=Object.values(G), ms=gms[g]||[];
       const mini=t=>{ const ids=new Set(arr.filter(o=>o.pts===t.pts).map(o=>o.id)); let pt=0,gf=0,gc=0; if(ids.size>1) ms.filter(m=>ids.has(m.h)&&ids.has(m.a)&&(m.h===t.id||m.a===t.id)).forEach(m=>{ const my=m.h===t.id?m.x:m.y, ot=m.h===t.id?m.y:m.x; gf+=my; gc+=ot; pt+=my>ot?3:my===ot?1:0; }); return {pt,dg:gf-gc,gf}; };
@@ -41733,10 +41736,15 @@ window._mundResumenVivoLoad=async function(cid){
     const mios=fase1.filter(m=>m.Home.IdTeam===cfg.team||m.Away.IdTeam===cfg.team).sort((a,b)=>new Date(a.Date)-new Date(b.Date));
     const filas=mios.map(m=>{ const local=m.Home.IdTeam===cfg.team, riv=local?m.Away:m.Home, gU=local?m.HomeTeamScore:m.AwayTeamScore, gR=local?m.AwayTeamScore:m.HomeTeamScore;
       const f=new Date(m.Date).toLocaleDateString('es-UY',{day:'numeric',month:'numeric',timeZone:'America/Montevideo'});
-      const col=!hecho(m)?'#94A3B8':gU>gR?'#4ADE80':gU===gR?'#FCD34D':'#F87171';
-      return `<div class="mr-m"><span class="d">${f}</span><span class="n">${typeof _escudoSeleccion==='function'?_escudoSeleccion(nm(riv),18):''}${esc(nm(riv))}</span><b style="color:${col}">${hecho(m)?gU+'–'+gR:'por jugar'}</b></div>`; }).join('');
+      const col=!cuenta(m)?'#94A3B8':gU>gR?'#4ADE80':gU===gR?'#FCD34D':'#F87171';
+      return `<div class="mr-m"><span class="d">${f}</span><span class="n">${typeof _escudoSeleccion==='function'?_escudoSeleccion(nm(riv),18):''}${esc(nm(riv))}</span><b style="color:${col}">${cuenta(m)?gU+'–'+gR:'por jugar'}${vivo(m)?` <span class="mr-live">EN VIVO ${esc(m.MatchTime||'')}</span>`:''}</b></div>`; }).join('');
     const filasT=tabla.map((t,i)=>`<tr class="${t.id===cfg.team?'uy':''}"><td>${i+1}</td><td class="n">${typeof _escudoSeleccion==='function'?_escudoSeleccion(t.n,18):''}${esc(t.n)}</td><td>${t.pj}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf-t.gc>0?'+':''}${t.gf-t.gc}</td><td><b>${t.pts}</b></td></tr>`).join('');
-    el.innerHTML=`<div class="mr-hero ${tono}"><div class="mr-eye">${esc(cfg.titulo||'Mundial')} · ${esc(gU)} · ${pos}.º en el grupo</div><div class="mr-est">${esc(estado)}</div><div class="mr-sub">${esc(sub)}</div></div>
+    const vm=all.find(m=>vivo(m)&&(m.Home.IdTeam===cfg.team||m.Away.IdTeam===cfg.team));
+    if(vm){ sub=String(sub).replace(/^Terminó el grupo en el puesto (\d)\./,'Con el resultado en juego, quedaría $1.º del grupo.'); estado=String(estado).replace(/^Terminó 3\.º:/,'Quedaría 3.º:'); }
+    let vivoTxt=''; if(vm){ const lo=vm.Home.IdTeam===cfg.team; vivoTxt=`<div class="mr-vivo"><span class="mr-live">EN VIVO ${esc(vm.MatchTime||'')}</span> Uruguay ${lo?vm.HomeTeamScore:vm.AwayTeamScore}–${lo?vm.AwayTeamScore:vm.HomeTeamScore} ${esc(nm(lo?vm.Away:vm.Home))} · la tabla y la clasificación usan este resultado provisional</div>`; }
+    const hh=new Date().toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'America/Montevideo'});
+    clearTimeout(window._mrTimer); window._mrTimer=setTimeout(()=>{ if(document.getElementById('mr-wrap')&&!document.hidden) window._mundResumenVivoLoad(cid); else if(document.getElementById('mr-wrap')) window._mrTimer=setTimeout(()=>window._mundResumenVivoLoad(cid),30000); }, vm?20000:90000);
+    el.innerHTML=`${vivoTxt}<div class="mr-hero ${tono}"><div class="mr-eye">${esc(cfg.titulo||'Mundial')} · ${esc(gU)} · ${pos}.º en el grupo</div><div class="mr-est">${esc(estado)}</div><div class="mr-sub">${esc(sub)}</div></div>
       <div class="mr-grid">
         <div class="mr-card"><div class="mr-t">${esc(gU)}</div><table class="mr-tb"><thead><tr><th></th><th class="n">Selección</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>DG</th><th>Pts</th></tr></thead><tbody>${filasT}</tbody></table>
           <div class="mr-foot">Pasan los 2 primeros de cada grupo y los 8 mejores terceros de 12 grupos. ${esc(tercTxt)}</div></div>
@@ -41745,7 +41753,7 @@ window._mundResumenVivoLoad=async function(cid){
           <div class="mr-card"><div class="mr-t">El camino</div><div class="mr-fs">${camino}</div>
             <div class="mr-foot"><b>Cómo se arman los cruces</b> (reglamento FIFA, art. 12.5 y 13): los 12 ganadores de grupo se ordenan por puntos, diferencia de gol y goles a favor, igual que los 12 segundos y los 8 mejores terceros. El mejor ganador juega contra el 8.º tercero, el 2.º contra el 7.º… y el 8.º contra el 1.º; los ganadores 9.º al 12.º juegan contra los segundos 12.º al 9.º; y los segundos 1.º al 8.º se cruzan entre sí (1.º–8.º, 2.º–7.º…). No se enfrentan equipos del mismo grupo. Por eso el rival se sabe recién cuando terminan todos los grupos.</div></div>
         </div>
-      </div>`;
+      </div><div class="mr-upd">Se actualiza solo desde FIFA · último dato ${hh}h</div>`;
   }catch(e){ el.innerHTML=`<div class="mr-load">No pude leer el resumen de FIFA ahora (${esc(e&&e.message||e)}).</div>`; }
 };
 window._mundResumenHtml=function(cid){
