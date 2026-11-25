@@ -41701,9 +41701,14 @@ window._mundResumenVivoLoad=async function(cid){
     const alcanzan=otros.filter(o=>o.pts+3*o.rem.length>=U.pts).length; // rivales que todavía pueden igualar o pasar a Uruguay
     const ptsTxt=n=>n+' punto'+(n===1?'':'s');
     // Estado de la clasificación (reglas del torneo: pasan los 2 primeros de cada grupo y los 8 mejores terceros, de 12 grupos → dieciseisavos)
+    // ¿En cuántos OTROS grupos el 3.º todavía puede llegar a los puntos de Uruguay? Con 8 cupos de mejores terceros, si son 7 o menos, Uruguay pasa seguro aunque quede 3.º.
+    const nTer=()=>{ let c=0; Object.keys(grupos).forEach(g=>{ if(g===gU) return; const P={}; Object.values(grupos[g]).forEach(t=>{ P[t.id]=t.pts; }); const R=fase1.filter(m=>gname(m)===g&&!cuenta(m)); let best=0;
+        const rec=i=>{ if(i===R.length){ best=Math.max(best,Object.values(P).sort((a,b)=>b-a)[2]||0); return; } const h=R[i].Home.IdTeam, a=R[i].Away.IdTeam; P[h]+=3; rec(i+1); P[h]-=3; P[h]+=1; P[a]+=1; rec(i+1); P[h]-=1; P[a]-=1; P[a]+=3; rec(i+1); P[a]-=3; };
+        rec(0); if(best>=U.pts) c++; }); return c; };
     let estado, sub, tono;
     if(U.rem.length===0){
       if(pos<=2){ estado='Clasificado a dieciseisavos'; tono='ok'; sub='Terminó el grupo en el puesto '+pos+'.'; }
+      else if(pos===3&&nTer()<=7){ estado='Clasificado a dieciseisavos'; tono='ok'; sub='Terminó 3.º del grupo, pero sus puntos ya le alcanzan para pasar como uno de los 8 mejores terceros.'; }
       else if(pos===3){ estado='Terminó 3.º: depende de los mejores terceros'; tono='pe'; sub='Pasan los 8 mejores terceros de los 12 grupos.'; }
       else { estado='Eliminado'; tono='no'; sub='Terminó 4.º en el grupo.'; }
     } else if(alcanzan<=1){ estado='Clasificado a dieciseisavos'; tono='ok'; sub='Tiene asegurado el 1.º o el 2.º puesto del grupo.'; }
@@ -41739,6 +41744,25 @@ window._mundResumenVivoLoad=async function(cid){
       const col=!cuenta(m)?'#94A3B8':gU>gR?'#4ADE80':gU===gR?'#FCD34D':'#F87171';
       return `<div class="mr-m"><span class="d">${f}</span><span class="n">${typeof _escudoSeleccion==='function'?_escudoSeleccion(nm(riv),18):''}${esc(nm(riv))}</span><b style="color:${col}">${cuenta(m)?gU+'–'+gR:'por jugar'}${vivo(m)?` <span class="mr-live">EN VIVO ${esc(m.MatchTime||'')}</span>`:''}</b></div>`; }).join('');
     const filasT=tabla.map((t,i)=>`<tr class="${t.id===cfg.team?'uy':''}"><td>${i+1}</td><td class="n">${typeof _escudoSeleccion==='function'?_escudoSeleccion(t.n,18):''}${esc(t.n)}</td><td>${t.pj}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf-t.gc>0?'+':''}${t.gf-t.gc}</td><td><b>${t.pts}</b></td></tr>`).join('');
+    // ── Fase final de Uruguay: partidos ya definidos por FIFA y, mientras no esté el rival, cómo se arma el cruce según el reglamento (art. 12.5) ──
+    const koMs=all.filter(m=>stage(m)!=='Primera fase'&&m.Home&&m.Away&&(m.Home.IdTeam===cfg.team||m.Away.IdTeam===cfg.team)).sort((a,b)=>new Date(a.Date)-new Date(b.Date));
+    const rk=idx=>Object.keys(grupos).map(g=>{ const t=ord(grupos[g],g)[idx]; return t&&{g,t}; }).filter(Boolean).sort((x,y)=>y.t.pts-x.t.pts||(y.t.gf-y.t.gc)-(x.t.gf-x.t.gc)||y.t.gf-x.t.gf||x.t.n.localeCompare(y.t.n,'es'));
+    const rW=rk(0), rS=rk(1), rT=rk(2), faltan=fase1.some(m=>!hecho(m));
+    let cruce='';
+    if(!koMs.length&&pos===3){ const r=rT.findIndex(x=>x.t.id===cfg.team)+1; if(r>=1&&r<=8){ const w=rW[9-r-1]; cruce=`<div class="mr-foot" style="border:none;padding-top:10px"><b>${faltan?'Hoy (provisorio)':'Cruce'}:</b> ${r}.º mejor tercero → jugaría contra el ${9-r}.º mejor ganador de grupo (${w?esc(w.t.n):'—'} hoy). ${faltan?'Se define cuando terminen los 12 grupos.':''}</div>`; } }
+    if(!koMs.length&&(pos===1||pos===2)){
+      const r=(pos===1?rW:rS).findIndex(x=>x.t.id===cfg.team)+1, nmR=(arr,i)=>arr[i-1]?esc(nm({TeamName:[{Description:arr[i-1].t.n}]})):'—';
+      let txt;
+      if(pos===1) txt=r<=8?`${r}.º mejor ganador de grupo → jugaría contra el ${9-r}.º mejor tercero (${nmR(rT,9-r)} hoy)`:`${r}.º mejor ganador de grupo → jugaría contra el ${21-r}.º mejor segundo (${nmR(rS,21-r)} hoy)`;
+      else txt=r<=8?`${r}.º mejor segundo → jugaría contra el ${9-r}.º mejor segundo (${nmR(rS,9-r)} hoy)`:`${r}.º mejor segundo → jugaría contra el ${21-r}.º mejor ganador de grupo (${nmR(rW,21-r)} hoy)`;
+      cruce=`<div class="mr-foot" style="border:none;padding-top:10px"><b>${faltan?'Hoy (provisorio)':'Cruce'}:</b> ${txt}. ${faltan?'Se define cuando terminen los 12 grupos.':''}</div>`;
+    }
+    const koFilas=koMs.map(m=>{ const lo=m.Home.IdTeam===cfg.team, riv=lo?m.Away:m.Home, gU=lo?m.HomeTeamScore:m.AwayTeamScore, gR=lo?m.AwayTeamScore:m.HomeTeamScore;
+      const cu=cuenta(m), col=!cu?'#94A3B8':gU>gR?'#4ADE80':gU===gR?'#FCD34D':'#F87171';
+      const cuando=new Date(m.Date).toLocaleString('es-UY',{weekday:'long',day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Montevideo'});
+      const est=(((m.Stadium||{}).Name||[{}])[0].Description||'');
+      return `<div class="mr-m" style="flex-wrap:wrap"><span class="d" style="min-width:auto">${esc(stage(m))}</span><span class="n">${typeof _escudoSeleccion==='function'?_escudoSeleccion(nm(riv),18):''}${esc(nm(riv))}</span><b style="color:${col}">${cu?gU+'–'+gR:'por jugar'}${vivo(m)?` <span class="mr-live">EN VIVO ${esc(m.MatchTime||'')}</span>`:''}</b><span style="flex-basis:100%;font-size:11px;color:rgba(239,243,248,.5);padding-left:2px">${esc(cuando)}h${est?' · '+esc(est):''}</span></div>`; }).join('');
+    const koHtml=`<div class="mr-card"><div class="mr-t">Fase final</div>${koFilas||'<div class="mr-foot" style="border:none;padding:6px 0">El rival de dieciseisavos (30/11 y 1/12) se sabe cuando terminen los 12 grupos; apenas FIFA lo publique aparece acá, en el Fixture y en el Calendar.</div>'}${cruce}</div>`;
     const vm=all.find(m=>vivo(m)&&(m.Home.IdTeam===cfg.team||m.Away.IdTeam===cfg.team));
     if(vm){ sub=String(sub).replace(/^Terminó el grupo en el puesto (\d)\./,'Con el resultado en juego, quedaría $1.º del grupo.'); estado=String(estado).replace(/^Terminó 3\.º:/,'Quedaría 3.º:'); }
     let vivoTxt=''; if(vm){ const lo=vm.Home.IdTeam===cfg.team; vivoTxt=`<div class="mr-vivo"><span class="mr-live">EN VIVO ${esc(vm.MatchTime||'')}</span> Uruguay ${lo?vm.HomeTeamScore:vm.AwayTeamScore}–${lo?vm.AwayTeamScore:vm.HomeTeamScore} ${esc(nm(lo?vm.Away:vm.Home))} · la tabla y la clasificación usan este resultado provisional</div>`; }
@@ -41750,6 +41774,7 @@ window._mundResumenVivoLoad=async function(cid){
           <div class="mr-foot">Pasan los 2 primeros de cada grupo y los 8 mejores terceros de 12 grupos. ${esc(tercTxt)}</div></div>
         <div class="mr-col">${esc3}
           <div class="mr-card"><div class="mr-t">Partidos de Uruguay</div>${filas}</div>
+          ${koHtml}
           <div class="mr-card"><div class="mr-t">El camino</div><div class="mr-fs">${camino}</div>
             <div class="mr-foot"><b>Cómo se arman los cruces</b> (reglamento FIFA, art. 12.5 y 13): los 12 ganadores de grupo se ordenan por puntos, diferencia de gol y goles a favor, igual que los 12 segundos y los 8 mejores terceros. El mejor ganador juega contra el 8.º tercero, el 2.º contra el 7.º… y el 8.º contra el 1.º; los ganadores 9.º al 12.º juegan contra los segundos 12.º al 9.º; y los segundos 1.º al 8.º se cruzan entre sí (1.º–8.º, 2.º–7.º…). No se enfrentan equipos del mismo grupo. Por eso el rival se sabe recién cuando terminan todos los grupos.</div></div>
         </div>
