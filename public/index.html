@@ -43510,7 +43510,7 @@ window._showUpdateBanner=_showUpdateBanner;
   }
   async function tick(){
     try{
-      if(document.hidden) return;
+      // Antes salía si la pestaña estaba oculta y por eso el partido de la Sub-17 vs. Francia (25/11/2026) se quedó en el entretiempo: ahora sigue aunque la pestaña esté en segundo plano (el navegador la baja a ~1 vez por minuto).
       const ahora=new Date(), nowMin=ahora.getHours()*60+ahora.getMinutes();
       let cambio=false;
       for(const cid of Object.keys(_MUND_CFG)){
@@ -43520,7 +43520,7 @@ window._showUpdateBanner=_showUpdateBanner;
         const hoy=(Array.isArray(list)?list:[]).filter(m=>m.compId===cid&&m.fifaId&&String(m.fecha).slice(0,10)===TODAY);
         for(const m of hoy){
           const hm=String(m.hora||'').match(/(\d{1,2}):(\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/^\s*(\d{1,2}):(\d{2})/); if(!hm) continue;
-          const ini=parseInt(hm[1],10)*60+parseInt(hm[2],10); if(nowMin<ini-2||nowMin>ini+dur+40) continue;
+          const ini=parseInt(hm[1],10)*60+parseInt(hm[2],10); if(nowMin<ini-2||(nowMin>ini+dur+40&&(m.confirmado||m.fifaConf))) continue; // pasada la ventana sigue hasta que el partido quede confirmado con FIFA
           const st=m.fifaStage||(cid==='mundial-sub15-2026'&&window._mundKoStage&&window._mundKoStage[cid])||cfg.stage;
           const r=await fetch(`https://api.fifa.com/api/v3/live/football/${m.fifaComp||cfg.comp}/${cfg.season}/${st}/${m.fifaId}?language=es`,{cache:'no-store'}); if(!r.ok) continue;
           const j=await r.json(); if(!j||!j.HomeTeam) continue;
@@ -43541,6 +43541,7 @@ window._showUpdateBanner=_showUpdateBanner;
     }catch(_){}
   }
   setInterval(tick,40000); setTimeout(tick,9000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeout(tick,500); }); // al volver a la pestaña se pone al día de inmediato
   window._mundLiveTick=tick;
   window._mundAutoPizarra=autoPizarra;
   window._mundLivePaint=function(id,nv){
