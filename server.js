@@ -1471,6 +1471,11 @@ async function runSyncDataBackup() {
 setTimeout(runSyncDataBackup, 15000);
 setInterval(runSyncDataBackup, BACKUP_INTERVAL_MS);
 
+// ── Sincronización con FIFA desde el servidor (25/11/2026): completa los partidos de Uruguay sin depender de una pestaña abierta (ver fifa-sync.js).
+// Va en try/catch: si algo falla al cargar el módulo, el resto del servidor sigue igual.
+try { require('./fifa-sync').start({ sbUrl: SB_URL, sbKey: SB_ANON_KEY }); }
+catch (e) { console.warn('[fifa-sync] no se pudo iniciar:', e.message); }
+
 // ── Google Calendar (sincronización automática de atenciones) ─────────────
 // Cuenta de servicio de Google Cloud (sin OAuth de usuario) — autenticación
 // por JWT firmado a mano (RS256) en vez de la librería googleapis, para no
