@@ -32897,6 +32897,7 @@ window._getPhotoByName = function(nom){
   }catch(_){}
   // 1. Juveniles (keyed by name)
   if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
+  { const _al=(window._JUV_FOTO_ALIAS||{})[nom]; if(_al&&window._juvPhotoCache&&window._juvPhotoCache[_al]) return window._juvPhotoCache[_al]; }
   // 2. Local/Estructura/Mayor histórico (keyed by slug — 'ct-p:' o 'mayor:' según de dónde se cargó)
   const slug = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
   const _slugAlias={'nicolas-roberto-fernandez':'nicolas-fernandez'}; // su foto se cargó antes de ponerle el segundo nombre
@@ -43964,6 +43965,8 @@ window._estPhotoDe=function(nom){
   const slug=String(nom||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
   const c=window._estPhotoCache||{}; return c['mayor:'+slug]||c['ct-p:'+slug]||null;
 };
+// Fotos cargadas con otra grafía del nombre: nombre de la app → clave con la que está guardada la foto
+window._JUV_FOTO_ALIAS={'Mathías Gargano':'Matias Gargano'};
 window._juvGetPhoto = function(nom){
   if(!nom) return null;
   if(JUV_FOTO_BLOQUEADA.has(nom)) return null;
@@ -43988,6 +43991,7 @@ window._juvGetPhoto = function(nom){
     }
   }catch(_){}
   if(window._juvPhotoCache?.[nom]) return window._juvPhotoCache[nom];
+  { const _al=(window._JUV_FOTO_ALIAS||{})[nom]; if(_al&&window._juvPhotoCache&&window._juvPhotoCache[_al]) return window._juvPhotoCache[_al]; } // la foto se cargó con otra grafía del nombre (ej. «Matias Gargano»)
   const n = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
   if(window._juvPhotoCacheNorm?.[n]) return window._juvPhotoCacheNorm[n];
   const _al = window.JUV_NOMBRE_COMPLETO?.[nom];
