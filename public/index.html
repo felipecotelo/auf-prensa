@@ -1036,7 +1036,7 @@ main{max-width:1000px;margin:0 auto;padding:1.25rem 1rem 5rem}
 .tm-sub{margin-top:4px;font-size:12.5px;color:rgba(239,243,248,.62)}.tm-k{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.tm-t{flex:1;min-width:110px;padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03)}.tm-t b{display:block;font-family:'Space Grotesk','Inter',sans-serif;font-size:20px;color:#F4F7FB}.tm-t span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(239,243,248,.5)}
 .tm-gl{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:rgba(239,243,248,.75)}.tm-gl em{font-style:normal;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.5);margin-right:4px}.tm-gl span{padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14)}.tm-gl b{color:var(--tc);margin-left:3px}
 .tm-det{margin-top:12px;border-top:1px solid rgba(255,255,255,.1);padding-top:10px}.tm-det summary{cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,243,248,.7);list-style:none}.tm-det summary::before{content:'▸ '}.tm-det[open] summary::before{content:'▾ '}
-.tm-r{display:flex;gap:14px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px}.tm-r span{flex:0 0 150px;color:rgba(239,243,248,.5)}.tm-r b{font-weight:500;color:#EFF3F8}.tm-it{margin:10px 0 0;padding-left:18px;font-size:13px;color:rgba(239,243,248,.8);line-height:1.6}.tm-foot{margin-top:10px;font-size:11px;color:rgba(239,243,248,.4)}
+.tm-r{display:flex;gap:14px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px}.tm-r span{flex:0 0 150px;color:rgba(239,243,248,.5)}.tm-r b{font-weight:500;color:#EFF3F8}.tm-it{margin:10px 0 0;padding-left:18px;font-size:13px;color:rgba(239,243,248,.8);line-height:1.6}.tm-foot{margin-top:12px;display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:11px;color:rgba(239,243,248,.4)}.tm-go{color:var(--tc);font-weight:700;letter-spacing:.06em;white-space:nowrap}.tm-card{cursor:pointer;transition:border-color .15s}.tm-card:hover{border-color:var(--tc)}
 @media(max-width:600px){.tm-r{flex-direction:column;gap:2px}.tm-r span{flex:none}}
 .jm-th{font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(239,243,248,.6);margin:18px 0 10px}
 @media(max-width:600px){.jm-card{gap:10px;padding:12px 12px}.jm-esc{display:none}.jm-mt b{font-size:14.5px}.jm-sc b{font-size:20px}.jm-card .pz-d b{font-size:20px}}
@@ -40924,11 +40924,13 @@ const COMP_DATA = {
   'pioneros-albion-2026': PIONEROS_ALBION_2026,
   'sud17-2027-vis': SUD17_2027_VIS,
   'talleres-cordoba-2026': TALLERES_CORDOBA_2026,
+  'copa-uc-2026': COPA_UC_2026,
   'torneo-desarrollo-sub15-2026': TORNEO_DESARROLLO_SUB15_2026,
   'mundial-sub15-2026': MUNDIAL_SUB15_2026,
 };
 window.COMP_DATA=COMP_DATA; // lo leen los recordatorios (fechas de nacimiento faltantes)
 // Torneos amistosos que van DENTRO de la preparación de un proceso (Amistosos prep.), no como competencia propia (Felipe, 25/11/2026). Clave = el nombre que llevan los partidos en `m.torneo`.
+window._torneoDeComp=id=>{ const e=Object.entries(window.TORNEOS_AMISTOSOS||{}).find(([,T])=>T.id===id); return e?e[0]:null; };
 window.TORNEOS_AMISTOSOS={
   'Copa UC (Chile)':Object.assign(COPA_UC_2026,{cat:'sub16',year:'2026-2027',desde:'2026-12-09',hasta:'2026-12-13',sede:'Santiago de Chile'}),
   'Pioneros de Albion':Object.assign(PIONEROS_ALBION_2026,{cat:'sub16',year:'2026-2027',desde:'2026-02-25',hasta:'2026-02-28',sede:'Montevideo'}),
@@ -41370,6 +41372,7 @@ function _defaultJuvCompTab(id){
   const comp = COMP_DATA[id];
   if(!comp) return 'convocados';
   const hasConv = (comp.convocados||[]).filter(j=>!j.descartado).length > 0;
+  if(!hasConv && comp.infoGeneral && window._torneoDeComp && window._torneoDeComp(id)) return 'info'; // torneo amistoso todavía sin nómina: abre en Info general
   if(!hasConv && ((comp.preparacion||[]).length>0||(comp.lista||[]).length>0)) return 'jugadores';
   return 'convocados';
 }
@@ -42726,9 +42729,10 @@ function _seedTalleresCordoba(){
   let list=[]; try{ list=JSON.parse(localStorage.getItem(key)||'[]'); }catch(_){}
   if(!Array.isArray(list)||list.some(m=>m.torneo===NOM)) return;
   const ps=((TALLERES_CORDOBA_2026.cierre||{}).partidos)||[]; if(!ps.length) return;
-  ps.forEach((x,i)=>{ list.push({id:Date.now()+i, rival:x.rival, fecha:x.fecha, hora:'', lugar:x.lugar||'', torneo:NOM, compId:null, oficial:false, gLocal:x.gLocal, gRival:x.gRival,
+  const nuevos=[]; // va al principio de la lista: es de febrero, antes que todo lo demás del ciclo
+  ps.forEach((x,i)=>{ nuevos.push({id:Date.now()+i, rival:x.rival, fecha:x.fecha, hora:'', lugar:x.lugar||'', torneo:NOM, compId:null, oficial:false, gLocal:x.gLocal, gRival:x.gRival,
     lineup:{formation:'',starters:{}}, goles:Object.assign({},x.goles||{}), dtPartido:(TALLERES_CORDOBA_2026.cierre||{}).dt||'', subs:[], tarjetas:[]}); });
-  stor.set(key,list);
+  stor.set(key,nuevos.concat(list));
 }
 // Tarjeta de un torneo amistoso dentro de «Amistosos prep.»: nombre, fechas y sede, estado, estadísticas INTERNAS del torneo (no suman a las oficiales) y el detalle (formato, grupos, itinerario).
 window._torneoCardHtml=function(nombre,list){
@@ -42744,13 +42748,12 @@ window._torneoCardHtml=function(nombre,list){
   const grp=T.grupos?Object.entries(T.grupos).map(([k,v])=>`<div class="tm-r"><span>${esc(k)}</span><b>${(v||[]).map(esc).join(' · ')}</b></div>`).join(''):'';
   const iti=(T.itinerario||[]).length?`<ul class="tm-it">${T.itinerario.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
   const conv=(T.convocados||[]).length?`<div class="tm-r"><span>Convocados</span><b>${T.convocados.length} jugadores</b></div>`:'';
-  return `<div class="tm-card" style="--tc:${T.color||'#38BDF8'}">
+  return `<div class="tm-card" style="--tc:${T.color||'#38BDF8'}" onclick="_juvIrA('${T.cat}','${T.year}','${T.id}')" title="Abrir el torneo">
     <div class="tm-top"><span class="tm-ic">${T.icon||'🏟️'}</span><span class="tm-nm">${esc(T.label||nombre)}</span><span class="tm-st ${est[1]}">${est[0]}</span></div>
     <div class="tm-sub">${esc(T.fecha||'')}</div>
     ${jug.length?`<div class="tm-k">${tile(jug.length,'Partidos')}${tile(g+'G '+e+'E '+p+'P','Resultados')}${tile(gf+'–'+gc,'Goles')}</div>`:''}
     ${top.length?`<div class="tm-gl"><em>Goleadores del torneo</em>${top.map(([n,v])=>`<span>${esc(n)} <b>${v}</b></span>`).join('')}</div>`:''}
-    <details class="tm-det"><summary>Info del torneo</summary>${info}${grp}${conv}${iti}</details>
-    <div class="tm-foot">Torneo amistoso: sus números son estadísticas internas del torneo y no suman a las oficiales.</div>
+    <div class="tm-foot"><span>Torneo amistoso: sus números son estadísticas internas y no suman a las oficiales.</span><span class="tm-go">Ver el torneo <i class="ti ti-chevron-right"></i></span></div>
   </div>`;
 };
 // Torneos que todavía no tienen partidos cargados en esta lista (por ejemplo, uno que se va a jugar): se muestran arriba, para que se vea que están.
@@ -42816,7 +42819,14 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
   // una competencia oficial) se ven solo los partidos de ESA competencia.
   const esOficial = !!filterCompId;
   // Torneos oficiales: SIEMPRE del primer partido al último (Felipe, 18/11/2026); los amistosos mantienen el orden de carga.
-  const list = _getAmistosos(cat, year).filter(m=>filterCompId ? m.compId===filterCompId : !m.oficial);
+  // Siempre en orden cronológico (Felipe, 25/11/2026). Dentro de la preparación, los partidos de un torneo amistoso se muestran como UN bloque (tarjeta del torneo) en la fecha en que se jugó; al tocarlo se abre el menú del torneo con toda la info y sus partidos.
+  const _tnView = filterCompId ? window._torneoDeComp(filterCompId) : null;
+  const list = _getAmistosos(cat, year).filter(m=>filterCompId ? (m.compId===filterCompId || (_tnView&&m.torneo===_tnView)) : !m.oficial)
+    .map((m,i)=>[m,i]).sort((x,y)=>String(x[0].fecha||'').slice(0,10).localeCompare(String(y[0].fecha||'').slice(0,10))||x[1]-y[1]).map(x=>x[0]);
+  const dl = []; { const _vistos=new Set(); const _reg=window.TORNEOS_AMISTOSOS||{};
+    list.forEach(m=>{ if(!_tnView&&m.torneo&&_reg[m.torneo]){ if(!_vistos.has(m.torneo)){ _vistos.add(m.torneo); dl.push({_torneoBlock:m.torneo,fecha:m.fecha}); } } else dl.push(m); });
+    if(!_tnView) Object.entries(_reg).filter(([n,T])=>T.cat===cat&&T.year===year&&!_vistos.has(n)).forEach(([n,T])=>{ const k=dl.findIndex(x=>String(x.fecha||'').slice(0,10)>String(T.desde)); dl.splice(k<0?dl.length:k,0,{_torneoBlock:n,fecha:T.desde}); });
+  }
   if(filterCompId) list.sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||''))||String(a.hora||'').localeCompare(String(b.hora||'')));
   const catLabel = cat==='fifamayor' ? 'Selección Mayor' : _juvCat.replace('sub','Sub-');
   // poolCompId: solo para la pestaña "Amistosos prep." de una competencia puntual
@@ -43325,7 +43335,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
     </div>`;
 
   // ── Lista de partidos ──
-  const matchesHtml = list.length===0 ? `
+  const matchesHtml = dl.length===0 ? `
     <div style="text-align:center;padding:36px 16px;color:var(--muted)">
       <i class="ti ti-ball-football" style="font-size:2.2rem;display:block;margin-bottom:8px;opacity:.25"></i>
       <div style="font-weight:700;margin-bottom:3px">Sin partidos${esOficial?' oficiales':' amistosos'} registrados</div>
@@ -43333,8 +43343,9 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
     </div>` : (()=>{ const seenTorneos=new Set(); let _prevTorneo=null; window.__mFasePrev=null;
     // Doble amistoso (partido y revancha: mismo rival, días seguidos, sin competencia): quedan en el mismo «pack», separados por una línea
     const _pk=(a,b)=>!!(a&&b&&a.rival===b.rival&&!a.compId&&!b.compId&&a.fecha&&b.fecha&&Math.abs((new Date(String(a.fecha).slice(0,10)+'T12:00:00')-new Date(String(b.fecha).slice(0,10)+'T12:00:00'))/86400000)<=3);
-    return list.map((m,_i)=>{
-      const _pkP=_pk(list[_i-1],m), _pkN=_pk(m,list[_i+1]), _pkCls=(_pkP||_pkN)?(' jm-pk'+(_pkP?' jm-pk-p':'')+(_pkN?' jm-pk-n':'')):'';
+    return dl.map((m,_i)=>{
+      if(m._torneoBlock) return window._torneoCardHtml(m._torneoBlock,list);
+      const _pkP=_pk(dl[_i-1],m), _pkN=_pk(m,dl[_i+1]), _pkCls=(_pkP||_pkN)?(' jm-pk'+(_pkP?' jm-pk-p':'')+(_pkN?' jm-pk-n':'')):'';
       // Título de grupo — se muestra una sola vez, arriba del primer partido de
       // ese torneo (ej. "Torneo Pioneros de Albion" dentro de los amistosos de
       // preparación de esta competencia).
@@ -43361,7 +43372,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         // Sin "Torneo" fijo adelante — no todos son torneos competitivos (ej.
         // "Viaje a España" es una gira de amistosos, no un torneo con fixture
         // propio); si el nombre lo es, ya lo dice (ej. "Pioneros de Albion").
-        torneoHdr = window._torneoCardHtml(m.torneo,list);
+        torneoHdr = (window.TORNEOS_AMISTOSOS&&window.TORNEOS_AMISTOSOS[m.torneo]) ? '' : `<div class="jm-th">${m.torneo}</div>`;
       }
       const gl=m.gLocal, gr=m.gRival;
       const hasRes = gl!=null && gr!=null;
@@ -43430,7 +43441,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
     ${resumenHtml}${esOficial?'':golHtml}
     ${addForm}
     <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">${total} partido${total!==1?'s':''}</div>
-    ${window._torneosPendientesHtml?window._torneosPendientesHtml(cat,year,list):''}${matchesHtml}
+    ${matchesHtml}
     ${statsTorneo}`;
 }
 
@@ -44895,7 +44906,8 @@ function _renderJuvenilesSafe(el){
 
   // Si hay competencias: resetear _juvComp si no pertenece al ciclo actual
   if(_juvComp && !hasComps) _juvComp = null;
-  if(_juvComp && !(anoData.competencias||[]).some(c=>c.id===_juvComp)) _juvComp = null;
+  // Los torneos amistosos (Copa UC, Pioneros, Córdoba) no tienen pastilla propia pero se abren desde su bloque en «Amistosos prep.»
+  if(_juvComp && !(anoData.competencias||[]).some(c=>c.id===_juvComp) && !(window._torneoDeComp&&window._torneoDeComp(_juvComp))) _juvComp = null;
 
   // Auto-seleccionar primer evento si ninguno está seleccionado y el ciclo tiene competencias
   if(hasComps && !_juvComp && _juvTab!=='ct' && _juvTab!=='jugadores'){
@@ -44951,7 +44963,7 @@ function _renderJuvenilesSafe(el){
     const evtPills = (anoData.competencias||[]).map(c=>{
       const active = _juvComp===c.id;
       return `<button onclick="_openJuvComp('${c.id}')" class="nav-t-pill${active?' active':''}">${c.label}</button>`;
-    }).join('');
+    }).join('') + ((window._torneoDeComp&&window._torneoDeComp(_juvComp)&&COMP_DATA[_juvComp])?`<button class="nav-t-pill active">${COMP_DATA[_juvComp].label}</button>`:'');
 
     const utilLinks = [
       {id:'jugadores', label:'Jugadores', icon:'ti-id-badge-2'},
@@ -45854,7 +45866,8 @@ function _buildJuvCompBody(compId, color, catData){
   }
 
   else if(_juvCompTab==='fixture'){
-   if(!(comp.partidos||[]).length){
+   const _tnF=window._torneoDeComp?window._torneoDeComp(comp.id):null;
+   if(!(comp.partidos||[]).length || (_tnF && _getAmistosos(_juvCat,_juvYear).some(m=>m.torneo===_tnF))){
     // Competencia sin partidos "estáticos" cargados a mano (históricos ya jugados) —
     // se usa el mismo motor interactivo de los amistosos (mismo storage, filtrado por
     // comp.id): formación con selector de cancha, goles, tarjetas, DT, resultado.
