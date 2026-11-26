@@ -43403,6 +43403,17 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
         // propio); si el nombre lo es, ya lo dice (ej. "Pioneros de Albion").
         torneoHdr = (window.TORNEOS_AMISTOSOS&&window.TORNEOS_AMISTOSOS[m.torneo]) ? '' : `<div class="jm-th">${m.torneo}</div>`;
       }
+      // Dentro de un torneo o competencia (Copa UC, Mundial Sub-17…): un encabezado por etapa, igual que el Mundial Sub-15.
+      // La etapa sale de m.etapa (si se cargó) o de m.fase («Grupo A · Fecha 1» → Fase de grupos · Grupo A).
+      if(filterCompId && m.compId!=='mundial-sub15-2026'){
+        const _fx=String(m.fase||''), _gr=(_fx.match(/Grupo\s+[A-Z0-9]+/i)||[''])[0];
+        const _et=m.etapa||(/grupo|clasific/i.test(_fx)?'Fase de grupos':_fx.split(/\s*[·(,]\s*/)[0]);
+        if(_et && window.__mFasePrev!==_et){
+          const _sub=_et==='Fase de grupos'?_gr:(m.etapaSub||'');
+          torneoHdr+=`<div class="rd-eyebar"${window.__mFasePrev?'':' style="margin-top:6px"'}>${_et}${_sub?`<em style="font-style:normal;letter-spacing:.06em;text-transform:none;font-weight:500;opacity:.6;margin-left:8px">${_sub}</em>`:''}</div>`;
+          window.__mFasePrev=_et;
+        }
+      }
       const gl=m.gLocal, gr=m.gRival;
       const hasRes = gl!=null && gr!=null;
       const gl2=m.gLocal2, gr2=m.gRival2;
