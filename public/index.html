@@ -10501,6 +10501,7 @@ function _recMd1Derivados(){
       let list=[]; try{ list=JSON.parse(localStorage.getItem(key)||'[]'); }catch(_){ list=[]; }
       (Array.isArray(list)?list:[]).forEach(m=>{
         if(!m||(!m.compId&&!m.oficial)||!m.rival||!m.fecha) return;
+        if(m.fechaTxt&&!m.fifaId) return; // boceto de la ronda siguiente (día y rival sin definir): los avisos salen cuando FIFA publica el partido
         const D=String(m.fecha).slice(0,10); if(D<'2026-10-29'||D<_recSumarDias(TODAY,0)) return; // lo anterior se cargó a mano
         if(m.gLocal!=null&&m.gRival!=null&&m.gLocal!==''&&m.gRival!=='') return;
         const dt=new Date(D+'T12:00:00'), cuando=`${DIA[dt.getDay()]} ${D.slice(8,10)}/${D.slice(5,7)}`;
@@ -41502,7 +41503,9 @@ async function _mundSyncFifa(cid,force){
     const stg=((m.StageName||[{}])[0].Description||''), grp=((m.GroupName||[{}])[0].Description||'').replace(/^Group /,'Grupo ');
     const fase=/^Grupo /i.test(grp)?[stg,grp].filter(Boolean).join(' · '):(grp?grp.replace(/\s*\((.+)\)/,' · $1'):stg);
     const horaTxt=cfg.tz?`${loc}h (${cfg.tz}) / ${hUY}h (UY)`:hUY+'h';
-    let ex=list.find(x=>x.compId===cid&&String(x.fifaId||'')===String(m.IdMatch))||list.find(x=>x.compId===cid&&String(x.fecha).slice(0,10)===fecha&&mismo(x.rival,rival));
+    let ex=list.find(x=>x.compId===cid&&String(x.fifaId||'')===String(m.IdMatch))||list.find(x=>x.compId===cid&&String(x.fecha).slice(0,10)===fecha&&mismo(x.rival,rival))
+      ||list.find(x=>x.compId===cid&&!x.fifaId&&x.gLocal==null&&/^\s*a\s+definir\s*$/i.test(String(x.rival||''))&&x.etapa&&stg&&nrm(x.etapa)===nrm(stg)); // boceto de la ronda siguiente
+    if(ex&&!ex.fifaId&&ex.fechaTxt){ ex.fecha=fecha; ex.hora=''; delete ex.fechaTxt; delete ex.etapaSub; cambio=true; }
     if(ex){
       if(!ex.fifaId){ ex.fifaId=m.IdMatch; cambio=true; }
       if(m.IdCompetition&&(ex.fifaComp!==m.IdCompetition||ex.fifaStage!==m.IdStage)){ ex.fifaComp=m.IdCompetition; ex.fifaStage=m.IdStage; cambio=true; }
@@ -43442,7 +43445,9 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       }
       const _MESJ=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
       const _fj=m.fecha?String(m.fecha).slice(0,10).split('-'):[];
-      const _dayJ=_fj[2]?parseInt(_fj[2],10):'', _mesJ=_fj[1]?_MESJ[parseInt(_fj[1],10)-1]:'';
+      // Boceto de la ronda siguiente con el día sin definir (m.fechaTxt, ej. «Lunes 30/11 o martes 1/12»): guion en el recuadro de la fecha
+      const _fTent=!!(m.fechaTxt&&!m.fifaId);
+      const _dayJ=_fTent?'–':(_fj[2]?parseInt(_fj[2],10):''), _mesJ=_fTent?'a conf.':(_fj[1]?_MESJ[parseInt(_fj[1],10)-1]:'');
       const _rcJ=(a,b)=>a>b?'#86EFAC':a===b?'#FCD34D':'#FCA5A5';
       const _rcL=(a,b)=>a>b?'#4ADE80':a===b?'#FCD34D':'#F87171'; // borde y línea izquierda del partido ya jugado (Felipe, 19/11/2026)
       const _vJ=(a,b)=>a>b?'Victoria':a===b?'Empate':'Derrota';
@@ -43460,7 +43465,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
       if(m.suspendido&&!hasRes) _rightJ=`<span class="jm-sc"><b style="color:#F59E0B">–</b><em style="color:#F59E0B;border-color:#F59E0B66">Suspendido</em></span>`;
       // Mismo criterio en todas las tarjetas: día de la semana · hora (Uruguay) · estadio.
       const _hSub=(String(m.hora||'').match(/(\d{1,2}:\d{2})\s*h?\s*\(UY\)/i)||String(m.hora||'').match(/(\d{1,2}:\d{2})/)||[])[1];
-      const _wd=m.fecha?new Date(String(m.fecha).slice(0,10)+'T12:00:00').toLocaleDateString('es-UY',{weekday:'long'}).replace(/^\w/,c=>c.toUpperCase()):'';
+      const _wd=_fTent?m.fechaTxt:m.fecha?new Date(String(m.fecha).slice(0,10)+'T12:00:00').toLocaleDateString('es-UY',{weekday:'long'}).replace(/^\w/,c=>c.toUpperCase()):'';
       const _subJ=[_wd,_hSub?_hSub+'h':'',m.lugar||''].filter(Boolean).join(' · ');
       const _fdif=m.fifaDif?` <span class="jm-fd" title="La hora cargada difiere de la que publica FIFA">FIFA indica ${m.fifaDif}h</span>`:'';
       return `${torneoHdr}
