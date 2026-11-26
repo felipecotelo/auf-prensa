@@ -42854,7 +42854,8 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
     .map((m,i)=>[m,i]).sort((x,y)=>String(x[0].fecha||'').slice(0,10).localeCompare(String(y[0].fecha||'').slice(0,10))||x[1]-y[1]).map(x=>x[0]);
   const dl = []; { const _vistos=new Set(); const _reg=window.TORNEOS_AMISTOSOS||{};
     list.forEach(m=>{ if(!_tnView&&m.torneo&&_reg[m.torneo]){ if(!_vistos.has(m.torneo)){ _vistos.add(m.torneo); dl.push({_torneoBlock:m.torneo,fecha:m.fecha}); } } else dl.push(m); });
-    if(!_tnView) Object.entries(_reg).filter(([n,T])=>T.cat===cat&&T.year===year&&!_vistos.has(n)).forEach(([n,T])=>{ const k=dl.findIndex(x=>String(x.fecha||'').slice(0,10)>String(T.desde)); dl.splice(k<0?dl.length:k,0,{_torneoBlock:n,fecha:T.desde}); });
+    // Torneos del registro sin partidos en la lista: solo en las vistas de amistosos/preparación, nunca dentro de una competencia (ej. el Mundial)
+    if(!filterCompId) Object.entries(_reg).filter(([n,T])=>T.cat===cat&&T.year===year&&!_vistos.has(n)).forEach(([n,T])=>{ const k=dl.findIndex(x=>String(x.fecha||'').slice(0,10)>String(T.desde)); dl.splice(k<0?dl.length:k,0,{_torneoBlock:n,fecha:T.desde}); });
   }
   if(filterCompId) list.sort((a,b)=>String(a.fecha||'').localeCompare(String(b.fecha||''))||String(a.hora||'').localeCompare(String(b.hora||'')));
   const catLabel = cat==='fifamayor' ? 'Selección Mayor' : _juvCat.replace('sub','Sub-');
