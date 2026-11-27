@@ -51343,6 +51343,10 @@ window._lcVolver=function(){ window._lcMatch=null; window._lcEditar=null; window
 window._lcEdit=function(){ window._lcEditar=window._lcEditar?null:window._lcMatch; window.renderLeyendasCel(); };
 // Ficha de quien jugó: se busca como lo hace el buscador de arriba (jugadores de la Mayor, técnicos, estructura, juveniles); si no tiene ficha, el nombre no es un enlace.
 const _lcFichaMemo={};
+// ¿Jugó en la Selección? = tiene ficha de JUGADOR (las fichas de staff/DT de Estructura o Técnicos no cuentan: ej. Sergio Pérez Lauro, invitado)
+function _lcEsJugador(nom){ try{ const n=_lcNorm(nom), tok=n.split(' ').filter(Boolean); if(!tok.length||typeof window._gnavCollectResults!=='function') return false;
+  const r=window._gnavCollectResults(_gnavNorm(tok[tok.length-1]))||{};
+  return (r.jugadores||[]).some(x=>{ const A=_lcNorm(x.nom).split(' ').filter(Boolean); return _lcNorm(x.nom)===n||(tok.length>=2&&A.length>=2&&(A.every(t=>tok.includes(t))||tok.every(t=>A.includes(t)))); }); }catch(_){ return false; } }
 function _lcFichaDe(nom){
   if(_lcFichaMemo[nom]) return _lcFichaMemo[nom];
   let res=null;
@@ -51475,7 +51479,7 @@ window.renderLeyendasCel=function(){
   // chip de persona: si tiene ficha armada en la web, es un enlace a esa ficha
   const chip=(nom,cls,etq,quitar)=>{ const f=cls!=='riv'?_lcFichaDe(nom):null; return `<span class="ly-p ${cls}${f?' ly-fi':''}"${f?` onclick="event.stopPropagation();_lcFicha('${encodeURIComponent(nom)}')" title="Ver la ficha de ${esc(nom)}"`:''}>${esc(nom)}${etq?`<em>${etq}</em>`:''}${f?'<i class="ti ti-arrow-up-right"></i>':''}${quitar||''}</span>`; };
   // «Invitado» = de afuera, sin ficha en la web (nunca jugó en la Selección). Quien tiene ficha va como uno más aunque no esté en la lista de leyendas.
-  const lista=(m,tipo,cls,etq,editando)=>(m[tipo]||[]).map((n,i)=>chip(n,cls==='inv'&&_lcFichaDe(n)?'ley':cls,cls==='inv'&&_lcFichaDe(n)?'':etq,editando?`<button title="Sacar" onclick="event.stopPropagation();_lcQuitar('${m.id}','${tipo}',${i})">×</button>`:'')).join('');
+  const lista=(m,tipo,cls,etq,editando)=>(m[tipo]||[]).map((n,i)=>chip(n,cls==='inv'&&_lcEsJugador(n)?'ley':cls,cls==='inv'&&_lcEsJugador(n)?'':etq,editando?`<button title="Sacar" onclick="event.stopPropagation();_lcQuitar('${m.id}','${tipo}',${i})">×</button>`:'')).join('');
   const meta=m=>[esc(m.modalidad||''),m.hora?esc(m.hora)+'h':'',esc(m.lugar||'')].filter(Boolean).join(' · ');
   let body='';
   const m=(tab==='partidos'&&window._lcMatch)?todos.find(x=>x.id===window._lcMatch):null;
@@ -51532,7 +51536,7 @@ window.renderLeyendasCel=function(){
     const pj=todos.filter(x=>String(x.fecha)<=TODAY), prox=todos.filter(x=>String(x.fecha)>TODAY);
     const jug=pj.filter(jugado), conPl=pj.filter(x=>(x.leyendas||[]).length+(x.invitados||[]).length>0);
     let g=0,e=0,p=0,gf=0,gc=0; jug.forEach(x=>{ gf+=x.gL; gc+=x.gR; if(x.gL>x.gR) g++; else if(x.gL===x.gR) e++; else p++; });
-    const P={}; conPl.forEach(x=>{ [...(x.leyendas||[]).map(n=>[n,'ley']),...(x.invitados||[]).map(n=>[n,_lcFichaDe(n)?'ley':'inv'])].forEach(([n,t])=>{ const o=P[n]=P[n]||{n,t,pj:0,g:0,e:0,p:0,ms:[]}; o.pj++; o.ms.push(x); if(jugado(x)){ if(x.gL>x.gR) o.g++; else if(x.gL===x.gR) o.e++; else o.p++; } }); });
+    const P={}; conPl.forEach(x=>{ [...(x.leyendas||[]).map(n=>[n,'ley']),...(x.invitados||[]).map(n=>[n,_lcEsJugador(n)?'ley':'inv'])].forEach(([n,t])=>{ const o=P[n]=P[n]||{n,t,pj:0,g:0,e:0,p:0,ms:[]}; o.pj++; o.ms.push(x); if(jugado(x)){ if(x.gL>x.gR) o.g++; else if(x.gL===x.gR) o.e++; else o.p++; } }); });
     const GOL={}; pj.forEach(x=>Object.entries(x.goles||{}).forEach(([n,c])=>{ GOL[n]=(GOL[n]||0)+c; }));
     const lista2=Object.values(P).sort((a,b)=>b.pj-a.pj||(GOL[b.n]||0)-(GOL[a.n]||0)||a.n.localeCompare(b.n,'es'));
     const DT={}; pj.forEach(x=>(x.dts||[]).forEach(n=>{ (DT[n]=DT[n]||{n,c:0}).c++; }));
