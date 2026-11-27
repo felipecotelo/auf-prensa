@@ -1945,7 +1945,9 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .ly-r{font-family:'Space Grotesk','Inter',sans-serif;font-size:20px;font-weight:700;white-space:nowrap}.ly-ch{color:rgba(239,243,248,.4)}
 .ly-ps,.ly-pl{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.ly-pl{margin-top:8px}
 .ly-p{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid rgba(255,255,255,.14);color:#F4F7FB;background:rgba(255,255,255,.05)}
-.ly-p.ley{border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.1)}.ly-p.inv{border-color:rgba(148,163,184,.45);color:rgba(239,243,248,.85)}.ly-p.dt{border-color:rgba(250,204,21,.5);background:rgba(250,204,21,.08)}
+.ly-p.ley{border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.1)}.ly-p.inv{border-color:rgba(125,211,252,.45);color:#7DD3FC}
+/* Leyendas: los invitados (de afuera, sin ficha en la web) van con letra celeste clara; su avatar se toca para subir la foto */
+.sh-nm button.ly-inv{color:#7DD3FC}.sh-av.ly-up{cursor:pointer}.sh-av.ly-up>i.ly-cam{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.6);color:#fff;font-size:15px;opacity:0;transition:opacity .15s}.sh-av.ly-up:hover>i.ly-cam{opacity:1}.ly-p.dt{border-color:rgba(250,204,21,.5);background:rgba(250,204,21,.08)}
 .ly-p.riv{border-color:rgba(248,113,113,.4);background:rgba(248,113,113,.07)}
 .ly-lb{flex-basis:100%;margin-top:6px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(248,113,113,.75);font-weight:700}
 .ly-p em{font-style:normal;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.65}.ly-p b{font-size:11px;color:#8AD8FF}.ly-p button{border:none;background:none;color:rgba(239,243,248,.6);cursor:pointer;font-size:14px;padding:0 0 0 2px}
@@ -14269,6 +14271,7 @@ async function savePE(){
     }
     window.renderEstructura?.();
     window.renderJuveniles?.();
+    if(document.getElementById('sec-leyendas')?.offsetParent && typeof window.renderLeyendasCel==='function') window.renderLeyendasCel();
     // Re-render jugadores grid so mayor: photos appear immediately
     const _jc=document.getElementById('jugadores-container');
     if(_jc && _jc.offsetParent!==null && typeof renderJugadores==='function') renderJugadores();
@@ -51450,6 +51453,10 @@ window._lcFotoDe=function(n){ try{ const f=(window._getPhotoByName&&window._getP
       return ''; }catch(_){ return ''; } };
 // Las fotos de Estructura/Mayor llegan del servidor después de dibujar: completa los avatares que quedaron con iniciales.
 window._lcFillFotos=function(){ try{ const el=document.getElementById('sec-leyendas'); if(!el) return; el.querySelectorAll('.sh-av[data-lcn]').forEach(a=>{ if(a.querySelector('img')) return; const f=window._lcFotoDe(a.getAttribute('data-lcn')); if(!f) return; const im=document.createElement('img'); im.decoding='async'; im.src=f; im.onerror=()=>im.remove(); a.appendChild(im); }); }catch(_){} };
+// Invitados sin ficha: la foto se guarda por nombre (misma clave 'ct-p:' que Local/Estructura), así la encuentra _getPhotoByName en toda la web
+window._lcFotoSubir=function(enc){ const nom=decodeURIComponent(enc), key=_localNameToKey(nom), ya=(window._estPhotoCache||{})[key];
+  const pick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='image/*'; i.onchange=()=>{ const f=i.files&&i.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>openPE('est:'+key,ev.target.result); r.readAsDataURL(f); }; i.click(); };
+  if(ya){ openPE('est:'+key,ya); return; } pick(); };
 window._lcFillSoon=function(){ [500,1500,3500,7000,12000].forEach(ms=>setTimeout(window._lcFillFotos,ms)); };
 window.renderLeyendasCel=function(){
   const el=document.getElementById('leyendas-body'); if(!el) return;
@@ -51467,7 +51474,8 @@ window.renderLeyendasCel=function(){
   const tabsHtml=`<div class="ly-nav"><div class="tabs jt">${_tabs.map(t=>`<button onclick="_lcSetTab('${t.id}')" class="tab${t.id===tab?' active':''}" title="${t.label}"><i class="ti ${t.icon}"></i>${t.label}</button>`).join('')}</div></div>`;
   // chip de persona: si tiene ficha armada en la web, es un enlace a esa ficha
   const chip=(nom,cls,etq,quitar)=>{ const f=cls!=='riv'?_lcFichaDe(nom):null; return `<span class="ly-p ${cls}${f?' ly-fi':''}"${f?` onclick="event.stopPropagation();_lcFicha('${encodeURIComponent(nom)}')" title="Ver la ficha de ${esc(nom)}"`:''}>${esc(nom)}${etq?`<em>${etq}</em>`:''}${f?'<i class="ti ti-arrow-up-right"></i>':''}${quitar||''}</span>`; };
-  const lista=(m,tipo,cls,etq,editando)=>(m[tipo]||[]).map((n,i)=>chip(n,cls,etq,editando?`<button title="Sacar" onclick="event.stopPropagation();_lcQuitar('${m.id}','${tipo}',${i})">×</button>`:'')).join('');
+  // «Invitado» = de afuera, sin ficha en la web (nunca jugó en la Selección). Quien tiene ficha va como uno más aunque no esté en la lista de leyendas.
+  const lista=(m,tipo,cls,etq,editando)=>(m[tipo]||[]).map((n,i)=>chip(n,cls==='inv'&&_lcFichaDe(n)?'ley':cls,cls==='inv'&&_lcFichaDe(n)?'':etq,editando?`<button title="Sacar" onclick="event.stopPropagation();_lcQuitar('${m.id}','${tipo}',${i})">×</button>`:'')).join('');
   const meta=m=>[esc(m.modalidad||''),m.hora?esc(m.hora)+'h':'',esc(m.lugar||'')].filter(Boolean).join(' · ');
   let body='';
   const m=(tab==='partidos'&&window._lcMatch)?todos.find(x=>x.id===window._lcMatch):null;
@@ -51485,7 +51493,7 @@ window.renderLeyendasCel=function(){
         <label class="ly-w">Nota del evento (opcional)<input type="text" value="${esc(m.nota||'')}" onchange="_lcCampo('${m.id}','nota',this.value)"></label>
         <label>Goles Leyendas<input type="number" min="0" value="${m.gL==null?'':m.gL}" onchange="_lcCampo('${m.id}','gL',this.value)"></label>
         <label>Goles rival<input type="number" min="0" value="${m.gR==null?'':m.gR}" onchange="_lcCampo('${m.id}','gR',this.value)"></label>
-        <label class="ly-w">Quién jugó <small>(si es leyenda de la lista se marca como leyenda; si no, entra como invitado)</small><input type="text" list="ly-dl" placeholder="Escribí un nombre y Enter" onkeydown="if(event.key==='Enter'){_lcJugo('${m.id}',this);}" onchange="_lcJugo('${m.id}',this)"></label>
+        <label class="ly-w">Quién jugó <small>(si jugó en la Selección y tiene ficha va como leyenda; si es de afuera, como invitado)</small><input type="text" list="ly-dl" placeholder="Escribí un nombre y Enter" onkeydown="if(event.key==='Enter'){_lcJugo('${m.id}',this);}" onchange="_lcJugo('${m.id}',this)"></label>
         <label class="ly-w">Director técnico<input type="text" placeholder="Nombre y Enter" onkeydown="if(event.key==='Enter'){_lcDT('${m.id}',this);}" onchange="_lcDT('${m.id}',this)"></label>
         <label class="ly-w">Jugadores de ${esc(m.rival||'el rival')}<input type="text" placeholder="Nombre y Enter" onkeydown="if(event.key==='Enter'){_lcRival('${m.id}',this);}" onchange="_lcRival('${m.id}',this)"></label>
         <label class="ly-w">Goles de Leyendas Celestes <small>(escribí quién lo hizo y Enter; uno por gol)</small><input type="text" list="ly-gdl" placeholder="Nombre y Enter" onkeydown="if(event.key==='Enter'){_lcGol('${m.id}',this);}" onchange="_lcGol('${m.id}',this)"><datalist id="ly-gdl">${[...(m.leyendas||[]),...(m.invitados||[])].map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>
@@ -51524,7 +51532,7 @@ window.renderLeyendasCel=function(){
     const pj=todos.filter(x=>String(x.fecha)<=TODAY), prox=todos.filter(x=>String(x.fecha)>TODAY);
     const jug=pj.filter(jugado), conPl=pj.filter(x=>(x.leyendas||[]).length+(x.invitados||[]).length>0);
     let g=0,e=0,p=0,gf=0,gc=0; jug.forEach(x=>{ gf+=x.gL; gc+=x.gR; if(x.gL>x.gR) g++; else if(x.gL===x.gR) e++; else p++; });
-    const P={}; conPl.forEach(x=>{ [...(x.leyendas||[]).map(n=>[n,'ley']),...(x.invitados||[]).map(n=>[n,'inv'])].forEach(([n,t])=>{ const o=P[n]=P[n]||{n,t,pj:0,g:0,e:0,p:0,ms:[]}; o.pj++; o.ms.push(x); if(jugado(x)){ if(x.gL>x.gR) o.g++; else if(x.gL===x.gR) o.e++; else o.p++; } }); });
+    const P={}; conPl.forEach(x=>{ [...(x.leyendas||[]).map(n=>[n,'ley']),...(x.invitados||[]).map(n=>[n,_lcFichaDe(n)?'ley':'inv'])].forEach(([n,t])=>{ const o=P[n]=P[n]||{n,t,pj:0,g:0,e:0,p:0,ms:[]}; o.pj++; o.ms.push(x); if(jugado(x)){ if(x.gL>x.gR) o.g++; else if(x.gL===x.gR) o.e++; else o.p++; } }); });
     const GOL={}; pj.forEach(x=>Object.entries(x.goles||{}).forEach(([n,c])=>{ GOL[n]=(GOL[n]||0)+c; }));
     const lista2=Object.values(P).sort((a,b)=>b.pj-a.pj||(GOL[b.n]||0)-(GOL[a.n]||0)||a.n.localeCompare(b.n,'es'));
     const DT={}; pj.forEach(x=>(x.dts||[]).forEach(n=>{ (DT[n]=DT[n]||{n,c:0}).c++; }));
@@ -51532,8 +51540,8 @@ window.renderLeyendasCel=function(){
     const gol=Object.entries(GOL).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es'));
     const nLey=lista2.filter(x=>x.t==='ley').length, nInv=lista2.filter(x=>x.t==='inv').length;
     const foto=n=>window._lcFotoDe(n);
-    const av=(n,col)=>{ const ini=String(n).replace(/["']/g,'').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join(''), f=foto(n); return `<span class="sh-av" data-lcn="${esc(n)}" style="--pc:${col}"><span>${esc(ini)}</span>${f?`<img src="${esc(f)}" decoding="async" onerror="this.remove()">`:''}</span>`; };
-    const nom=(n,tag)=>{ const f=_lcFichaDe(n); return `<span class="sh-nm">${f?`<button onclick="_lcFicha('${encodeURIComponent(n)}')" title="Ver la ficha de ${esc(n)}">${esc(n)}</button>`:`<button style="cursor:default">${esc(n)}</button>`}${tag?`<em class="sh-tg">${tag}</em>`:''}</span>`; };
+    const av=(n,col)=>{ const ini=String(n).replace(/["']/g,'').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join(''), f=foto(n); const up=!IS_RESTRICTED&&!_lcFichaDe(n); return `<span class="sh-av${up?' ly-up':''}" data-lcn="${esc(n)}" style="--pc:${col}"${up?` onclick="_lcFotoSubir('${encodeURIComponent(n)}')" title="${f?'Cambiar':'Subir'} la foto de ${esc(n)}"`:''}><span>${esc(ini)}</span>${up?'<i class="ti ti-camera ly-cam"></i>':''}${f?`<img src="${esc(f)}" decoding="async" onerror="this.remove()">`:''}</span>`; };
+    const nom=(n,tag)=>{ const f=_lcFichaDe(n); return `<span class="sh-nm">${f?`<button onclick="_lcFicha('${encodeURIComponent(n)}')" title="Ver la ficha de ${esc(n)}">${esc(n)}</button>`:`<button style="cursor:default"${tag==='Invitado'?' class="ly-inv"':''}>${esc(n)}</button>`}${tag?`<em class="sh-tg">${tag}</em>`:''}</span>`; };
     const medal=i=>i===0?'m1':i===1?'m2':i===2?'m3':'';
     const rec=o=>`<span class="ly-rec"><em style="color:#4ADE80">${o.g}G</em> <em style="color:#FCD34D">${o.e}E</em> <em style="color:#F87171">${o.p}P</em></span>`;
     const vs=x=>`<span class="ly-mini" title="${esc(x.rival)} · ${esc(x.fecha)}">${_lcEscRival(x.rival,18)}</span>`;
@@ -51544,8 +51552,8 @@ window.renderLeyendasCel=function(){
     const sigHtml=sig?`<div class="ly-next" onclick="_lcAbrir('${sig.id}')"><span class="ly-nx-l">Próximo</span><span class="ly-nx-e">${_lcEscRival(sig.rival,30)}</span><span class="ly-nx-t"><b>Leyendas Celestes vs. ${esc(sig.rival)}</b><span>${[_lcDiaTxt(sig)+' '+(parseInt(String(sig.fecha).split('-')[2],10)||'')+'/'+(parseInt(String(sig.fecha).split('-')[1],10)||''),sig.hora?esc(sig.hora)+'h':'',esc(sig.lugar||'')].filter(Boolean).join(' · ')}</span></span>${sig.auftv?'<i class="jm-b tv">AUFtv</i>':''}<i class="ti ti-chevron-right jm-ch"></i></div>`:'';
     const tile=(v,t,c)=>`<div class="fs-tile"><span class="v"${c?` style="color:${c}"`:''}>${v}</span><span class="t">${t}</span></div>`;
     const fila=(rank,html)=>`<div class="sh-row">${rank}${html}</div>`;
-    const golesCard=gol.length?`<div class="sh-card"><div class="sh-h"><span>Goleadores</span><em>${gol.reduce((q,[,c])=>q+c,0)} gol${gol.reduce((q,[,c])=>q+c,0)===1?'':'es'}</em></div>${gol.map(([n,c],i)=>fila(`<span class="sh-rk ${medal(i)}">${i+1}</span>`,`${av(n,'#34D399')}${nom(n,P[n]&&P[n].t==='inv'?'Invitado':'')}<span class="ly-rg" style="margin-left:auto"><i class="ti ti-ball-football"></i>${c}</span>`)).join('')}</div>`:'';
-    const jugCard=`<div class="sh-card"><div class="sh-h"><span>Jugadores nuestros que participaron</span><em>${nLey} de la lista · ${nInv} invitados</em></div>${lista2.length?`<div class="sh-row ly-rh2"><span class="sh-rk"></span><span style="flex:1"></span><span class="ly-c1">Partidos</span><span class="ly-c2">Goles</span><span class="ly-c3">Con él en cancha</span><span class="ly-c4">Contra</span></div>`+lista2.map(o=>fila(`<span class="sh-rk ${medal(0)&&o.pj===lista2[0].pj&&lista2[0].pj>1?'m1':''}">${o.pj}</span>`,`${av(o.n,o.t==='ley'?'#34D399':'#94A3B8')}${nom(o.n,o.t==='inv'?'Invitado':'')}<span class="ly-c1">${o.pj}<small> de ${conPl.length}</small></span><span class="ly-c2">${GOL[o.n]?`<span class="ly-rg"><i class="ti ti-ball-football"></i>${GOL[o.n]}</span>`:'<span class="ly-none">·</span>'}</span><span class="ly-c3">${(o.g+o.e+o.p)?rec(o):'<span class="ly-none">sin resultado</span>'}</span><span class="ly-c4">${o.ms.map(vs).join('')}</span>`)).join(''):'<div class="sx-foot" style="border:none;padding:16px 20px">Todavía no hay plantel cargado.</div>'}</div>`;
+    const golesCard=gol.length?`<div class="sh-card"><div class="sh-h"><span>Goleadores</span><em>${gol.reduce((q,[,c])=>q+c,0)} gol${gol.reduce((q,[,c])=>q+c,0)===1?'':'es'}</em></div>${gol.map(([n,c],i)=>fila(`<span class="sh-rk ${medal(i)}">${i+1}</span>`,`${av(n,P[n]&&P[n].t==='inv'?'#7DD3FC':'#34D399')}${nom(n,P[n]&&P[n].t==='inv'?'Invitado':'')}<span class="ly-rg" style="margin-left:auto"><i class="ti ti-ball-football"></i>${c}</span>`)).join('')}</div>`:'';
+    const jugCard=`<div class="sh-card"><div class="sh-h"><span>Jugadores nuestros que participaron</span><em>${nLey} de la Selección · ${nInv} invitado${nInv===1?'':'s'}</em></div>${lista2.length?`<div class="sh-row ly-rh2"><span class="sh-rk"></span><span style="flex:1"></span><span class="ly-c1">Partidos</span><span class="ly-c2">Goles</span><span class="ly-c3">Con él en cancha</span><span class="ly-c4">Contra</span></div>`+lista2.map(o=>fila(`<span class="sh-rk ${medal(0)&&o.pj===lista2[0].pj&&lista2[0].pj>1?'m1':''}">${o.pj}</span>`,`${av(o.n,o.t==='ley'?'#34D399':'#7DD3FC')}${nom(o.n,o.t==='inv'?'Invitado':'')}<span class="ly-c1">${o.pj}<small> de ${conPl.length}</small></span><span class="ly-c2">${GOL[o.n]?`<span class="ly-rg"><i class="ti ti-ball-football"></i>${GOL[o.n]}</span>`:'<span class="ly-none">·</span>'}</span><span class="ly-c3">${(o.g+o.e+o.p)?rec(o):'<span class="ly-none">sin resultado</span>'}</span><span class="ly-c4">${o.ms.map(vs).join('')}</span>`)).join(''):'<div class="sx-foot" style="border:none;padding:16px 20px">Todavía no hay plantel cargado.</div>'}</div>`;
     const dtCard=dts.length?`<div class="sh-card"><div class="sh-h"><span>Cuerpo técnico</span><em>${dts.length}</em></div>${dts.map(x=>fila(`<span class="sh-rk">${x.c}</span>`,`${av(x.n,'#FACC15')}${nom(x.n,'DT')}<span class="ly-c1" style="margin-left:auto">${x.c}<small> de ${pj.length}</small></span>`)).join('')}</div>`:'';
     body=`<div class="ly-hero2"><div class="ly-eye">Leyendas Celestes · ${new Date(TODAY+'T12:00:00').getFullYear()}</div><div class="ly-big">${titulo}</div><div class="ly-sub2">${subt}</div>${sigHtml}</div>
       <div class="fs-grid ly-tiles">${tile(pj.length,'Partidos jugados')}${tile(`<span style="color:#4ADE80">${g}G</span> <span style="color:#FCD34D">${e}E</span> <span style="color:#F87171">${p}P</span>`,'Resultados')}${tile(jug.length?gf+'–'+gc:'—','Goles')}${tile(gol.length,'Goleadores')}${tile(lista2.length,'Jugadores')}${tile(dts.length,'Cuerpo técnico')}</div>
