@@ -1930,6 +1930,10 @@ table.gt tr.uy td:last-child{border-radius:0 12px 12px 0}
 .mr-tb{width:100%;border-collapse:collapse;font-size:13px;color:#F4F7FB}.mr-tb th{font-size:10px;color:rgba(239,243,248,.5);font-weight:700;text-align:center;padding:4px 4px}.mr-tb td{text-align:center;padding:8px 4px;border-top:1px solid rgba(255,255,255,.07)}
 .mr-tb .n{text-align:left;display:flex;align-items:center;gap:8px;white-space:nowrap}.mr-tb tr.uy td{background:rgba(56,189,248,.09);font-weight:700}
 .mr-foot{margin-top:10px;font-size:11.5px;color:rgba(239,243,248,.5);line-height:1.45}
+.mr-sg{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;margin-top:14px}.mr-sg h5{margin:0 0 6px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(239,243,248,.5)}
+.mr-sg ul{list-style:none;margin:0;padding:0}.mr-sg li{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid rgba(255,255,255,.06);font-size:12.5px;color:#F4F7FB}.mr-sg li:first-child{border-top:none}.mr-sg li b{font-weight:600}.mr-sg li span{color:rgba(239,243,248,.6);white-space:nowrap}.mr-tj{display:inline-block;width:8px;height:11px;border-radius:2px;vertical-align:-1px;margin-left:3px}.mr-tj.a{background:#FACC15}.mr-tj.r{background:#EF4444}
+.mr-sg p{margin:0;font-size:12.5px;line-height:1.5;color:rgba(239,243,248,.75)}
+@media(max-width:560px){.mr-sg{grid-template-columns:1fr}.mr-st .mr-fs{grid-template-columns:repeat(2,1fr)!important}}
 .mr-ruta{position:relative;padding-left:18px}.mr-ruta:before{content:'';position:absolute;left:5px;top:8px;bottom:8px;width:2px;background:rgba(255,255,255,.1);border-radius:2px}
 .mr-r{position:relative;padding:9px 12px;margin-bottom:8px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07)}.mr-r:last-child{margin-bottom:0}
 .mr-r:before{content:'';position:absolute;left:-17px;top:13px;width:10px;height:10px;border-radius:50%;background:#1b2234;border:2px solid rgba(255,255,255,.25)}
@@ -41937,6 +41941,34 @@ window._mundResumenVivoLoad=async function(cid){
       return `<div class="mr-m" style="flex-wrap:wrap"><span style="flex-basis:100%;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(239,243,248,.5);margin-bottom:2px">${esc(stage(m))}</span><span class="n">${typeof _escudoSeleccion==='function'?_escudoSeleccion(nm(riv),18):''}${esc(nm(riv))}</span><b style="color:${col}">${cu?gU+'–'+gR:'por jugar'}${vivo(m)?` <span class="mr-live">EN VIVO ${esc(m.MatchTime||'')}</span>`:''}</b><span style="flex-basis:100%;font-size:11px;color:rgba(239,243,248,.5);padding-left:2px">${esc(cuando)}h${est?' · '+esc(est):''}</span></div>`; }).join('');
     const koHtml=`<div class="mr-card"><div class="mr-t">Fase final</div>${koFilas||'<div class="mr-foot" style="border:none;padding:6px 0">El rival de dieciseisavos (30/11 y 1/12) se sabe cuando terminen los 12 grupos; apenas FIFA lo publique aparece acá, en el Fixture y en el Calendar.</div>'}${cruce}</div>`;
     caminoRuta=_armaRuta();
+    // Felipe (27/11/2026): debajo de la tabla, las estadísticas de Uruguay en el torneo (partidos cargados en la app: goles, tarjetas, MVP, plantel usado)
+    let statsHtml='';
+    try{
+      const lst=JSON.parse(localStorage.getItem('auf4_amist_juv_'+cfg.cat+'_'+cfg.year)||'[]').filter(x=>x.compId===cid&&x.gLocal!=null&&x.gRival!=null).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+      if(lst.length){
+        const G=lst.filter(x=>x.gLocal>x.gRival||(x.gLocal===x.gRival&&x.penales&&x.penGLocal>x.penGRival)).length, E=lst.filter(x=>x.gLocal===x.gRival&&!x.penales).length, P=lst.length-G-E;
+        const gf=lst.reduce((t,x)=>t+x.gLocal,0), gc=lst.reduce((t,x)=>t+x.gRival,0);
+        const gol={}; let ec=0; lst.forEach(x=>Object.entries(x.goles||{}).forEach(([n,c])=>{ if(n==='__EC__') ec+=c; else gol[n]=(gol[n]||0)+c; }));
+        const am={}, ro={}; lst.forEach(x=>(x.tarjetas||[]).forEach(t=>{ const o=t.col==='r'||t.col==='ra'?ro:am; o[t.nom]=(o[t.nom]||0)+1; }));
+        // minutos: titular 90 (o hasta que salió), suplente desde que entró; cambio sin minuto = entretiempo (FIFA lo marca en el período de descanso)
+        const mins={}, pjN={}, usados=new Set(), sm=v=>{ const n=parseInt(String(v==null?'':v),10); return isNaN(n)?45:Math.min(n,90); };
+        lst.forEach(x=>{ const st=Object.values(((x.lineup||{}).starters)||{}).filter(Boolean), sal={}; (x.subs||[]).forEach(sb=>{ if(sb.por) sal[sb.por]=sm(sb.min); });
+          st.forEach(n=>{ usados.add(n); pjN[n]=(pjN[n]||0)+1; mins[n]=(mins[n]||0)+(sal[n]!=null?sal[n]:90); });
+          (x.subs||[]).forEach(sb=>{ if(!sb.nom) return; usados.add(sb.nom); pjN[sb.nom]=(pjN[sb.nom]||0)+1; mins[sb.nom]=(mins[sb.nom]||0)+(sal[sb.nom]!=null?sal[sb.nom]:90)-sm(sb.min); }); });
+        const topMin=Object.entries(mins).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es')).slice(0,6).map(([n,m])=>`<li><b>${esc(n)}</b><span>${m}' · ${pjN[n]} PJ</span></li>`).join('');
+        const plantel=(((window.COMP_DATA||{})[cid]||{}).convocados||[]).map(j=>j&&(j.nom||j.nombre)).filter(Boolean);
+        const sinMin=plantel.filter(n=>!usados.has(n));
+        const _mv={}; lst.filter(x=>x.mvp).forEach(x=>(_mv[x.mvp]=_mv[x.mvp]||[]).push(x.rival)); const mvps=Object.entries(_mv).sort((a,b)=>b[1].length-a[1].length).map(([n,r])=>`<li><b>${esc(n)}</b><span>${r.length>1?r.length+' · ':''}vs. ${r.map(esc).join(' y ')}</span></li>`).join('');
+        const li=(o,suf)=>Object.entries(o).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'es')).map(([n,c])=>`<li><b>${esc(n)}</b><span>${c}${suf}</span></li>`).join('');
+        const tile=(v,l)=>`<div class="mr-f"><span>${l}</span><b>${v}</b></div>`;
+        statsHtml=`<div class="mr-st"><div class="mr-t" style="margin-top:18px">Uruguay en el torneo</div>
+          <div class="mr-fs" style="grid-template-columns:repeat(4,1fr)">${tile(lst.length,'Partidos')}${tile(G+'-'+E+'-'+P,'G-E-P')}${tile(gf+'–'+gc,'Goles')}${tile(usados.size+(plantel.length?' de '+plantel.length:''),'Jugadores usados')}</div>
+          <div class="mr-sg"><div><h5>Más minutos</h5><ul>${topMin}</ul></div><div><h5>Goleadores</h5><ul>${li(gol,'')}${ec?`<li><b>En contra</b><span>${ec}</span></li>`:''}</ul></div>
+          <div><h5>Tarjetas</h5><ul>${li(am,' <i class="mr-tj a"></i>')}${li(ro,' <i class="mr-tj r"></i>')||''}</ul>${!Object.keys(am).length&&!Object.keys(ro).length?'<p>Sin tarjetas</p>':''}</div>
+          ${mvps?`<div><h5>Jugador del partido</h5><ul>${mvps}</ul></div>`:''}
+          ${plantel.length?`<div><h5>Sin minutos todavía</h5><p>${sinMin.length?sinMin.map(esc).join(', '):'Jugaron todos'}</p></div>`:''}</div></div>`;
+      }
+    }catch(_){}
     const vm=all.find(m=>vivo(m)&&(m.Home.IdTeam===cfg.team||m.Away.IdTeam===cfg.team));
     if(vm){ sub=String(sub).replace(/^Terminó el grupo en el puesto (\d)\./,'Con el resultado en juego, quedaría $1.º del grupo.'); estado=String(estado).replace(/^Terminó 3\.º:/,'Quedaría 3.º:'); }
     let vivoTxt=''; if(vm){ const lo=vm.Home.IdTeam===cfg.team; vivoTxt=`<div class="mr-vivo"><span class="mr-live">EN VIVO ${esc(vm.MatchTime||'')}</span> Uruguay ${lo?vm.HomeTeamScore:vm.AwayTeamScore}–${lo?vm.AwayTeamScore:vm.HomeTeamScore} ${esc(nm(lo?vm.Away:vm.Home))} · la tabla y la clasificación usan este resultado provisional</div>`; }
@@ -41945,7 +41977,7 @@ window._mundResumenVivoLoad=async function(cid){
     el.innerHTML=`${vivoTxt}<div class="mr-hero ${tono}"><div class="mr-eye">${esc(cfg.titulo||'Mundial')} · ${esc(gU)} · ${pos}.º en el grupo</div><div class="mr-est">${esc(estado)}</div><div class="mr-sub">${esc(sub)}</div></div>
       <div class="mr-grid">
         <div class="mr-card"><div class="mr-t">${esc(gU)}</div><table class="mr-tb"><thead><tr><th></th><th class="n">Selección</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>DG</th><th>Pts</th></tr></thead><tbody>${filasT}</tbody></table>
-          <div class="mr-foot">Pasan los 2 primeros de cada grupo y los 8 mejores terceros de 12 grupos. ${esc(tercTxt)}</div></div>
+          <div class="mr-foot">Pasan los 2 primeros de cada grupo y los 8 mejores terceros de 12 grupos. ${esc(tercTxt)}</div>${statsHtml}</div>
         <div class="mr-col">${esc3}
           <div class="mr-card"><div class="mr-t">Partidos de Uruguay</div>${filas}</div>
           ${koHtml}
