@@ -51458,8 +51458,8 @@ window._lcFotoDe=function(n){ try{ const f=(window._getPhotoByName&&window._getP
 // Las fotos de Estructura/Mayor llegan del servidor después de dibujar: completa los avatares que quedaron con iniciales.
 window._lcFillFotos=function(){ try{ const el=document.getElementById('sec-leyendas'); if(!el) return; el.querySelectorAll('.sh-av[data-lcn]').forEach(a=>{ if(a.querySelector('img')) return; const f=window._lcFotoDe(a.getAttribute('data-lcn')); if(!f) return; const im=document.createElement('img'); im.decoding='async'; im.src=f; im.onerror=()=>im.remove(); a.appendChild(im); }); }catch(_){} };
 // Invitados sin ficha: la foto se guarda por nombre (misma clave 'ct-p:' que Local/Estructura), así la encuentra _getPhotoByName en toda la web
-window._lcFotoSubir=function(enc){ const nom=decodeURIComponent(enc), key=_localNameToKey(nom), ya=(window._estPhotoCache||{})[key];
-  const pick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='image/*'; i.onchange=()=>{ const f=i.files&&i.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>openPE('est:'+key,ev.target.result); r.readAsDataURL(f); }; i.click(); };
+window._lcFotoSubir=function(enc){ const nom=decodeURIComponent(enc), key='ct-p:'+nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,''), ya=(window._estPhotoCache||{})[key];
+  const pick=()=>{ const i=document.createElement('input'); i.type='file'; i.accept='image/*'; i.style.display='none'; document.body.appendChild(i); i.onchange=()=>{ const f=i.files&&i.files[0]; i.remove(); if(!f) return; const r=new FileReader(); r.onload=ev=>openPE('est:'+key,ev.target.result); r.readAsDataURL(f); }; i.click(); };
   if(ya){ openPE('est:'+key,ya); return; } pick(); };
 window._lcFillSoon=function(){ [500,1500,3500,7000,12000].forEach(ms=>setTimeout(window._lcFillFotos,ms)); };
 window.renderLeyendasCel=function(){
