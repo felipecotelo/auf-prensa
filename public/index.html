@@ -10538,12 +10538,15 @@ function _recMd1Derivados(){
         const grupo='md1|'+cat+'|'+m.id, w=_recMasMin(_recSumarDias(D,-1),'18:00',30);
         // El título dice qué día es el partido (Felipe, 24/11/2026) SOLO en los avisos con más de 1 día de anticipación («…vs. Francia del miércoles»); si falta más de una semana, con la fecha.
         const _dsem=Math.round((dt-new Date(TODAY+'T12:00:00'))/86400000), delDia=' del '+DIA[dt.getDay()]+(_dsem>6?' '+D.slice(8,10)+'/'+D.slice(5,7):'');
-        [['md1-pedir',`Mandar a diseñar MD-1 de la ${catMin} vs. ${m.rival}${delDia}`,_recSumarDias(D,-2),'10:00',1,det],
-         ['md1-pub',`Publicar MD-1 de la ${catMin} vs. ${m.rival}`,_recSumarDias(D,-1),'18:00',2,det],
-         ['md1-tw',`Enviar por Whatsapp el link del tuit del MD-1 vs. ${m.rival}`,w.vence,w.hora,3,`Partido del ${cuando}${hm?' · '+hm[1]+':'+hm[2]+'h':''}`]
-        ].forEach(([pre,titulo,vence,hora,orden,detalle])=>{
-          const id=`${pre}|${m.id}`, mn=manual[id]||{};
-          out.push({id,titulo,detalle,vence,hora,etiqueta:cat,secuencial:true,grupo,orden,derivado:true,hecho:!!mn.hecho,hechoEn:mn.hecho?(mn.hechoEn||new Date().toISOString()):null});
+        // Felipe (27/11/2026): «el partido es el lunes, debiste sugerirme hoy elegir los jugadores para el MD-1» → primer paso, 3 días antes; se da por hecho solo al marcar los jugadores en Diseño (o «No hubo»).
+        let selMd1=false; try{ const e=((stor.get('auf4_juv_diseno',{})||{})[m.compId]||{})[String(m.id)]||{}; selMd1=(e.md1||[]).length>0||!!e.noMd1; }catch(_){}
+        [['md1-sel',`Elegir jugadores para el MD-1 de la ${catMin} vs. ${m.rival}${delDia}`,_recSumarDias(D,-3),'10:00',1,det,selMd1],
+         ['md1-pedir',`Mandar a diseñar MD-1 de la ${catMin} vs. ${m.rival}${delDia}`,_recSumarDias(D,-2),'10:00',2,det],
+         ['md1-pub',`Publicar MD-1 de la ${catMin} vs. ${m.rival}`,_recSumarDias(D,-1),'18:00',3,det],
+         ['md1-tw',`Enviar por Whatsapp el link del tuit del MD-1 vs. ${m.rival}`,w.vence,w.hora,4,`Partido del ${cuando}${hm?' · '+hm[1]+':'+hm[2]+'h':''}`]
+        ].forEach(([pre,titulo,vence,hora,orden,detalle,auto])=>{
+          const id=`${pre}|${m.id}`, mn=manual[id]||{}, hecho=!!mn.hecho||!!auto;
+          out.push({id,titulo,detalle,vence,hora,etiqueta:cat,secuencial:true,grupo,orden,derivado:true,hecho,hechoEn:hecho?(mn.hechoEn||new Date().toISOString()):null});
         });
         // La alineación (Felipe, 19/11/2026): cadena de 5 pasos, cada uno se habilita al dar por hecho el anterior (los partidos que van por AUFtv tienen su propio circuito):
         //  1) Conseguir alineación (día antes)  2) Elegir jugador para el diseño de alineación  3) Mandar a diseñar y cargar en la app la alineación  4) Publicar alineación (1:30h antes del partido)  5) Enviar a prensa el tuit con la formación
@@ -11567,7 +11570,7 @@ window._recNoAplica=function(id){
 window._recHecho=function(id){
   const _mc=String(id).match(/^cov(pub|link)\|([a-z0-9]+)\|(\d{4}-\d{2}-\d{2})$/);
   if(_mc){ window._covSetDesdeRec(_mc[1],_mc[2],_mc[3]); const n=document.getElementById('rec-noti'); if(n) n.remove(); if(typeof renderInicio==='function') renderInicio(); return; }
-  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-pedir|md1-pub|md1-tw|ali-sel|ali-dis|ali-pub|ali-tw|fifachk|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc|mdm|hito)\|/.test(String(id))){
+  if(/^(alin|ficha|pub|sem|bebes|tv[1-6]|tw6?|gol[123]|aten-pre|aten-link|md1-sel|md1-pedir|md1-pub|md1-tw|ali-sel|ali-dis|ali-pub|ali-tw|fifachk|resgol|convj|escr|cubl|fotl|reell|reelg|chkc|fjuv|presx|aftp|aftc|mdm|hito)\|/.test(String(id))){
     const man=stor.get('auf4_rec_manual',{}), cur=man[id]||{};
     man[id]= cur.hecho ? {} : {hecho:true,hechoEn:new Date().toISOString()};
     stor.set('auf4_rec_manual',man);
