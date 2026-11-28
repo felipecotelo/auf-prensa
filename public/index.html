@@ -41722,9 +41722,9 @@ function _mundBracketHtml(ko){
   const _uyJug=Object.values(byN).filter(m=>nm(m.Home)==='Uruguay'||nm(m.Away)==='Uruguay').sort((a,b)=>String(a.Date).localeCompare(String(b.Date)));
   const _uyUlt=[..._uyJug].reverse().find(m=>m.Winner);
   const _uyElim=!!_uyUlt&&String(_uyUlt.Winner)!==String((nm(_uyUlt.Home)==='Uruguay'?_uyUlt.Home:_uyUlt.Away).IdTeam);
-  const vista=window._bkView||(_uyElim?'camino':'uy');
+  let vista=window._bkView||(_uyElim&&!ko.sinCamino?'camino':'uy'); if(ko.sinCamino&&vista==='camino') vista='uy';
   const hora=ko.ts?new Date(ko.ts).toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
-  const tg=`<span class="bk-tg">${[...(_uyJug.length?[['camino','Camino de Uruguay']]:[]),['uy','Lado de Uruguay'],['otro','Otro lado'],['full','Completo']].map(([v,t])=>`<button class="${vista===v?'on':''}" onclick="_bkSet('${v}')">${t}</button>`).join('')}</span>`;
+  const tg=`<span class="bk-tg">${[...(_uyJug.length&&!ko.sinCamino?[['camino','Camino de Uruguay']]:[]),['uy','Lado de Uruguay'],['otro','Otro lado'],['full','Completo']].map(([v,t])=>`<button class="${vista===v?'on':''}" onclick="_bkSet('${v}')">${t}</button>`).join('')}</span>`;
   let cuerpo;
   if(vista==='camino'){
     const fwd=(n,lab)=>Object.values(byN).find(x=>(x.PlaceHolderA===lab+n||x.PlaceHolderB===lab+n));
@@ -41752,10 +41752,48 @@ function _mundBracketHtml(ko){
       cuerpo=`${lab}<div class="bk bk-one"><div class="bk-l">${node(k[0])}</div><div class="bk-fin">${card(fin)}</div></div>`;
     }
   }
-  return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">Fase final · Categoría A<em>|</em><u>eliminación directa</u></span><span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${tg}<span class="gt-upd">FIFA · actualizado ${hora}h</span></span></div>
+  return `<div class="gt-card"><div class="gt-top"><span class="gt-eb">${ko.titulo||'Fase final · Categoría A'}<em>|</em><u>eliminación directa</u></span><span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${tg}<span class="gt-upd">FIFA · actualizado ${hora}h</span></span></div>
     <div class="bk-sc"><div class="bk-in">${cuerpo}</div></div></div>`;
 }
-window._bkSet=function(v){ window._bkView=v; window._bkTouched=false; const e=document.getElementById('mun15-grupo'); if(e) _mun15Set(e,window._mundCur); };
+window._bkSet=function(v){ window._bkView=v; window._bkTouched=false; const e=document.getElementById('mun15-grupo'); if(e) _mun15Set(e,window._mundCur); if(document.getElementById('wc-bk')) window._wcBkFill(); };
+// ── Cuadro del Mundial Sub-17 en el Fixture (Felipe, 27/11/2026: «armar el cuadro como hicimos con la Sub-15») ──
+// FIFA no publica las llaves (PlaceHolder W73…) en esta temporada: el cuadro sale de _MUND_CFG[cid].cuadro (orden oficial) y
+// cada partido toma de FIFA equipos, fecha y resultado; los ganadores avanzan solos.
+window._wcBkData={};
+window._wcBkFill=async function(){
+  const el=document.getElementById('wc-bk'); if(!el) return; const cid=el.dataset.cid, cfg=_MUND_CFG[cid]; if(!cfg||!cfg.cuadro) return;
+  let d=window._wcBkData[cid];
+  if(!d||Date.now()-d.ts>120000){
+    try{
+      const r=await fetch(`https://api.fifa.com/api/v3/calendar/matches?language=es&count=300&idSeason=${cfg.season}`,{cache:'no-store'}); const j=await r.json();
+      const all=((j&&j.Results)||[]).filter(m=>((m.StageName||[{}])[0].Description||'')!=='Primera fase');
+      const fix={'República de Irlanda':'Irlanda','República de Corea':'Corea del Sur','RP China':'China','Algeria':'Argelia','Mali':'Malí','Arabia Saudí':'Arabia Saudita'};
+      const es=t=>{ if(!t) return null; const c=JSON.parse(JSON.stringify(t)); const n=((t.TeamName||[{}])[0].Description)||t.ShortClubName||''; c.ShortClubName=fix[n]||n; return c; };
+      const ab=t=>(t&&(t.Abbreviation||t.IdCountry))||'';
+      const cl=m=>{ const c=JSON.parse(JSON.stringify(m)); c.Home=es(m.Home); c.Away=es(m.Away); return c; };
+      const conEq=all.filter(m=>m.Home&&m.Away), ms=[];
+      const gan=m=>{ if(!m||!m.Winner||!m.Home||!m.Away) return null; return String(m.Winner)===String(m.Home.IdTeam)?m.Home:String(m.Winner)===String(m.Away.IdTeam)?m.Away:null; };
+      let nivel=cfg.cuadro.map((par,i)=>{ const f=conEq.find(m=>{ const s=[ab(m.Home),ab(m.Away)]; return s.includes(par[0])&&s.includes(par[1]); });
+        const m=f?cl(f):{MatchNumber:1000+i,Date:'',Home:null,Away:null}; ms.push(m); return m; });
+      let lv=1;
+      while(nivel.length>1){
+        const sig=[];
+        for(let i=0;i<nivel.length;i+=2){
+          const A=nivel[i], B=nivel[i+1], wA=gan(A), wB=gan(B);
+          let m=null;
+          if(nivel.length===2){ const fin=all.find(x=>((x.StageName||[{}])[0].Description||'')==='Final'); if(fin) m=cl(fin); }
+          if(!m&&wA&&wB){ const f=conEq.find(x=>[x.Home.IdTeam,x.Away.IdTeam].includes(wA.IdTeam)&&[x.Home.IdTeam,x.Away.IdTeam].includes(wB.IdTeam)); if(f) m=cl(f); }
+          if(!m) m={MatchNumber:2000+lv*100+i,Date:'',Home:null,Away:null};
+          if(!m.Home&&wA) m.Home=wA; if(!m.Away&&wB) m.Away=wB;
+          m.PlaceHolderA='W'+A.MatchNumber; m.PlaceHolderB='W'+B.MatchNumber; ms.push(m); sig.push(m);
+        }
+        nivel=sig; lv++;
+      }
+      d=window._wcBkData[cid]={ts:Date.now(),ms,titulo:'Fase final',sinCamino:true};
+    }catch(_){ if(!d){ el.innerHTML=''; return; } }
+  }
+  el.innerHTML=_mundBracketHtml(d);
+};
 window._mundKoRefresh=async function(cid){
   const cfg=_MUND_CFG[cid]; if(!cfg||!cfg.team) return;
   try{
@@ -43617,6 +43655,7 @@ window._buildJuvAmistosos = function _buildJuvAmistosos(cat, year, color, catDat
     ${addForm}
     <div style="font-size:.65em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">${total} partido${total!==1?'s':''}</div>
     ${matchesHtml}
+    ${(filterCompId&&(_MUND_CFG[filterCompId]||{}).cuadro)?(setTimeout(()=>window._wcBkFill&&window._wcBkFill(),0),`<div id="wc-bk" data-cid="${filterCompId}" style="margin:18px 0"></div>`):''}
     ${statsTorneo}`;
 }
 
